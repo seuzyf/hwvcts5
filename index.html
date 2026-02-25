@@ -696,10 +696,8 @@
     </style>
 </head>
 <body>
-    <!-- 粒子背景 -->
     <div class="particles" id="particles"></div>
 
-    <!-- 开始界面 -->
     <div class="start-screen" id="startScreen">
         <div class="title-container">
             <div class="title-badge">VALORANT TOURNAMENT</div>
@@ -709,7 +707,6 @@
         <button class="start-btn" onclick="startGame()">开 始 报 名</button>
     </div>
 
-    <!-- 游戏界面 -->
     <div class="game-container" id="gameContainer">
         <div class="game-bg"></div>
         <div class="progress-bar">
@@ -775,6 +772,15 @@
             kast: 0,
             dataSource: '',
             step: 0
+        };
+
+        // ============ 位置映射 ============
+        const roleMap = {
+            'duelist1': '一突',
+            'duelist2': '二突',
+            'sentinel': '哨位',
+            'initiator': '先锋',
+            'controller': '烟位'
         };
 
         // ============ 角色数据 ============
@@ -1472,12 +1478,16 @@
             // 提交数据到 Supabase
             content.innerHTML = `<p style="color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 15px;">正在提交报名数据...</p>`;
 
+            // 对位置信息进行中文映射
+            const displayRole = roleMap[gameState.role] || gameState.role;
+
             try {
                 const { data, error: dbError } = await supabaseClient
                     .from('player_stats')
                     .insert([{
                         player_name: gameState.playerName,
                         game_id: gameState.gameId,
+                        player_role: displayRole, // 将获取的位置信息传给数据库
                         rank_tier: gameState.rankTier,
                         acs: gameState.acs,
                         adr: gameState.adr,
@@ -1526,6 +1536,8 @@
             speaker.textContent = `${agent.name} // ${agent.nameCN}`;
             content.innerHTML = '';
 
+            const displayRole = roleMap[gameState.role] || gameState.role;
+
             typeText(text, agent.dialogues.result(hwScore)).then(() => {
                 content.innerHTML = `
                     <div class="score-display fade-in">
@@ -1534,7 +1546,8 @@
                     </div>
                     <div style="font-size:13px; color:rgba(255,255,255,0.3); text-align:center; margin-top:10px; line-height:1.8;">
                         <p>选手: ${gameState.playerName} | ID: ${gameState.gameId}</p>
-                        <p>段位: ${gameState.rankTier} | ACS: ${gameState.acs} | ADR: ${gameState.adr} | KDA: ${gameState.kda} | KAST: ${gameState.kast}%</p>
+                        <p>位置: ${displayRole} | 段位: ${gameState.rankTier}</p>
+                        <p>ACS: ${gameState.acs} | ADR: ${gameState.adr} | KDA: ${gameState.kda} | KAST: ${gameState.kast}%</p>
                         <p>数据来源: ${gameState.dataSource}</p>
                     </div>
                     <button class="next-btn fade-in" onclick="location.reload()" style="margin-top:25px; align-self:center;">重 新 报 名 ▸</button>
