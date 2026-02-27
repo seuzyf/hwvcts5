@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HWVCTS5 - 选手数据汇总</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #ff4655;
+            --bg-color: #0a0a0f;
+            --bg-gradient-mid: #1a0a0a;
+            --text-color: #fff;
+            --card-bg-color: rgba(21, 21, 32, 0.85);
+            --header-bg-color: transparent;
+            --border-color: rgba(255, 70, 85, 0.2);
+            --border-highlight: rgba(255, 70, 85, 0.5);
+            --shadow-color: rgba(0,0,0,0.5);
+            --control-height: 42px;
+            --text-muted: rgba(255, 255, 255, 0.5);
+        }
+        body.light-theme {
+            --primary-color: #e53935;
+            --bg-color: #f4f5f7;
+            --bg-gradient-mid: #e9ecef;
+            --text-color: #1c1e21;
+            --card-bg-color: rgba(255, 255, 255, 0.9);
+            --header-bg-color: transparent;
+            --border-color: rgba(229, 57, 53, 0.3);
+            --border-highlight: rgba(229, 57, 53, 0.6);
+            --shadow-color: rgba(229, 57, 53, 0.15);
+            --text-muted: rgba(0, 0, 0, 0.5);
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px 0;
+            line-height: 1.6;
+            transition: background 0.3s, color 0.3s;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255, 70, 85, 0.6); border-radius: 50%; animation: float linear infinite; }
+        body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
+        @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
+
+        .container { width: 95%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
+        
+        .main-header-block {
+            background-color: var(--header-bg-color);
+            padding: 25px; text-align: center; margin-bottom: 40px; position: relative;
+        }
+        .title-badge {
+            display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15);
+            border: 1px solid var(--border-highlight); border-radius: 20px;
+            font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase;
+        }
+        body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
+        .main-header-block h1 { 
+            font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0;
+            background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); 
+        }
+        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
+        
+        .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 35px; }
+        .filter-group { 
+            background-color: var(--card-bg-color); padding: 5px; 
+            border: 1px solid var(--border-color); border-radius: 6px;
+            display: inline-flex; height: var(--control-height); align-items: center;
+        }
+        .filter-group button { 
+            padding: 0 20px; border: none; background-color: transparent; 
+            color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; 
+            font-size: 14px; height: 100%; transition: all 0.3s ease; font-weight: 500;
+        }
+        .filter-group button:hover { opacity: 1; color: var(--primary-color); }
+        .filter-group button.active { background-color: rgba(255, 70, 85, 0.15); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
+        body.light-theme .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
+
+        select#team-filter {
+            height: var(--control-height); padding: 0 15px; border-radius: 6px; font-family: 'Noto Sans SC', sans-serif; font-weight: 500;
+            border: 1px solid var(--border-color); background-color: var(--card-bg-color); color: var(--text-color); outline: none;
+        }
+        select#team-filter:focus { border-color: var(--primary-color); }
+        
+        .nav-button { 
+            height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center;
+            border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; 
+            background: rgba(255, 70, 85, 0.08); border-radius: 6px; font-size: 14px; font-weight: 600;
+            transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px;
+        }
+        body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
+        .nav-button:hover { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2); }
+        body.light-theme .nav-button:hover { color: var(--primary-color); }
+
+        main {
+            background-color: var(--card-bg-color); backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color); border-radius: 8px; padding: 25px;
+            box-shadow: 0 10px 40px var(--shadow-color); position: relative;
+        }
+        main::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
+        
+        .table-container { max-height: 75vh; overflow: auto; padding-right: 5px; }
+        .table-container::-webkit-scrollbar { width: 6px; height: 6px; }
+        .table-container::-webkit-scrollbar-track { background: transparent; }
+        .table-container::-webkit-scrollbar-thumb { background: rgba(255, 70, 85, 0.5); border-radius: 4px; }
+
+        #stats-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+        #stats-table thead th {
+            position: sticky; top: 0; z-index: 1;
+            background-color: var(--card-bg-color); color: var(--text-muted); font-weight: 700;
+            border-bottom: 1px solid var(--border-highlight); padding: 15px 10px; backdrop-filter: blur(10px);
+        }
+        #stats-table th, #stats-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
+        body.light-theme #stats-table th, body.light-theme #stats-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
+        #stats-table tbody tr:hover { background-color: rgba(255, 70, 85, 0.05); }
+        #stats-table th { cursor: pointer; position: relative; transition: color 0.3s; }
+        #stats-table th:hover { color: var(--primary-color); }
+        #stats-table td a { color: var(--primary-color); text-decoration: none; font-weight: 700; transition: all 0.2s; }
+        #stats-table td a:hover { text-decoration: underline; text-shadow: 0 0 8px rgba(255, 70, 85, 0.5); }
+        
+        .sort-indicator { font-size: 10px; margin-left: 5px; color: var(--primary-color); opacity: 0; display: inline-block; width: 1em; transition: opacity 0.3s; }
+        th.sorted .sort-indicator { opacity: 1; }
+
+        .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
+        #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
+        .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
+        .theme-switch input { display:none; }
+        .slider-theme { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
+        body.light-theme .slider-theme { background-color: rgba(0,0,0,0.1); }
+        .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
+        input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
+        input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    <div class="container">
+        <div class="main-header-block">
+            <div class="theme-switch-wrapper">
+                <span id="theme-text"></span>
+                <label class="theme-switch">
+                    <input type="checkbox" id="theme-toggle-checkbox">
+                    <span class="slider-theme"></span>
+                </label>
+            </div>
+            <div class="title-badge">VALORANT TOURNAMENT</div>
+            <h1>选手数据汇总</h1>
+            <div class="controls-container">
+                <div class="filter-group" id="group-filter-buttons">
+                    <button class="active" data-group="all">所有组</button>
+                    <button data-group="传奇组">传奇组</button>
+                    <button data-group="中坚组">中坚组</button>
+                    <button data-group="挑战组">挑战组</button>
+                </div>
+                <select id="team-filter">
+                    <option value="all">所有队伍</option>
+                </select>
+                <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
+                <a href="schedule.html" class="nav-button" target="_blank">查 看 赛 程</a>
+            </div>
+        </div>
+
+        <main>
+            <div class="table-container">
+                <table id="stats-table">
+                    <thead>
+                        <tr>
+                            <th data-sort-key="id">ID<span class="sort-indicator"></span></th>
+                            <th data-sort-key="name">选手姓名<span class="sort-indicator"></span></th>
+                            <th data-sort-key="group">组别<span class="sort-indicator"></span></th>
+                            <th data-sort-key="team">队伍<span class="sort-indicator"></span></th>
+                            <th>最常用角色</th>
+                            <th data-sort-key="matches_played">出场<span class="sort-indicator"></span></th>
+                            <th data-sort-key="avg_acs">ACS<span class="sort-indicator"></span></th>
+                            <th data-sort-key="kda">KDA<span class="sort-indicator"></span></th>
+                            <th data-sort-key="map_k">每局击杀<span class="sort-indicator"></span></th>
+                            <th data-sort-key="map_d">每局死亡<span class="sort-indicator"></span></th>
+                            <th data-sort-key="map_a">每局助攻<span class="sort-indicator"></span></th>
+                            <th data-sort-key="round_k">每回合击杀<span class="sort-indicator"></span></th>
+                            <th data-sort-key="round_d">每回合死亡<span class="sort-indicator"></span></th>
+                            <th data-sort-key="round_a">每回合助攻<span class="sort-indicator"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="stats-table-body"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDuration = (Math.random() * 8 + 4) + 's';
+                particle.style.animationDelay = Math.random() * 5 + 's';
+                particle.style.width = (Math.random() * 3 + 1) + 'px';
+                particle.style.height = particle.style.width;
+                container.appendChild(particle);
+            }
+        }
+        createParticles();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const SUPABASE_URL = 'https://vbyvolmtkjjyeiibpljf.supabase.co';
+            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZieXZvbG10a2pqeWVpaWJwbGpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NzMxNDksImV4cCI6MjA3MjI0OTE0OX0.Tnot1kIVn8vJ-vggYaTGBGTkIBY7m6yIOquSjG5mSUM';
+            const { createClient } = supabase;
+            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+            const groupFilterButtons = document.getElementById('group-filter-buttons');
+            const teamFilter = document.getElementById('team-filter');
+            const tableHead = document.querySelector('#stats-table thead');
+            const themeToggle = document.getElementById('theme-toggle-checkbox');
+            const themeText = document.getElementById('theme-text');
+            
+            let allRegisteredPlayers = [];
+            let processedMatchStats = {};
+            let currentSort = { key: 'avg_acs', order: 'desc' };
+
+            function setTheme(isLight) {
+                document.body.classList.toggle('light-theme', isLight);
+                themeToggle.checked = isLight;
+                themeText.textContent = isLight ? '切换为暗色模式' : '切换为亮色模式';
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            }
+            const savedTheme = localStorage.getItem('theme');
+            setTheme((savedTheme === 'light') ? true : false);
+            themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
+
+            async function loadAndProcessData() {
+                const tableBody = document.getElementById('stats-table-body');
+                tableBody.innerHTML = '<tr><td colspan="14" style="color: var(--text-muted); text-align: center;">正在加载数据...</td></tr>';
+
+                try {
+                    const [{ data: players, error: playersError }, { data: matches, error: matchesError }] = await Promise.all([
+                        supabaseClient.from('player_ids').select('id, name, team, "group"'),
+                        supabaseClient.from('matches').select('*')
+                    ]);
+
+                    if (playersError || matchesError) throw playersError || matchesError;
+                    
+                    allRegisteredPlayers = players;
+                    processedMatchStats = processMatchData(matches);
+                    
+                    updateTeamFilter();
+                    filterAndDisplayData();
+
+                } catch (error) {
+                    console.error("加载数据失败:", error);
+                    tableBody.innerHTML = `<tr><td colspan="14" style="color:var(--primary-color); text-align: center;">数据加载失败: ${error.message}</td></tr>`;
+                }
+            }
+
+            // (The rest of JS logic remains exactly the same as original)
+            function processMatchData(matches) {
+                const playerData = {};
+                 matches.forEach(match => {
+                    const score = String(match['score']).split(/[/:：]/).map(Number);
+                    const totalRounds = (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1])) ? (score[0] + score[1]) : 0;
+                    ['team_a', 'team_b'].forEach(teamKey => {
+                        for (let p = 1; p <= 5; p++) {
+                            const playerId = match[`${teamKey}_player${p}_id`];
+                            const playerDataStr = match[`${teamKey}_player${p}_data`];
+                            const playerCh = match[`${teamKey}_player${p}_ch`];
+                            if (!playerId || !playerDataStr) continue;
+
+                            const stats = String(playerDataStr).split('/').map(Number);
+                            if (stats.length !== 4 || stats.some(isNaN)) continue;
+                            
+                            const uniquePlayerKey = `${playerId}::${match.group}`;
+                            if (!playerData[uniquePlayerKey]) {
+                                playerData[uniquePlayerKey] = {
+                                    id: playerId, group: match.group,
+                                    total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 },
+                                    by_character: {}
+                                };
+                            }
+                            
+                            const p_stats = playerData[uniquePlayerKey].total_stats;
+                            if (stats[0] > 0) { p_stats.acs += stats[0]; p_stats.acsMatchCount++; }
+                            p_stats.kills += stats[1]; p_stats.deaths += stats[2]; p_stats.assists += stats[3];
+                            p_stats.matchCount++; p_stats.totalRounds += totalRounds;
+
+                            if (playerCh) {
+                                const charName = String(playerCh).trim();
+                                if (!playerData[uniquePlayerKey].by_character[charName]) { playerData[uniquePlayerKey].by_character[charName] = { matchCount: 0 }; }
+                                playerData[uniquePlayerKey].by_character[charName].matchCount++; 
+                            }
+                        }
+                    });
+                });
+                return playerData;
+            }
+
+            function updateTeamFilter() {
+                const selectedGroup = groupFilterButtons.querySelector('.active').dataset.group;
+                const teams = new Set();
+                allRegisteredPlayers.forEach(player => {
+                    if (player.team && (selectedGroup === 'all' || player.group === selectedGroup)) { teams.add(player.team); }
+                });
+                const currentTeam = teamFilter.value;
+                teamFilter.innerHTML = '<option value="all">所有队伍</option>';
+                Array.from(teams).sort().forEach(team => {
+                    const option = document.createElement('option'); option.value = team; option.textContent = team; teamFilter.appendChild(option);
+                });
+                teamFilter.value = teams.has(currentTeam) ? currentTeam : 'all';
+            }
+
+            function filterAndDisplayData() {
+                const selectedGroup = groupFilterButtons.querySelector('.active').dataset.group;
+                const selectedTeam = teamFilter.value;
+                const combinedPlayerData = allRegisteredPlayers.map(player => {
+                    const uniquePlayerKey = `${player.id}::${player.group}`;
+                    const matchStats = processedMatchStats[uniquePlayerKey];
+                    if (matchStats) {
+                        const stats = matchStats.total_stats;
+                        return {
+                            id: player.id, name: player.name, group: player.group, team: player.team,
+                            matches_played: stats.matchCount,
+                            avg_acs: stats.acsMatchCount > 0 ? stats.acs / stats.acsMatchCount : 0,
+                            kda: stats.deaths > 0 ? (stats.kills + stats.assists) / stats.deaths : (stats.kills + stats.assists),
+                            map_k: stats.matchCount > 0 ? stats.kills / stats.matchCount : 0,
+                            map_d: stats.matchCount > 0 ? stats.deaths / stats.matchCount : 0,
+                            map_a: stats.matchCount > 0 ? stats.assists / stats.matchCount : 0,
+                            round_k: stats.totalRounds > 0 ? stats.kills / stats.totalRounds : 0,
+                            round_d: stats.totalRounds > 0 ? stats.deaths / stats.totalRounds : 0,
+                            round_a: stats.totalRounds > 0 ? stats.assists / stats.totalRounds : 0,
+                            topChars: Object.entries(matchStats.by_character).sort(([,a],[,b]) => b.matchCount - a.matchCount).slice(0, 3).map(([charName]) => charName).join('、') || 'N/A',
+                        };
+                    } else {
+                        return { id: player.id, name: player.name, group: player.group, team: player.team, matches_played: 0, avg_acs: 0, kda: 0, map_k: 0, map_d: 0, map_a: 0, round_k: 0, round_d: 0, round_a: 0, topChars: '—' };
+                    }
+                });
+                const filteredData = combinedPlayerData.filter(player => {
+                    const groupMatch = selectedGroup === 'all' || player.group === selectedGroup;
+                    const teamMatch = selectedTeam === 'all' || player.team === selectedTeam;
+                    return groupMatch && teamMatch;
+                });
+                updateTable(filteredData);
+            }
+
+            function formatStat(value, precision = 2) { if (value === 0 || value === null || value === undefined) return '—'; return value.toFixed(precision); }
+
+            function updateSortIndicators() {
+                document.querySelectorAll('#stats-table th').forEach(th => {
+                    th.classList.remove('sorted');
+                    const indicator = th.querySelector('.sort-indicator');
+                    if (indicator) indicator.textContent = '';
+                });
+                const activeTh = document.querySelector(`#stats-table th[data-sort-key="${currentSort.key}"]`);
+                if (activeTh) {
+                    activeTh.classList.add('sorted');
+                    const indicator = activeTh.querySelector('.sort-indicator');
+                    if (indicator) indicator.textContent = currentSort.order === 'desc' ? ' ▼' : ' ▲';
+                }
+            }
+            
+            function updateTable(data) {
+                const tableBody = document.getElementById('stats-table-body');
+                tableBody.innerHTML = '';
+                data.sort((a, b) => {
+                    const aVal = a[currentSort.key]; const bVal = b[currentSort.key];
+                    const isDeathStat = currentSort.key.includes('_d');
+                    let sortOrder = currentSort.order;
+                    if (isDeathStat) sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+                    if (typeof aVal === 'string') return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                    return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+                });
+                updateSortIndicators();
+                if (data.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="14" style="text-align:center; color: var(--text-muted);">没有符合条件的选手。</td></tr>'; return;
+                }
+                data.forEach(player => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><a href="player.html?name=${encodeURIComponent(player.name)}&group=${encodeURIComponent(player.group)}" target="_blank">${player.id}</a></td>
+                        <td>${player.name || '—'}</td><td>${player.group || '—'}</td><td>${player.team || '—'}</td><td>${player.topChars}</td>
+                        <td>${player.matches_played > 0 ? player.matches_played : '—'}</td>
+                        <td style="color:var(--primary-color); font-weight:700;">${formatStat(player.avg_acs, 2)}</td>
+                        <td style="font-weight:700;">${formatStat(player.kda, 2)}</td>
+                        <td>${formatStat(player.map_k, 1)}</td><td>${formatStat(player.map_d, 1)}</td><td>${formatStat(player.map_a, 1)}</td>
+                        <td>${formatStat(player.round_k, 2)}</td><td>${formatStat(player.round_d, 2)}</td><td>${formatStat(player.round_a, 2)}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+
+            tableHead.addEventListener('click', (e) => {
+                const th = e.target.closest('th');
+                if (th && th.dataset.sortKey) {
+                    const key = th.dataset.sortKey;
+                    if (currentSort.key === key) { currentSort.order = currentSort.order === 'desc' ? 'asc' : 'desc'; } 
+                    else { currentSort.key = key; currentSort.order = 'desc'; }
+                    filterAndDisplayData();
+                }
+            });
+            
+            groupFilterButtons.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+                    groupFilterButtons.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    updateTeamFilter(); filterAndDisplayData();
+                }
+            });
+
+            teamFilter.addEventListener('change', filterAndDisplayData);
+            loadAndProcessData();
+        });
+    </script>
+</body>
+</html>

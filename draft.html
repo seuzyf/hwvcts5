@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HWVCTS5 - 选手分队中心</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #ff4655;
+            --bg-color: #0a0a0f;
+            --bg-gradient-mid: #1a0a0a;
+            --text-color: #fff;
+            --card-bg-color: rgba(21, 21, 32, 0.85);
+            --header-bg-color: transparent;
+            --border-color: rgba(255, 70, 85, 0.2);
+            --border-highlight: rgba(255, 70, 85, 0.5);
+            --shadow-color: rgba(0,0,0,0.5);
+            --success-color: #81c784;
+            --control-height: 42px;
+            --text-muted: rgba(255, 255, 255, 0.5);
+        }
+        body.light-theme {
+            --primary-color: #e53935;
+            --bg-color: #f4f5f7;
+            --bg-gradient-mid: #e9ecef;
+            --text-color: #1c1e21;
+            --card-bg-color: rgba(255, 255, 255, 0.9);
+            --header-bg-color: transparent;
+            --border-color: rgba(229, 57, 53, 0.3);
+            --border-highlight: rgba(229, 57, 53, 0.6);
+            --shadow-color: rgba(229, 57, 53, 0.15);
+            --success-color: #4CAF50;
+            --text-muted: rgba(0, 0, 0, 0.5);
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
+            color: var(--text-color); margin: 0; padding: 20px 0; min-height: 100vh; position: relative;
+        }
+
+        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255, 70, 85, 0.6); border-radius: 50%; animation: float linear infinite; }
+        body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
+        @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
+
+        .container { width: 95%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
+        
+        .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
+        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
+        body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
+        .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); }
+        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
+        
+        .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
+        .filter-group, .nav-button, .upload-button { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; transition: all 0.3s; letter-spacing: 1px; }
+        
+        .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); }
+        .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 14px; height: 100%; font-weight: 500; transition: all 0.3s; }
+        .filter-group button:hover { opacity: 1; color: var(--primary-color); }
+        .filter-group button.active { background-color: rgba(255, 70, 85, 0.15); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
+        body.light-theme .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
+        
+        .nav-button { padding: 0 25px; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255, 70, 85, 0.08); backdrop-filter: blur(5px); }
+        body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
+        .nav-button:hover { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2); }
+        
+        .upload-button { padding: 0 25px; border: 1px solid var(--border-highlight); color: var(--success-color); cursor: pointer; background: rgba(129, 199, 132, 0.1); backdrop-filter: blur(5px); }
+        body.light-theme .upload-button { background: rgba(76, 175, 80, 0.05); color: var(--success-color); border-color: rgba(76, 175, 80, 0.3); }
+        .upload-button:hover { background-color: rgba(129, 199, 132, 0.2); border-color: var(--success-color); color: var(--text-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(129, 199, 132, 0.2); }
+        #csv-upload { display: none; }
+        
+        .main-layout { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; }
+        #budget-card { flex: 1; min-width: 280px; position: sticky; top: 20px; }
+        #players-table-container { flex: 3; min-width: 600px; overflow: hidden;}
+        
+        .data-section { background-color: var(--card-bg-color); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; box-shadow: 0 10px 40px var(--shadow-color); position: relative; }
+        .data-section::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
+        .data-section h2 { margin-top: 0; color: var(--primary-color); border-bottom: 1px solid var(--border-highlight); padding-bottom: 15px; font-weight: 900; letter-spacing: 2px; font-size: 20px; }
+        
+        .budget-list { display: flex; flex-direction: column; gap: 15px; font-size: 15px; }
+        .budget-list div { background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: baseline; border: 1px solid rgba(255,255,255,0.05); }
+        body.light-theme .budget-list div { background-color: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.05); }
+        .budget-list strong { color: var(--primary-color); font-size: 18px; font-weight: 900; }
+        .budget-list span:first-child { font-weight: 700; color: var(--text-color); }
+        
+        #players-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 20px; font-size: 14px; }
+        #players-table thead th { background-color: transparent; color: var(--text-muted); padding: 12px 10px; border-bottom: 1px solid var(--border-highlight); font-weight: 700; }
+        #players-table th, #players-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
+        body.light-theme #players-table th, body.light-theme #players-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
+        #players-table tbody tr:hover { background-color: rgba(255, 70, 85, 0.05); }
+        
+        #players-table input { width: 80px; padding: 8px 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; font-family: 'Noto Sans SC'; outline: none; transition: border-color 0.3s; }
+        body.light-theme #players-table input { background: #fff; }
+        #players-table input:focus { border-color: var(--primary-color); }
+        #players-table .team-input { width: 120px; }
+        
+        #players-table .confirm-btn { padding: 6px 15px; border: 1px solid var(--success-color); border-radius: 4px; background-color: rgba(129, 199, 132, 0.1); color: var(--success-color); cursor: pointer; font-weight: 700; transition: all 0.3s; }
+        body.light-theme #players-table .confirm-btn { background-color: rgba(76, 175, 80, 0.05); color: var(--success-color); border-color: rgba(76, 175, 80, 0.3); }
+        #players-table .confirm-btn:hover { background-color: var(--success-color); color: white; border-color: var(--success-color); box-shadow: 0 0 10px rgba(129, 199, 132, 0.4); }
+        
+        .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
+        #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
+        .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
+        .theme-switch input { display:none; }
+        .slider { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
+        body.light-theme .slider { background-color: rgba(0,0,0,0.1); }
+        .slider:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary-color); border-color: var(--primary-color); }
+        input:checked + .slider:before { transform: translateX(18px); background-color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    <div class="container">
+        <div class="main-header-block">
+            <div class="theme-switch-wrapper">
+                <span id="theme-text"></span>
+                <label class="theme-switch">
+                    <input type="checkbox" id="theme-toggle-checkbox">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="title-badge">VALORANT TOURNAMENT</div>
+            <h1>选手分队中心</h1>
+            <div class="controls-container">
+                <div class="filter-group" id="group-filter-buttons">
+                    <button class="active" data-group="传奇组">传奇组</button>
+                    <button data-group="中坚组">中坚组</button>
+                    <button data-group="挑战组">挑战组</button>
+                </div>
+                <label for="csv-upload" class="upload-button">上 传 名 单 (CSV)</label>
+                <input type="file" id="csv-upload" accept=".csv">
+                <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
+            </div>
+        </div>
+
+        <main class="main-layout">
+            <section class="data-section" id="budget-card">
+                <h2>队 伍 实 时 预 算</h2>
+                <div class="budget-list" id="budget-list-content"><p style="color:var(--text-muted);">正在加载数据...</p></div>
+            </section>
+            <div id="players-table-container" class="data-section">
+                <h2>选 手 池</h2>
+                <div style="overflow-x: auto; padding-right: 5px;">
+                    <table id="players-table">
+                        <thead>
+                            <tr>
+                                <th>姓名</th>
+                                <th>ID</th>
+                                <th>华为分</th>
+                                <th>起拍价</th>
+                                <th>成交价</th>
+                                <th>所属队伍</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="players-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <datalist id="teams-datalist"></datalist>
+
+<script>
+    function createParticles() {
+        const container = document.getElementById('particles');
+        for (let i = 0; i < 50; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = (Math.random() * 8 + 4) + 's';
+            particle.style.animationDelay = Math.random() * 5 + 's';
+            particle.style.width = (Math.random() * 3 + 1) + 'px';
+            particle.style.height = particle.style.width;
+            container.appendChild(particle);
+        }
+    }
+    createParticles();
+
+// (Javascript logic remains identical to the original draft.html)
+document.addEventListener('DOMContentLoaded', () => {
+    const SUPABASE_URL = 'https://vbyvolmtkjjyeiibpljf.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZieXZvbG10a2pqeWVpaWJwbGpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NzMxNDksImV4cCI6MjA3MjI0OTE0OX0.Tnot1kIVn8vJ-vggYaTGBGTkIBY7m6yIOquSjG5mSUM';
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const groupFilterButtons = document.getElementById('group-filter-buttons');
+    const playersTableBody = document.getElementById('players-table-body');
+    const budgetListContent = document.getElementById('budget-list-content');
+    const csvUpload = document.getElementById('csv-upload');
+    const themeToggle = document.getElementById('theme-toggle-checkbox');
+    const themeText = document.getElementById('theme-text');
+    const teamsDatalist = document.getElementById('teams-datalist');
+
+    let allPlayersData = [];
+    const TEAM_BUDGET = 400;
+
+    function setTheme(isLight) {
+        document.body.classList.toggle('light-theme', isLight);
+        themeToggle.checked = isLight;
+        themeText.textContent = isLight ? '切换为暗色模式' : '切换为亮色模式';
+        localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+    const savedTheme = localStorage.getItem('theme');
+    setTheme((savedTheme === 'light') ? true : false);
+    themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
+    
+    function getCurrentGroup() { return document.querySelector('#group-filter-buttons button.active').dataset.group; }
+    
+    async function loadData() {
+        playersTableBody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted); text-align:center;">正在加载选手数据...</td></tr>';
+        const { data, error } = await supabaseClient.from('player_ids').select('*');
+        if (error) { console.error('无法加载选手数据:', error); playersTableBody.innerHTML = `<tr><td colspan="7" style="color:var(--primary-color);">加载失败: ${error.message}</td></tr>`; return; }
+        allPlayersData = data; renderForCurrentGroup();
+    }
+
+    function renderForCurrentGroup() {
+        const currentGroup = getCurrentGroup();
+        const groupPlayers = allPlayersData.filter(p => p.group === currentGroup);
+        const groupTeams = new Set(groupPlayers.map(p => p.team).filter(Boolean));
+        updatePlayersTable(groupPlayers); updateBudgets(groupPlayers, groupTeams); updateTeamsDatalist(groupTeams);
+    }
+
+    function updateTeamsDatalist(groupTeams) {
+        teamsDatalist.innerHTML = '';
+        const sortedTeams = Array.from(groupTeams).sort();
+        sortedTeams.forEach(team => { const option = document.createElement('option'); option.value = team; teamsDatalist.appendChild(option); });
+    }
+
+    function updatePlayersTable(players) {
+        playersTableBody.innerHTML = '';
+        const visiblePlayers = players.filter(p => p.hwrank && p.hwrank > 0);
+        if (visiblePlayers.length === 0) { playersTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">该组别下没有符合条件的选手数据。</td></tr>'; return; }
+        
+        visiblePlayers.sort((a,b) => (b.hwrank || 0) - (a.hwrank || 0));
+
+        visiblePlayers.forEach(player => {
+            const tr = document.createElement('tr'); tr.dataset.playerId = player.id;
+            tr.innerHTML = `
+                <td style="font-weight:700;">${player.name || ''}</td>
+                <td style="color:var(--text-muted);">${player.id}</td>
+                <td style="color:var(--primary-color); font-weight:700;">${player.hwrank || 0}</td>
+                <td>${player.start_price || 0}</td>
+                <td><input type="number" class="final-price-input" value="${player.final_price || ''}"></td>
+                <td><input type="text" class="team-input" value="${player.team || ''}" list="teams-datalist"></td>
+                <td><button class="confirm-btn">确定</button></td>
+            `;
+            playersTableBody.appendChild(tr);
+        });
+    }
+
+    function updateBudgets(groupPlayers, groupTeams) {
+        budgetListContent.innerHTML = ''; const teamInfo = {};
+        groupTeams.forEach(team => { teamInfo[team] = { spending: 0, playerCount: 0 }; });
+        groupPlayers.forEach(player => {
+            if (player.team) {
+                if (!teamInfo[player.team]) { teamInfo[player.team] = { spending: 0, playerCount: 0 }; }
+                teamInfo[player.team].playerCount++; teamInfo[player.team].spending += player.final_price || 0;
+            }
+        });
+        if (Object.keys(teamInfo).length === 0) { budgetListContent.innerHTML = '<p style="color:var(--text-muted);">该组别暂无队伍信息。</p>'; return; }
+
+        const sortedTeams = Object.keys(teamInfo).sort();
+        sortedTeams.forEach(team => {
+            const { spending, playerCount } = teamInfo[team]; const remaining = TEAM_BUDGET - spending;
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <span>${team}</span>
+                <div style="display: flex; align-items: baseline; gap: 10px;">
+                    <span style="font-size: 13px; opacity: 0.7; color:var(--text-muted);">${playerCount} 人</span>
+                    <strong>${remaining.toFixed(2)}</strong>
+                </div>
+            `;
+            budgetListContent.appendChild(div);
+        });
+    }
+
+    async function handleConfirmUpdate(event) {
+        const btn = event.target; if (!btn.classList.contains('confirm-btn')) return;
+        const tr = btn.closest('tr'); const playerId = tr.dataset.playerId;
+        const finalPriceInput = tr.querySelector('.final-price-input').value; const finalPrice = finalPriceInput ? parseFloat(finalPriceInput) : null;
+        const team = tr.querySelector('.team-input').value.trim();
+        if (!playerId) return;
+
+        const updateData = { final_price: finalPrice, team: team || null };
+        btn.textContent = '...'; btn.disabled = true;
+        const { error } = await supabaseClient.from('player_ids').update(updateData).eq('id', playerId);
+        if (error) { alert(`更新失败: ${error.message}`); console.error(error); } 
+        else {
+            const playerIndex = allPlayersData.findIndex(p => p.id === playerId);
+            if(playerIndex > -1) { allPlayersData[playerIndex].final_price = finalPrice; allPlayersData[playerIndex].team = team; }
+            renderForCurrentGroup();
+        }
+        btn.textContent = '确定'; btn.disabled = false;
+    }
+
+    async function handleCsvUpload(event) {
+        const file = event.target.files[0]; if (!file) return;
+        const currentGroup = getCurrentGroup(); const reader = new FileReader();
+
+        reader.onload = async (e) => {
+            const text = e.target.result; const dataLines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+            if (dataLines.length <= 1) { alert('CSV文件为空或只有表头。'); return; }
+            const header = dataLines[0].split(',').map(h => h.trim()); const lines = dataLines.slice(1);
+            const colMap = { id: header.indexOf('id'), name: header.indexOf('name'), hwrank: header.indexOf('hwrank') };
+            if (colMap.id === -1 || colMap.name === -1 || colMap.hwrank === -1) { alert('CSV文件必须包含 "id", "name" 和 "hwrank" 列。'); return; }
+
+            const nameMap = new Map(); const playersFromCsv = [];
+            lines.forEach((line, index) => {
+                const values = line.split(','); const name = values[colMap.name]?.trim(); const id = values[colMap.id]?.trim(); const hwrank = parseFloat(values[colMap.hwrank]?.trim()); const lineNumber = index + 2;
+                if (id && name && !isNaN(hwrank)) { playersFromCsv.push({ id, name, hwrank, group: currentGroup }); }
+                if (name) { if (!nameMap.has(name)) { nameMap.set(name, []); } nameMap.get(name).push(lineNumber); }
+            });
+
+            const duplicates = [];
+            for (const [name, lineNumbers] of nameMap.entries()) { if (lineNumbers.length > 1) { duplicates.push({ name, lines: lineNumbers }); } }
+            if (duplicates.length > 0) {
+                let errorMessage = '上传失败：CSV文件中存在重复的姓名。\n\n';
+                duplicates.forEach(dup => { errorMessage += `姓名 "${dup.name}" 在第 ${dup.lines.join(' 行、第 ')} 行重复。\n`; });
+                alert(errorMessage); csvUpload.value = ''; return;
+            }
+
+            if (playersFromCsv.length === 0) { alert('未在文件中找到有效数据。'); return; }
+
+            const confirmationMessage = `您上传了 ${playersFromCsv.length} 名选手的数据。\n\n- 点击 [确定] 将同步名单：更新这 ${playersFromCsv.length} 名选手，并删除本组其他所有不在名单上的选手。\n\n- 点击 [取消] 将仅新增/更新：只添加或更新这 ${playersFromCsv.length} 名选手，不删除任何已有选手。`;
+            const isSyncAndDelete = confirm(confirmationMessage);
+
+            if (isSyncAndDelete) {
+                const idsInCsv = new Set(playersFromCsv.map(p => p.id));
+                const playersToDelete = allPlayersData.filter(p => p.group === currentGroup && !idsInCsv.has(p.id));
+                if (playersToDelete.length > 0) {
+                    const idsToDelete = playersToDelete.map(p => p.id);
+                    alert(`即将从 "${currentGroup}" 删除 ${idsToDelete.length} 名不在新名单上的选手...`);
+                    const { error: deleteError } = await supabaseClient.from('player_ids').delete().in('id', idsToDelete);
+                    if (deleteError) { alert(`删除旧选手失败: ${deleteError.message}`); return; }
+                }
+            }
+
+            alert(`即将为 "${currentGroup}" 新增/更新 ${playersFromCsv.length} 名选手的数据...`);
+            const { error: upsertError } = await supabaseClient.from('player_ids').upsert(playersFromCsv, { onConflict: 'id' });
+            if (upsertError) { alert(`更新选手数据失败: ${upsertError.message}`); return; }
+
+            alert('选手数据更新成功！现在开始计算起拍价...');
+            await calculateAndSetStartPrices();
+        };
+
+        reader.readAsText(file, 'UTF-8'); csvUpload.value = '';
+    }
+    
+    async function calculateAndSetStartPrices() {
+        const { data, error } = await supabaseClient.from('player_ids').select('id, group, hwrank');
+        if (error) { alert(`无法获取更新后的选手数据: ${error.message}`); return; }
+        
+        const groups = {};
+        data.forEach(p => {
+            if (!p.group || typeof p.hwrank !== 'number') return;
+            if (!groups[p.group]) { groups[p.group] = []; }
+            groups[p.group].push(p.hwrank);
+        });
+        
+        const minHwranks = {};
+        for(const groupName in groups) { if (groups[groupName].length > 0) { minHwranks[groupName] = Math.min(...groups[groupName]); } }
+        
+        const priceUpdates = data.filter(p => p.group && typeof p.hwrank === 'number' && minHwranks[p.group] !== undefined)
+            .map(p => ({ id: p.id, start_price: Math.round((p.hwrank - minHwranks[p.group]) / 10) }));
+
+        if (priceUpdates.length > 0) {
+            const { error: priceError } = await supabaseClient.from('player_ids').upsert(priceUpdates, { onConflict: 'id' });
+             if (priceError) { alert(`更新起拍价失败: ${priceError.message}`); return; }
+        }
+        
+        alert('起拍价计算并更新成功！页面将重新加载最新数据。');
+        loadData();
+    }
+
+    groupFilterButtons.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+            groupFilterButtons.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); renderForCurrentGroup();
+        }
+    });
+
+    playersTableBody.addEventListener('click', handleConfirmUpdate);
+    csvUpload.addEventListener('change', handleCsvUpload);
+    loadData();
+});
+</script>
+
+</body>
+</html>
