@@ -1,0 +1,2211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HWVCT S5 - 无畏契约</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --val-red: #ff4655;
+  --val-dark: #0f1923;
+  --val-darker: #0a1018;
+  --val-cyan: #00d4aa;
+  --val-blue: #1a73e8;
+  --val-gold: #ecb731;
+  --val-white: #ece8e1;
+  --val-gray: #768079;
+}
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--val-darker);
+  color: var(--val-white);
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  user-select: none;
+}
+
+#game-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ===== PRELOADER ===== */
+#preloader {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 200;
+  background: var(--val-darker);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.8s;
+}
+
+#preloader.done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-text {
+  font-size: 14px;
+  color: var(--val-gray);
+  letter-spacing: 4px;
+  margin-bottom: 20px;
+}
+
+.loader-bar-bg {
+  width: 300px;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.loader-bar {
+  height: 100%;
+  background: var(--val-red);
+  width: 0%;
+  transition: width 0.3s;
+}
+
+/* ===== BACKGROUNDS ===== */
+.bg-layer {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-size: cover;
+  background-position: center;
+  transition: opacity 1s ease;
+  z-index: 1;
+}
+
+.bg-lobby {
+  background: linear-gradient(135deg, #0f1923 0%, #1a2a3a 30%, #0f1923 70%, #1a1a2e 100%);
+}
+.bg-lobby::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255,70,85,0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(0,212,170,0.1) 0%, transparent 50%),
+    repeating-linear-gradient(90deg, transparent, transparent 100px, rgba(255,255,255,0.02) 100px, rgba(255,255,255,0.02) 101px),
+    repeating-linear-gradient(0deg, transparent, transparent 100px, rgba(255,255,255,0.02) 100px, rgba(255,255,255,0.02) 101px);
+}
+
+.bg-range {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+}
+.bg-range::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(0,212,170,0.08) 0%, transparent 60%),
+    linear-gradient(to bottom, rgba(0,0,0,0.3), transparent 30%, transparent 70%, rgba(0,0,0,0.5));
+}
+
+.bg-match {
+  background: linear-gradient(135deg, #1a0a0a 0%, #2a1520 30%, #0f1923 70%, #1a2a3a 100%);
+}
+.bg-match::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(255,70,85,0.2) 0%, transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(236,183,49,0.1) 0%, transparent 40%);
+}
+
+.bg-victory {
+  background: linear-gradient(135deg, #0a1a0a 0%, #1a3a1a 30%, #0f2f1f 70%, #0a2a2a 100%);
+}
+.bg-victory::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(0,212,170,0.25) 0%, transparent 60%),
+    radial-gradient(circle at 50% 60%, rgba(236,183,49,0.15) 0%, transparent 50%);
+}
+
+.bg-defeat {
+  background: linear-gradient(135deg, #1a0a0a 0%, #2a0a0a 30%, #1a0f15 70%, #0f0a1a 100%);
+}
+.bg-defeat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,70,85,0.2) 0%, transparent 60%);
+}
+
+/* ===== TITLE SCREEN ===== */
+#title-screen {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a1018 0%, #0f1923 50%, #1a1a2e 100%);
+  animation: fadeIn 1s ease;
+}
+
+#title-screen::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255,70,85,0.2) 0%, transparent 50%),
+    radial-gradient(circle at 30% 70%, rgba(0,212,170,0.1) 0%, transparent 40%),
+    radial-gradient(circle at 70% 80%, rgba(236,183,49,0.08) 0%, transparent 40%);
+  animation: pulse-bg 4s ease-in-out infinite;
+}
+
+@keyframes pulse-bg {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+/* Title character silhouettes */
+.title-chars {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 70%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.title-chars img {
+  height: 90%;
+  object-fit: contain;
+  filter: grayscale(1) brightness(0.5);
+}
+
+.title-logo {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.title-logo .val-mark {
+  font-size: 80px;
+  font-weight: 900;
+  color: var(--val-red);
+  letter-spacing: 8px;
+  text-shadow: 0 0 40px rgba(255,70,85,0.5), 0 0 80px rgba(255,70,85,0.2);
+  animation: glow-text 3s ease-in-out infinite;
+}
+
+@keyframes glow-text {
+  0%, 100% { text-shadow: 0 0 40px rgba(255,70,85,0.5), 0 0 80px rgba(255,70,85,0.2); }
+  50% { text-shadow: 0 0 60px rgba(255,70,85,0.7), 0 0 120px rgba(255,70,85,0.3); }
+}
+
+.title-logo .sub-title {
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--val-white);
+  letter-spacing: 12px;
+  margin-top: 5px;
+}
+
+.title-logo .season {
+  font-size: 18px;
+  color: var(--val-cyan);
+  letter-spacing: 6px;
+  margin-top: 10px;
+  font-weight: 500;
+}
+
+.title-divider {
+  width: 200px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--val-red), transparent);
+  margin: 30px 0;
+  position: relative;
+  z-index: 2;
+}
+
+.start-btn {
+  position: relative;
+  z-index: 2;
+  padding: 16px 60px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--val-white);
+  background: linear-gradient(135deg, var(--val-red), #cc3344);
+  border: none;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.start-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(255,70,85,0.5);
+}
+
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: var(--val-red);
+  border-radius: 50%;
+  opacity: 0;
+  animation: float-particle 6s linear infinite;
+}
+
+@keyframes float-particle {
+  0% { opacity: 0; transform: translateY(100vh) scale(0); }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-20px) scale(1); }
+}
+
+/* ===== NAME INPUT SCREEN ===== */
+#name-screen {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 99;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a1018 0%, #0f1923 50%, #1a1a2e 100%);
+}
+
+#name-screen::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: radial-gradient(circle at 50% 50%, rgba(0,212,170,0.1) 0%, transparent 60%);
+}
+
+.name-prompt {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.name-prompt h2 {
+  font-size: 24px;
+  font-weight: 300;
+  color: var(--val-white);
+  margin-bottom: 8px;
+  letter-spacing: 4px;
+}
+
+.name-prompt p {
+  font-size: 14px;
+  color: var(--val-gray);
+  margin-bottom: 30px;
+}
+
+.name-input {
+  width: 350px;
+  padding: 14px 20px;
+  font-size: 20px;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: var(--val-white);
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,70,85,0.3);
+  outline: none;
+  text-align: center;
+  letter-spacing: 2px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  transition: border-color 0.3s;
+  margin-bottom: 30px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.name-input:focus {
+  border-color: var(--val-red);
+  box-shadow: 0 0 20px rgba(255,70,85,0.2);
+}
+
+.name-input::placeholder {
+  color: rgba(255,255,255,0.2);
+}
+
+.confirm-btn {
+  padding: 14px 50px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--val-white);
+  background: linear-gradient(135deg, var(--val-red), #cc3344);
+  border: none;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  transition: all 0.3s ease;
+}
+
+.confirm-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255,70,85,0.4);
+}
+
+/* ===== GAME SCENE ===== */
+#game-scene {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 10;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+#game-scene.active {
+  display: block;
+  opacity: 1;
+}
+
+/* ===== CHARACTER SPRITES ===== */
+.character-layer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.character {
+  position: absolute;
+  bottom: -30px;
+  transition: all 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+  opacity: 0;
+  transform: translateY(60px);
+  filter: brightness(0.5) saturate(0.6);
+}
+
+.character.active {
+  filter: brightness(1) saturate(1) drop-shadow(0 0 30px rgba(255,70,85,0.15));
+}
+
+.character.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.character img {
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* Single character right */
+.character.pos-right {
+  right: 2%;
+  height: 88%;
+}
+
+.character.pos-center {
+  left: 50%;
+  height: 88%;
+  transform: translateX(-50%) translateY(60px);
+}
+.character.pos-center.visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+.character.pos-left {
+  left: 2%;
+  height: 80%;
+}
+
+/* Multi character positions */
+.character.pos-far-left {
+  left: -2%;
+  height: 72%;
+}
+
+.character.pos-center-left {
+  left: 22%;
+  height: 78%;
+}
+
+.character.pos-center-right {
+  right: 22%;
+  height: 78%;
+}
+
+.character.pos-far-right {
+  right: -2%;
+  height: 72%;
+}
+
+/* Character name tag */
+.char-nametag {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  padding: 4px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--val-red);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.5s 0.3s;
+}
+
+.character.visible .char-nametag {
+  opacity: 1;
+}
+
+/* ===== DIALOGUE BOX ===== */
+.dialogue-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 20;
+  padding: 0 20px 20px;
+}
+
+.dialogue-box {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, rgba(15,25,35,0.92) 0%, rgba(10,16,24,0.97) 100%);
+  border: 1px solid rgba(255,70,85,0.25);
+  border-top: 3px solid var(--val-red);
+  padding: 20px 30px 25px;
+  position: relative;
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.dialogue-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, rgba(255,70,85,0.05) 0%, transparent 30%);
+  pointer-events: none;
+}
+
+.speaker-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--val-red);
+  letter-spacing: 3px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.speaker-name .role-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  background: rgba(255,70,85,0.2);
+  border: 1px solid rgba(255,70,85,0.3);
+  border-radius: 2px;
+  color: var(--val-red);
+  letter-spacing: 1px;
+  font-weight: 500;
+}
+
+.dialogue-text {
+  font-size: 16px;
+  line-height: 1.9;
+  color: var(--val-white);
+  min-height: 55px;
+  font-weight: 300;
+}
+
+.click-indicator {
+  position: absolute;
+  bottom: 12px;
+  right: 20px;
+  font-size: 12px;
+  color: var(--val-gray);
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* ===== CHOICES ===== */
+.choices-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  width: 520px;
+  max-width: 92%;
+  animation: fadeSlideUp 0.5s ease;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translate(-50%, -40%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.choices-container.active {
+  display: flex;
+}
+
+.choice-btn {
+  padding: 16px 24px;
+  font-size: 15px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  color: var(--val-white);
+  background: rgba(15,25,35,0.92);
+  border: 1px solid rgba(255,70,85,0.3);
+  border-left: 4px solid var(--val-red);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+.choice-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 0; height: 100%;
+  background: linear-gradient(90deg, rgba(255,70,85,0.15), transparent);
+  transition: width 0.3s ease;
+}
+
+.choice-btn:hover {
+  border-color: var(--val-red);
+  transform: translateX(8px);
+  box-shadow: 0 0 20px rgba(255,70,85,0.2);
+}
+
+.choice-btn:hover::before {
+  width: 100%;
+}
+
+.choice-btn .choice-key {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  text-align: center;
+  background: var(--val-red);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: 12px;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+  vertical-align: middle;
+}
+
+/* ===== HUD ===== */
+.hud-top {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  padding: 15px 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 25;
+  background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.hud-logo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--val-red);
+  letter-spacing: 3px;
+}
+
+.hud-chapter {
+  font-size: 12px;
+  color: var(--val-gray);
+  letter-spacing: 2px;
+}
+
+/* ===== SCOREBOARD ===== */
+.scoreboard {
+  position: absolute;
+  top: 55px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: none;
+  align-items: center;
+  gap: 30px;
+  background: rgba(15,25,35,0.92);
+  padding: 12px 40px;
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+.scoreboard.visible {
+  display: flex;
+  animation: fadeIn 0.5s ease;
+}
+
+.score-team { text-align: center; }
+.score-team .team-name {
+  font-size: 11px;
+  color: var(--val-gray);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+.score-team .score-num { font-size: 36px; font-weight: 900; }
+.score-team.ally .score-num { color: var(--val-cyan); }
+.score-team.enemy .score-num { color: var(--val-red); }
+
+.score-divider {
+  width: 2px;
+  height: 40px;
+  background: rgba(255,255,255,0.2);
+}
+
+.score-map {
+  font-size: 11px;
+  color: var(--val-gray);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+/* ===== TRANSITIONS ===== */
+.screen-flash {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: white;
+  z-index: 50;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+.screen-flash.active { opacity: 0.7; }
+
+.fade-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: black;
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.8s ease;
+}
+.fade-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ===== RESULT SCREEN ===== */
+.result-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 35;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.result-overlay.active {
+  display: flex;
+  animation: fadeIn 1s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.result-text {
+  font-size: 80px;
+  font-weight: 900;
+  letter-spacing: 20px;
+  margin-bottom: 20px;
+  animation: resultSlam 0.8s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes resultSlam {
+  0% { transform: scale(3); opacity: 0; }
+  60% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.result-victory { color: var(--val-cyan); text-shadow: 0 0 60px rgba(0,212,170,0.5); }
+.result-defeat { color: var(--val-red); text-shadow: 0 0 60px rgba(255,70,85,0.5); }
+
+.result-sub {
+  font-size: 18px;
+  color: var(--val-gray);
+  letter-spacing: 4px;
+  font-weight: 300;
+}
+
+/* ===== NOTIFICATION ===== */
+.notification {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 36;
+  background: rgba(15,25,35,0.95);
+  border: 1px solid rgba(255,70,85,0.4);
+  padding: 24px 50px;
+  text-align: center;
+  display: none;
+  animation: notifIn 0.5s ease;
+  backdrop-filter: blur(10px);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+@keyframes notifIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.notification.active { display: block; }
+
+.notification .notif-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--val-red);
+  letter-spacing: 6px;
+  margin-bottom: 8px;
+}
+
+.notification .notif-desc {
+  font-size: 14px;
+  color: var(--val-gray);
+  letter-spacing: 2px;
+}
+
+/* ===== GROUP CHAT ===== */
+.group-chat-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.group-chat-overlay.active { display: flex; }
+
+.group-chat-box {
+  width: 520px;
+  max-width: 92%;
+  max-height: 72vh;
+  background: rgba(10,16,24,0.96);
+  border: 1px solid rgba(255,70,85,0.2);
+  border-top: 3px solid var(--val-red);
+  overflow-y: auto;
+  padding: 20px;
+  backdrop-filter: blur(12px);
+}
+
+.chat-header {
+  font-size: 12px;
+  color: var(--val-gray);
+  letter-spacing: 3px;
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.chat-message {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.4s ease;
+}
+
+.chat-message.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chat-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.05);
+}
+
+.chat-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.chat-avatar.player-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(0,212,170,0.3), rgba(0,212,170,0.1));
+  border: 1px solid rgba(0,212,170,0.3);
+  font-size: 18px;
+}
+
+.chat-content { flex: 1; }
+
+.chat-author {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.chat-text {
+  font-size: 14px;
+  color: var(--val-white);
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+.chat-continue {
+  text-align: center;
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.chat-continue-btn {
+  padding: 12px 35px;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: var(--val-white);
+  background: rgba(255,70,85,0.2);
+  border: 1px solid rgba(255,70,85,0.4);
+  cursor: pointer;
+  letter-spacing: 2px;
+  transition: all 0.3s;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+.chat-continue-btn:hover {
+  background: rgba(255,70,85,0.4);
+  box-shadow: 0 0 15px rgba(255,70,85,0.2);
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,70,85,0.3); border-radius: 2px; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .title-logo .val-mark { font-size: 42px; letter-spacing: 4px; }
+  .title-logo .sub-title { font-size: 16px; letter-spacing: 6px; }
+  .title-logo .season { font-size: 13px; }
+  .character { height: 55% !important; }
+  .character.pos-right { right: -5%; }
+  .character.pos-left { left: -5%; }
+  .dialogue-box { padding: 15px 20px 20px; }
+  .dialogue-text { font-size: 14px; min-height: 45px; }
+  .speaker-name { font-size: 14px; }
+  .choices-container { width: 95%; }
+  .choice-btn { font-size: 13px; padding: 14px 18px; }
+  .result-text { font-size: 48px; letter-spacing: 10px; }
+  .scoreboard { padding: 8px 20px; gap: 16px; }
+  .score-team .score-num { font-size: 28px; }
+  .name-input { width: 280px; font-size: 18px; }
+  .start-btn { padding: 14px 40px; font-size: 15px; }
+}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <!-- Preloader -->
+  <div id="preloader">
+    <div class="loader-text">加载角色资源中...</div>
+    <div class="loader-bar-bg">
+      <div class="loader-bar" id="loader-bar"></div>
+    </div>
+  </div>
+
+  <!-- Title Screen -->
+  <div id="title-screen" style="display:none">
+    <div class="title-chars">
+      <img src="https://storage.moegirl.org.cn/moegirl/commons/c/c7/VALORANT_Sova.png" alt="">
+      <img src="https://storage.moegirl.org.cn/moegirl/commons/f/f5/VALORANT_Jett.png" alt="">
+      <img src="https://storage.moegirl.org.cn/moegirl/commons/4/46/VALORANT_Reyna.png" alt="">
+      <img src="https://storage.moegirl.org.cn/moegirl/commons/8/8b/VALORANT_Sage.png" alt="">
+    </div>
+    <div class="title-logo">
+      <div class="val-mark">VALORANT</div>
+      <div class="sub-title">无 畏 契 约</div>
+      <div class="season">HWVCT SEASON 5</div>
+    </div>
+    <div class="title-divider"></div>
+    <button class="start-btn" onclick="startGame()">开 始 游 戏</button>
+  </div>
+
+  <!-- Name Input Screen -->
+  <div id="name-screen">
+    <div class="name-prompt">
+      <h2>请输入你的代号</h2>
+      <p>这将是你在 HWVCT S5 中的游戏ID</p>
+      <input type="text" class="name-input" id="player-name" placeholder="输入代号..." maxlength="12" onkeydown="if(event.key==='Enter')confirmName()">
+      <button class="confirm-btn" onclick="confirmName()">确 认</button>
+    </div>
+  </div>
+
+  <!-- Game Scene -->
+  <div id="game-scene">
+    <div class="bg-layer bg-lobby" id="bg-layer"></div>
+
+    <div class="hud-top">
+      <div class="hud-logo">HWVCT S5</div>
+      <div class="hud-chapter" id="hud-chapter">序章</div>
+    </div>
+
+    <div class="scoreboard" id="scoreboard">
+      <div class="score-team ally">
+        <div class="team-name">我方</div>
+        <div class="score-num" id="score-ally">0</div>
+      </div>
+      <div>
+        <div class="score-map" id="score-map">HAVEN</div>
+        <div class="score-divider" style="margin:8px auto"></div>
+      </div>
+      <div class="score-team enemy">
+        <div class="team-name">敌方</div>
+        <div class="score-num" id="score-enemy">0</div>
+      </div>
+    </div>
+
+    <div class="character-layer" id="char-layer"></div>
+
+    <div class="dialogue-container" id="dialogue-container" style="display:none">
+      <div class="dialogue-box" id="dialogue-box" onclick="advanceDialogue()">
+        <div class="speaker-name" id="speaker-name">JETT</div>
+        <div class="dialogue-text" id="dialogue-text"></div>
+        <div class="click-indicator" id="click-indicator">▼ 点击继续</div>
+      </div>
+    </div>
+
+    <div class="choices-container" id="choices-container"></div>
+    <div class="group-chat-overlay" id="group-chat"></div>
+
+    <div class="notification" id="notification">
+      <div class="notif-title" id="notif-title"></div>
+      <div class="notif-desc" id="notif-desc"></div>
+    </div>
+
+    <div class="result-overlay" id="result-overlay"></div>
+    <div class="screen-flash" id="screen-flash"></div>
+    <div class="fade-overlay" id="fade-overlay"></div>
+  </div>
+</div>
+
+<script>
+// ===== CHARACTER DATA WITH REAL PORTRAITS =====
+const CHAR_IMAGES = {
+  jett: 'https://storage.moegirl.org.cn/moegirl/commons/f/f5/VALORANT_Jett.png',
+  reyna: 'https://storage.moegirl.org.cn/moegirl/commons/4/46/VALORANT_Reyna.png',
+  sage: 'https://storage.moegirl.org.cn/moegirl/commons/8/8b/VALORANT_Sage.png',
+  sova: 'https://storage.moegirl.org.cn/moegirl/commons/c/c7/VALORANT_Sova.png',
+  clove: 'https://storage.moegirl.org.cn/moegirl/commons/2/2b/VALORANT_Clove.png',
+  neon: 'https://storage.moegirl.org.cn/moegirl/commons/f/f7/VALORANT_Neon.png',
+};
+
+const CHARS = {
+  jett:      { name: 'JETT',      color: '#5eb5f7', role: '决斗者' },
+  reyna:     { name: 'REYNA',     color: '#b44dbd', role: '决斗者' },
+  sova:      { name: 'SOVA',      color: '#2a7ae8', role: '先锋'   },
+  sage:      { name: 'SAGE',      color: '#4adbc4', role: '哨位'   },
+  clove:     { name: 'CLOVE',     color: '#d46ab8', role: '控场'   },
+  neon:      { name: 'NEON',      color: '#1ce0d9', role: '决斗者' },
+  brimstone: { name: 'BRIMSTONE', color: '#e67e22', role: '控场'   },
+  killjoy:   { name: 'KILLJOY',   color: '#f1c40f', role: '哨位'   },
+  player:    { name: '',          color: '#00d4aa', role: ''       },
+};
+
+// ===== GAME STATE =====
+const G = {
+  playerName: '',
+  role: '',
+  partnerAgent: '',
+  score: { ally: 0, enemy: 0 },
+  matchChoices: [],
+  currentNode: null,
+  dialogueQueue: [],
+  dialogueIndex: 0,
+  isTyping: false,
+  typeTimer: null,
+  canAdvance: false,
+};
+
+// ===== PRELOAD IMAGES =====
+function preloadImages() {
+  const urls = Object.values(CHAR_IMAGES);
+  let loaded = 0;
+  const total = urls.length;
+  const bar = document.getElementById('loader-bar');
+
+  return new Promise(resolve => {
+    if (total === 0) { resolve(); return; }
+    urls.forEach(url => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        loaded++;
+        bar.style.width = (loaded / total * 100) + '%';
+        if (loaded >= total) resolve();
+      };
+      img.src = url;
+    });
+    // Safety timeout
+    setTimeout(resolve, 8000);
+  });
+}
+
+async function init() {
+  await preloadImages();
+  const preloader = document.getElementById('preloader');
+  preloader.classList.add('done');
+  setTimeout(() => {
+    preloader.style.display = 'none';
+    document.getElementById('title-screen').style.display = 'flex';
+    createParticles();
+  }, 800);
+}
+
+// ===== TITLE & NAME =====
+function startGame() {
+  const ts = document.getElementById('title-screen');
+  ts.style.opacity = '0';
+  ts.style.transition = 'opacity 0.8s';
+  setTimeout(() => {
+    ts.style.display = 'none';
+    const ns = document.getElementById('name-screen');
+    ns.style.display = 'flex';
+    ns.style.opacity = '0';
+    requestAnimationFrame(() => {
+      ns.style.transition = 'opacity 0.8s';
+      ns.style.opacity = '1';
+    });
+    document.getElementById('player-name').focus();
+  }, 800);
+}
+
+function confirmName() {
+  const name = document.getElementById('player-name').value.trim();
+  if (!name) {
+    const inp = document.getElementById('player-name');
+    inp.style.borderColor = '#ff4655';
+    inp.setAttribute('placeholder', '请输入代号！');
+    return;
+  }
+  G.playerName = name;
+  CHARS.player.name = name.toUpperCase();
+
+  const ns = document.getElementById('name-screen');
+  ns.style.opacity = '0';
+  setTimeout(() => {
+    ns.style.display = 'none';
+    beginStory();
+  }, 800);
+}
+
+function beginStory() {
+  const gs = document.getElementById('game-scene');
+  gs.style.display = 'block';
+  requestAnimationFrame(() => gs.classList.add('active'));
+  setTimeout(() => playNode('intro_1'), 600);
+}
+
+// ===== STORY NODES =====
+function getStoryNodes() {
+  const P = G.playerName;
+  return {
+    'intro_1': {
+      bg: 'bg-lobby',
+      chapter: '第一章 · 初遇',
+      chars: [{ id: 'jett', pos: 'pos-right', active: true }],
+      dialogue: [
+        { speaker: 'jett', text: `嘿！你就是今天来报名 HWVCT S5 的新选手吧？` },
+        { speaker: 'jett', text: `我是 Jett。让我看看……"${P}"，对吧？名单上确实有你的名字。` },
+        { speaker: 'jett', text: `欢迎来到无畏契约的世界。不过在此之前，我需要了解一下你——` },
+        { speaker: 'jett', text: `告诉我，你在比赛中最擅长打什么位置？` },
+      ],
+      choices: [
+        { text: '一突（Entry）—— 我喜欢第一个冲进去', next: 'role_duelist1' },
+        { text: '二突（Follow Up）—— 我擅长跟进和补枪', next: 'role_duelist2' },
+        { text: '先锋（Initiator）—— 收集情报，为队伍开路', next: 'role_initiator' },
+        { text: '哨位（Sentinel）—— 守护防线，给队友安全感', next: 'role_sentinel' },
+        { text: '烟位（Controller）—— 掌控战场节奏', next: 'role_smoker' },
+        { text: '补位（Flex）—— 我什么都能打', next: 'role_flex' },
+      ]
+    },
+
+    'role_duelist1': {
+      bg: 'bg-lobby',
+      chapter: '第一章 · 决斗者之路',
+      chars: [{ id: 'jett', pos: 'pos-right', active: true }],
+      onEnter: () => { G.role = 'duelist1'; G.partnerAgent = 'jett'; },
+      dialogue: [
+        { speaker: 'jett', text: `哦？一突？！` },
+        { speaker: 'jett', text: `哈哈，看来我们是同一类人！喜欢风驰电掣的感觉，对吧？` },
+        { speaker: 'jett', text: `说实话，${P}，我们队伍正好缺一个有胆量的一突选手。` },
+        { speaker: 'jett', text: `上一个打这个位置的队友……关键时刻总是腿软。但你看起来不一样。` },
+        { speaker: 'jett', text: `你的眼神告诉我，你不怕死。这在战场上很重要。` },
+        { speaker: 'player', text: `放心，进点的事情交给我就好。` },
+        { speaker: 'jett', text: `很好！这种自信我喜欢。` },
+        { speaker: 'jett', text: `${P}，你就是我们一直在找的最后一块拼图！欢迎加入！` },
+      ],
+      next: 'team_gather'
+    },
+
+    'role_duelist2': {
+      bg: 'bg-lobby',
+      chapter: '第一章 · 暗影猎手',
+      chars: [
+        { id: 'jett', pos: 'pos-left', active: false },
+        { id: 'reyna', pos: 'pos-right', active: true }
+      ],
+      onEnter: () => { G.role = 'duelist2'; G.partnerAgent = 'reyna'; },
+      dialogue: [
+        { speaker: 'jett', text: `二突吗？有意思。这个位置需要冷静和精准……嗯，我介绍个人给你。` },
+        { speaker: 'jett', text: `Reyna，过来一下！这位就是 ${P}。` },
+        { speaker: 'reyna', text: `嗯？这就是新来的？让我看看……` },
+        { speaker: 'reyna', text: `二突选手。跟在别人身后，等待最佳时机出手……` },
+        { speaker: 'reyna', text: `这需要比一突更强的心理素质。你要在一瞬间判断——补枪，还是换位。` },
+        { speaker: 'player', text: `我更喜欢在暗处等待猎物露出破绽的感觉。` },
+        { speaker: 'reyna', text: `哦？我喜欢你说话的方式，${P}。` },
+        { speaker: 'reyna', text: `我们队伍正缺一个像你这样的人。欢迎加入……别让我失望。` },
+      ],
+      next: 'team_gather'
+    },
+
+    'role_initiator': {
+      bg: 'bg-lobby',
+      chapter: '第一章 · 情报先锋',
+      chars: [
+        { id: 'jett', pos: 'pos-left', active: false },
+        { id: 'sova', pos: 'pos-right', active: true }
+      ],
+      onEnter: () => { G.role = 'initiator'; G.partnerAgent = 'sova'; },
+      dialogue: [
+        { speaker: 'jett', text: `先锋？太好了！我马上叫 Sova 来，他一直在找搭档。` },
+        { speaker: 'sova', text: `你好，${P}。我是 Sova。Jett 说你想打先锋位？` },
+        { speaker: 'sova', text: `先锋是队伍的眼睛。我们提供情报，让队友知道该在哪里开枪。` },
+        { speaker: 'sova', text: `不需要最强的枪法，但需要最清晰的头脑。你明白吗？` },
+        { speaker: 'player', text: `情报就是胜利的基础。每一个信息差都可能决定胜负。` },
+        { speaker: 'sova', text: `说得好。你的思维方式很适合这个位置。` },
+        { speaker: 'sova', text: `${P}，欢迎加入我们。你就是我们队伍缺少的那个人。` },
+      ],
+      next: 'team_gather'
+    },
+
+    'role_sentinel': {
+      bg: 'bg-lobby',
+      chapter: '第一章 · 守护之壁',
+      chars: [
+        { id: 'jett', pos: 'pos-left', active: false },
+        { id: 'sage', pos: 'pos-right', active: true }
+      ],
+      onEnter: () => { G.role = 'sentinel'; G.partnerAgent = 'sage'; },
+      dialogue: [
+        { speaker: 'jett', text: `哨位！不错，我去叫 Sage。我们的防线一直缺个可靠的人。` },
+        { speaker: 'sage', text: `你好，${P}。我是 Sage。` },
+        { speaker: 'sage', text: `哨位选手是队伍的脊梁。当所有人都在冲锋时，是我们在守护后方。` },
+        { speaker: 'sage', text: `这个位置不那么耀眼，但没有我们，队伍就像一盘散沙。` },
+        { speaker: 'player', text: `我愿意做那个在背后默默守护的人。` },
+        { speaker: 'sage', text: `……你让我想起一句话："真正的强大，是让身边的人感到安心。"` },
+        { speaker: 'sage', text: `${P}，你就是我们一直在寻找的队友。欢迎加入。` },
+      ],
+      next: 'team_gather'
+    },
+
+    'role_smoker': {
+      bg: 'bg-lobby',
+      chapter: '第一章 · 迷雾主宰',
+      chars: [
+        { id: 'jett', pos: 'pos-left', active: false },
+        { id: 'clove', pos: 'pos-right', active: true }
+      ],
+      onEnter: () => { G.role = 'smoker'; G.partnerAgent = 'clove'; },
+      dialogue: [
+        { speaker: 'jett', text: `烟位啊！刚好，Clove 一直想找个能交流的同行。` },
+        { speaker: 'clove', text: `嘿嘿，你就是 ${P} 吧？听说你想打烟位~` },
+        { speaker: 'clove', text: `烟位可不只是丢烟雾弹哦！我们掌控着整个团队的进攻节奏。` },
+        { speaker: 'clove', text: `什么时候放烟，放在哪里，持续多久——这些都是学问呢~` },
+        { speaker: 'player', text: `战场的节奏，就应该掌握在我们手中。` },
+        { speaker: 'clove', text: `哇，说得好酷！我觉得我们会很合得来的！` },
+        { speaker: 'clove', text: `${P}，你就是我们队伍缺少的最后那个人！欢迎欢迎~` },
+      ],
+      next: 'team_gather'
+    },
+
+    'role_flex': {
+      bg: 'bg-lobby',
+      chapter: '第一章 · 万能战士',
+      chars: [
+        { id: 'jett', pos: 'pos-left', active: false },
+        { id: 'neon', pos: 'pos-right', active: true }
+      ],
+      onEnter: () => { G.role = 'flex'; G.partnerAgent = 'neon'; },
+      dialogue: [
+        { speaker: 'jett', text: `补位？通才型选手！这种人可遇不可求。Neon，你来！` },
+        { speaker: 'neon', text: `什么什么？新队友来了？！让我看看——哦！你就是 ${P}？` },
+        { speaker: 'neon', text: `补位选手！太好了！我们队就缺一个什么都能玩的人！` },
+        { speaker: 'neon', text: `说真的，这个位置最难。因为你需要理解所有角色的打法。` },
+        { speaker: 'neon', text: `但这也意味着——你是整个队伍里最灵活、最聪明的那个人！` },
+        { speaker: 'player', text: `不管需要我打什么，我都能胜任。` },
+        { speaker: 'neon', text: `这就是我想听的！${P}，欢迎加入！有你在，我们无敌了！` },
+      ],
+      next: 'team_gather'
+    },
+
+    // ===== CHAPTER 2: TEAM GATHER =====
+    'team_gather': {
+      bg: 'bg-lobby',
+      chapter: '第二章 · 集结',
+      onEnter: () => { showNotification('全员集结', '队伍成员已到齐', 2200); },
+      groupChat: {
+        messages: [
+          { author: 'jett', text: `@所有人 新队友 ${P} 加入了！大家快来打个招呼~` },
+          { author: 'sova', text: `欢迎！终于凑齐五个人了。` },
+          { author: 'sage', text: `你好，${P}。期待与你并肩作战。` },
+          { author: 'clove', text: `耶~新朋友！欢迎欢迎！🎉` },
+          { author: 'neon', text: `太棒了！！！我们可以开始训练赛了！！！⚡⚡` },
+          { author: 'reyna', text: `嗯。希望你能跟上我们的节奏。` },
+          { author: 'player', text: `大家好，我是 ${P}。请多指教！` },
+          { author: 'brimstone', text: `好了各位。我是教练 Brimstone。既然人齐了——` },
+          { author: 'brimstone', text: `明天有一场训练赛，对手是上赛季四强队伍。不要掉以轻心。` },
+          { author: 'jett', text: `训练赛？正好让 ${P} 热热身！` },
+          { author: 'brimstone', text: `地图是 Haven。所有人，今晚早点休息。明天见。` },
+        ],
+        next: 'pre_match'
+      }
+    },
+
+    // ===== CHAPTER 3: PRE-MATCH =====
+    'pre_match': {
+      bg: 'bg-range',
+      chapter: '第三章 · 赛前',
+      chars: [{ id: G.partnerAgent || 'jett', pos: 'pos-right', active: true }],
+      dialogue: 'dynamic_pre_match',
+      next: 'match_start'
+    },
+
+    // ===== CHAPTER 4: MATCH =====
+    'match_start': {
+      bg: 'bg-match',
+      chapter: '第四章 · 训练赛',
+      onEnter: () => {
+        showScoreboard(true);
+        updateScore(0, 0);
+        showNotification('比赛开始', 'HAVEN · 攻方先手', 2500);
+      },
+      chars: [{ id: 'jett', pos: 'pos-right', active: true }],
+      dialogue: [
+        { speaker: 'narrator', text: `—— 比赛加载中 ——\nHAVEN · 攻方先手` },
+        { speaker: 'jett', text: `手枪局！${P}，你准备好了吗？` },
+        { speaker: 'jett', text: `第一局很关键。我们打哪个点？` },
+      ],
+      choices: [
+        { text: '直接 Rush B！打他们一个措手不及', next: 'round1_rush' },
+        { text: '先做默认布局，慢慢找机会', next: 'round1_default' },
+      ]
+    },
+
+    'round1_rush': {
+      bg: 'bg-match',
+      chapter: '第四章 · 第一局',
+      chars: [
+        { id: 'neon', pos: 'pos-left', active: true },
+        { id: 'jett', pos: 'pos-right', active: true }
+      ],
+      onEnter: () => { G.matchChoices.push('aggressive'); },
+      dialogue: [
+        { speaker: 'neon', text: `Rush B！我喜欢！跟上我！！` },
+        { speaker: 'narrator', text: `—— 全队迅速压向 B 点 ——` },
+        { speaker: 'jett', text: `他们没有防备！${P}，进点！` },
+        { speaker: 'narrator', text: `你第一个冲进 B 点，两枪爆头带走一个防守者。\n队友跟进，成功拿下首局！` },
+        { speaker: 'neon', text: `漂亮！！${P} 太猛了！！` },
+      ],
+      onExit: () => { updateScore(1, 0); },
+      next: 'round2_setup'
+    },
+
+    'round1_default': {
+      bg: 'bg-match',
+      chapter: '第四章 · 第一局',
+      chars: [
+        { id: 'sova', pos: 'pos-left', active: true },
+        { id: 'sage', pos: 'pos-right', active: false }
+      ],
+      onEnter: () => { G.matchChoices.push('tactical'); },
+      dialogue: [
+        { speaker: 'sova', text: `好的，默认布局。我先放箭探点。` },
+        { speaker: 'narrator', text: `—— Sova 的侦察箭揭示了 A 点的防守布局 ——` },
+        { speaker: 'sova', text: `A 点只有一个人！${P}，我们转 A！` },
+        { speaker: 'narrator', text: `你们利用信息差拿下 A 点，\n对手回防虽快，但最终你们险胜。` },
+        { speaker: 'sage', text: `打得不错。信息收集很到位。` },
+      ],
+      onExit: () => { updateScore(1, 0); },
+      next: 'round2_setup'
+    },
+
+    'round2_setup': {
+      bg: 'bg-match',
+      chapter: '第四章 · 攻防拉锯',
+      chars: [{ id: G.partnerAgent || 'jett', pos: 'pos-right', active: true }],
+      dialogue: 'dynamic_round2',
+      next: 'mid_match_chat'
+    },
+
+    'mid_match_chat': {
+      bg: 'bg-match',
+      chapter: '第四章 · 中场',
+      onEnter: () => { updateScore(5, 4); },
+      groupChat: {
+        messages: [
+          { author: 'brimstone', text: `现在比分 5-4，我们领先。但不能放松。` },
+          { author: 'jett', text: `他们的 A 守很硬。有什么办法吗？` },
+          { author: 'sova', text: `我注意到他们 C 点轮转很慢。可以做 C 点假动作后转 A。` },
+          { author: 'player', text: `我有个想法——` },
+          { author: 'clove', text: `说说看？` },
+          { author: 'player', text: `下半场他们攻方。我们在 B 点布置重防，引诱他们过来。` },
+          { author: 'reyna', text: `不错的想法。我可以配合你。` },
+          { author: 'brimstone', text: `好。下半场防守，所有人听 ${P} 的布局。给你指挥权。` },
+          { author: 'neon', text: `哇！${P} 当指挥了！加油！！` },
+          { author: 'sage', text: `相信你，${P}。` },
+        ],
+        next: 'half_switch'
+      }
+    },
+
+    'half_switch': {
+      bg: 'bg-match',
+      chapter: '第四章 · 下半场',
+      onEnter: () => {
+        showNotification('攻守互换', '切换至 防守方', 2200);
+        updateScore(6, 6);
+      },
+      chars: [
+        { id: 'sage', pos: 'pos-left', active: false },
+        { id: 'jett', pos: 'pos-right', active: true }
+      ],
+      dialogue: [
+        { speaker: 'narrator', text: `—— 攻守互换 · 6:6 ——` },
+        { speaker: 'jett', text: `平局！下半场是关键，${P}！` },
+        { speaker: 'jett', text: `你来指挥防守布局。我们怎么站位？` },
+      ],
+      choices: [
+        { text: '集中防守 B 点，引诱他们来送', next: 'def_stack_b' },
+        { text: '均匀分布各点，用信息打轮转', next: 'def_spread' },
+        { text: '激进 Push，打他们一个出其不意', next: 'def_aggro' },
+      ]
+    },
+
+    'def_stack_b': {
+      bg: 'bg-match',
+      chapter: '第四章 · 防守',
+      chars: [
+        { id: 'reyna', pos: 'pos-left', active: true },
+        { id: 'sage', pos: 'pos-right', active: true }
+      ],
+      onEnter: () => { G.matchChoices.push('stack'); },
+      dialogue: [
+        { speaker: 'player', text: `Sage 和我守 B 点主道。Reyna 在窗口架枪。其余人 A 和 C 各一个。` },
+        { speaker: 'sage', text: `明白。我在 B 点入口放墙。` },
+        { speaker: 'reyna', text: `哼，窗口的视野不错。交给我。` },
+        { speaker: 'narrator', text: `—— 对方果然主攻 B 点 ——\n他们没预料到如此密集的防守，三人被集火拿下。` },
+        { speaker: 'narrator', text: `你的指挥非常成功！队伍士气大振。` },
+        { speaker: 'reyna', text: `${P}……你的指挥比我想象的要好。` },
+      ],
+      onExit: () => { updateScore(9, 7); },
+      next: 'clutch_round'
+    },
+
+    'def_spread': {
+      bg: 'bg-match',
+      chapter: '第四章 · 防守',
+      chars: [
+        { id: 'sova', pos: 'pos-left', active: true },
+        { id: 'clove', pos: 'pos-right', active: true }
+      ],
+      onEnter: () => { G.matchChoices.push('balanced'); },
+      dialogue: [
+        { speaker: 'player', text: `各点分开站。Sova 的箭负责收集信息，根据情况轮转支援。` },
+        { speaker: 'sova', text: `了解。我会第一时间提供情报。` },
+        { speaker: 'clove', text: `我来控制中路视野~这样能更快支援各个点。` },
+        { speaker: 'narrator', text: `—— 你们的信息网非常高效，每次都能提前预判对手进攻方向 ——` },
+        { speaker: 'narrator', text: `对手频繁转点但始终找不到突破口，连输了几局。` },
+        { speaker: 'sova', text: `${P}，你的布局很有条理。这就是团队协作的力量。` },
+      ],
+      onExit: () => { updateScore(9, 7); },
+      next: 'clutch_round'
+    },
+
+    'def_aggro': {
+      bg: 'bg-match',
+      chapter: '第四章 · 防守',
+      chars: [
+        { id: 'neon', pos: 'pos-left', active: true },
+        { id: 'jett', pos: 'pos-right', active: true }
+      ],
+      onEnter: () => { G.matchChoices.push('aggro'); },
+      dialogue: [
+        { speaker: 'player', text: `我们不被动等。Jett 和 Neon，开局直接 push 对面出生点！` },
+        { speaker: 'neon', text: `啊？！Push 出生点？！太疯了——我超喜欢！！！` },
+        { speaker: 'jett', text: `哈！跟你在一起果然不会无聊！冲啊！` },
+        { speaker: 'narrator', text: `—— 你们的激进打法完全打乱了对手节奏 ——\n他们根本没想到防守方会如此大胆。` },
+        { speaker: 'narrator', text: `虽然有几局因冒险失败了，但整体建立了巨大的心理优势。` },
+        { speaker: 'jett', text: `${P}，你的指挥风格很对我胃口！就该这么打！` },
+      ],
+      onExit: () => { updateScore(9, 8); },
+      next: 'clutch_round'
+    },
+
+    // ===== CHAPTER 5: CLUTCH =====
+    'clutch_round': {
+      bg: 'bg-match',
+      chapter: '第五章 · 决胜时刻',
+      onEnter: () => {
+        flash();
+        showNotification('赛点局', '12 - 10 · 我方赛点', 2500);
+        setTimeout(() => updateScore(12, 10), 500);
+      },
+      chars: [{ id: G.partnerAgent || 'jett', pos: 'pos-right', active: true }],
+      dialogue: 'dynamic_clutch_setup',
+      next: 'clutch_situation'
+    },
+
+    'clutch_situation': {
+      bg: 'bg-match',
+      chapter: '第五章 · 1v1',
+      onEnter: () => { flash(); clearCharacters(); },
+      chars: [],
+      dialogue: [
+        { speaker: 'narrator', text: `—— 赛点局 · 比分 12:10 ——` },
+        { speaker: 'narrator', text: `局势急转直下。双方激烈交火后，你的队友全部倒下。` },
+        { speaker: 'narrator', text: `而对面——也只剩下了最后一个人。` },
+        { speaker: 'narrator', text: `1 v 1。\n炸弹已安装在 C 点。时间正在流逝。` },
+        { speaker: 'narrator', text: `你深呼吸。准心稳住。这一刻，所有人都在看着你。` },
+      ],
+      choices: [
+        { text: '直接冲进点位拼枪——用实力说话！', next: 'clutch_fight' },
+        { text: '利用脚步声和技能欺骗对手，智取', next: 'clutch_outplay' },
+        { text: '放慢节奏，等对手犯错', next: 'clutch_patience' },
+      ]
+    },
+
+    'clutch_fight': {
+      bg: 'bg-match',
+      chapter: '第五章 · 对决',
+      onEnter: () => { G.matchChoices.push('fight'); },
+      chars: [],
+      dialogue: [
+        { speaker: 'narrator', text: `你不再犹豫。大步走向 C 点。` },
+        { speaker: 'narrator', text: `拐角处，你和对手四目相对——` },
+        { speaker: 'narrator', text: `时间仿佛静止了。你扣下扳机。` },
+      ],
+      choices: [
+        { text: '瞄准头部——一枪定胜负！', next: 'clutch_win' },
+        { text: '先打身体再拉枪——求稳', next: 'clutch_close_call' },
+      ]
+    },
+
+    'clutch_outplay': {
+      bg: 'bg-match',
+      chapter: '第五章 · 智取',
+      onEnter: () => { G.matchChoices.push('outplay'); },
+      chars: [],
+      dialogue: [
+        { speaker: 'narrator', text: `你在 C 点外侧制造脚步声假装绕后——` },
+        { speaker: 'narrator', text: `然后立刻静步折返，从正面进入。` },
+        { speaker: 'narrator', text: `对手上当了！他背对着你转身的瞬间——` },
+        { speaker: 'narrator', text: `你抬手就是一枪。完美的心理博弈。` },
+      ],
+      next: 'clutch_win'
+    },
+
+    'clutch_patience': {
+      bg: 'bg-match',
+      chapter: '第五章 · 等待',
+      onEnter: () => { G.matchChoices.push('patience'); },
+      chars: [],
+      dialogue: [
+        { speaker: 'narrator', text: `你决定等待，监听对手的动静。` },
+        { speaker: 'narrator', text: `一秒……两秒……三秒……` },
+        { speaker: 'narrator', text: `突然你意识到——时间不够了！炸弹即将爆炸！` },
+        { speaker: 'narrator', text: `你被迫冲进点位，但仓促的脚步暴露了你的位置。` },
+        { speaker: 'narrator', text: `对手的准心早已等在那里。你倒下了。` },
+      ],
+      next: 'overtime_loss'
+    },
+
+    'clutch_close_call': {
+      bg: 'bg-match',
+      chapter: '第五章 · 险胜',
+      chars: [],
+      dialogue: [
+        { speaker: 'narrator', text: `你先打中了对手的身体——但他也在同时开枪了！` },
+        { speaker: 'narrator', text: `你的血量瞬间降到 1 HP！` },
+        { speaker: 'narrator', text: `但你的第二发子弹更快。对手倒下了。` },
+        { speaker: 'narrator', text: `1 HP……你活了下来。` },
+      ],
+      next: 'clutch_win'
+    },
+
+    'clutch_win': {
+      bg: 'bg-victory',
+      chapter: '第五章 · 胜利',
+      onEnter: () => {
+        flash();
+        updateScore(13, 10);
+        setTimeout(() => showResult('victory'), 500);
+      },
+      chars: [
+        { id: 'jett', pos: 'pos-far-left', active: true },
+        { id: G.partnerAgent !== 'jett' ? G.partnerAgent : 'neon', pos: 'pos-center-right', active: true },
+        { id: 'sage', pos: 'pos-far-right', active: true },
+      ],
+      dialogue: 'dynamic_victory',
+      next: 'ending_win'
+    },
+
+    'overtime_loss': {
+      bg: 'bg-match',
+      chapter: '第五章 · 加时',
+      onEnter: () => {
+        updateScore(12, 11);
+        showNotification('加时赛', '比分追至 12:11', 2200);
+      },
+      chars: [{ id: 'jett', pos: 'pos-right', active: true }],
+      dialogue: [
+        { speaker: 'jett', text: `没关系！${P}，别在意。加时赛，我们还有机会！` },
+        { speaker: 'narrator', text: `—— 加时赛 ——\n你们奋力作战，但对手的势头已经起来了。` },
+        { speaker: 'narrator', text: `一局又一局，比分被追平，然后反超……` },
+      ],
+      onExit: () => { updateScore(12, 14); },
+      next: 'match_loss'
+    },
+
+    'match_loss': {
+      bg: 'bg-defeat',
+      chapter: '第五章 · 惜败',
+      onEnter: () => {
+        flash();
+        setTimeout(() => showResult('defeat'), 500);
+      },
+      chars: [
+        { id: 'sage', pos: 'pos-left', active: true },
+        { id: G.partnerAgent || 'jett', pos: 'pos-right', active: true }
+      ],
+      dialogue: 'dynamic_defeat',
+      next: 'ending_lose'
+    },
+
+    // ===== ENDINGS =====
+    'ending_win': {
+      bg: 'bg-victory',
+      chapter: '终章 · 启程',
+      onEnter: () => { hideResult(); showScoreboard(false); },
+      groupChat: {
+        messages: [
+          { author: 'brimstone', text: `漂亮！训练赛胜利。你们的配合超出了我的预期。` },
+          { author: 'jett', text: `${P} 太强了吧！！那个 1v1 简直帅呆了！！` },
+          { author: 'neon', text: `我要把这场录像看十遍！！！` },
+          { author: 'sova', text: `${P} 的指挥和判断力都非常出色。正赛有你在，我很放心。` },
+          { author: 'sage', text: `你做得很好，${P}。你让整个队伍都变得更强了。` },
+          { author: 'reyna', text: `……看来你确实有些本事。我期待正赛上你的表现。` },
+          { author: 'clove', text: `好耶好耶~${P} 是我们的幸运星~🌟` },
+          { author: 'brimstone', text: `${P}，记住这种感觉。真正的战斗，在 HWVCT S5 赛场上等你。` },
+          { author: 'brimstone', text: `所有人——准备好了吗？` },
+          { author: 'jett', text: `随时！` },
+          { author: 'neon', text: `出发！！！⚡` },
+          { author: 'player', text: `我准备好了。HWVCT S5，我来了。` },
+        ],
+        next: 'final_scene'
+      }
+    },
+
+    'ending_lose': {
+      bg: 'bg-defeat',
+      chapter: '终章 · 不灭的火焰',
+      onEnter: () => { hideResult(); showScoreboard(false); },
+      groupChat: {
+        messages: [
+          { author: 'brimstone', text: `输了。但这只是训练赛。重要的是我们学到了什么。` },
+          { author: 'jett', text: `${P}，别灰心。你今天的表现已经很棒了。` },
+          { author: 'sage', text: `每一次失败都是成长的基石。你已经比很多人做得更好了，${P}。` },
+          { author: 'sova', text: `从数据来看，你的指挥和判断都没问题。只是经验需要积累。` },
+          { author: 'neon', text: `下次我们一定能赢的！别丧气！！` },
+          { author: 'reyna', text: `……输了就输了。站起来，再战一次。这才是强者。` },
+          { author: 'clove', text: `${P}~不要难过！我们还有正赛要打呢！这次失败让我们更强了！` },
+          { author: 'brimstone', text: `${P}。你今天证明了自己有资格站在这里。` },
+          { author: 'brimstone', text: `HWVCT S5 的赛场上，才是你真正发光的舞台。准备好了吗？` },
+          { author: 'player', text: `……我不会再输了。HWVCT S5，我会全力以赴。` },
+          { author: 'jett', text: `这才对嘛！走！一起出发！` },
+        ],
+        next: 'final_scene'
+      }
+    },
+
+    'final_scene': {
+      bg: 'bg-lobby',
+      chapter: '终章',
+      chars: [{ id: G.partnerAgent || 'jett', pos: 'pos-right', active: true }],
+      dialogue: 'dynamic_final',
+      next: 'credits'
+    },
+
+    'credits': {
+      bg: 'bg-lobby',
+      chapter: '',
+      chars: [],
+      dialogue: [
+        { speaker: 'narrator', text: `\n——  HWVCT SEASON 5  ——\n\n欢迎你，${P}。\n\n你的故事，才刚刚开始。\n\n\n感谢游玩` },
+      ],
+      isEnd: true
+    }
+  };
+}
+
+// ===== DYNAMIC DIALOGUE =====
+function getDynamicDialogue(key) {
+  const P = G.playerName;
+  const dialogues = {
+    'dynamic_pre_match': [
+      { speaker: G.partnerAgent, text: `${P}，训练赛马上就要开始了。感觉怎么样？` },
+      { speaker: 'player', text: `有点紧张……毕竟是加入队伍后的第一场比赛。` },
+      { speaker: G.partnerAgent, text: getRoleSpecificLine('pre_match_1') },
+      { speaker: G.partnerAgent, text: `记住，这只是训练赛。放开打，展现你的实力就好。` },
+      { speaker: 'player', text: `嗯。我会全力以赴的。` },
+      { speaker: G.partnerAgent, text: getRoleSpecificLine('pre_match_2') },
+    ],
+    'dynamic_round2': [
+      { speaker: G.partnerAgent, text: `不错的开局，${P}！你的表现比我预想的还要好。` },
+      { speaker: 'player', text: `这还只是开始。对手应该很快会调整战术了。` },
+      { speaker: G.partnerAgent, text: `你说得对。他们不会让我们轻松赢下去的。` },
+      { speaker: 'narrator', text: `—— 接下来的几局中，双方你来我往，战况胶着 ——\n比分逐渐拉近……` },
+    ],
+    'dynamic_clutch_setup': [
+      { speaker: G.partnerAgent, text: `${P}，赛点了！再拿下这一局我们就赢了！` },
+      { speaker: G.partnerAgent, text: `冷静下来。你可以的。我们所有人都相信你。` },
+      { speaker: 'player', text: `……明白了。让我来结束这场比赛。` },
+    ],
+    'dynamic_victory': [
+      { speaker: 'jett', text: `${P}！！！你做到了！！！` },
+      { speaker: 'sage', text: `漂亮的收尾。你证明了自己。` },
+      { speaker: G.partnerAgent !== 'jett' && G.partnerAgent !== 'sage' ? G.partnerAgent : 'neon', text: getRoleSpecificLine('victory') },
+      { speaker: 'player', text: `是大家一起赢下来的。` },
+    ],
+    'dynamic_defeat': [
+      { speaker: 'sage', text: `${P}……不要自责。你已经尽力了。` },
+      { speaker: G.partnerAgent, text: getRoleSpecificLine('defeat') },
+      { speaker: 'player', text: `……我还有很多需要学习的地方。` },
+      { speaker: G.partnerAgent, text: `正因如此，你才会变得更强。记住这次失败的感觉。` },
+    ],
+    'dynamic_final': [
+      { speaker: G.partnerAgent, text: `${P}。` },
+      { speaker: G.partnerAgent, text: getRoleSpecificLine('final_1') },
+      { speaker: G.partnerAgent, text: `HWVCT S5 的赛场上，有你在，我就不担心了。` },
+      { speaker: 'player', text: getRoleSpecificLine('final_player') },
+      { speaker: G.partnerAgent, text: `……那我们赛场上见！` },
+      { speaker: 'narrator', text: `${P} 望向远方。HWVCT S5 的赛场，正在等待。\n属于你的传奇，即将开启。` },
+    ],
+  };
+  return dialogues[key] || [];
+}
+
+function getRoleSpecificLine(context) {
+  const P = G.playerName;
+  const lines = {
+    'pre_match_1': {
+      duelist1: `紧张？哈，一突选手可不能紧张。冲进点位的瞬间，肾上腺素会帮你忘掉一切。`,
+      duelist2: `紧张是好事。说明你在认真对待这场比赛。`,
+      initiator: `紧张很正常。但作为先锋，你需要把紧张转化为专注。`,
+      sentinel: `紧张的时候，深呼吸。记住，你是队伍的后盾。只要你稳住，大家就稳住了。`,
+      smoker: `紧张的话，就把注意力放在烟雾的timing上。控制好节奏，你就能控制比赛。`,
+      flex: `补位选手的优势就是——你比任何人都了解全局。相信你的判断。`,
+    },
+    'pre_match_2': {
+      duelist1: `我在后面给你补枪。冲就完事了！`,
+      duelist2: `我先冲，你跟上。完美配合从这一场开始。`,
+      initiator: `信息就是力量。用你的技能为我们照亮前方的道路。`,
+      sentinel: `我在前面冲锋的时候，把后方交给你了。`,
+      smoker: `烟雾放得好，赢面多一半。我相信你的判断。`,
+      flex: `不管需要你扮演什么角色，我们都支持你。`,
+    },
+    'victory': {
+      duelist1: `你的进攻太果断了！这就是一突选手该有的样子！`,
+      duelist2: `完美的跟进和补枪。我果然没看错你。`,
+      initiator: `你的情报支援改变了比赛走向。感谢你，${P}。`,
+      sentinel: `你守住了我们的后方。正因为有你在，我们才能放心进攻。`,
+      smoker: `你的烟雾timing完美。每一颗烟都恰到好处。`,
+      flex: `你在每个位置上都表现得像个老手。真正的万能选手。`,
+    },
+    'defeat': {
+      duelist1: `别丧气。就算是最好的一突选手也会失手。重要的是下一次你会更强。`,
+      duelist2: `失败不是终点，${P}。这只是通向胜利的一步。`,
+      initiator: `数据不会说谎。你的表现已经超出训练赛水准。正赛上，你会更好的。`,
+      sentinel: `你已经守住了太多次了。偶尔一次失守，不代表什么。`,
+      smoker: `烟雾的节奏已经很好了。只是需要更多实战经验。你会成长的。`,
+      flex: `能打任何位置本身就是天赋。下次，你会做得更好。`,
+    },
+    'final_1': {
+      duelist1: `你是我遇到过最有胆量的选手。冲锋的时候，你的背影让我想跟上去。`,
+      duelist2: `和你搭档的感觉很好。就像找到了另一半影子。`,
+      initiator: `有你做我的眼睛，我在战场上从未如此安心。`,
+      sentinel: `因为有你守护后方，我们才能毫无顾忌地向前冲。谢谢你。`,
+      smoker: `你的烟雾让我想起日出前的薄雾……充满希望。`,
+      flex: `能适应一切的人，才是最可怕的对手。很高兴你在我这边。`,
+    },
+    'final_player': {
+      duelist1: `冲锋的路上，有你们在，我无所畏惧。`,
+      duelist2: `只要你在前面带路，我一定跟上。`,
+      initiator: `为大家照亮道路，是我最大的荣幸。`,
+      sentinel: `守护大家，就是我的战斗方式。一起赢下 HWVCT S5。`,
+      smoker: `战场的迷雾中，我会为你们指引方向。`,
+      flex: `不管需要什么角色，我都已准备好了。一起冲吧。`,
+    },
+  };
+  return lines[context]?.[G.role] || lines[context]?.duelist1 || '';
+}
+
+// ===== RENDERING ENGINE =====
+function playNode(nodeId) {
+  const nodes = getStoryNodes();
+  const node = nodes[nodeId];
+  if (!node) return;
+
+  G.currentNode = { id: nodeId, ...node };
+
+  if (node.onEnter) node.onEnter();
+  if (node.chapter !== undefined) {
+    document.getElementById('hud-chapter').textContent = node.chapter;
+  }
+  if (node.bg) changeBackground(node.bg);
+
+  // Group chat
+  if (node.groupChat) {
+    hideDialogue();
+    clearCharacters();
+    showGroupChat(node.groupChat.messages, () => {
+      if (node.groupChat.next) playNode(node.groupChat.next);
+    });
+    return;
+  }
+
+  // Characters
+  if (node.chars) setupCharacters(node.chars);
+
+  // Dialogue
+  let dialogueList;
+  if (typeof node.dialogue === 'string') {
+    dialogueList = getDynamicDialogue(node.dialogue);
+  } else {
+    dialogueList = node.dialogue || [];
+  }
+
+  G.dialogueQueue = dialogueList;
+  G.dialogueIndex = 0;
+
+  if (dialogueList.length > 0) {
+    showDialogue();
+    displayDialogueLine(0);
+  }
+
+  G.currentNode.dialogueList = dialogueList;
+  G.currentNode.choices = node.choices;
+  G.currentNode.nextNode = node.next;
+  G.currentNode.onExit = node.onExit;
+  G.currentNode.isEnd = node.isEnd;
+}
+
+function advanceDialogue() {
+  if (G.isTyping) { finishTyping(); return; }
+  if (!G.canAdvance) return;
+
+  G.dialogueIndex++;
+
+  if (G.dialogueIndex < G.dialogueQueue.length) {
+    displayDialogueLine(G.dialogueIndex);
+  } else {
+    if (G.currentNode.onExit) G.currentNode.onExit();
+
+    if (G.currentNode.choices) {
+      showChoices(G.currentNode.choices);
+    } else if (G.currentNode.isEnd) {
+      hideDialogue();
+    } else if (G.currentNode.nextNode) {
+      fadeTransition(() => playNode(G.currentNode.nextNode));
+    }
+  }
+}
+
+function displayDialogueLine(index) {
+  const line = G.dialogueQueue[index];
+  if (!line) return;
+
+  const speakerEl = document.getElementById('speaker-name');
+  const textEl = document.getElementById('dialogue-text');
+  const indicator = document.getElementById('click-indicator');
+
+  if (line.speaker === 'narrator') {
+    speakerEl.innerHTML = '<span style="color:#768079">旁白</span>';
+  } else if (line.speaker === 'player') {
+    speakerEl.innerHTML = `<span style="color:${CHARS.player.color}">${CHARS.player.name}</span>`;
+  } else {
+    const char = CHARS[line.speaker];
+    if (char) {
+      speakerEl.innerHTML = `<span style="color:${char.color}">${char.name}</span><span class="role-tag">${char.role}</span>`;
+    }
+  }
+
+  if (line.speaker !== 'narrator' && line.speaker !== 'player') {
+    highlightCharacter(line.speaker);
+  }
+
+  typeText(textEl, line.text, indicator);
+}
+
+let fullText = '';
+let typeIndex = 0;
+let typeEl = null;
+
+function typeText(el, text, indicator) {
+  G.isTyping = true;
+  G.canAdvance = false;
+  indicator.style.display = 'none';
+  fullText = text;
+  typeIndex = 0;
+  typeEl = el;
+  el.innerHTML = '';
+
+  clearInterval(G.typeTimer);
+  G.typeTimer = setInterval(() => {
+    if (typeIndex < fullText.length) {
+      let char = fullText[typeIndex];
+      el.innerHTML += (char === '\n') ? '<br>' : char;
+      typeIndex++;
+    } else {
+      finishTyping();
+    }
+  }, 28);
+}
+
+function finishTyping() {
+  clearInterval(G.typeTimer);
+  if (typeEl && fullText) {
+    typeEl.innerHTML = fullText.replace(/\n/g, '<br>');
+  }
+  G.isTyping = false;
+  G.canAdvance = true;
+  document.getElementById('click-indicator').style.display = 'block';
+}
+
+// ===== CHARACTER MANAGEMENT =====
+function setupCharacters(charDefs) {
+  const layer = document.getElementById('char-layer');
+  // Fade out existing
+  const existing = layer.querySelectorAll('.character');
+  existing.forEach(c => c.classList.remove('visible'));
+
+  setTimeout(() => {
+    layer.innerHTML = '';
+
+    charDefs.forEach((def, i) => {
+      const char = CHARS[def.id];
+      if (!char) return;
+
+      const el = document.createElement('div');
+      el.className = `character ${def.pos} ${def.active ? 'active' : ''}`;
+      el.dataset.charId = def.id;
+
+      const imgSrc = CHAR_IMAGES[def.id];
+      if (imgSrc) {
+        el.innerHTML = `
+          <img src="${imgSrc}" alt="${char.name}" draggable="false">
+          <div class="char-nametag" style="border-color:${char.color}">${char.name}</div>
+        `;
+      } else {
+        // Fallback for characters without images (brimstone, killjoy, player)
+        el.innerHTML = `
+          <div style="width:200px;height:400px;display:flex;align-items:center;justify-content:center;">
+            <div style="text-align:center;">
+              <div style="font-size:80px;margin-bottom:20px;">👤</div>
+              <div style="font-size:14px;font-weight:700;letter-spacing:3px;color:${char.color}">${char.name}</div>
+            </div>
+          </div>
+          <div class="char-nametag" style="border-color:${char.color}">${char.name}</div>
+        `;
+      }
+
+      layer.appendChild(el);
+
+      setTimeout(() => el.classList.add('visible'), 100 + i * 200);
+    });
+  }, 300);
+}
+
+function clearCharacters() {
+  const layer = document.getElementById('char-layer');
+  const chars = layer.querySelectorAll('.character');
+  chars.forEach(c => c.classList.remove('visible'));
+  setTimeout(() => { layer.innerHTML = ''; }, 600);
+}
+
+function highlightCharacter(charId) {
+  const chars = document.querySelectorAll('.character');
+  chars.forEach(c => {
+    if (c.dataset.charId === charId) {
+      c.classList.add('active');
+    } else {
+      c.classList.remove('active');
+    }
+  });
+}
+
+// ===== UI HELPERS =====
+function changeBackground(bgClass) {
+  document.getElementById('bg-layer').className = 'bg-layer ' + bgClass;
+}
+
+function showDialogue() {
+  document.getElementById('dialogue-container').style.display = 'block';
+}
+
+function hideDialogue() {
+  document.getElementById('dialogue-container').style.display = 'none';
+}
+
+function showChoices(choices) {
+  hideDialogue();
+  const container = document.getElementById('choices-container');
+  container.innerHTML = '';
+
+  choices.forEach((choice, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.innerHTML = `<span class="choice-key">${String.fromCharCode(65 + i)}</span>${choice.text}`;
+    btn.onclick = () => {
+      container.classList.remove('active');
+      container.innerHTML = '';
+      fadeTransition(() => playNode(choice.next));
+    };
+    container.appendChild(btn);
+  });
+
+  container.classList.add('active');
+}
+
+function showGroupChat(messages, onDone) {
+  const overlay = document.getElementById('group-chat');
+  overlay.innerHTML = '';
+
+  const box = document.createElement('div');
+  box.className = 'group-chat-box';
+  box.innerHTML = `<div class="chat-header">队 伍 频 道</div>`;
+
+  const msgContainer = document.createElement('div');
+  box.appendChild(msgContainer);
+  overlay.appendChild(box);
+  overlay.classList.add('active');
+
+  let msgIndex = 0;
+  function showNextMsg() {
+    if (msgIndex >= messages.length) {
+      const cont = document.createElement('div');
+      cont.className = 'chat-continue';
+      cont.innerHTML = `<button class="chat-continue-btn" id="chat-cont-btn">继 续 ▶</button>`;
+      box.appendChild(cont);
+      document.getElementById('chat-cont-btn').onclick = () => {
+        overlay.classList.remove('active');
+        overlay.innerHTML = '';
+        fadeTransition(onDone);
+      };
+      return;
+    }
+
+    const msg = messages[msgIndex];
+    const char = CHARS[msg.author] || CHARS.player;
+    const imgSrc = CHAR_IMAGES[msg.author];
+    const isPlayer = msg.author === 'player';
+
+    const msgEl = document.createElement('div');
+    msgEl.className = 'chat-message';
+
+    let avatarHtml;
+    if (isPlayer) {
+      avatarHtml = `<div class="chat-avatar player-avatar">🎮</div>`;
+    } else if (imgSrc) {
+      avatarHtml = `<div class="chat-avatar"><img src="${imgSrc}" alt="${char.name}"></div>`;
+    } else {
+      avatarHtml = `<div class="chat-avatar" style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);font-size:16px;">🔥</div>`;
+    }
+
+    msgEl.innerHTML = `
+      ${avatarHtml}
+      <div class="chat-content">
+        <div class="chat-author" style="color:${char.color}">${isPlayer ? G.playerName.toUpperCase() : char.name}</div>
+        <div class="chat-text">${msg.text}</div>
+      </div>
+    `;
+    msgContainer.appendChild(msgEl);
+    requestAnimationFrame(() => msgEl.classList.add('visible'));
+    box.scrollTop = box.scrollHeight;
+
+    msgIndex++;
+    setTimeout(showNextMsg, 900);
+  }
+
+  setTimeout(showNextMsg, 500);
+}
+
+function showScoreboard(visible) {
+  document.getElementById('scoreboard').classList.toggle('visible', visible);
+}
+
+function updateScore(ally, enemy) {
+  G.score.ally = ally;
+  G.score.enemy = enemy;
+
+  const allyEl = document.getElementById('score-ally');
+  const enemyEl = document.getElementById('score-enemy');
+
+  allyEl.style.transform = 'scale(1.3)';
+  enemyEl.style.transform = 'scale(1.3)';
+  allyEl.style.transition = 'transform 0.3s';
+  enemyEl.style.transition = 'transform 0.3s';
+
+  allyEl.textContent = ally;
+  enemyEl.textContent = enemy;
+
+  setTimeout(() => {
+    allyEl.style.transform = 'scale(1)';
+    enemyEl.style.transform = 'scale(1)';
+  }, 300);
+}
+
+function showNotification(title, desc, duration) {
+  const notif = document.getElementById('notification');
+  document.getElementById('notif-title').textContent = title;
+  document.getElementById('notif-desc').textContent = desc;
+  notif.classList.add('active');
+  setTimeout(() => notif.classList.remove('active'), duration || 2200);
+}
+
+function flash() {
+  const f = document.getElementById('screen-flash');
+  f.classList.add('active');
+  setTimeout(() => f.classList.remove('active'), 150);
+}
+
+function fadeTransition(callback) {
+  const f = document.getElementById('fade-overlay');
+  f.classList.add('active');
+  setTimeout(() => {
+    if (callback) callback();
+    setTimeout(() => f.classList.remove('active'), 400);
+  }, 500);
+}
+
+function showResult(type) {
+  const overlay = document.getElementById('result-overlay');
+  overlay.innerHTML = type === 'victory'
+    ? `<div class="result-text result-victory">VICTORY</div><div class="result-sub">训练赛 · 胜利</div>`
+    : `<div class="result-text result-defeat">DEFEAT</div><div class="result-sub">训练赛 · 惜败</div>`;
+  overlay.classList.add('active');
+}
+
+function hideResult() {
+  document.getElementById('result-overlay').classList.remove('active');
+}
+
+// ===== PARTICLES =====
+function createParticles() {
+  const screen = document.getElementById('title-screen');
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDelay = Math.random() * 6 + 's';
+    p.style.animationDuration = (4 + Math.random() * 4) + 's';
+    if (Math.random() > 0.5) p.style.background = '#00d4aa';
+    screen.appendChild(p);
+  }
+}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault();
+    advanceDialogue();
+  }
+});
+
+// ===== START =====
+init();
+</script>
+</body>
+</html>
