@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS5 - 选手主页</title>
+    <title>HWVCTS4 - 选手主页</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,17 +67,17 @@
         #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
         .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
         .theme-switch input { display:none; }
-        
-        /* 修复切换按钮隐形的Bug */
         .slider-theme { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
         body.light-theme .slider-theme { background-color: rgba(0,0,0,0.1); }
         .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
         input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
         input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
 
-        /* 统一的组别标签风格 */
+        /* 统一的组别标签风格，并增加未分组样式 */
         .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
         body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
+        .title-badge.unassigned { background: rgba(100, 100, 100, 0.2); color: #aaa; border-color: rgba(255,255,255,0.2); }
+        body.light-theme .title-badge.unassigned { background: rgba(0,0,0,0.05); color: #666; border-color: rgba(0,0,0,0.1); }
 
         #player-avatar-container { margin-bottom: 15px; }
         .player-avatar { width: 100px; height: 100px; border-radius: 6px; border: 2px solid var(--primary-color); object-fit: cover; object-position: center center; box-shadow: 0 0 15px rgba(255, 70, 85, 0.4); }
@@ -325,8 +325,8 @@
     }
     createParticles();
 
-    const SUPABASE_URL = 'https://vbyvolmtkjjyeiibpljf.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZieXZvbG10a2pqeWVpaWJwbGpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NzMxNDksImV4cCI6MjA3MjI0OTE0OX0.Tnot1kIVn8vJ-vggYaTGBGTkIBY7m6yIOquSjG5mSUM';
+    const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
     
@@ -529,8 +529,17 @@
 
     async function main() {
         const params = new URLSearchParams(window.location.search);
-        const playerName = params.get('name'); const groupName = params.get('group');
-        if (!playerName || !groupName) { document.body.innerHTML = '<h1 style="text-align:center; margin-top:50px; color:var(--primary-color);">错误：缺少选手真名或组别信息</h1>'; return; }
+        const playerName = params.get('name'); 
+        // 重点修改：兼容空组别的防报错解析
+        let groupName = params.get('group');
+        if (!groupName || groupName === 'null' || groupName === 'undefined') {
+            groupName = '未分组';
+        }
+
+        if (!playerName) { 
+            document.body.innerHTML = '<h1 style="text-align:center; margin-top:50px; color:var(--primary-color);">错误：缺少选手真名信息</h1>'; 
+            return; 
+        }
         
         setupStarRating();
         
@@ -553,17 +562,21 @@
 
         if(!currentPlayerInfo) { document.body.innerHTML = `<h1 style="text-align:center; color:var(--primary-color);">错误：未找到选手 ${playerName} 的信息</h1>`; return; }
         
-        const playerId = currentPlayerInfo.id;
+        const playerId = currentPlayerInfo.id || '暂无ID';
         const uniquePlayerKeyForComments = `${playerId}::${groupName}`;
         loadComments(uniquePlayerKeyForComments);
         document.getElementById('comment-form').addEventListener('submit', (event) => handleCommentSubmit(event, uniquePlayerKeyForComments));
         setupSettingsModal(currentPlayerInfo);
 
-        const realName = currentPlayerInfo?.name || ''; const imageUrl = currentPlayerInfo?.image; const header = document.getElementById('player-id-header');
+        const realName = currentPlayerInfo?.name || ''; 
+        const imageUrl = currentPlayerInfo?.image; 
+        const header = document.getElementById('player-id-header');
         
-        // 渲染头像
         if (imageUrl) {
-            document.getElementById('player-avatar-container').innerHTML = `<img src="${imageUrl}" class="player-avatar">`;
+            const avatarContainer = document.createElement('div'); avatarContainer.id = 'player-avatar-container';
+            const avatar = document.createElement('img'); avatar.src = imageUrl; avatar.className = 'player-avatar';
+            avatarContainer.appendChild(avatar); 
+            header.parentNode.insertBefore(avatarContainer, header);
         }
         
         header.innerHTML = `<span class="player-id">${playerId}</span><span class="player-real-name">${realName}</span>`;
@@ -577,13 +590,19 @@
             }).join('');
         }
 
-        // 统一渲染组别标签
-        document.getElementById('group-badge-container').textContent = groupName;
+        // 渲染统一风格的组别标签
+        const badgeContainer = document.getElementById('group-badge-container');
+        badgeContainer.textContent = groupName;
+        if (groupName === '未分组') {
+            badgeContainer.classList.add('unassigned');
+        }
 
         const uniquePlayerKeyForStats = `${playerId}::${groupName}`;
         const playerDataForStats = allPlayerData[uniquePlayerKeyForStats];
+        
+        // 如果数据为空（刚初始化的选手）则显示无数据提示，不抛出异常
         if (!playerDataForStats) { 
-            document.getElementById('summary-list-content').innerHTML = '<p style="color:var(--text-muted);">暂无比赛数据</p>';
+            document.getElementById('summary-list-content').innerHTML = '<p style="color:var(--text-muted); text-align:center;">暂无比赛数据</p>';
             document.getElementById('character-stats-body').innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--text-muted);">暂无比赛数据</td></tr>';
             document.getElementById('radar-chart-container').style.display = 'none';
         } else {

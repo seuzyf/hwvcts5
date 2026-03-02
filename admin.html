@@ -244,8 +244,8 @@
     createParticles();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const SUPABASE_URL = 'https://vbyvolmtkjjyeiibpljf.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZieXZvbG10a2pqeWVpaWJwbGpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NzMxNDksImV4cCI6MjA3MjI0OTE0OX0.Tnot1kIVn8vJ-vggYaTGBGTkIBY7m6yIOquSjG5mSUM';
+    const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -275,9 +275,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const inputPassword = passwordInput.value;
         if (!inputPassword) { alert('请输入口令！'); return; }
         try {
-            const { data, error } = await supabaseClient.from('manage').select('password').limit(1).single();
+            // 调用我们刚刚创建的后端函数，只返回 true 或 false
+            const { data: isCorrect, error } = await supabaseClient.rpc('check_admin_password', { input_pwd: inputPassword });
+            
             if (error) throw error;
-            if (data && data.password === inputPassword) {
+            
+            if (isCorrect === true) {
                 passwordModal.style.display = 'none';
                 adminPanel.style.display = 'block';
                 initializeAdminPanel();
@@ -286,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('验证口令时出错:', error);
-            alert('验证失败，请检查数据库连接和表设置。');
+            alert('验证失败，请检查数据库连接。');
         }
     }
     passwordSubmit.addEventListener('click', checkPassword);

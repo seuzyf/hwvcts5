@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS5 - 选手数据汇总</title>
+    <title>HWVCTS4 - 选手数据汇总</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -212,8 +212,8 @@
         createParticles();
 
         document.addEventListener('DOMContentLoaded', () => {
-            const SUPABASE_URL = 'https://vbyvolmtkjjyeiibpljf.supabase.co';
-            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZieXZvbG10a2pqeWVpaWJwbGpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NzMxNDksImV4cCI6MjA3MjI0OTE0OX0.Tnot1kIVn8vJ-vggYaTGBGTkIBY7m6yIOquSjG5mSUM';
+            const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
+            const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
             const { createClient } = supabase;
             const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -237,9 +237,116 @@
             setTheme((savedTheme === 'light') ? true : false);
             themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
 
+            // 初始化与组别动态刷新逻辑
+            // 初始化与组别动态刷新、自动删除逻辑
+            async function initializePlayerIds() {
+                try {
+                    // 获取报名表的选手名单
+                    const { data: statsData, error: statsError } = await supabaseClient.from('player_stats').select('player_name, game_id, pre_group');
+                    if (statsError) throw statsError;
+
+                    // 获取目标表的现有选手数据
+                    const { data: idsData, error: idsError } = await supabaseClient.from('player_ids').select('name, team, "group"');
+                    if (idsError && idsError.code !== 'PGRST116') throw idsError;
+
+                    const existingPlayersMap = new Map();
+                    (idsData || []).forEach(p => existingPlayersMap.set(p.name, p));
+                    
+                    const statsNamesSet = new Set((statsData || []).map(p => p.player_name).filter(Boolean));
+
+                    const recordsToInsert = [];
+                    const recordsToUpdate = [];
+                    const namesToDelete = [];
+
+                    // 1. 遍历报名表，处理新增和组别更新
+                    (statsData || []).forEach(statsPlayer => {
+                        if (!statsPlayer.player_name) return;
+
+                        let correctedGroup = statsPlayer.pre_group;
+                        if (correctedGroup === '中间组') {
+                            correctedGroup = '中坚组'; // 自动修正报名表的中间组
+                        }
+
+                        const existingPlayer = existingPlayersMap.get(statsPlayer.player_name);
+
+                        if (!existingPlayer) {
+                            // 新增选手
+                            recordsToInsert.push({
+                                name: statsPlayer.player_name,
+                                id: statsPlayer.game_id || '未填写ID',
+                                group: correctedGroup || null
+                            });
+                        } else {
+                            // 更新未分队选手的组别
+                            const hasNoTeam = !existingPlayer.team || existingPlayer.team.trim() === '';
+                            const groupChanged = existingPlayer.group !== correctedGroup;
+
+                            if (hasNoTeam && groupChanged) {
+                                recordsToUpdate.push({
+                                    name: statsPlayer.player_name,
+                                    group: correctedGroup || null
+                                });
+                            }
+                        }
+                    });
+
+                    // 2. 遍历现有选手，处理退赛(删除)逻辑
+                    (idsData || []).forEach(existingPlayer => {
+                        // 如果选手不在最新报名表中，且该选手还没有被分配队伍（安全锁）
+                        const hasNoTeam = !existingPlayer.team || existingPlayer.team.trim() === '';
+                        if (!statsNamesSet.has(existingPlayer.name) && hasNoTeam) {
+                            namesToDelete.push(existingPlayer.name);
+                        }
+                    });
+
+                    let needReload = false;
+
+                    // 批量执行插入
+                    if (recordsToInsert.length > 0) {
+                        const { error: insertError } = await supabaseClient.from('player_ids').insert(recordsToInsert);
+                        if (!insertError) {
+                            console.log(`成功初始化了 ${recordsToInsert.length} 名新选手。`);
+                            needReload = true;
+                        }
+                    }
+
+                    // 批量执行更新组别
+                    if (recordsToUpdate.length > 0) {
+                        const updatePromises = recordsToUpdate.map(p => 
+                            supabaseClient.from('player_ids').update({ group: p.group }).eq('name', p.name)
+                        );
+                        await Promise.all(updatePromises);
+                        console.log(`成功刷新了 ${recordsToUpdate.length} 名选手的组别。`);
+                        needReload = true;
+                    }
+
+                    // 批量执行删除 (清理退赛且未分队的人员)
+                    if (namesToDelete.length > 0) {
+                        const { error: deleteError } = await supabaseClient.from('player_ids').delete().in('name', namesToDelete);
+                        if (!deleteError) {
+                            console.log(`成功清理了 ${namesToDelete.length} 名已退赛且未分队的选手。`);
+                            needReload = true;
+                        } else {
+                            console.error("清理退赛选手失败:", deleteError);
+                        }
+                    }
+
+                    // 如果有任何变更，刷新页面
+                    if (needReload) {
+                        window.location.reload(); 
+                    }
+
+                } catch (error) {
+                    console.error("选手初始化检测时发生错误:", error);
+                }
+            }
+
             async function loadAndProcessData() {
                 const tableBody = document.getElementById('stats-table-body');
-                tableBody.innerHTML = '<tr><td colspan="14" style="color: var(--text-muted); text-align: center;">正在加载数据...</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="14" style="color: var(--text-muted); text-align: center;">正在同步报名名单与组别，请稍候...</td></tr>';
+
+                // 每次加载前先进行名单比对与同步
+                await initializePlayerIds();
 
                 try {
                     const [{ data: players, error: playersError }, { data: matches, error: matchesError }] = await Promise.all([
@@ -261,7 +368,6 @@
                 }
             }
 
-            // (The rest of JS logic remains exactly the same as original)
             function processMatchData(matches) {
                 const playerData = {};
                  matches.forEach(match => {
@@ -382,8 +488,9 @@
                 }
                 data.forEach(player => {
                     const row = document.createElement('tr');
+                    const groupParam = player.group ? encodeURIComponent(player.group) : encodeURIComponent('未分组');
                     row.innerHTML = `
-                        <td><a href="player.html?name=${encodeURIComponent(player.name)}&group=${encodeURIComponent(player.group)}" target="_blank">${player.id}</a></td>
+                        <td><a href="player.html?name=${encodeURIComponent(player.name)}&group=${groupParam}" target="_blank">${player.id}</a></td>
                         <td>${player.name || '—'}</td><td>${player.group || '—'}</td><td>${player.team || '—'}</td><td>${player.topChars}</td>
                         <td>${player.matches_played > 0 ? player.matches_played : '—'}</td>
                         <td style="color:var(--primary-color); font-weight:700;">${formatStat(player.avg_acs, 2)}</td>
