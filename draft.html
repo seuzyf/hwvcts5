@@ -60,7 +60,6 @@
         .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
         body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
         
-        /* 修复处的 CSS 代码 */
         .main-header-block h1 { font-size: 64px; font-weight: 900; letter-spacing: 8px; background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); margin: 0 0 10px 0; }
         body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
 
@@ -120,12 +119,15 @@
         .core-arena { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden;}
         .cards-container { display: flex; gap: 30px; justify-content: center; align-items: center; perspective: 1200px; width: 100%; }
         
-        /* 抽卡动画及样式 */
+        /* 抽卡动画及样式（尺寸放大为 250 x 380） */
         .card-wrapper { display: flex; flex-direction: column; align-items: center; gap: 15px; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .card { width: 220px; height: 340px; position: relative; cursor: pointer; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card { width: 250px; height: 380px; position: relative; cursor: pointer; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
         
         .card-wrapper:hover { transform: translateY(-10px) scale(1.05); }
-        .card-wrapper:hover .card-front { box-shadow: 0 0 30px rgba(255,70,85,0.4); border-color: var(--primary-color); }
+        /* 默认普通选手的 Hover 样式 */
+        .card-wrapper:hover .card-front:not(.quality-diamond):not(.quality-gold):not(.quality-silver) { 
+            box-shadow: 0 0 30px rgba(255,70,85,0.4); border-color: var(--primary-color); 
+        }
         
         .card.flipped { transform: rotateY(180deg); }
         .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 8px; overflow: hidden; border: 2px solid var(--border-color); }
@@ -135,13 +137,52 @@
 
         .card-front { background: var(--card-bg-color); transform: rotateY(180deg); display: flex; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .card-header { padding: 15px 10px; text-align: center; background: rgba(255,70,85,0.1); border-bottom: 1px solid var(--border-color); }
-        .player-name { font-size: 20px; font-weight: 900; color: var(--text-color); letter-spacing: 1px; margin-bottom: 5px; }
+        .player-name { font-size: 22px; font-weight: 900; color: var(--text-color); letter-spacing: 1px; margin-bottom: 3px; }
+        .player-gameid { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
         .player-hwscore { font-size: 24px; font-weight: 900; color: var(--primary-color); }
         .card-body { padding: 15px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
         .stat-row { display: flex; justify-content: space-between; font-size: 13px; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px; }
         .stat-label { color: var(--text-muted); }
         .stat-val { font-weight: 700; color: var(--text-color); text-align: right; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
         
+        /* ---------------- 海克斯品质特效（流光渐变钻石边框） ---------------- */
+        @keyframes diamond-gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .card-front.quality-diamond {
+            border: 3px solid transparent;
+            background: linear-gradient(var(--card-bg-color), var(--card-bg-color)) padding-box,
+                        linear-gradient(135deg, #00f2fe, #4facfe, #f093fb, #f5576c) border-box;
+            background-size: 300% 300%;
+            animation: diamond-gradient 4s ease infinite;
+            box-shadow: 0 0 20px rgba(79, 172, 254, 0.4);
+        }
+        .card-wrapper:hover .card-front.quality-diamond {
+            box-shadow: 0 0 35px rgba(240, 147, 251, 0.7);
+            filter: brightness(1.15);
+        }
+
+        .card-front.quality-gold {
+            border: 3px solid #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6), inset 0 0 10px rgba(255, 215, 0, 0.2);
+        }
+        .card-wrapper:hover .card-front.quality-gold {
+            box-shadow: 0 0 30px rgba(255, 215, 0, 1), inset 0 0 15px rgba(255, 215, 0, 0.5);
+            border-color: #fffacd;
+        }
+
+        .card-front.quality-silver {
+            border: 3px solid #c0c0c0;
+            box-shadow: 0 0 15px rgba(192, 192, 192, 0.5), inset 0 0 10px rgba(192, 192, 192, 0.1);
+        }
+        .card-wrapper:hover .card-front.quality-silver {
+            box-shadow: 0 0 30px rgba(192, 192, 192, 0.9), inset 0 0 15px rgba(192, 192, 192, 0.4);
+            border-color: #ffffff;
+        }
+        /* ------------------------------------------------ */
+
         .refresh-btn { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); padding: 6px 15px; font-size: 12px; cursor: pointer; transition: all 0.3s; border-radius: 4px; font-weight: bold;}
         .refresh-btn:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color); }
         .refresh-btn:disabled { opacity: 0.3; cursor: not-allowed; }
@@ -484,6 +525,14 @@
             }
         }
 
+        function getPlayerQualityClass(player) {
+            const index = pool.findIndex(p => p.player_name === player.player_name);
+            if (index >= 0 && index <= 2) return 'quality-diamond'; // 1-3名：钻石
+            if (index >= 3 && index <= 6) return 'quality-gold';    // 4-7名：黄金
+            if (index >= 7 && index <= 9) return 'quality-silver';  // 8-10名：白银
+            return ''; 
+        }
+
         async function startDraw() {
             if (isDrawing || pool.length === 0) return;
             const targetTeam = targetTeamSelect.value;
@@ -506,25 +555,28 @@
             drawnPlayers = getRandomElements(candidates, numToDraw, seededRand);
 
             seenInCurrentDraw.clear();
-            drawnPlayers.forEach(p => seenInCurrentDraw.add(p.id));
+            drawnPlayers.forEach(p => seenInCurrentDraw.add(p.player_name));
 
             drawnPlayers.forEach((p, idx) => {
+                const qClass = getPlayerQualityClass(p);
                 const wrapper = document.createElement('div');
                 wrapper.className = 'card-wrapper';
                 wrapper.innerHTML = `
                     <div class="card" id="card-${idx}">
                         <div class="card-face card-back"></div>
-                        <div class="card-face card-front">
+                        <div class="card-face card-front ${qClass}">
                             <div class="card-header">
                                 <div class="player-name">${p.player_name || '-'}</div>
+                                <div class="player-gameid" title="${p.game_id || '-'}">${p.game_id || '-'}</div>
                                 <div class="player-hwscore">${p.hw_score || 0} <span style="font-size:12px;color:var(--text-muted)">分</span></div>
                             </div>
                             <div class="card-body">
-                                <div class="stat-row"><span class="stat-label">游戏ID</span><span class="stat-val" style="font-size:11px;" title="${p.game_id || '-'}">${p.game_id || '-'}</span></div>
                                 <div class="stat-row"><span class="stat-label">段位</span><span class="stat-val">${p.rank_tier || '-'}</span></div>
                                 <div class="stat-row"><span class="stat-label">位置</span><span class="stat-val">${p.player_role || '-'}</span></div>
                                 <div class="stat-row"><span class="stat-label">近期ACS</span><span class="stat-val">${p.acs || '-'}</span></div>
                                 <div class="stat-row"><span class="stat-label">KDA</span><span class="stat-val">${p.kda || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">ADR</span><span class="stat-val">${p.adr || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">KAST</span><span class="stat-val">${p.kast || '-'}</span></div>
                                 <div style="flex:1"></div>
                             </div>
                         </div>
@@ -556,7 +608,7 @@
 
             const cardEl = document.getElementById(`card-${idx}`);
             const candidates = pool.slice(0, 10);
-            const available = candidates.filter(p => !seenInCurrentDraw.has(p.id));
+            const available = candidates.filter(p => !seenInCurrentDraw.has(p.player_name));
 
             if (available.length === 0) {
                 alert("Top10 候选池中已无其他未展示过的选手可供更换！");
@@ -568,22 +620,29 @@
             const seededRand = createSeededRandom(clickTimeSeed);
             const newPlayer = getRandomElements(available, 1, seededRand)[0];
             drawnPlayers[idx] = newPlayer;
-            seenInCurrentDraw.add(newPlayer.id);
+            seenInCurrentDraw.add(newPlayer.player_name);
 
             cardEl.classList.remove('flipped');
             await new Promise(r => setTimeout(r, 600));
 
             const front = cardEl.querySelector('.card-front');
+            
+            // 重置并赋予新的特效等级
+            const qClass = getPlayerQualityClass(newPlayer);
+            front.className = `card-face card-front ${qClass}`;
+
             front.querySelector('.player-name').textContent = newPlayer.player_name || '-';
+            front.querySelector('.player-gameid').textContent = newPlayer.game_id || '-';
+            front.querySelector('.player-gameid').title = newPlayer.game_id || '-';
             front.querySelector('.player-hwscore').innerHTML = `${newPlayer.hw_score || 0} <span style="font-size:12px;color:var(--text-muted)">分</span>`;
             
             const vals = front.querySelectorAll('.stat-val');
-            vals[0].textContent = newPlayer.game_id || '-';
-            vals[0].title = newPlayer.game_id || '-';
-            vals[1].textContent = newPlayer.rank_tier || '-';
-            vals[2].textContent = newPlayer.player_role || '-';
-            vals[3].textContent = newPlayer.acs || '-';
-            vals[4].textContent = newPlayer.kda || '-';
+            vals[0].textContent = newPlayer.rank_tier || '-';
+            vals[1].textContent = newPlayer.player_role || '-';
+            vals[2].textContent = newPlayer.acs || '-';
+            vals[3].textContent = newPlayer.kda || '-';
+            vals[4].textContent = newPlayer.adr || '-';
+            vals[5].textContent = newPlayer.kast || '-';
 
             cardEl.classList.add('flipped');
             isDrawing = false; 
