@@ -301,7 +301,6 @@
         let lastDraft = null; 
         let isDrawing = false;
         
-        // 【核心修复】：记录本轮抽签所有出场过的选手ID，彻底防止刷新重复
         let seenInCurrentDraw = new Set(); 
 
         // DOM Elements
@@ -346,7 +345,6 @@
             loadData();
         });
 
-        // 基于时间种子的伪随机数生成器
         function createSeededRandom(seed) {
             return function() {
                 seed = (seed * 9301 + 49297) % 233280;
@@ -505,7 +503,6 @@
             const numToDraw = Math.min(3, candidates.length);
             drawnPlayers = getRandomElements(candidates, numToDraw, seededRand);
 
-            // 【核心修复】：新的一轮抽签，清空上次的记录，并将首发这几个人加入记录中
             seenInCurrentDraw.clear();
             drawnPlayers.forEach(p => seenInCurrentDraw.add(p.id));
 
@@ -556,10 +553,7 @@
             refreshBtn.textContent = '已更换';
 
             const cardEl = document.getElementById(`card-${idx}`);
-            
             const candidates = pool.slice(0, 10);
-            
-            // 【核心修复】：过滤掉所有在【本轮展示过】的选手，而非仅仅是目前牌面上的选手
             const available = candidates.filter(p => !seenInCurrentDraw.has(p.id));
 
             if (available.length === 0) {
@@ -570,11 +564,8 @@
 
             const clickTimeSeed = Date.now();
             const seededRand = createSeededRandom(clickTimeSeed);
-
             const newPlayer = getRandomElements(available, 1, seededRand)[0];
             drawnPlayers[idx] = newPlayer;
-            
-            // 【核心修复】：将这个新刷新出来的选手也加入已出场记录
             seenInCurrentDraw.add(newPlayer.id);
 
             cardEl.classList.remove('flipped');
@@ -614,14 +605,23 @@
             isDrawing = true; 
             setStatus('实时写入 stats 表中...', 'var(--primary-color)');
 
-            const { error } = await supabaseClient.from('player_stats')
-                .update({ team: teamName, role: '队员' })
-                .eq('player_name', player.player_name);
+            // 【重点修复】：追加 .select() 强制返回更新结果以做验证
+            const { data, error } = await supabaseClient.from('player_stats')
+                .update({ team: teamName, role: '选手' })
+                .eq('player_name', player.player_name)
+                .select();
             
             if (error) {
-                alert("写入数据库失败，请检查网络: " + error.message);
+                alert("写入数据库报错: " + error.message);
                 isDrawing = false;
-                setStatus('等待操作', 'var(--text-color)');
+                setStatus('网络/数据库错误', 'var(--danger-color)');
+                return;
+            }
+            // 校验：如果 RLS 拦截或查无此人，返回的 data 会是空数组
+            if (!data || data.length === 0) {
+                alert(`⚠️ 数据库更新失败！\n\n原因可能是：\n1. Supabase 的 'player_stats' 表开启了 RLS 且没有允许匿名 Update 的策略。\n2. 表中没有 [player_name] 叫 "${player.player_name}" 的数据。\n\n本次操作已被强行阻断。`);
+                isDrawing = false;
+                setStatus('更新被数据库拦截', 'var(--danger-color)');
                 return;
             }
 
@@ -630,7 +630,7 @@
             otherWrappers.forEach(w => w.classList.add('faded'));
 
             player.team = teamName;
-            player.role = '队员'; 
+            player.role = '选手'; 
             lastDraft = { ...player }; 
             pendingIdsToSubmit.push({ name: player.player_name, team: teamName });
             
@@ -673,12 +673,19 @@
 
             setStatus('正在撤销数据...', 'var(--primary-color)');
             
-            const { error } = await supabaseClient.from('player_stats')
+            // 同理增加 .select() 校验
+            const { data, error } = await supabaseClient.from('player_stats')
                 .update({ team: null, role: '选手' })
-                .eq('player_name', lastDraft.player_name);
+                .eq('player_name', lastDraft.player_name)
+                .select();
 
             if (error) {
-                alert("撤销失败: " + error.message);
+                alert("撤销时数据库报错: " + error.message);
+                return;
+            }
+            if (!data || data.length === 0) {
+                alert(`⚠️ 撤销失败！数据库未执行修改操作（RLS 拦截或数据不匹配）。`);
+                setStatus('撤销被拦截', 'var(--danger-color)');
                 return;
             }
 
@@ -703,7 +710,7 @@
         async function handleSubmit() {
             if (pendingIdsToSubmit.length === 0) return;
 
-            const confirmed = await customConfirm(`即将把近期抽取的 ${pendingIdsToSubmit.length} 名选手同步至【最终的 player_ids 表】。确认提交吗？`);
+            const confirmed = await customConfirm(`即将把近期抽取的 ${pendingIdsToSubmit.length} 名选手及相关队长同步至【最终的 player_ids 表】。确认提交吗？`);
             if (!confirmed) return;
 
             setStatus('正在同步最终表...', 'var(--submit-color)');
@@ -712,24 +719,41 @@
             drawBtn.disabled = true;
             
             try {
-                const updatePromises = pendingIdsToSubmit.map(async (p) => {
-                    const { error } = await supabaseClient.from('player_ids')
+                let captainsToSubmit = [];
+                Object.values(teams).forEach(team => {
+                    team.members.forEach(m => {
+                        if (m.role === '队长') {
+                            captainsToSubmit.push({ name: m.player_name, team: team.name });
+                        }
+                    });
+                });
+
+                const allToSubmit = [...pendingIdsToSubmit, ...captainsToSubmit];
+                const uniqueToSubmit = Array.from(new Map(allToSubmit.map(item => [item.name, item])).values());
+
+                const updatePromises = uniqueToSubmit.map(async (p) => {
+                    const { data, error } = await supabaseClient.from('player_ids')
                         .update({ team: p.team })
-                        .eq('name', p.name);
+                        .eq('name', p.name)
+                        .select(); // 添加 .select() 来捕捉静默失败
+                    
                     if (error) throw error;
+                    if (!data || data.length === 0) {
+                        throw new Error(`【拦截警告】无法修改选手 '${p.name}' 的信息。可能是 RLS 权限不足，或 player_ids 表里没有 'name' 为 '${p.name}' 的数据。`);
+                    }
                 });
 
                 await Promise.all(updatePromises);
 
-                alert("🎉 所有分队数据已成功同步至 player_ids 表！");
+                alert("🎉 所有分队数据及队长信息已成功同步至 player_ids 表！");
                 pendingIdsToSubmit = []; 
                 lastDraft = null; 
                 updateControls();
                 renderTeams(); 
                 setStatus('所有数据同步完毕', 'var(--submit-color)');
             } catch (err) {
-                alert("同步过程中发生错误：" + err.message);
-                setStatus('同步失败', 'var(--danger-color)');
+                alert("同步中止：" + err.message);
+                setStatus('同步遭遇错误', 'var(--danger-color)');
                 updateControls();
             }
         }
