@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        /* 复用比赛中心的基础主题色 */
         :root {
             --primary-color: #ff4655;
             --bg-color: #0a0a0f;
@@ -16,10 +17,12 @@
             --header-bg-color: transparent;
             --border-color: rgba(255, 70, 85, 0.2);
             --border-highlight: rgba(255, 70, 85, 0.5);
+            --gold-color: #ffd700;
             --shadow-color: rgba(0,0,0,0.5);
-            --success-color: #81c784;
             --control-height: 42px;
             --text-muted: rgba(255, 255, 255, 0.5);
+            --danger-color: #ff4655;
+            --submit-color: #81c784;
         }
         body.light-theme {
             --primary-color: #e53935;
@@ -31,363 +34,705 @@
             --border-color: rgba(229, 57, 53, 0.3);
             --border-highlight: rgba(229, 57, 53, 0.6);
             --shadow-color: rgba(229, 57, 53, 0.15);
-            --success-color: #4CAF50;
             --text-muted: rgba(0, 0, 0, 0.5);
+            --submit-color: #4CAF50;
         }
+        
         body {
             font-family: 'Noto Sans SC', sans-serif;
             background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
-            color: var(--text-color); margin: 0; padding: 20px 0; min-height: 100vh; position: relative;
+            color: var(--text-color);
+            margin: 0; padding: 20px 0; min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+            position: relative; overflow-x: hidden;
         }
 
+        /* 粒子背景 */
         .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
         .particle { position: absolute; width: 2px; height: 2px; background: rgba(255, 70, 85, 0.6); border-radius: 50%; animation: float linear infinite; }
         body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
         @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
 
-        .container { width: 95%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
+        .container { width: 95%; max-width: 1400px; margin: 0 auto; position: relative; z-index: 10; display: flex; flex-direction: column; gap: 20px;}
         
-        .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
+        /* 顶部区块 */
+        .main-header-block { background-color: var(--header-bg-color); padding: 25px; text-align: center; position: relative; }
         .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
         body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
-        .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); }
-        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
-        
-        .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
-        .filter-group, .nav-button, .upload-button { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; transition: all 0.3s; letter-spacing: 1px; }
-        
-        .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); }
-        .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 14px; height: 100%; font-weight: 500; transition: all 0.3s; }
+        .main-header-block h1 { font-size: 64px; font-weight: 900; letter-spacing: 8px; background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); margin: 0 0 10px 0; }
+        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); filter: none; }
+
+        .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 35px; }
+        .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; }
+        .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 14px; height: 100%; transition: all 0.3s ease; font-family: 'Noto Sans SC', sans-serif; font-weight: bold;}
         .filter-group button:hover { opacity: 1; color: var(--primary-color); }
         .filter-group button.active { background-color: rgba(255, 70, 85, 0.15); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
-        body.light-theme .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
-        
-        .nav-button { padding: 0 25px; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255, 70, 85, 0.08); backdrop-filter: blur(5px); }
+        body.light-theme .filter-group button.active { background: rgba(229, 57, 53, 0.1); }
+
+        .nav-button { height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255, 70, 85, 0.08); border-radius: 6px; font-size: 14px; font-weight: 600; letter-spacing: 1px; transition: all 0.3s ease; backdrop-filter: blur(5px); cursor: pointer;}
         body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
-        .nav-button:hover { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2); }
+        .nav-button:hover:not(:disabled) { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2); }
+        body.light-theme .nav-button:hover:not(:disabled) { color: var(--primary-color); }
+        .nav-button:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); }
         
-        .upload-button { padding: 0 25px; border: 1px solid var(--border-highlight); color: var(--success-color); cursor: pointer; background: rgba(129, 199, 132, 0.1); backdrop-filter: blur(5px); }
-        body.light-theme .upload-button { background: rgba(76, 175, 80, 0.05); color: var(--success-color); border-color: rgba(76, 175, 80, 0.3); }
-        .upload-button:hover { background-color: rgba(129, 199, 132, 0.2); border-color: var(--success-color); color: var(--text-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(129, 199, 132, 0.2); }
-        #csv-upload { display: none; }
-        
-        .main-layout { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; }
-        #budget-card { flex: 1; min-width: 280px; position: sticky; top: 20px; }
-        #players-table-container { flex: 3; min-width: 600px; overflow: hidden;}
-        
-        .data-section { background-color: var(--card-bg-color); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; box-shadow: 0 10px 40px var(--shadow-color); position: relative; }
-        .data-section::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
-        .data-section h2 { margin-top: 0; color: var(--primary-color); border-bottom: 1px solid var(--border-highlight); padding-bottom: 15px; font-weight: 900; letter-spacing: 2px; font-size: 20px; }
-        
-        .budget-list { display: flex; flex-direction: column; gap: 15px; font-size: 15px; }
-        .budget-list div { background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: baseline; border: 1px solid rgba(255,255,255,0.05); }
-        body.light-theme .budget-list div { background-color: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.05); }
-        .budget-list strong { color: var(--primary-color); font-size: 18px; font-weight: 900; }
-        .budget-list span:first-child { font-weight: 700; color: var(--text-color); }
-        
-        #players-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 20px; font-size: 14px; }
-        #players-table thead th { background-color: transparent; color: var(--text-muted); padding: 12px 10px; border-bottom: 1px solid var(--border-highlight); font-weight: 700; }
-        #players-table th, #players-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
-        body.light-theme #players-table th, body.light-theme #players-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
-        #players-table tbody tr:hover { background-color: rgba(255, 70, 85, 0.05); }
-        
-        #players-table input { width: 80px; padding: 8px 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; font-family: 'Noto Sans SC'; outline: none; transition: border-color 0.3s; }
-        body.light-theme #players-table input { background: #fff; }
-        #players-table input:focus { border-color: var(--primary-color); }
-        #players-table .team-input { width: 120px; }
-        
-        #players-table .confirm-btn { padding: 6px 15px; border: 1px solid var(--success-color); border-radius: 4px; background-color: rgba(129, 199, 132, 0.1); color: var(--success-color); cursor: pointer; font-weight: 700; transition: all 0.3s; }
-        body.light-theme #players-table .confirm-btn { background-color: rgba(76, 175, 80, 0.05); color: var(--success-color); border-color: rgba(76, 175, 80, 0.3); }
-        #players-table .confirm-btn:hover { background-color: var(--success-color); color: white; border-color: var(--success-color); box-shadow: 0 0 10px rgba(129, 199, 132, 0.4); }
-        
-        .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
+        .nav-button.submit-btn { color: var(--submit-color); border-color: var(--submit-color); background: rgba(129, 199, 132, 0.1); }
+        .nav-button.submit-btn:hover:not(:disabled) { background: rgba(129, 199, 132, 0.3); border-color: var(--submit-color); box-shadow: 0 5px 15px rgba(129, 199, 132, 0.3); }
+
+        .top-right-controls { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 15px; z-index: 20; }
         #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
         .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
         .theme-switch input { display:none; }
-        .slider { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
-        body.light-theme .slider { background-color: rgba(0,0,0,0.1); }
-        .slider:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--primary-color); border-color: var(--primary-color); }
-        input:checked + .slider:before { transform: translateX(18px); background-color: #fff; }
+        .slider-theme { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
+        body.light-theme .slider-theme { background-color: rgba(0,0,0,0.1); }
+        .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
+        input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
+        input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
+
+        /* 内容面板通用样式 */
+        .content-block { background-color: var(--card-bg-color); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 8px; padding: 25px; box-shadow: 0 10px 40px var(--shadow-color); position: relative; }
+        .content-block::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
+        .block-title { font-size: 18px; font-weight: 900; color: var(--primary-color); letter-spacing: 2px; margin-top: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+
+        /* 分队核心区域 */
+        .draft-workspace { display: flex; gap: 20px; min-height: 450px;}
+        
+        .side-panel { width: 320px; display: flex; flex-direction: column; gap: 20px; }
+        .panel-box { background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 20px; flex: 1; display: flex; flex-direction: column;}
+        body.light-theme .panel-box { background: rgba(0,0,0,0.03); }
+
+        .team-select { width: 100%; padding: 12px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); font-size: 16px; font-weight: 700; outline: none; margin-bottom: 20px; font-family: 'Noto Sans SC'; cursor: pointer; border-radius: 4px;}
+        .team-select option { background: var(--bg-color); color: var(--text-color); }
+        .team-select option:disabled { color: var(--text-muted); font-style: italic; }
+        
+        .draw-btn-huge { width: 100%; padding: 15px; background: rgba(255,70,85,0.1); border: 2px solid var(--primary-color); color: var(--primary-color); font-size: 20px; font-weight: 900; letter-spacing: 4px; cursor: pointer; transition: all 0.3s; border-radius: 6px;}
+        .draw-btn-huge:hover:not(:disabled) { background: var(--primary-color); color: #fff; box-shadow: 0 0 20px rgba(255,70,85,0.4); transform: scale(1.02); }
+        .draw-btn-huge:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; }
+
+        .pool-stats { font-size: 32px; font-weight: 900; color: var(--primary-color); text-align: center; margin: 10px 0 5px 0; }
+        .pool-list { flex: 1; overflow-y: auto; font-size: 13px; color: var(--text-muted); padding-right: 5px; margin-top: 15px; }
+        .pool-list::-webkit-scrollbar { width: 4px; }
+        .pool-list::-webkit-scrollbar-thumb { background: var(--border-highlight); }
+        .pool-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
+        .pool-item:last-child { border-bottom: none; }
+
+        .core-arena { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden;}
+        .cards-container { display: flex; gap: 30px; justify-content: center; align-items: center; perspective: 1200px; width: 100%; }
+        
+        /* 抽卡动画及样式 */
+        .card-wrapper { display: flex; flex-direction: column; align-items: center; gap: 15px; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .card { width: 220px; height: 340px; position: relative; cursor: pointer; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        .card-wrapper:hover { transform: translateY(-10px) scale(1.05); }
+        .card-wrapper:hover .card-front { box-shadow: 0 0 30px rgba(255,70,85,0.4); border-color: var(--primary-color); }
+        
+        .card.flipped { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 8px; overflow: hidden; border: 2px solid var(--border-color); }
+        
+        .card-back { background: linear-gradient(135deg, var(--bg-gradient-mid), var(--bg-color)); display: flex; align-items: center; justify-content: center; }
+        .card-back::after { content: 'V'; font-size: 80px; font-weight: 900; color: var(--border-highlight); font-style: italic;}
+
+        .card-front { background: var(--card-bg-color); transform: rotateY(180deg); display: flex; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .card-header { padding: 15px 10px; text-align: center; background: rgba(255,70,85,0.1); border-bottom: 1px solid var(--border-color); }
+        .player-name { font-size: 20px; font-weight: 900; color: var(--text-color); letter-spacing: 1px; margin-bottom: 5px; }
+        .player-hwscore { font-size: 24px; font-weight: 900; color: var(--primary-color); }
+        .card-body { padding: 15px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .stat-row { display: flex; justify-content: space-between; font-size: 13px; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px; }
+        .stat-label { color: var(--text-muted); }
+        .stat-val { font-weight: 700; color: var(--text-color); text-align: right; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+        
+        .refresh-btn { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); padding: 6px 15px; font-size: 12px; cursor: pointer; transition: all 0.3s; border-radius: 4px; font-weight: bold;}
+        .refresh-btn:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color); }
+        .refresh-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .card-wrapper.selected { z-index: 50; animation: select-pop 1s forwards; }
+        .card-wrapper.faded { opacity: 0; transform: scale(0.5); pointer-events: none; }
+        @keyframes select-pop { 0% { transform: scale(1); } 50% { transform: scale(1.1); filter: brightness(1.2) drop-shadow(0 0 30px var(--primary-color)); } 100% { transform: scale(0); opacity: 0; } }
+
+        .result-banner { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0); background: var(--primary-color); color: #fff; font-size: 32px; font-weight: 900; padding: 15px 60px; border-radius: 8px; box-shadow: 0 0 30px rgba(255,70,85,0.6); white-space: nowrap; opacity: 0; z-index: 100; pointer-events: none; }
+        .result-banner.show { animation: banner-in-out 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes banner-in-out { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 30% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 80% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
+
+        /* 底部队伍展示区 */
+        .roster-area { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 10px;}
+        .roster-area::-webkit-scrollbar { height: 6px; }
+        .roster-area::-webkit-scrollbar-thumb { background: var(--border-highlight); border-radius: 3px; }
+        
+        .team-box { min-width: 250px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-top: 3px solid var(--text-muted); padding: 15px; border-radius: 6px; transition: all 0.3s;}
+        body.light-theme .team-box { background: rgba(0,0,0,0.02); }
+        .team-box.full { border-top-color: var(--primary-color); }
+        .team-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .team-name { font-size: 16px; font-weight: 900; color: var(--text-color); }
+        .team-score { font-size: 13px; color: var(--primary-color); font-weight: 700; }
+        .member-list { display: flex; flex-direction: column; gap: 8px; }
+        .member-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 4px; font-size: 13px; border-left: 2px solid transparent; transition: all 0.3s; }
+        body.light-theme .member-row { background: rgba(0,0,0,0.03); }
+        .member-row:hover { background: rgba(255,70,85,0.08); border-left-color: var(--primary-color); }
+        .m-name { font-weight: 700; color: var(--text-color); }
+        .m-role { font-size: 11px; padding: 2px 6px; background: rgba(255,255,255,0.1); color: var(--text-muted); border-radius: 2px; margin-left: 5px;}
+        body.light-theme .m-role { background: rgba(0,0,0,0.1); }
+        .m-score { color: var(--primary-color); font-weight: 900; }
+
+        /* 弹窗 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 1000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .val-modal { background: var(--card-bg-color); border: 1px solid var(--border-color); padding: 30px; text-align: center; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); max-width: 400px; transform: scale(0.9); transition: transform 0.3s; }
+        .modal-overlay.active .val-modal { transform: scale(1); }
+        .val-modal h2 { color: var(--primary-color); font-size: 20px; margin-top: 0; margin-bottom: 20px; letter-spacing: 2px; }
+        .val-modal p { color: var(--text-color); font-size: 15px; margin-bottom: 30px; line-height: 1.6; }
+        .modal-actions { display: flex; gap: 15px; justify-content: center; }
     </style>
 </head>
 <body>
     <div class="particles" id="particles"></div>
+
     <div class="container">
         <div class="main-header-block">
-            <div class="theme-switch-wrapper">
-                <span id="theme-text"></span>
+            <div class="top-right-controls">
+                <span id="theme-text">切换为亮色模式</span>
                 <label class="theme-switch">
                     <input type="checkbox" id="theme-toggle-checkbox">
-                    <span class="slider"></span>
+                    <span class="slider-theme"></span>
                 </label>
             </div>
-            <div class="title-badge">VALORANT TOURNAMENT</div>
+            <div class="title-badge">VALORANT DRAFT CENTER</div>
             <h1>选手分队中心</h1>
+            <p style="font-size: 16px; color: var(--text-muted); letter-spacing: 5px; font-weight: 300; margin-top: 0;">华 为 无 畏 契 约 锦 标 赛</p>
+            
             <div class="controls-container">
-                <div class="filter-group" id="group-filter-buttons">
-                    <button class="active" data-group="传奇组">传奇组</button>
-                    <button data-group="中坚组">中坚组</button>
-                    <button data-group="挑战组">挑战组</button>
+                <div class="control-group">
+                    <div class="filter-group" id="group-filter-buttons">
+                        <button class="active" data-group="传奇组">传奇组</button>
+                        <button data-group="中坚组">中坚组</button>
+                        <button data-group="挑战组">挑战组</button>
+                    </div>
                 </div>
-                <label for="csv-upload" class="upload-button">上 传 名 单 (CSV)</label>
-                <input type="file" id="csv-upload" accept=".csv">
-                <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
+                <button class="nav-button" id="undo-btn" disabled>撤销上一次抽取</button>
+                <button class="nav-button submit-btn" id="submit-btn" disabled>同步至最终数据表</button>
+                <a href="index.html" class="nav-button">返回赛事中心</a>
             </div>
         </div>
 
-        <main class="main-layout">
-            <section class="data-section" id="budget-card">
-                <h2>队 伍 实 时 预 算</h2>
-                <div class="budget-list" id="budget-list-content"><p style="color:var(--text-muted);">正在加载数据...</p></div>
-            </section>
-            <div id="players-table-container" class="data-section">
-                <h2>选 手 池</h2>
-                <div style="overflow-x: auto; padding-right: 5px;">
-                    <table id="players-table">
-                        <thead>
-                            <tr>
-                                <th>姓名</th>
-                                <th>ID</th>
-                                <th>华为分</th>
-                                <th>起拍价</th>
-                                <th>成交价</th>
-                                <th>所属队伍</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="players-table-body"></tbody>
-                    </table>
+        <div class="draft-workspace">
+            <aside class="side-panel">
+                <div class="panel-box">
+                    <h3 class="block-title" style="margin-top:0;">
+                        操作面板
+                        <span id="status-text" style="font-size:12px; font-weight:normal; color:var(--text-muted);">初始化中...</span>
+                    </h3>
+                    <select id="target-team" class="team-select">
+                        <option value="">加载队伍中...</option>
+                    </select>
+                    <button id="draw-btn" class="draw-btn-huge" disabled>开始抽取</button>
                 </div>
-            </div>
-        </main>
+                
+                <div class="panel-box" style="flex:1;">
+                    <h3 class="block-title" style="margin-top:0; border:none; padding-bottom:0;">待选池 (TOP)</h3>
+                    <div class="pool-stats" id="pool-count">0</div>
+                    <div style="text-align:center; color:var(--text-muted); font-size:12px;">名剩余选手</div>
+                    <div class="pool-list" id="pool-list"></div>
+                </div>
+            </aside>
+
+            <main class="core-arena content-block" style="margin-bottom:0;">
+                <div class="cards-container" id="cards-container">
+                    <div style="color:var(--text-muted); font-size:18px; letter-spacing:2px;">请在左侧选择目标队伍并点击开始抽取</div>
+                </div>
+                <div class="result-banner" id="result-banner"></div>
+            </main>
+        </div>
+
+        <section class="content-block">
+            <h3 class="block-title">实时队伍阵容</h3>
+            <div class="roster-area" id="roster-area">
+                </div>
+        </section>
     </div>
-    
-    <datalist id="teams-datalist"></datalist>
 
-<script>
-    function createParticles() {
-        const container = document.getElementById('particles');
-        for (let i = 0; i < 50; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            particle.style.left = Math.random() * 100 + '%';
-            particle.style.animationDuration = (Math.random() * 8 + 4) + 's';
-            particle.style.animationDelay = Math.random() * 5 + 's';
-            particle.style.width = (Math.random() * 3 + 1) + 'px';
-            particle.style.height = particle.style.width;
-            container.appendChild(particle);
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="val-modal">
+            <h2>确 认 提 示</h2>
+            <p id="confirm-msg"></p>
+            <div class="modal-actions">
+                <button class="nav-button" id="confirm-cancel" style="background:transparent; color:var(--text-muted); border-color:var(--text-muted);">取 消</button>
+                <button class="nav-button" id="confirm-ok" style="background:var(--primary-color); color:#fff; border-color:var(--primary-color);">确 认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 生成背景粒子效果
+        const particlesContainer = document.getElementById('particles');
+        for (let i = 0; i < 40; i++) {
+            let p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.animationDuration = (5 + Math.random() * 10) + 's';
+            p.style.animationDelay = (Math.random() * 5) + 's';
+            particlesContainer.appendChild(p);
         }
-    }
-    createParticles();
 
-// (Javascript logic remains identical to the original draft.html)
-document.addEventListener('DOMContentLoaded', () => {
-    const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
-    const { createClient } = supabase;
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 主题切换逻辑
+        const themeToggle = document.getElementById('theme-toggle-checkbox');
+        const themeText = document.getElementById('theme-text');
+        function setTheme(isLight) {
+            document.body.classList.toggle('light-theme', isLight);
+            themeToggle.checked = isLight;
+            themeText.textContent = isLight ? '切换为暗色模式' : '切换为亮色模式';
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+        }
+        const savedTheme = localStorage.getItem('theme');
+        setTheme(savedTheme === 'light');
+        themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
 
-    const groupFilterButtons = document.getElementById('group-filter-buttons');
-    const playersTableBody = document.getElementById('players-table-body');
-    const budgetListContent = document.getElementById('budget-list-content');
-    const csvUpload = document.getElementById('csv-upload');
-    const themeToggle = document.getElementById('theme-toggle-checkbox');
-    const themeText = document.getElementById('theme-text');
-    const teamsDatalist = document.getElementById('teams-datalist');
+        // Supabase setup
+        const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let allPlayersData = [];
-    const TEAM_BUDGET = 400;
-
-    function setTheme(isLight) {
-        document.body.classList.toggle('light-theme', isLight);
-        themeToggle.checked = isLight;
-        themeText.textContent = isLight ? '切换为暗色模式' : '切换为亮色模式';
-        localStorage.setItem('theme', isLight ? 'light' : 'dark');
-    }
-    const savedTheme = localStorage.getItem('theme');
-    setTheme((savedTheme === 'light') ? true : false);
-    themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
-    
-    function getCurrentGroup() { return document.querySelector('#group-filter-buttons button.active').dataset.group; }
-    
-    async function loadData() {
-        playersTableBody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted); text-align:center;">正在加载选手数据...</td></tr>';
-        const { data, error } = await supabaseClient.from('player_ids').select('*');
-        if (error) { console.error('无法加载选手数据:', error); playersTableBody.innerHTML = `<tr><td colspan="7" style="color:var(--primary-color);">加载失败: ${error.message}</td></tr>`; return; }
-        allPlayersData = data; renderForCurrentGroup();
-    }
-
-    function renderForCurrentGroup() {
-        const currentGroup = getCurrentGroup();
-        const groupPlayers = allPlayersData.filter(p => p.group === currentGroup);
-        const groupTeams = new Set(groupPlayers.map(p => p.team).filter(Boolean));
-        updatePlayersTable(groupPlayers); updateBudgets(groupPlayers, groupTeams); updateTeamsDatalist(groupTeams);
-    }
-
-    function updateTeamsDatalist(groupTeams) {
-        teamsDatalist.innerHTML = '';
-        const sortedTeams = Array.from(groupTeams).sort();
-        sortedTeams.forEach(team => { const option = document.createElement('option'); option.value = team; teamsDatalist.appendChild(option); });
-    }
-
-    function updatePlayersTable(players) {
-        playersTableBody.innerHTML = '';
-        const visiblePlayers = players.filter(p => p.hwrank && p.hwrank > 0);
-        if (visiblePlayers.length === 0) { playersTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">该组别下没有符合条件的选手数据。</td></tr>'; return; }
+        // State variables
+        let rawData = [];
+        let allPlayers = []; 
+        let currentGroup = '传奇组';
+        let pool = []; 
+        let teams = {}; 
+        let drawnPlayers = []; 
+        let pendingIdsToSubmit = []; 
+        let lastDraft = null; 
+        let isDrawing = false;
         
-        visiblePlayers.sort((a,b) => (b.hwrank || 0) - (a.hwrank || 0));
+        // 【核心修复】：记录本轮抽签所有出场过的选手ID，彻底防止刷新重复
+        let seenInCurrentDraw = new Set(); 
 
-        visiblePlayers.forEach(player => {
-            const tr = document.createElement('tr'); tr.dataset.playerId = player.id;
-            tr.innerHTML = `
-                <td style="font-weight:700;">${player.name || ''}</td>
-                <td style="color:var(--text-muted);">${player.id}</td>
-                <td style="color:var(--primary-color); font-weight:700;">${player.hwrank || 0}</td>
-                <td>${player.start_price || 0}</td>
-                <td><input type="number" class="final-price-input" value="${player.final_price || ''}"></td>
-                <td><input type="text" class="team-input" value="${player.team || ''}" list="teams-datalist"></td>
-                <td><button class="confirm-btn">确定</button></td>
-            `;
-            playersTableBody.appendChild(tr);
-        });
-    }
+        // DOM Elements
+        const groupFilterButtons = document.getElementById('group-filter-buttons');
+        const targetTeamSelect = document.getElementById('target-team');
+        const drawBtn = document.getElementById('draw-btn');
+        const cardsContainer = document.getElementById('cards-container');
+        const rosterArea = document.getElementById('roster-area');
+        const poolCountEl = document.getElementById('pool-count');
+        const poolListEl = document.getElementById('pool-list');
+        const statusText = document.getElementById('status-text');
+        const undoBtn = document.getElementById('undo-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmMsg = document.getElementById('confirm-msg');
+        let confirmResolve = null;
 
-    function updateBudgets(groupPlayers, groupTeams) {
-        budgetListContent.innerHTML = ''; const teamInfo = {};
-        groupTeams.forEach(team => { teamInfo[team] = { spending: 0, playerCount: 0 }; });
-        groupPlayers.forEach(player => {
-            if (player.team) {
-                if (!teamInfo[player.team]) { teamInfo[player.team] = { spending: 0, playerCount: 0 }; }
-                teamInfo[player.team].playerCount++; teamInfo[player.team].spending += player.final_price || 0;
-            }
-        });
-        if (Object.keys(teamInfo).length === 0) { budgetListContent.innerHTML = '<p style="color:var(--text-muted);">该组别暂无队伍信息。</p>'; return; }
-
-        const sortedTeams = Object.keys(teamInfo).sort();
-        sortedTeams.forEach(team => {
-            const { spending, playerCount } = teamInfo[team]; const remaining = TEAM_BUDGET - spending;
-            const div = document.createElement('div');
-            div.innerHTML = `
-                <span>${team}</span>
-                <div style="display: flex; align-items: baseline; gap: 10px;">
-                    <span style="font-size: 13px; opacity: 0.7; color:var(--text-muted);">${playerCount} 人</span>
-                    <strong>${remaining.toFixed(2)}</strong>
-                </div>
-            `;
-            budgetListContent.appendChild(div);
-        });
-    }
-
-    async function handleConfirmUpdate(event) {
-        const btn = event.target; if (!btn.classList.contains('confirm-btn')) return;
-        const tr = btn.closest('tr'); const playerId = tr.dataset.playerId;
-        const finalPriceInput = tr.querySelector('.final-price-input').value; const finalPrice = finalPriceInput ? parseFloat(finalPriceInput) : null;
-        const team = tr.querySelector('.team-input').value.trim();
-        if (!playerId) return;
-
-        const updateData = { final_price: finalPrice, team: team || null };
-        btn.textContent = '...'; btn.disabled = true;
-        const { error } = await supabaseClient.from('player_ids').update(updateData).eq('id', playerId);
-        if (error) { alert(`更新失败: ${error.message}`); console.error(error); } 
-        else {
-            const playerIndex = allPlayersData.findIndex(p => p.id === playerId);
-            if(playerIndex > -1) { allPlayersData[playerIndex].final_price = finalPrice; allPlayersData[playerIndex].team = team; }
-            renderForCurrentGroup();
-        }
-        btn.textContent = '确定'; btn.disabled = false;
-    }
-
-    async function handleCsvUpload(event) {
-        const file = event.target.files[0]; if (!file) return;
-        const currentGroup = getCurrentGroup(); const reader = new FileReader();
-
-        reader.onload = async (e) => {
-            const text = e.target.result; const dataLines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-            if (dataLines.length <= 1) { alert('CSV文件为空或只有表头。'); return; }
-            const header = dataLines[0].split(',').map(h => h.trim()); const lines = dataLines.slice(1);
-            const colMap = { id: header.indexOf('id'), name: header.indexOf('name'), hwrank: header.indexOf('hwrank') };
-            if (colMap.id === -1 || colMap.name === -1 || colMap.hwrank === -1) { alert('CSV文件必须包含 "id", "name" 和 "hwrank" 列。'); return; }
-
-            const nameMap = new Map(); const playersFromCsv = [];
-            lines.forEach((line, index) => {
-                const values = line.split(','); const name = values[colMap.name]?.trim(); const id = values[colMap.id]?.trim(); const hwrank = parseFloat(values[colMap.hwrank]?.trim()); const lineNumber = index + 2;
-                if (id && name && !isNaN(hwrank)) { playersFromCsv.push({ id, name, hwrank, group: currentGroup }); }
-                if (name) { if (!nameMap.has(name)) { nameMap.set(name, []); } nameMap.get(name).push(lineNumber); }
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            groupFilterButtons.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+                    groupFilterButtons.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    currentGroup = e.target.dataset.group;
+                    processGroupData(); 
+                }
+            });
+            drawBtn.addEventListener('click', startDraw);
+            undoBtn.addEventListener('click', handleUndo);
+            submitBtn.addEventListener('click', handleSubmit);
+            
+            document.getElementById('confirm-cancel').addEventListener('click', () => {
+                confirmModal.classList.remove('active');
+                if(confirmResolve) confirmResolve(false);
+            });
+            document.getElementById('confirm-ok').addEventListener('click', () => {
+                confirmModal.classList.remove('active');
+                if(confirmResolve) confirmResolve(true);
             });
 
-            const duplicates = [];
-            for (const [name, lineNumbers] of nameMap.entries()) { if (lineNumbers.length > 1) { duplicates.push({ name, lines: lineNumbers }); } }
-            if (duplicates.length > 0) {
-                let errorMessage = '上传失败：CSV文件中存在重复的姓名。\n\n';
-                duplicates.forEach(dup => { errorMessage += `姓名 "${dup.name}" 在第 ${dup.lines.join(' 行、第 ')} 行重复。\n`; });
-                alert(errorMessage); csvUpload.value = ''; return;
-            }
-
-            if (playersFromCsv.length === 0) { alert('未在文件中找到有效数据。'); return; }
-
-            const confirmationMessage = `您上传了 ${playersFromCsv.length} 名选手的数据。\n\n- 点击 [确定] 将同步名单：更新这 ${playersFromCsv.length} 名选手，并删除本组其他所有不在名单上的选手。\n\n- 点击 [取消] 将仅新增/更新：只添加或更新这 ${playersFromCsv.length} 名选手，不删除任何已有选手。`;
-            const isSyncAndDelete = confirm(confirmationMessage);
-
-            if (isSyncAndDelete) {
-                const idsInCsv = new Set(playersFromCsv.map(p => p.id));
-                const playersToDelete = allPlayersData.filter(p => p.group === currentGroup && !idsInCsv.has(p.id));
-                if (playersToDelete.length > 0) {
-                    const idsToDelete = playersToDelete.map(p => p.id);
-                    alert(`即将从 "${currentGroup}" 删除 ${idsToDelete.length} 名不在新名单上的选手...`);
-                    const { error: deleteError } = await supabaseClient.from('player_ids').delete().in('id', idsToDelete);
-                    if (deleteError) { alert(`删除旧选手失败: ${deleteError.message}`); return; }
-                }
-            }
-
-            alert(`即将为 "${currentGroup}" 新增/更新 ${playersFromCsv.length} 名选手的数据...`);
-            const { error: upsertError } = await supabaseClient.from('player_ids').upsert(playersFromCsv, { onConflict: 'id' });
-            if (upsertError) { alert(`更新选手数据失败: ${upsertError.message}`); return; }
-
-            alert('选手数据更新成功！现在开始计算起拍价...');
-            await calculateAndSetStartPrices();
-        };
-
-        reader.readAsText(file, 'UTF-8'); csvUpload.value = '';
-    }
-    
-    async function calculateAndSetStartPrices() {
-        const { data, error } = await supabaseClient.from('player_ids').select('id, group, hwrank');
-        if (error) { alert(`无法获取更新后的选手数据: ${error.message}`); return; }
-        
-        const groups = {};
-        data.forEach(p => {
-            if (!p.group || typeof p.hwrank !== 'number') return;
-            if (!groups[p.group]) { groups[p.group] = []; }
-            groups[p.group].push(p.hwrank);
+            loadData();
         });
-        
-        const minHwranks = {};
-        for(const groupName in groups) { if (groups[groupName].length > 0) { minHwranks[groupName] = Math.min(...groups[groupName]); } }
-        
-        const priceUpdates = data.filter(p => p.group && typeof p.hwrank === 'number' && minHwranks[p.group] !== undefined)
-            .map(p => ({ id: p.id, start_price: Math.round((p.hwrank - minHwranks[p.group]) / 10) }));
 
-        if (priceUpdates.length > 0) {
-            const { error: priceError } = await supabaseClient.from('player_ids').upsert(priceUpdates, { onConflict: 'id' });
-             if (priceError) { alert(`更新起拍价失败: ${priceError.message}`); return; }
+        // 基于时间种子的伪随机数生成器
+        function createSeededRandom(seed) {
+            return function() {
+                seed = (seed * 9301 + 49297) % 233280;
+                return seed / 233280;
+            };
         }
-        
-        alert('起拍价计算并更新成功！页面将重新加载最新数据。');
-        loadData();
-    }
 
-    groupFilterButtons.addEventListener('click', (e) => {
-        if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
-            groupFilterButtons.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); renderForCurrentGroup();
+        function getRandomElements(arr, n, randomFunc = Math.random) {
+            let result = new Array(n), len = arr.length, taken = new Array(len);
+            if (n > len) n = len;
+            while (n--) {
+                let x = Math.floor(randomFunc() * len);
+                result[n] = arr[x in taken ? taken[x] : x];
+                taken[x] = --len in taken ? taken[len] : len;
+            }
+            return result;
         }
-    });
 
-    playersTableBody.addEventListener('click', handleConfirmUpdate);
-    csvUpload.addEventListener('change', handleCsvUpload);
-    loadData();
-});
-</script>
+        async function loadData() {
+            setStatus('同步数据中...', 'var(--primary-color)');
+            drawBtn.disabled = true;
+            submitBtn.disabled = true;
+            undoBtn.disabled = true;
+            cardsContainer.innerHTML = '<div style="color:var(--text-muted); font-size:18px; letter-spacing:2px;">正在加载数据库信息...</div>';
+            pendingIdsToSubmit = [];
+            lastDraft = null;
+            
+            const { data, error } = await supabaseClient.from('player_stats').select('*');
+            if (error) {
+                alert("加载失败: " + error.message);
+                setStatus('数据加载失败', 'var(--danger-color)');
+                return;
+            }
+            
+            rawData = data || [];
+            processGroupData();
+        }
 
+        function processGroupData() {
+            const targetGroups = currentGroup === '中坚组' ? ['中坚组', '中间组'] : [currentGroup];
+            allPlayers = rawData.filter(p => targetGroups.includes(p.pre_group?.trim()));
+            
+            teams = {};
+            pool = [];
+            cardsContainer.innerHTML = '<div style="color:var(--text-muted); font-size:18px; letter-spacing:2px;">请在左侧选择目标队伍并点击开始抽取</div>';
+            
+            allPlayers.forEach(p => {
+                if (p.team && p.team.trim() !== '') {
+                    if (!teams[p.team]) {
+                        teams[p.team] = { name: p.team, totalScore: 0, members: [] };
+                    }
+                    teams[p.team].members.push(p);
+                    teams[p.team].totalScore += (p.hw_score || 0);
+                } else {
+                    if (p.role !== '队长' && p.role !== '替补') {
+                        pool.push(p);
+                    }
+                }
+            });
+
+            pool.sort((a, b) => (b.hw_score || 0) - (a.hw_score || 0));
+            
+            renderTeams();
+            renderPool();
+            
+            setStatus('数据就绪', 'var(--submit-color)');
+            drawBtn.disabled = (pool.length === 0);
+        }
+
+        function setStatus(text, color) {
+            statusText.textContent = text;
+            statusText.style.color = color;
+        }
+
+        function renderTeams() {
+            const sortedTeams = Object.values(teams).sort((a, b) => a.totalScore - b.totalScore);
+            
+            targetTeamSelect.innerHTML = '';
+            if (sortedTeams.length === 0) {
+                targetTeamSelect.innerHTML = '<option value="">暂无已初始化的队伍</option>';
+            } else {
+                sortedTeams.forEach(t => {
+                    const isFull = t.members.length >= 6; 
+                    const opt = document.createElement('option');
+                    opt.value = t.name;
+                    opt.textContent = `${t.name} (当前分:${t.totalScore})${isFull ? ' - 已满员' : ''}`;
+                    if (isFull) opt.disabled = true;
+                    targetTeamSelect.appendChild(opt);
+                });
+            }
+
+            rosterArea.innerHTML = '';
+            sortedTeams.forEach(t => {
+                const isFull = t.members.length >= 6;
+                const tBox = document.createElement('div');
+                tBox.className = `team-box ${isFull ? 'full' : ''}`;
+                
+                const membersHtml = t.members.sort((a,b)=>(b.hw_score||0)-(a.hw_score||0)).map(m => {
+                    const isPending = pendingIdsToSubmit.some(pid => pid.name === m.player_name);
+                    return `
+                    <div class="member-row" style="${isPending ? 'border-left-color: var(--submit-color); background: rgba(129, 199, 132, 0.1);' : ''}">
+                        <span class="m-name">${m.player_name || '-'} <span class="m-role">${m.role || '队员'}</span></span>
+                        <span class="m-score">${m.hw_score || 0}</span>
+                    </div>
+                `}).join('');
+
+                tBox.innerHTML = `
+                    <div class="team-header">
+                        <span class="team-name">${t.name} ${isFull ? '<span style="font-size:12px;color:var(--text-muted);font-weight:normal">[满员]</span>' : ''}</span>
+                        <span class="team-score">总分: ${t.totalScore}</span>
+                    </div>
+                    <div class="member-list">${membersHtml}</div>
+                `;
+                rosterArea.appendChild(tBox);
+            });
+        }
+
+        function renderPool() {
+            poolCountEl.textContent = pool.length;
+            poolListEl.innerHTML = '';
+            
+            const topCandidates = pool.slice(0, 10);
+            topCandidates.forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.className = 'pool-item';
+                row.innerHTML = `<span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${p.game_id}">${idx+1}. ${p.player_name}</span> <span style="color:var(--primary-color); font-weight:bold; margin-left:10px;">${p.hw_score||0}</span>`;
+                poolListEl.appendChild(row);
+            });
+            if (pool.length > 10) {
+                const more = document.createElement('div');
+                more.style.textAlign = 'center';
+                more.style.marginTop = '10px';
+                more.textContent = `... 以及其他 ${pool.length - 10} 人`;
+                poolListEl.appendChild(more);
+            }
+        }
+
+        async function startDraw() {
+            if (isDrawing || pool.length === 0) return;
+            const targetTeam = targetTeamSelect.value;
+            if (!targetTeam) return alert("请先选择一支队伍！");
+
+            if (teams[targetTeam] && teams[targetTeam].members.length >= 6) {
+                return alert("当前队伍已满员（6人），请选择其他队伍！");
+            }
+
+            isDrawing = true;
+            drawBtn.disabled = true;
+            setStatus('发牌中...', 'var(--primary-color)');
+            cardsContainer.innerHTML = '';
+            
+            const clickTimeSeed = Date.now();
+            const seededRand = createSeededRandom(clickTimeSeed);
+            
+            const candidates = pool.slice(0, 10);
+            const numToDraw = Math.min(3, candidates.length);
+            drawnPlayers = getRandomElements(candidates, numToDraw, seededRand);
+
+            // 【核心修复】：新的一轮抽签，清空上次的记录，并将首发这几个人加入记录中
+            seenInCurrentDraw.clear();
+            drawnPlayers.forEach(p => seenInCurrentDraw.add(p.id));
+
+            drawnPlayers.forEach((p, idx) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'card-wrapper';
+                wrapper.innerHTML = `
+                    <div class="card" id="card-${idx}">
+                        <div class="card-face card-back"></div>
+                        <div class="card-face card-front">
+                            <div class="card-header">
+                                <div class="player-name">${p.player_name || '-'}</div>
+                                <div class="player-hwscore">${p.hw_score || 0} <span style="font-size:12px;color:var(--text-muted)">分</span></div>
+                            </div>
+                            <div class="card-body">
+                                <div class="stat-row"><span class="stat-label">游戏ID</span><span class="stat-val" style="font-size:11px;" title="${p.game_id || '-'}">${p.game_id || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">段位</span><span class="stat-val">${p.rank_tier || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">位置</span><span class="stat-val">${p.player_role || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">近期ACS</span><span class="stat-val">${p.acs || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">KDA</span><span class="stat-val">${p.kda || '-'}</span></div>
+                                <div style="flex:1"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="refresh-btn" onclick="handleRefresh(${idx})" id="refresh-${idx}">更换候选人</button>
+                `;
+                
+                const cardEl = wrapper.querySelector('.card');
+                cardEl.addEventListener('click', () => selectPlayer(idx, targetTeam, wrapper));
+                cardsContainer.appendChild(wrapper);
+            });
+
+            for (let i = 0; i < drawnPlayers.length; i++) {
+                await new Promise(r => setTimeout(r, 300));
+                document.getElementById(`card-${i}`).classList.add('flipped');
+            }
+            
+            setStatus('等待做出选择...', 'var(--text-color)');
+            isDrawing = false; 
+        }
+
+        async function handleRefresh(idx) {
+            if (isDrawing) return;
+            isDrawing = true; 
+
+            const refreshBtn = document.getElementById(`refresh-${idx}`);
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '已更换';
+
+            const cardEl = document.getElementById(`card-${idx}`);
+            
+            const candidates = pool.slice(0, 10);
+            
+            // 【核心修复】：过滤掉所有在【本轮展示过】的选手，而非仅仅是目前牌面上的选手
+            const available = candidates.filter(p => !seenInCurrentDraw.has(p.id));
+
+            if (available.length === 0) {
+                alert("Top10 候选池中已无其他未展示过的选手可供更换！");
+                isDrawing = false;
+                return;
+            }
+
+            const clickTimeSeed = Date.now();
+            const seededRand = createSeededRandom(clickTimeSeed);
+
+            const newPlayer = getRandomElements(available, 1, seededRand)[0];
+            drawnPlayers[idx] = newPlayer;
+            
+            // 【核心修复】：将这个新刷新出来的选手也加入已出场记录
+            seenInCurrentDraw.add(newPlayer.id);
+
+            cardEl.classList.remove('flipped');
+            await new Promise(r => setTimeout(r, 600));
+
+            const front = cardEl.querySelector('.card-front');
+            front.querySelector('.player-name').textContent = newPlayer.player_name || '-';
+            front.querySelector('.player-hwscore').innerHTML = `${newPlayer.hw_score || 0} <span style="font-size:12px;color:var(--text-muted)">分</span>`;
+            
+            const vals = front.querySelectorAll('.stat-val');
+            vals[0].textContent = newPlayer.game_id || '-';
+            vals[0].title = newPlayer.game_id || '-';
+            vals[1].textContent = newPlayer.rank_tier || '-';
+            vals[2].textContent = newPlayer.player_role || '-';
+            vals[3].textContent = newPlayer.acs || '-';
+            vals[4].textContent = newPlayer.kda || '-';
+
+            cardEl.classList.add('flipped');
+            isDrawing = false; 
+        }
+
+        async function customConfirm(msg) {
+            confirmMsg.textContent = msg;
+            confirmModal.classList.add('active');
+            return new Promise(resolve => {
+                confirmResolve = resolve;
+            });
+        }
+
+        async function selectPlayer(idx, teamName, wrapperEl) {
+            if (isDrawing) return;
+            const player = drawnPlayers[idx];
+            
+            const confirmed = await customConfirm(`确定将 ${player.player_name} 招募至 [${teamName}] 吗？`);
+            if (!confirmed) return;
+
+            isDrawing = true; 
+            setStatus('实时写入 stats 表中...', 'var(--primary-color)');
+
+            const { error } = await supabaseClient.from('player_stats')
+                .update({ team: teamName, role: '队员' })
+                .eq('player_name', player.player_name);
+            
+            if (error) {
+                alert("写入数据库失败，请检查网络: " + error.message);
+                isDrawing = false;
+                setStatus('等待操作', 'var(--text-color)');
+                return;
+            }
+
+            wrapperEl.classList.add('selected');
+            const otherWrappers = Array.from(cardsContainer.children).filter(w => w !== wrapperEl);
+            otherWrappers.forEach(w => w.classList.add('faded'));
+
+            player.team = teamName;
+            player.role = '队员'; 
+            lastDraft = { ...player }; 
+            pendingIdsToSubmit.push({ name: player.player_name, team: teamName });
+            
+            pool = pool.filter(p => p.player_name !== player.player_name);
+            if (!teams[teamName]) {
+                teams[teamName] = { name: teamName, totalScore: 0, members: [] };
+            }
+            teams[teamName].members.push(player);
+            teams[teamName].totalScore += (player.hw_score || 0);
+
+            setTimeout(() => {
+                const banner = document.getElementById('result-banner');
+                banner.textContent = `🎉 ${player.player_name} 加入了 ${teamName}！`;
+                banner.classList.add('show');
+                
+                setTimeout(() => {
+                    banner.classList.remove('show');
+                    isDrawing = false; 
+                    
+                    renderTeams(); 
+                    renderPool(); 
+                    updateControls();
+                    
+                    cardsContainer.innerHTML = '<div style="color:var(--text-muted); font-size:18px; letter-spacing:2px;">请继续选择队伍抽取</div>'; 
+                    setStatus('抽取成功，等待下一次操作', 'var(--submit-color)');
+                }, 2500);
+            }, 800);
+        }
+
+        function updateControls() {
+            undoBtn.disabled = !lastDraft;
+            submitBtn.disabled = pendingIdsToSubmit.length === 0;
+            drawBtn.disabled = pool.length === 0;
+        }
+
+        async function handleUndo() {
+            if (!lastDraft) return;
+            const confirmed = await customConfirm(`确定要撤销对 ${lastDraft.player_name} 的招募吗？该选手将回到池中。`);
+            if (!confirmed) return;
+
+            setStatus('正在撤销数据...', 'var(--primary-color)');
+            
+            const { error } = await supabaseClient.from('player_stats')
+                .update({ team: null, role: '选手' })
+                .eq('player_name', lastDraft.player_name);
+
+            if (error) {
+                alert("撤销失败: " + error.message);
+                return;
+            }
+
+            teams[lastDraft.team].members = teams[lastDraft.team].members.filter(m => m.player_name !== lastDraft.player_name);
+            teams[lastDraft.team].totalScore -= (lastDraft.hw_score || 0);
+            
+            lastDraft.team = null;
+            lastDraft.role = '选手';
+            pool.push(lastDraft);
+            pool.sort((a, b) => (b.hw_score || 0) - (a.hw_score || 0));
+            
+            pendingIdsToSubmit = pendingIdsToSubmit.filter(p => p.name !== lastDraft.player_name);
+            lastDraft = null; 
+
+            renderTeams();
+            renderPool();
+            updateControls();
+            cardsContainer.innerHTML = '<div style="color:var(--text-muted); font-size:18px; letter-spacing:2px;">已撤销，请重新抽取</div>';
+            setStatus('撤销成功', 'var(--submit-color)');
+        }
+
+        async function handleSubmit() {
+            if (pendingIdsToSubmit.length === 0) return;
+
+            const confirmed = await customConfirm(`即将把近期抽取的 ${pendingIdsToSubmit.length} 名选手同步至【最终的 player_ids 表】。确认提交吗？`);
+            if (!confirmed) return;
+
+            setStatus('正在同步最终表...', 'var(--submit-color)');
+            submitBtn.disabled = true;
+            undoBtn.disabled = true;
+            drawBtn.disabled = true;
+            
+            try {
+                const updatePromises = pendingIdsToSubmit.map(async (p) => {
+                    const { error } = await supabaseClient.from('player_ids')
+                        .update({ team: p.team })
+                        .eq('name', p.name);
+                    if (error) throw error;
+                });
+
+                await Promise.all(updatePromises);
+
+                alert("🎉 所有分队数据已成功同步至 player_ids 表！");
+                pendingIdsToSubmit = []; 
+                lastDraft = null; 
+                updateControls();
+                renderTeams(); 
+                setStatus('所有数据同步完毕', 'var(--submit-color)');
+            } catch (err) {
+                alert("同步过程中发生错误：" + err.message);
+                setStatus('同步失败', 'var(--danger-color)');
+                updateControls();
+            }
+        }
+    </script>
 </body>
 </html>
