@@ -59,8 +59,10 @@
         .main-header-block { background-color: var(--header-bg-color); padding: 25px; text-align: center; position: relative; }
         .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
         body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
+        
+        /* 修复处的 CSS 代码 */
         .main-header-block h1 { font-size: 64px; font-weight: 900; letter-spacing: 8px; background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); margin: 0 0 10px 0; }
-        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); filter: none; }
+        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
 
         .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 35px; }
         .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; }
@@ -605,7 +607,6 @@
             isDrawing = true; 
             setStatus('实时写入 stats 表中...', 'var(--primary-color)');
 
-            // 【重点修复】：追加 .select() 强制返回更新结果以做验证
             const { data, error } = await supabaseClient.from('player_stats')
                 .update({ team: teamName, role: '选手' })
                 .eq('player_name', player.player_name)
@@ -617,7 +618,6 @@
                 setStatus('网络/数据库错误', 'var(--danger-color)');
                 return;
             }
-            // 校验：如果 RLS 拦截或查无此人，返回的 data 会是空数组
             if (!data || data.length === 0) {
                 alert(`⚠️ 数据库更新失败！\n\n原因可能是：\n1. Supabase 的 'player_stats' 表开启了 RLS 且没有允许匿名 Update 的策略。\n2. 表中没有 [player_name] 叫 "${player.player_name}" 的数据。\n\n本次操作已被强行阻断。`);
                 isDrawing = false;
@@ -673,7 +673,6 @@
 
             setStatus('正在撤销数据...', 'var(--primary-color)');
             
-            // 同理增加 .select() 校验
             const { data, error } = await supabaseClient.from('player_stats')
                 .update({ team: null, role: '选手' })
                 .eq('player_name', lastDraft.player_name)
@@ -735,7 +734,7 @@
                     const { data, error } = await supabaseClient.from('player_ids')
                         .update({ team: p.team })
                         .eq('name', p.name)
-                        .select(); // 添加 .select() 来捕捉静默失败
+                        .select(); 
                     
                     if (error) throw error;
                     if (!data || data.length === 0) {
