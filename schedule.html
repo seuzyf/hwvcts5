@@ -212,7 +212,6 @@
     }
     createParticles();
 
-    // The rest of the Javascript is strictly identical to original schedule.html, maintaining all logic
     document.addEventListener('DOMContentLoaded', () => {
         const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
@@ -239,18 +238,25 @@
         let pendingDataToUpsert = [];
         let pendingIdsToDelete = [];
 
+        // 在 schedule.html 中找到 verifyPassword 函数，替换为：
         async function verifyPassword() {
             const inputPassword = passwordInputModal.value;
             if (!inputPassword) { alert('请输入口令！'); return; }
             try {
-                const { data, error } = await supabaseClient.from('manage').select('password').limit(1).single();
+                const { data: isCorrect, error } = await supabaseClient.rpc('check_admin_password', { input_pwd: inputPassword });
                 if (error) throw error;
-                if (data && data.password === inputPassword) {
-                    isPasswordVerified = true; passwordModal.style.display = 'none'; passwordInputModal.value = '';
+                
+                if (isCorrect === true) {
+                    isPasswordVerified = true; 
+                    passwordModal.style.display = 'none'; 
+                    passwordInputModal.value = '';
                     generateAndDisplaySchedule(); 
-                } else { alert('口令错误！'); }
+                } else { 
+                    alert('口令错误！'); 
+                }
             } catch (error) {
-                console.error('验证口令时出错:', error); alert('验证失败，请检查数据库连接和表设置。');
+                console.error('验证口令时出错:', error); 
+                alert('验证失败，请检查数据库连接。');
             }
         }
 
@@ -269,6 +275,7 @@
         setTheme((savedTheme === 'light') ? true : false);
         themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
 
+        // ----- 8队伍赛制布局 (原版) -----
         const swissBracketLayout = [
             { type: 'round', content: [ { title: '0-0组', ids: ['S1-1', 'S1-2', 'S1-3', 'S1-4'] } ] },
             { type: 'round', content: [ { title: '1-0组', ids: ['S2-1W', 'S2-2W'] }, { title: '0-1组', ids: ['S2-1L', 'S2-2L'] } ] },
@@ -279,6 +286,30 @@
         const playoffBracketLayout = [
             { type: 'round', content: [ { title: '胜者组 R1', ids: ['P-WB1-1', 'P-WB1-2'] } ] },
             { type: 'round', content: [ { title: '胜者组决赛', ids: ['P-WBF'] }, { title: '败者组 R1', ids: ['P-LB1'] } ] },
+            { type: 'round', content: [ { title: '败者组决赛', ids: ['P-LBF'] } ] },
+            { type: 'round', content: [ { title: '总决赛', ids: ['P-GF'] } ] },
+            { type: 'round', content: [ { title: '总冠军', ids: ['P-CHAMPION'], type: 'champion' } ] }
+        ];
+
+        // ----- 12队伍赛制布局 (修改版) -----
+        const swissBracketLayout_12 = [
+            { type: 'round', content: [ { title: '0-0组', ids: ['S1-1', 'S1-2', 'S1-3', 'S1-4', 'S1-5', 'S1-6'] } ] },
+            { type: 'round', content: [ { title: '1-0组', ids: ['S2-1W', 'S2-2W', 'S2-3W'] }, { title: '0-1组', ids: ['S2-1L', 'S2-2L', 'S2-3L'] } ] },
+            { type: 'round', content: [ 
+                { title: '2-0 晋级', ids: ['S3-PROMO-1', 'S3-PROMO-2', 'S3-PROMO-3'], type: 'promoted' }, 
+                { title: '1-1组', ids: ['S3-1M', 'S3-2M', 'S3-3M'] }, 
+                { title: '0-2 淘汰', ids: ['S3-ELIM-1', 'S3-ELIM-2', 'S3-ELIM-3'], type: 'eliminated' } 
+            ] },
+            { type: 'round', content: [ 
+                { title: '2-1 晋级', ids: ['S4-PROMO-1', 'S4-PROMO-2', 'S4-PROMO-3'], type: 'promoted' }, 
+                { title: '1-2 淘汰', ids: ['S4-ELIM-1', 'S4-ELIM-2', 'S4-ELIM-3'], type: 'eliminated' } 
+            ] }
+        ];
+
+        const playoffBracketLayout_12 = [
+            { type: 'round', content: [ { title: '胜者组 R1', ids: ['P-WB1-1', 'P-WB1-2'] } ] },
+            { type: 'round', content: [ { title: '胜者组决赛', ids: ['P-WBF'] }, { title: '败者组 R1', ids: ['P-LB1-1', 'P-LB1-2'] } ] },
+            { type: 'round', content: [ { title: '败者组 R2', ids: ['P-LB2'] } ] },
             { type: 'round', content: [ { title: '败者组决赛', ids: ['P-LBF'] } ] },
             { type: 'round', content: [ { title: '总决赛', ids: ['P-GF'] } ] },
             { type: 'round', content: [ { title: '总冠军', ids: ['P-CHAMPION'], type: 'champion' } ] }
@@ -296,28 +327,69 @@
             return match.score_a < match.score_b ? match.team_a : match.team_b;
         }
         
-        function processResultNodes(rawData) {
+        // 数据节点处理机制升级（支持动态赛制判断）
+        function processResultNodes(rawData, is12TeamFormat) {
             const data = { ...rawData };
             const ensureNodeExists = (id) => { if (!data[id]) data[id] = {}; };
-            ensureNodeExists('S3-PROMO-A'); data['S3-PROMO-A'].result_team = getWinner(data['S2-1W']);
-            ensureNodeExists('S3-PROMO-B'); data['S3-PROMO-B'].result_team = getWinner(data['S2-2W']);
-            ensureNodeExists('S3-ELIM-A'); data['S3-ELIM-A'].result_team = getLoser(data['S2-1L']);
-            ensureNodeExists('S3-ELIM-B'); data['S3-ELIM-B'].result_team = getLoser(data['S2-2L']);
-            ensureNodeExists('S5-PROMO-A'); data['S5-PROMO-A'].result_team = getWinner(data['S3-1M']);
-            ensureNodeExists('S5-PROMO-B'); data['S5-PROMO-B'].result_team = getWinner(data['S3-2M']);
-            ensureNodeExists('S5-ELIM-A'); data['S5-ELIM-A'].result_team = getLoser(data['S3-1M']);
-            ensureNodeExists('S5-ELIM-B'); data['S5-ELIM-B'].result_team = getLoser(data['S3-2M']);
+            
+            if (!is12TeamFormat) {
+                // 原版 8队伍逻辑
+                ensureNodeExists('S3-PROMO-A'); data['S3-PROMO-A'].result_team = getWinner(data['S2-1W']);
+                ensureNodeExists('S3-PROMO-B'); data['S3-PROMO-B'].result_team = getWinner(data['S2-2W']);
+                ensureNodeExists('S3-ELIM-A'); data['S3-ELIM-A'].result_team = getLoser(data['S2-1L']);
+                ensureNodeExists('S3-ELIM-B'); data['S3-ELIM-B'].result_team = getLoser(data['S2-2L']);
+                ensureNodeExists('S5-PROMO-A'); data['S5-PROMO-A'].result_team = getWinner(data['S3-1M']);
+                ensureNodeExists('S5-PROMO-B'); data['S5-PROMO-B'].result_team = getWinner(data['S3-2M']);
+                ensureNodeExists('S5-ELIM-A'); data['S5-ELIM-A'].result_team = getLoser(data['S3-1M']);
+                ensureNodeExists('S5-ELIM-B'); data['S5-ELIM-B'].result_team = getLoser(data['S3-2M']);
 
-            const w_wb1_1 = getWinner(data['P-WB1-1']); const l_wb1_1 = getLoser(data['P-WB1-1']);
-            const w_wb1_2 = getWinner(data['P-WB1-2']); const l_wb1_2 = getLoser(data['P-WB1-2']);
-            if (w_wb1_1 && w_wb1_2) { ensureNodeExists('P-WBF'); data['P-WBF'].team_a = w_wb1_1; data['P-WBF'].team_b = w_wb1_2; }
-            if (l_wb1_1 && l_wb1_2) { ensureNodeExists('P-LB1'); data['P-LB1'].team_a = l_wb1_1; data['P-LB1'].team_b = l_wb1_2; }
-            const w_wbf = getWinner(data['P-WBF']); const l_wbf = getLoser(data['P-WBF']);
-            const w_lb1 = getWinner(data['P-LB1']);
-            if (l_wbf && w_lb1) { ensureNodeExists('P-LBF'); data['P-LBF'].team_a = l_wbf; data['P-LBF'].team_b = w_lb1; }
-            const w_lbf = getWinner(data['P-LBF']);
-            if (w_wbf && w_lbf) { ensureNodeExists('P-GF'); data['P-GF'].team_a = w_wbf; data['P-GF'].team_b = w_lbf; }
-            ensureNodeExists('P-CHAMPION'); data['P-CHAMPION'].result_team = getWinner(data['P-GF']);
+                const w_wb1_1 = getWinner(data['P-WB1-1']); const l_wb1_1 = getLoser(data['P-WB1-1']);
+                const w_wb1_2 = getWinner(data['P-WB1-2']); const l_wb1_2 = getLoser(data['P-WB1-2']);
+                if (w_wb1_1 && w_wb1_2) { ensureNodeExists('P-WBF'); data['P-WBF'].team_a = w_wb1_1; data['P-WBF'].team_b = w_wb1_2; }
+                if (l_wb1_1 && l_wb1_2) { ensureNodeExists('P-LB1'); data['P-LB1'].team_a = l_wb1_1; data['P-LB1'].team_b = l_wb1_2; }
+                const w_wbf = getWinner(data['P-WBF']); const l_wbf = getLoser(data['P-WBF']);
+                const w_lb1 = getWinner(data['P-LB1']);
+                if (l_wbf && w_lb1) { ensureNodeExists('P-LBF'); data['P-LBF'].team_a = l_wbf; data['P-LBF'].team_b = w_lb1; }
+                const w_lbf = getWinner(data['P-LBF']);
+                if (w_wbf && w_lbf) { ensureNodeExists('P-GF'); data['P-GF'].team_a = w_wbf; data['P-GF'].team_b = w_lbf; }
+                ensureNodeExists('P-CHAMPION'); data['P-CHAMPION'].result_team = getWinner(data['P-GF']);
+            } else {
+                // 12队伍逻辑（中坚组）
+                ensureNodeExists('S3-PROMO-1'); data['S3-PROMO-1'].result_team = getWinner(data['S2-1W']);
+                ensureNodeExists('S3-PROMO-2'); data['S3-PROMO-2'].result_team = getWinner(data['S2-2W']);
+                ensureNodeExists('S3-PROMO-3'); data['S3-PROMO-3'].result_team = getWinner(data['S2-3W']);
+                ensureNodeExists('S3-ELIM-1'); data['S3-ELIM-1'].result_team = getLoser(data['S2-1L']);
+                ensureNodeExists('S3-ELIM-2'); data['S3-ELIM-2'].result_team = getLoser(data['S2-2L']);
+                ensureNodeExists('S3-ELIM-3'); data['S3-ELIM-3'].result_team = getLoser(data['S2-3L']);
+                ensureNodeExists('S4-PROMO-1'); data['S4-PROMO-1'].result_team = getWinner(data['S3-1M']);
+                ensureNodeExists('S4-PROMO-2'); data['S4-PROMO-2'].result_team = getWinner(data['S3-2M']);
+                ensureNodeExists('S4-PROMO-3'); data['S4-PROMO-3'].result_team = getWinner(data['S3-3M']);
+                ensureNodeExists('S4-ELIM-1'); data['S4-ELIM-1'].result_team = getLoser(data['S3-1M']);
+                ensureNodeExists('S4-ELIM-2'); data['S4-ELIM-2'].result_team = getLoser(data['S3-2M']);
+                ensureNodeExists('S4-ELIM-3'); data['S4-ELIM-3'].result_team = getLoser(data['S3-3M']);
+
+                const w_wb1_1 = getWinner(data['P-WB1-1']); const l_wb1_1 = getLoser(data['P-WB1-1']);
+                const w_wb1_2 = getWinner(data['P-WB1-2']); const l_wb1_2 = getLoser(data['P-WB1-2']);
+
+                if (w_wb1_1 && w_wb1_2) { ensureNodeExists('P-WBF'); data['P-WBF'].team_a = w_wb1_1; data['P-WBF'].team_b = w_wb1_2; }
+                
+                // 交叉对阵安排败者组第一轮 (胜者组掉下的队伍)
+                if (l_wb1_2) { ensureNodeExists('P-LB1-1'); data['P-LB1-1'].team_a = l_wb1_2; }
+                if (l_wb1_1) { ensureNodeExists('P-LB1-2'); data['P-LB1-2'].team_a = l_wb1_1; }
+                
+                const w_lb1_1 = getWinner(data['P-LB1-1']);
+                const w_lb1_2 = getWinner(data['P-LB1-2']);
+                if (w_lb1_1 && w_lb1_2) { ensureNodeExists('P-LB2'); data['P-LB2'].team_a = w_lb1_1; data['P-LB2'].team_b = w_lb1_2; }
+
+                const w_wbf = getWinner(data['P-WBF']); const l_wbf = getLoser(data['P-WBF']);
+                const w_lb2 = getWinner(data['P-LB2']);
+                if (l_wbf && w_lb2) { ensureNodeExists('P-LBF'); data['P-LBF'].team_a = l_wbf; data['P-LBF'].team_b = w_lb2; }
+
+                const w_lbf = getWinner(data['P-LBF']);
+                if (w_wbf && w_lbf) { ensureNodeExists('P-GF'); data['P-GF'].team_a = w_wbf; data['P-GF'].team_b = w_lbf; }
+
+                ensureNodeExists('P-CHAMPION'); data['P-CHAMPION'].result_team = getWinner(data['P-GF']);
+            }
             
             return data;
         }
@@ -343,7 +415,10 @@
                     if (!allMatchesData[row.group]) allMatchesData[row.group] = {};
                     if (row.match_id) allMatchesData[row.group][String(row.match_id).trim()] = row;
                 });
-                renderBrackets('传奇组');
+                
+                // 初次加载获取当前选中的组
+                const activeGroup = groupFilters.querySelector('.active').dataset.group;
+                renderBrackets(activeGroup);
             } catch (error) {
                 console.error("加载或解析数据失败:", error);
                 document.getElementById('swiss-bracket').innerHTML = `<p style="color:var(--primary-color); text-align:center;">无法加载数据: ${error.message}</p>`;
@@ -401,11 +476,16 @@
         }
 
         function renderBrackets(groupName, dataSource = allMatchesData) {
+            const is12Team = groupName === '中坚组';
             const rawData = dataSource[groupName] || {};
-            const processedData = processResultNodes(rawData);
+            const processedData = processResultNodes(rawData, is12Team);
             document.getElementById('current-group-name').textContent = `${groupName}赛程`;
-            buildBracket(document.getElementById('swiss-bracket'), swissBracketLayout, processedData);
-            buildBracket(document.getElementById('playoff-bracket'), playoffBracketLayout, processedData);
+            
+            const sLayout = is12Team ? swissBracketLayout_12 : swissBracketLayout;
+            const pLayout = is12Team ? playoffBracketLayout_12 : playoffBracketLayout;
+            
+            buildBracket(document.getElementById('swiss-bracket'), sLayout, processedData);
+            buildBracket(document.getElementById('playoff-bracket'), pLayout, processedData);
         }
 
         function seededRandom(seed) {
@@ -427,8 +507,9 @@
 
         function generateAndDisplaySchedule() {
             const groupName = groupFilters.querySelector('.active').dataset.group;
+            const is12Team = groupName === '中坚组';
             const groupData = { ...allMatchesData[groupName] } || {};
-            const processedData = processResultNodes(groupData); 
+            const processedData = processResultNodes(groupData, is12Team); 
             const seedInput = document.getElementById('seed-input').value;
             const seed = seedInput ? parseInt(seedInput) : new Date().getTime();
             const randomFunc = seededRandom(seed);
@@ -437,18 +518,32 @@
             let operationMessage = '没有可生成的对战。请确保队伍池正确或所有必需的比赛已完成。';
             const getTeamFromResult = (resultId) => processedData[resultId]?.result_team;
             
-            const playoffAdvancements = [
-                { matchId: 'P-WBF', prereqs: ['P-WB1-1', 'P-WB1-2'], getTeams: (data) => [getWinner(data['P-WB1-1']), getWinner(data['P-WB1-2'])] },
-                { matchId: 'P-LB1', prereqs: ['P-WB1-1', 'P-WB1-2'], getTeams: (data) => [getLoser(data['P-WB1-1']), getLoser(data['P-WB1-2'])] },
-                { matchId: 'P-LBF', prereqs: ['P-WBF', 'P-LB1'], getTeams: (data) => [getLoser(data['P-WBF']), getWinner(data['P-LB1'])] },
-                { matchId: 'P-GF', prereqs: ['P-WBF', 'P-LBF'], getTeams: (data) => [getWinner(data['P-WBF']), getWinner(data['P-LBF'])] }
-            ];
+            // 配置淘汰赛阶段的前置推进逻辑
+            let playoffAdvancements = [];
+            if (!is12Team) {
+                playoffAdvancements = [
+                    { matchId: 'P-WBF', prereqs: ['P-WB1-1', 'P-WB1-2'], getTeams: (data) => [getWinner(data['P-WB1-1']), getWinner(data['P-WB1-2'])] },
+                    { matchId: 'P-LB1', prereqs: ['P-WB1-1', 'P-WB1-2'], getTeams: (data) => [getLoser(data['P-WB1-1']), getLoser(data['P-WB1-2'])] },
+                    { matchId: 'P-LBF', prereqs: ['P-WBF', 'P-LB1'], getTeams: (data) => [getLoser(data['P-WBF']), getWinner(data['P-LB1'])] },
+                    { matchId: 'P-GF', prereqs: ['P-WBF', 'P-LBF'], getTeams: (data) => [getWinner(data['P-WBF']), getWinner(data['P-LBF'])] }
+                ];
+            } else {
+                playoffAdvancements = [
+                    { matchId: 'P-WBF', prereqs: ['P-WB1-1', 'P-WB1-2'], getTeams: (data) => [getWinner(data['P-WB1-1']), getWinner(data['P-WB1-2'])] },
+                    // 注意这里的组队逻辑，败者组队伍a等待胜者组的败者。team_b（5号和6号种子）已经在下面生成过了，要保留下来。
+                    { matchId: 'P-LB1-1', prereqs: ['P-WB1-2'], getTeams: (data) => [getLoser(data['P-WB1-2']), data['P-LB1-1']?.team_b || 'TBD'] },
+                    { matchId: 'P-LB1-2', prereqs: ['P-WB1-1'], getTeams: (data) => [getLoser(data['P-WB1-1']), data['P-LB1-2']?.team_b || 'TBD'] },
+                    { matchId: 'P-LB2', prereqs: ['P-LB1-1', 'P-LB1-2'], getTeams: (data) => [getWinner(data['P-LB1-1']), getWinner(data['P-LB1-2'])] },
+                    { matchId: 'P-LBF', prereqs: ['P-WBF', 'P-LB2'], getTeams: (data) => [getLoser(data['P-WBF']), getWinner(data['P-LB2'])] },
+                    { matchId: 'P-GF', prereqs: ['P-WBF', 'P-LBF'], getTeams: (data) => [getWinner(data['P-WBF']), getWinner(data['P-LBF'])] }
+                ];
+            }
 
             let advancedPlayoffMatches = 0;
             for (const advancement of playoffAdvancements) {
                 const matchId = advancement.matchId; const existingMatch = groupData[matchId] || {};
                 const [teamA, teamB] = advancement.getTeams(groupData); 
-                const shouldUpdate = teamA && teamB && (isMatchInDbEmpty(matchId, groupData) || teamA !== existingMatch.team_a || teamB !== existingMatch.team_b);
+                const shouldUpdate = teamA && teamB && teamA !== 'TBD' && teamB !== 'TBD' && (isMatchInDbEmpty(matchId, groupData) || teamA !== existingMatch.team_a || teamB !== existingMatch.team_b);
 
                 if (shouldUpdate) {
                     const prereqCompleted = advancement.prereqs.every(id => isMatchFinished(id, groupData));
@@ -481,12 +576,14 @@
                     }
                     for (const record in teamsByRecord) shuffleArray(teamsByRecord[record], randomFunc);
 
-                    const assignments = { '0-0': ['S1-1', 'S1-2', 'S1-3', 'S1-4'], '1-0': ['S2-1W', 'S2-2W'], '0-1': ['S2-1L', 'S2-2L'], '1-1': ['S3-1M', 'S3-2M'] };
+                    const assignments = is12Team 
+                        ? { '0-0': ['S1-1', 'S1-2', 'S1-3', 'S1-4', 'S1-5', 'S1-6'], '1-0': ['S2-1W', 'S2-2W', 'S2-3W'], '0-1': ['S2-1L', 'S2-2L', 'S2-3L'], '1-1': ['S3-1M', 'S3-2M', 'S3-3M'] }
+                        : { '0-0': ['S1-1', 'S1-2', 'S1-3', 'S1-4'], '1-0': ['S2-1W', 'S2-2W'], '0-1': ['S2-1L', 'S2-2L'], '1-1': ['S3-1M', 'S3-2M'] };
 
                     for (const record in assignments) {
                         const teams = teamsByRecord[record] || [];
                         const matchIds = assignments[record];
-                        if (teams.length >= 2 && (matchIds.some(id => isMatchInDbEmpty(id, groupData)) || canRegenerateRound(matchIds))) {
+                        if (teams.length >= (is12Team && record === '0-0' ? 12 : (is12Team && record !== '0-0' ? 6 : matchIds.length * 2)) && (matchIds.some(id => isMatchInDbEmpty(id, groupData)) || canRegenerateRound(matchIds))) {
                              idsToDelete.push(...matchIds); let teamIndex = 0;
                              for (const matchId of matchIds) {
                                  let teamA = teams[teamIndex++] || 'TBD'; let teamB = teams[teamIndex++] || 'TBD';
@@ -495,18 +592,63 @@
                         }
                     }
 
-                    const isPlayoffSeedingEmpty = isMatchInDbEmpty('P-WB1-1', groupData) || isMatchInDbEmpty('P-WB1-2', groupData);
-                    if (isPlayoffSeedingEmpty || canRegenerateRound(['P-WB1-1', 'P-WB1-2'])) {
-                        const promo2_0 = [getTeamFromResult('S3-PROMO-A'), getTeamFromResult('S3-PROMO-B')].filter(Boolean);
-                        const promo2_1 = [getTeamFromResult('S5-PROMO-A'), getTeamFromResult('S5-PROMO-B')].filter(Boolean);
-                        if (promo2_0.length === 2 && promo2_1.length === 2) {
-                            shuffleArray(promo2_1, randomFunc); idsToDelete.push('P-WB1-1', 'P-WB1-2');
-                            dataToUpsert.push({ group: groupName, match_id: 'P-WB1-1', team_a: promo2_0[0], team_b: promo2_1[0], score_a: 0, score_b: 0 });
-                            dataToUpsert.push({ group: groupName, match_id: 'P-WB1-2', team_a: promo2_0[1], team_b: promo2_1[1], score_a: 0, score_b: 0 });
-                            operationMessage = '已从小组赛晋级队伍生成淘汰赛第一轮对阵！';
+                    const isPlayoffSeedingEmpty = is12Team 
+                        ? (isMatchInDbEmpty('P-WB1-1', groupData) || isMatchInDbEmpty('P-WB1-2', groupData) || isMatchInDbEmpty('P-LB1-1', groupData) || isMatchInDbEmpty('P-LB1-2', groupData))
+                        : (isMatchInDbEmpty('P-WB1-1', groupData) || isMatchInDbEmpty('P-WB1-2', groupData));
+
+                    if (isPlayoffSeedingEmpty || (is12Team ? canRegenerateRound(['P-WB1-1', 'P-WB1-2', 'P-LB1-1', 'P-LB1-2']) : canRegenerateRound(['P-WB1-1', 'P-WB1-2']))) {
+                        
+                        if (!is12Team) {
+                            // 原版8人赛晋级
+                            const promo2_0 = [getTeamFromResult('S3-PROMO-A'), getTeamFromResult('S3-PROMO-B')].filter(Boolean);
+                            const promo2_1 = [getTeamFromResult('S5-PROMO-A'), getTeamFromResult('S5-PROMO-B')].filter(Boolean);
+                            if (promo2_0.length === 2 && promo2_1.length === 2) {
+                                shuffleArray(promo2_1, randomFunc); idsToDelete.push('P-WB1-1', 'P-WB1-2');
+                                dataToUpsert.push({ group: groupName, match_id: 'P-WB1-1', team_a: promo2_0[0], team_b: promo2_1[0], score_a: 0, score_b: 0 });
+                                dataToUpsert.push({ group: groupName, match_id: 'P-WB1-2', team_a: promo2_0[1], team_b: promo2_1[1], score_a: 0, score_b: 0 });
+                                operationMessage = '已从小组赛晋级队伍生成淘汰赛第一轮对阵！';
+                            }
+                        } else {
+                            // 12人赛 引入伯格分（Buchholz）落位逻辑
+                            const promo2_0 = [getTeamFromResult('S3-PROMO-1'), getTeamFromResult('S3-PROMO-2'), getTeamFromResult('S3-PROMO-3')].filter(Boolean);
+                            const promo2_1 = [getTeamFromResult('S4-PROMO-1'), getTeamFromResult('S4-PROMO-2'), getTeamFromResult('S4-PROMO-3')].filter(Boolean);
+                            
+                            if (promo2_0.length === 3 && promo2_1.length === 3) {
+                                let teamWins = {};
+                                let teamOpponents = {};
+                                [...promo2_0, ...promo2_1].forEach(t => { teamWins[t] = 0; teamOpponents[t] = []; });
+                                
+                                // 根据前三轮记录统计胜负和交战对手
+                                Object.values(groupData).filter(m => m.match_id && m.match_id.startsWith('S')).forEach(m => {
+                                    const w = getWinner(m); const l = getLoser(m);
+                                    if (w && l) {
+                                        if (teamWins[w] !== undefined) teamWins[w]++;
+                                        if (teamOpponents[m.team_a]) teamOpponents[m.team_a].push(m.team_b);
+                                        if (teamOpponents[m.team_b]) teamOpponents[m.team_b].push(m.team_a);
+                                    }
+                                });
+                                
+                                const getBuchholz = (team) => { return (teamOpponents[team] || []).reduce((sum, opp) => sum + (teamWins[opp] || 0), 0); };
+                                
+                                // 按伯格分排序（若伯格分相同使用队名兜底防报错）
+                                promo2_0.sort((a, b) => { const diff = getBuchholz(b) - getBuchholz(a); return diff !== 0 ? diff : a.localeCompare(b); });
+                                promo2_1.sort((a, b) => { const diff = getBuchholz(b) - getBuchholz(a); return diff !== 0 ? diff : a.localeCompare(b); });
+                                
+                                const seed1 = promo2_0[0], seed2 = promo2_0[1], seed3 = promo2_0[2];
+                                const seed4 = promo2_1[0], seed5 = promo2_1[1], seed6 = promo2_1[2];
+                                
+                                idsToDelete.push('P-WB1-1', 'P-WB1-2', 'P-LB1-1', 'P-LB1-2');
+                                dataToUpsert.push({ group: groupName, match_id: 'P-WB1-1', team_a: seed1, team_b: seed4, score_a: 0, score_b: 0 }); // M1
+                                dataToUpsert.push({ group: groupName, match_id: 'P-WB1-2', team_a: seed2, team_b: seed3, score_a: 0, score_b: 0 }); // M2
+                                // 败者组首轮队伍等待胜者组M1/M2打完产生败者后填入
+                                dataToUpsert.push({ group: groupName, match_id: 'P-LB1-1', team_a: 'TBD', team_b: seed5, score_a: 0, score_b: 0 }); // 等待 M2败者 vs Seed 5
+                                dataToUpsert.push({ group: groupName, match_id: 'P-LB1-2', team_a: 'TBD', team_b: seed6, score_a: 0, score_b: 0 }); // 等待 M1败者 vs Seed 6
+                                
+                                operationMessage = '已完成成绩计算，利用伯格分顺位排定淘汰赛首轮和败者组首轮等待位！';
+                            }
                         }
                     }
-                } else { operationMessage = `在 "${groupName}" 中没有找到任何队伍信息。`; }
+                } else { operationMessage = `在 "${groupName}" 中没有找到足够的队伍信息，或者比赛尚未达到生成新阶段的条件。`; }
             }
 
             pendingDataToUpsert = dataToUpsert; pendingIdsToDelete = idsToDelete;
