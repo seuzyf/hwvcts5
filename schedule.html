@@ -238,7 +238,6 @@
         let pendingDataToUpsert = [];
         let pendingIdsToDelete = [];
 
-        // 在 schedule.html 中找到 verifyPassword 函数，替换为：
         async function verifyPassword() {
             const inputPassword = passwordInputModal.value;
             if (!inputPassword) { alert('请输入口令！'); return; }
@@ -354,7 +353,7 @@
                 if (w_wbf && w_lbf) { ensureNodeExists('P-GF'); data['P-GF'].team_a = w_wbf; data['P-GF'].team_b = w_lbf; }
                 ensureNodeExists('P-CHAMPION'); data['P-CHAMPION'].result_team = getWinner(data['P-GF']);
             } else {
-                // 12队伍逻辑（中坚组）
+                // 12队伍逻辑（挑战组）
                 ensureNodeExists('S3-PROMO-1'); data['S3-PROMO-1'].result_team = getWinner(data['S2-1W']);
                 ensureNodeExists('S3-PROMO-2'); data['S3-PROMO-2'].result_team = getWinner(data['S2-2W']);
                 ensureNodeExists('S3-PROMO-3'); data['S3-PROMO-3'].result_team = getWinner(data['S2-3W']);
@@ -476,7 +475,7 @@
         }
 
         function renderBrackets(groupName, dataSource = allMatchesData) {
-            const is12Team = groupName === '中坚组';
+            const is12Team = groupName === '挑战组';
             const rawData = dataSource[groupName] || {};
             const processedData = processResultNodes(rawData, is12Team);
             document.getElementById('current-group-name').textContent = `${groupName}赛程`;
@@ -507,7 +506,7 @@
 
         function generateAndDisplaySchedule() {
             const groupName = groupFilters.querySelector('.active').dataset.group;
-            const is12Team = groupName === '中坚组';
+            const is12Team = groupName === '挑战组';
             const groupData = { ...allMatchesData[groupName] } || {};
             const processedData = processResultNodes(groupData, is12Team); 
             const seedInput = document.getElementById('seed-input').value;
