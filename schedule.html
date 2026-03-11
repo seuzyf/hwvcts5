@@ -87,11 +87,11 @@
         .round-title { text-align: center; color: var(--primary-color); font-weight: 900; font-size: 14px; margin-bottom: 10px; letter-spacing: 1px; background: rgba(255,70,85,0.1); padding: 5px; border-radius: 4px; border: 1px solid var(--border-color); }
         
         .match-card, .result-card {
-            background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.3s;
+            background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.3s; cursor: pointer;
         }
         body.light-theme .match-card, body.light-theme .result-card { background-color: rgba(255,255,255,0.5); }
         
-        .match-card.clickable:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 8px 20px rgba(255, 70, 85, 0.2); }
+        .match-card:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 8px 20px rgba(255, 70, 85, 0.2); }
         
         .team { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
         .team-name { font-size: 14px; font-weight: 700; letter-spacing: 1px; }
@@ -103,12 +103,15 @@
         hr { border-color: rgba(255,255,255,0.05); margin: 8px 0; }
         body.light-theme hr { border-color: rgba(0,0,0,0.05); }
         
-        .result-card { border-width: 1px; text-align: center; font-weight: 900; display: flex; align-items: center; justify-content: center; min-height: 50px; font-size: 16px; letter-spacing: 1px; }
+        .result-card { border-width: 1px; text-align: center; font-weight: 900; display: flex; align-items: center; justify-content: center; min-height: 50px; font-size: 16px; letter-spacing: 1px; cursor: default;}
         .promoted { border-color: var(--winner-color); color: var(--winner-color); background: rgba(129, 199, 132, 0.05); }
         .champion { border-color: #ffd700; color: #ffd700; font-size: 20px; background: rgba(255, 215, 0, 0.1); box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
         .eliminated { border-color: var(--loser-color); color: var(--loser-color); opacity: 0.6; background: rgba(255, 138, 128, 0.05); }
         
         .match-date { font-size: 11px; text-align: center; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 1px; }
+
+        .commentator-info { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.15); letter-spacing: 1px; }
+        body.light-theme .commentator-info { border-top-color: rgba(0,0,0,0.15); }
 
         .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
         #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
@@ -122,7 +125,7 @@
 
         /* Modal Styles */
         .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; }
-        .modal-content { background: var(--card-bg-color); padding: 30px; border-radius: 6px; border: 1px solid var(--border-highlight); text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); width: 90%; max-width: 400px; }
+        .modal-content { background: var(--card-bg-color); padding: 30px; border-radius: 6px; border: 1px solid var(--border-highlight); text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto;}
         body.light-theme .modal-content { box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
         .modal-content h2 { color: var(--primary-color); font-weight: 900; letter-spacing: 2px; margin-top: 0; }
         .modal-content input { width: 100%; height: var(--control-height); border-radius: 4px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-color); padding: 0 15px; margin: 20px 0; font-family: 'Noto Sans SC'; box-sizing: border-box; outline: none; transition: border-color 0.3s; }
@@ -131,17 +134,84 @@
         .modal-content button { background: var(--primary-color); color: #fff; border: none; padding: 10px 30px; border-radius: 4px; font-weight: 700; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; }
         .modal-content button:hover { background: #ff8a80; box-shadow: 0 0 15px rgba(255,70,85,0.4); }
         
+        .caster-stat-item { margin-bottom: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--border-color); text-align: left;}
+        body.light-theme .caster-stat-item { background: rgba(255,255,255,0.6); }
+        .caster-stat-header { display: flex; justify-content: space-between; align-items: center; color: var(--primary-color); margin: 0 0 10px 0; font-size: 16px; font-weight: 700;}
+        .caster-stat-list { margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 13px; line-height: 1.8;}
+        
+        /* 队伍对比面板的表格样式 (适配选手独立数据) */
+        .stats-table { width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 15px; font-size: 13px; }
+        .stats-table th { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; color: var(--primary-color); font-weight: 700; }
+        body.light-theme .stats-table th { border-bottom-color: rgba(0,0,0,0.1); }
+        .stats-table td { padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.05); }
+        body.light-theme .stats-table td { border-bottom-color: rgba(0,0,0,0.05); }
+        .stats-table a { color: var(--text-color); text-decoration: none; font-weight: bold; transition: color 0.2s;}
+        .stats-table a:hover { color: var(--primary-color); text-decoration: underline; }
+        body.light-theme .stats-table a { color: var(--text-color); }
+        body.light-theme .stats-table a:hover { color: var(--primary-color); }
+        
         input#seed-input { background: transparent; outline: none; }
         input#seed-input:focus { border-color: var(--primary-color); }
     </style>
 </head>
 <body>
     <div class="particles" id="particles"></div>
-    <div id="password-modal" class="modal-backdrop" style="display: none;">
+    
+    <div id="password-modal" class="modal-backdrop" style="display: none; z-index: 1050;">
         <div class="modal-content">
             <h2>管理员验证</h2>
             <input type="password" id="password-input-modal" placeholder="请输入管理口令">
             <button id="password-submit-modal">确 认 权 限</button>
+        </div>
+    </div>
+
+    <div id="caster-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>解说统计数据</h2>
+            <div id="caster-stats-container" style="margin-top: 20px;"></div>
+            <button id="close-caster-modal" style="margin-top: 25px;">关 闭 统 计</button>
+        </div>
+    </div>
+
+    <div id="match-detail-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-content" style="max-width: 850px; padding: 40px;">
+            <h2 id="modal-match-title" style="margin-bottom: 25px;">比赛详情</h2>
+            
+            <div style="display: flex; gap: 20px; text-align: left;">
+                <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto;">
+                    <h3 id="modal-team-a-name" style="color: var(--primary-color); margin-top: 0; font-size: 18px; text-align: center; border-bottom: 1px solid var(--border-highlight); padding-bottom: 10px;">队伍 A</h3>
+                    <div id="modal-team-a-stats" style="color: var(--text-color); margin-top: 15px; min-height: 100px;">
+                        加载数据中...
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: center; font-size: 24px; font-weight: 900; color: var(--text-muted); opacity: 0.3;">VS</div>
+                
+                <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto;">
+                    <h3 id="modal-team-b-name" style="color: var(--primary-color); margin-top: 0; font-size: 18px; text-align: center; border-bottom: 1px solid var(--border-highlight); padding-bottom: 10px;">队伍 B</h3>
+                    <div id="modal-team-b-stats" style="color: var(--text-color); margin-top: 15px; min-height: 100px;">
+                        加载数据中...
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 35px; text-align: left; background: rgba(0,0,0,0.1); padding: 20px; border-radius: 8px; border: 1px dashed var(--border-highlight);">
+                <h3 style="font-size: 16px; margin: 0 0 15px 0; color: var(--primary-color);">✍️ 更新比赛信息</h3>
+                <div style="display: flex; gap: 20px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 5px;">解说席 (多人用逗号或空格分隔)</label>
+                        <input type="text" id="modal-input-commentators" placeholder="例如: 解说A, 解说B" style="margin: 0; padding: 10px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 5px;">视频回放链接</label>
+                        <input type="text" id="modal-input-link" placeholder="输入外部跳转链接" style="margin: 0; padding: 10px;">
+                    </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px;">
+                    <button id="modal-close-btn" style="background: transparent; color: var(--text-color); border: 1px solid var(--text-muted); padding: 10px 20px;">取 消</button>
+                    <button id="modal-save-btn" class="submit-button" style="padding: 10px 25px;">保 存 更 新</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -160,6 +230,7 @@
             <div class="controls-container">
                 <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
                 <a href="summary.html" class="nav-button" target="_blank">查 看 选 手 数 据</a>
+                <button id="caster-stats-btn" class="nav-button" style="background: rgba(129, 199, 132, 0.08); color: #81c784; border-color: rgba(129, 199, 132, 0.3);">解 说 统 计</button>
             </div>
             <div class="controls-container" style="margin-top: 20px;">
                  <div class="filter-group" id="group-filters">
@@ -182,13 +253,13 @@
         <main class="content-block">
             <h2 id="current-group-name"></h2>
             <div id="swiss-stage-section">
-                <h3>小组赛 (点击比赛卡片跳转回放)</h3>
+                <h3>小组赛 (点击比赛卡片查看数据/修改信息)</h3>
                 <div class="bracket-container">
                     <div id="swiss-bracket" class="bracket"></div>
                 </div>
             </div>
             <div id="playoff-stage-section" style="display: none;">
-                <h3>淘汰赛 (点击比赛卡片跳转回放)</h3>
+                <h3>淘汰赛 (点击比赛卡片查看数据/修改信息)</h3>
                 <div class="bracket-container">
                     <div id="playoff-bracket" class="bracket"></div>
                 </div>
@@ -231,10 +302,24 @@
         const passwordSubmitModal = document.getElementById('password-submit-modal');
         const submitChangesBtn = document.getElementById('submit-changes-btn');
 
+        const casterStatsBtn = document.getElementById('caster-stats-btn');
+        const casterModal = document.getElementById('caster-modal');
+        const closeCasterModal = document.getElementById('close-caster-modal');
+        const casterStatsContainer = document.getElementById('caster-stats-container');
+
+        const matchDetailModal = document.getElementById('match-detail-modal');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const modalSaveBtn = document.getElementById('modal-save-btn');
+        let currentEditingMatch = null; 
+        let pendingAuthAction = null; 
+
+        // 全局数据容器
         let allMatchesData = {};
         let allTeamsByGroup = {};
-        let isPasswordVerified = false; 
+        let allRegisteredPlayers = [];
+        let processedMatchStats = {};
         
+        let isPasswordVerified = false; 
         let pendingDataToUpsert = [];
         let pendingIdsToDelete = [];
 
@@ -249,7 +334,10 @@
                     isPasswordVerified = true; 
                     passwordModal.style.display = 'none'; 
                     passwordInputModal.value = '';
-                    generateAndDisplaySchedule(); 
+                    if (pendingAuthAction) {
+                        pendingAuthAction();
+                        pendingAuthAction = null;
+                    }
                 } else { 
                     alert('口令错误！'); 
                 }
@@ -259,9 +347,18 @@
             }
         }
 
+        function requireAdminAuth(actionCallback) {
+            if (isPasswordVerified) {
+                actionCallback();
+            } else {
+                pendingAuthAction = actionCallback;
+                passwordModal.style.display = 'flex';
+                passwordInputModal.focus();
+            }
+        }
+
         function handleRandomDrawClick() {
-            if (isPasswordVerified) { generateAndDisplaySchedule(); } 
-            else { passwordModal.style.display = 'flex'; passwordInputModal.focus(); }
+            requireAdminAuth(generateAndDisplaySchedule);
         }
 
         function setTheme(isLight) {
@@ -274,135 +371,87 @@
         setTheme((savedTheme === 'light') ? true : false);
         themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
 
-        // ----- 8队伍赛制布局 (原版) -----
-        const swissBracketLayout = [
-            { type: 'round', content: [ { title: '0-0组', ids: ['S1-1', 'S1-2', 'S1-3', 'S1-4'] } ] },
-            { type: 'round', content: [ { title: '1-0组', ids: ['S2-1W', 'S2-2W'] }, { title: '0-1组', ids: ['S2-1L', 'S2-2L'] } ] },
-            { type: 'round', content: [ { title: '2-0 晋级', ids: ['S3-PROMO-A', 'S3-PROMO-B'], type: 'promoted' }, { title: '1-1组', ids: ['S3-1M', 'S3-2M'] }, { title: '0-2 淘汰', ids: ['S3-ELIM-A', 'S3-ELIM-B'], type: 'eliminated' } ] },
-            { type: 'round', content: [ { title: '2-1 晋级', ids: ['S5-PROMO-A', 'S5-PROMO-B'], type: 'promoted' }, { title: '1-2 淘汰', ids: ['S5-ELIM-A', 'S5-ELIM-B'], type: 'eliminated' } ] }
-        ];
+        const swissBracketLayout = [ { type: 'round', content: [ { title: '0-0组', ids: ['S1-1', 'S1-2', 'S1-3', 'S1-4'] } ] }, { type: 'round', content: [ { title: '1-0组', ids: ['S2-1W', 'S2-2W'] }, { title: '0-1组', ids: ['S2-1L', 'S2-2L'] } ] }, { type: 'round', content: [ { title: '2-0 晋级', ids: ['S3-PROMO-A', 'S3-PROMO-B'], type: 'promoted' }, { title: '1-1组', ids: ['S3-1M', 'S3-2M'] }, { title: '0-2 淘汰', ids: ['S3-ELIM-A', 'S3-ELIM-B'], type: 'eliminated' } ] }, { type: 'round', content: [ { title: '2-1 晋级', ids: ['S5-PROMO-A', 'S5-PROMO-B'], type: 'promoted' }, { title: '1-2 淘汰', ids: ['S5-ELIM-A', 'S5-ELIM-B'], type: 'eliminated' } ] } ];
+        const playoffBracketLayout = [ { type: 'round', content: [ { title: '胜者组 R1', ids: ['P-WB1-1', 'P-WB1-2'] } ] }, { type: 'round', content: [ { title: '胜者组决赛', ids: ['P-WBF'] }, { title: '败者组 R1', ids: ['P-LB1'] } ] }, { type: 'round', content: [ { title: '败者组决赛', ids: ['P-LBF'] } ] }, { type: 'round', content: [ { title: '总决赛', ids: ['P-GF'] } ] }, { type: 'round', content: [ { title: '总冠军', ids: ['P-CHAMPION'], type: 'champion' } ] } ];
+        const swissBracketLayout_12 = [ { type: 'round', content: [ { title: '0-0组', ids: ['S1-1', 'S1-2', 'S1-3', 'S1-4', 'S1-5', 'S1-6'] } ] }, { type: 'round', content: [ { title: '1-0组', ids: ['S2-1W', 'S2-2W', 'S2-3W'] }, { title: '0-1组', ids: ['S2-1L', 'S2-2L', 'S2-3L'] } ] }, { type: 'round', content: [ { title: '2-0 晋级', ids: ['S3-PROMO-1', 'S3-PROMO-2', 'S3-PROMO-3'], type: 'promoted' }, { title: '1-1组', ids: ['S3-1M', 'S3-2M', 'S3-3M'] }, { title: '0-2 淘汰', ids: ['S3-ELIM-1', 'S3-ELIM-2', 'S3-ELIM-3'], type: 'eliminated' } ] }, { type: 'round', content: [ { title: '2-1 晋级', ids: ['S4-PROMO-1', 'S4-PROMO-2', 'S4-PROMO-3'], type: 'promoted' }, { title: '1-2 淘汰', ids: ['S4-ELIM-1', 'S4-ELIM-2', 'S4-ELIM-3'], type: 'eliminated' } ] } ];
+        const playoffBracketLayout_12 = [ { type: 'round', content: [ { title: '胜者组 R1', ids: ['P-WB1-1', 'P-WB1-2'] } ] }, { type: 'round', content: [ { title: '胜者组决赛', ids: ['P-WBF'] }, { title: '败者组 R1', ids: ['P-LB1-1', 'P-LB1-2'] } ] }, { type: 'round', content: [ { title: '败者组 R2', ids: ['P-LB2'] } ] }, { type: 'round', content: [ { title: '败者组决赛', ids: ['P-LBF'] } ] }, { type: 'round', content: [ { title: '总决赛', ids: ['P-GF'] } ] }, { type: 'round', content: [ { title: '总冠军', ids: ['P-CHAMPION'], type: 'champion' } ] } ];
 
-        const playoffBracketLayout = [
-            { type: 'round', content: [ { title: '胜者组 R1', ids: ['P-WB1-1', 'P-WB1-2'] } ] },
-            { type: 'round', content: [ { title: '胜者组决赛', ids: ['P-WBF'] }, { title: '败者组 R1', ids: ['P-LB1'] } ] },
-            { type: 'round', content: [ { title: '败者组决赛', ids: ['P-LBF'] } ] },
-            { type: 'round', content: [ { title: '总决赛', ids: ['P-GF'] } ] },
-            { type: 'round', content: [ { title: '总冠军', ids: ['P-CHAMPION'], type: 'champion' } ] }
-        ];
-
-        // ----- 12队伍赛制布局 (修改版) -----
-        const swissBracketLayout_12 = [
-            { type: 'round', content: [ { title: '0-0组', ids: ['S1-1', 'S1-2', 'S1-3', 'S1-4', 'S1-5', 'S1-6'] } ] },
-            { type: 'round', content: [ { title: '1-0组', ids: ['S2-1W', 'S2-2W', 'S2-3W'] }, { title: '0-1组', ids: ['S2-1L', 'S2-2L', 'S2-3L'] } ] },
-            { type: 'round', content: [ 
-                { title: '2-0 晋级', ids: ['S3-PROMO-1', 'S3-PROMO-2', 'S3-PROMO-3'], type: 'promoted' }, 
-                { title: '1-1组', ids: ['S3-1M', 'S3-2M', 'S3-3M'] }, 
-                { title: '0-2 淘汰', ids: ['S3-ELIM-1', 'S3-ELIM-2', 'S3-ELIM-3'], type: 'eliminated' } 
-            ] },
-            { type: 'round', content: [ 
-                { title: '2-1 晋级', ids: ['S4-PROMO-1', 'S4-PROMO-2', 'S4-PROMO-3'], type: 'promoted' }, 
-                { title: '1-2 淘汰', ids: ['S4-ELIM-1', 'S4-ELIM-2', 'S4-ELIM-3'], type: 'eliminated' } 
-            ] }
-        ];
-
-        const playoffBracketLayout_12 = [
-            { type: 'round', content: [ { title: '胜者组 R1', ids: ['P-WB1-1', 'P-WB1-2'] } ] },
-            { type: 'round', content: [ { title: '胜者组决赛', ids: ['P-WBF'] }, { title: '败者组 R1', ids: ['P-LB1-1', 'P-LB1-2'] } ] },
-            { type: 'round', content: [ { title: '败者组 R2', ids: ['P-LB2'] } ] },
-            { type: 'round', content: [ { title: '败者组决赛', ids: ['P-LBF'] } ] },
-            { type: 'round', content: [ { title: '总决赛', ids: ['P-GF'] } ] },
-            { type: 'round', content: [ { title: '总冠军', ids: ['P-CHAMPION'], type: 'champion' } ] }
-        ];
-
-        function getWinner(match) {
-            if (!match || typeof match.score_a !== 'number' || typeof match.score_b !== 'number' || (match.score_a === 0 && match.score_b === 0)) return null;
-            if (match.score_a === match.score_b) return null;
-            return match.score_a > match.score_b ? match.team_a : match.team_b;
-        }
-
-        function getLoser(match) {
-            if (!match || typeof match.score_a !== 'number' || typeof match.score_b !== 'number' || (match.score_a === 0 && match.score_b === 0)) return null;
-            if (match.score_a === match.score_b) return null;
-            return match.score_a < match.score_b ? match.team_a : match.team_b;
-        }
+        function getWinner(match) { if (!match || typeof match.score_a !== 'number' || typeof match.score_b !== 'number' || (match.score_a === 0 && match.score_b === 0)) return null; if (match.score_a === match.score_b) return null; return match.score_a > match.score_b ? match.team_a : match.team_b; }
+        function getLoser(match) { if (!match || typeof match.score_a !== 'number' || typeof match.score_b !== 'number' || (match.score_a === 0 && match.score_b === 0)) return null; if (match.score_a === match.score_b) return null; return match.score_a < match.score_b ? match.team_a : match.team_b; }
         
-        // 数据节点处理机制升级（支持动态赛制判断）
         function processResultNodes(rawData, is12TeamFormat) {
             const data = { ...rawData };
             const ensureNodeExists = (id) => { if (!data[id]) data[id] = {}; };
             
             if (!is12TeamFormat) {
-                // 原版 8队伍逻辑
-                ensureNodeExists('S3-PROMO-A'); data['S3-PROMO-A'].result_team = getWinner(data['S2-1W']);
-                ensureNodeExists('S3-PROMO-B'); data['S3-PROMO-B'].result_team = getWinner(data['S2-2W']);
-                ensureNodeExists('S3-ELIM-A'); data['S3-ELIM-A'].result_team = getLoser(data['S2-1L']);
-                ensureNodeExists('S3-ELIM-B'); data['S3-ELIM-B'].result_team = getLoser(data['S2-2L']);
-                ensureNodeExists('S5-PROMO-A'); data['S5-PROMO-A'].result_team = getWinner(data['S3-1M']);
-                ensureNodeExists('S5-PROMO-B'); data['S5-PROMO-B'].result_team = getWinner(data['S3-2M']);
-                ensureNodeExists('S5-ELIM-A'); data['S5-ELIM-A'].result_team = getLoser(data['S3-1M']);
-                ensureNodeExists('S5-ELIM-B'); data['S5-ELIM-B'].result_team = getLoser(data['S3-2M']);
-
-                const w_wb1_1 = getWinner(data['P-WB1-1']); const l_wb1_1 = getLoser(data['P-WB1-1']);
-                const w_wb1_2 = getWinner(data['P-WB1-2']); const l_wb1_2 = getLoser(data['P-WB1-2']);
+                ensureNodeExists('S3-PROMO-A'); data['S3-PROMO-A'].result_team = getWinner(data['S2-1W']); ensureNodeExists('S3-PROMO-B'); data['S3-PROMO-B'].result_team = getWinner(data['S2-2W']); ensureNodeExists('S3-ELIM-A'); data['S3-ELIM-A'].result_team = getLoser(data['S2-1L']); ensureNodeExists('S3-ELIM-B'); data['S3-ELIM-B'].result_team = getLoser(data['S2-2L']); ensureNodeExists('S5-PROMO-A'); data['S5-PROMO-A'].result_team = getWinner(data['S3-1M']); ensureNodeExists('S5-PROMO-B'); data['S5-PROMO-B'].result_team = getWinner(data['S3-2M']); ensureNodeExists('S5-ELIM-A'); data['S5-ELIM-A'].result_team = getLoser(data['S3-1M']); ensureNodeExists('S5-ELIM-B'); data['S5-ELIM-B'].result_team = getLoser(data['S3-2M']);
+                const w_wb1_1 = getWinner(data['P-WB1-1']); const l_wb1_1 = getLoser(data['P-WB1-1']); const w_wb1_2 = getWinner(data['P-WB1-2']); const l_wb1_2 = getLoser(data['P-WB1-2']);
                 if (w_wb1_1 && w_wb1_2) { ensureNodeExists('P-WBF'); data['P-WBF'].team_a = w_wb1_1; data['P-WBF'].team_b = w_wb1_2; }
                 if (l_wb1_1 && l_wb1_2) { ensureNodeExists('P-LB1'); data['P-LB1'].team_a = l_wb1_1; data['P-LB1'].team_b = l_wb1_2; }
-                const w_wbf = getWinner(data['P-WBF']); const l_wbf = getLoser(data['P-WBF']);
-                const w_lb1 = getWinner(data['P-LB1']);
+                const w_wbf = getWinner(data['P-WBF']); const l_wbf = getLoser(data['P-WBF']); const w_lb1 = getWinner(data['P-LB1']);
                 if (l_wbf && w_lb1) { ensureNodeExists('P-LBF'); data['P-LBF'].team_a = l_wbf; data['P-LBF'].team_b = w_lb1; }
-                const w_lbf = getWinner(data['P-LBF']);
-                if (w_wbf && w_lbf) { ensureNodeExists('P-GF'); data['P-GF'].team_a = w_wbf; data['P-GF'].team_b = w_lbf; }
+                const w_lbf = getWinner(data['P-LBF']); if (w_wbf && w_lbf) { ensureNodeExists('P-GF'); data['P-GF'].team_a = w_wbf; data['P-GF'].team_b = w_lbf; }
                 ensureNodeExists('P-CHAMPION'); data['P-CHAMPION'].result_team = getWinner(data['P-GF']);
             } else {
-                // 12队伍逻辑（挑战组）
-                ensureNodeExists('S3-PROMO-1'); data['S3-PROMO-1'].result_team = getWinner(data['S2-1W']);
-                ensureNodeExists('S3-PROMO-2'); data['S3-PROMO-2'].result_team = getWinner(data['S2-2W']);
-                ensureNodeExists('S3-PROMO-3'); data['S3-PROMO-3'].result_team = getWinner(data['S2-3W']);
-                ensureNodeExists('S3-ELIM-1'); data['S3-ELIM-1'].result_team = getLoser(data['S2-1L']);
-                ensureNodeExists('S3-ELIM-2'); data['S3-ELIM-2'].result_team = getLoser(data['S2-2L']);
-                ensureNodeExists('S3-ELIM-3'); data['S3-ELIM-3'].result_team = getLoser(data['S2-3L']);
-                ensureNodeExists('S4-PROMO-1'); data['S4-PROMO-1'].result_team = getWinner(data['S3-1M']);
-                ensureNodeExists('S4-PROMO-2'); data['S4-PROMO-2'].result_team = getWinner(data['S3-2M']);
-                ensureNodeExists('S4-PROMO-3'); data['S4-PROMO-3'].result_team = getWinner(data['S3-3M']);
-                ensureNodeExists('S4-ELIM-1'); data['S4-ELIM-1'].result_team = getLoser(data['S3-1M']);
-                ensureNodeExists('S4-ELIM-2'); data['S4-ELIM-2'].result_team = getLoser(data['S3-2M']);
-                ensureNodeExists('S4-ELIM-3'); data['S4-ELIM-3'].result_team = getLoser(data['S3-3M']);
-
-                const w_wb1_1 = getWinner(data['P-WB1-1']); const l_wb1_1 = getLoser(data['P-WB1-1']);
-                const w_wb1_2 = getWinner(data['P-WB1-2']); const l_wb1_2 = getLoser(data['P-WB1-2']);
-
+                ensureNodeExists('S3-PROMO-1'); data['S3-PROMO-1'].result_team = getWinner(data['S2-1W']); ensureNodeExists('S3-PROMO-2'); data['S3-PROMO-2'].result_team = getWinner(data['S2-2W']); ensureNodeExists('S3-PROMO-3'); data['S3-PROMO-3'].result_team = getWinner(data['S2-3W']); ensureNodeExists('S3-ELIM-1'); data['S3-ELIM-1'].result_team = getLoser(data['S2-1L']); ensureNodeExists('S3-ELIM-2'); data['S3-ELIM-2'].result_team = getLoser(data['S2-2L']); ensureNodeExists('S3-ELIM-3'); data['S3-ELIM-3'].result_team = getLoser(data['S2-3L']); ensureNodeExists('S4-PROMO-1'); data['S4-PROMO-1'].result_team = getWinner(data['S3-1M']); ensureNodeExists('S4-PROMO-2'); data['S4-PROMO-2'].result_team = getWinner(data['S3-2M']); ensureNodeExists('S4-PROMO-3'); data['S4-PROMO-3'].result_team = getWinner(data['S3-3M']); ensureNodeExists('S4-ELIM-1'); data['S4-ELIM-1'].result_team = getLoser(data['S3-1M']); ensureNodeExists('S4-ELIM-2'); data['S4-ELIM-2'].result_team = getLoser(data['S3-2M']); ensureNodeExists('S4-ELIM-3'); data['S4-ELIM-3'].result_team = getLoser(data['S3-3M']);
+                const w_wb1_1 = getWinner(data['P-WB1-1']); const l_wb1_1 = getLoser(data['P-WB1-1']); const w_wb1_2 = getWinner(data['P-WB1-2']); const l_wb1_2 = getLoser(data['P-WB1-2']);
                 if (w_wb1_1 && w_wb1_2) { ensureNodeExists('P-WBF'); data['P-WBF'].team_a = w_wb1_1; data['P-WBF'].team_b = w_wb1_2; }
-                
-                // 交叉对阵安排败者组第一轮 (胜者组掉下的队伍)
-                if (l_wb1_2) { ensureNodeExists('P-LB1-1'); data['P-LB1-1'].team_a = l_wb1_2; }
-                if (l_wb1_1) { ensureNodeExists('P-LB1-2'); data['P-LB1-2'].team_a = l_wb1_1; }
-                
-                const w_lb1_1 = getWinner(data['P-LB1-1']);
-                const w_lb1_2 = getWinner(data['P-LB1-2']);
+                if (l_wb1_2) { ensureNodeExists('P-LB1-1'); data['P-LB1-1'].team_a = l_wb1_2; } if (l_wb1_1) { ensureNodeExists('P-LB1-2'); data['P-LB1-2'].team_a = l_wb1_1; }
+                const w_lb1_1 = getWinner(data['P-LB1-1']); const w_lb1_2 = getWinner(data['P-LB1-2']);
                 if (w_lb1_1 && w_lb1_2) { ensureNodeExists('P-LB2'); data['P-LB2'].team_a = w_lb1_1; data['P-LB2'].team_b = w_lb1_2; }
-
-                const w_wbf = getWinner(data['P-WBF']); const l_wbf = getLoser(data['P-WBF']);
-                const w_lb2 = getWinner(data['P-LB2']);
+                const w_wbf = getWinner(data['P-WBF']); const l_wbf = getLoser(data['P-WBF']); const w_lb2 = getWinner(data['P-LB2']);
                 if (l_wbf && w_lb2) { ensureNodeExists('P-LBF'); data['P-LBF'].team_a = l_wbf; data['P-LBF'].team_b = w_lb2; }
-
-                const w_lbf = getWinner(data['P-LBF']);
-                if (w_wbf && w_lbf) { ensureNodeExists('P-GF'); data['P-GF'].team_a = w_wbf; data['P-GF'].team_b = w_lbf; }
-
+                const w_lbf = getWinner(data['P-LBF']); if (w_wbf && w_lbf) { ensureNodeExists('P-GF'); data['P-GF'].team_a = w_wbf; data['P-GF'].team_b = w_lbf; }
                 ensureNodeExists('P-CHAMPION'); data['P-CHAMPION'].result_team = getWinner(data['P-GF']);
             }
-            
             return data;
+        }
+
+        // 提取 summary.html 的聚合逻辑
+        function processMatchData(matches) {
+            const playerData = {};
+            matches.forEach(match => {
+                ['team_a', 'team_b'].forEach(teamKey => {
+                    for (let p = 1; p <= 5; p++) {
+                        const playerId = match[`${teamKey}_player${p}_id`];
+                        const playerDataStr = match[`${teamKey}_player${p}_data`];
+                        if (!playerId || !playerDataStr) continue;
+
+                        const stats = String(playerDataStr).split('/').map(Number);
+                        if (stats.length !== 4 || stats.some(isNaN)) continue;
+                        
+                        const uniquePlayerKey = `${playerId}::${match.group}`;
+                        if (!playerData[uniquePlayerKey]) {
+                            playerData[uniquePlayerKey] = {
+                                kills: 0, deaths: 0, assists: 0, acs: 0, acsMatchCount: 0
+                            };
+                        }
+                        
+                        const p_stats = playerData[uniquePlayerKey];
+                        if (stats[0] > 0) { p_stats.acs += stats[0]; p_stats.acsMatchCount++; }
+                        p_stats.kills += stats[1]; p_stats.deaths += stats[2]; p_stats.assists += stats[3];
+                    }
+                });
+            });
+            return playerData;
         }
 
         async function loadData() {
             try {
-                 const [{ data: scheduleData, error: scheduleError }, { data: playersData, error: playersError }] = await Promise.all([
+                 const [{ data: scheduleData, error: scheduleError }, { data: playersData, error: playersError }, { data: matchesData, error: matchesError }] = await Promise.all([
                     supabaseClient.from('match_schedule').select('*'),
-                    supabaseClient.from('player_ids').select('team, "group"')
+                    supabaseClient.from('player_ids').select('id, name, team, "group"'),
+                    supabaseClient.from('matches').select('*') // 获取战绩用于计算选手生涯数据
                 ]);
+                
                 if (scheduleError || playersError) throw scheduleError || playersError;
+                
+                // 将数据存入全局以便模态框使用
+                allRegisteredPlayers = playersData || [];
+                processedMatchStats = processMatchData(matchesData || []);
 
                 allTeamsByGroup = {};
-                playersData.forEach(player => {
+                allRegisteredPlayers.forEach(player => {
                     if (player.group && player.team) {
                         if (!allTeamsByGroup[player.group]) allTeamsByGroup[player.group] = new Set();
                         allTeamsByGroup[player.group].add(player.team);
@@ -415,7 +464,6 @@
                     if (row.match_id) allMatchesData[row.group][String(row.match_id).trim()] = row;
                 });
                 
-                // 初次加载获取当前选中的组
                 const activeGroup = groupFilters.querySelector('.active').dataset.group;
                 renderBrackets(activeGroup);
             } catch (error) {
@@ -427,6 +475,8 @@
         function createMatchCard(data) {
             const teamA = data?.team_a || 'TBD'; const teamB = data?.team_b || 'TBD';
             const scoreA = data?.score_a ?? 0; const scoreB = data?.score_b ?? 0;
+            const casters = data?.commentators ? data.commentators : '暂无数据'; 
+            
             let matchDateStr = '';
             if (data?.match_date) {
                 try {
@@ -438,12 +488,17 @@
             const winnerA = isFinished && scoreA > scoreB; const winnerB = isFinished && scoreB > scoreA;
             const card = document.createElement('div');
             card.className = 'match-card';
-            if (data && data.link) { card.classList.add('clickable'); card.dataset.link = data.link; card.style.cursor = 'pointer'; }
+            
+            card.dataset.matchId = data?.match_id || '';
+            card.dataset.group = data?.group || '';
+            card.dataset.hasLink = data?.link ? "true" : "false";
+
             card.innerHTML = `
-                <div class="match-date">${matchDateStr}</div>
+                <div class="match-date">${matchDateStr} ${data?.link ? '📺(附录像)' : ''}</div>
                 <div class="team ${winnerA ? 'winner' : ''} ${winnerB ? 'loser' : ''}"><span class="team-name">${teamA}</span><span class="team-score">${scoreA}</span></div>
                 <hr>
                 <div class="team ${winnerB ? 'winner' : ''} ${winnerA ? 'loser' : ''}"><span class="team-name">${teamB}</span><span class="team-score">${scoreB}</span></div>
+                <div class="commentator-info">🎙️ 解说: ${casters}</div>
             `;
             return card;
         }
@@ -466,7 +521,10 @@
                         const cardData = data[id];
                         let cardElement;
                         if (group.type) { cardElement = createResultCard(cardData, group.type); } 
-                        else { cardElement = createMatchCard(cardData); }
+                        else { 
+                            const safeData = cardData || { match_id: id, group: document.getElementById('current-group-name').textContent.replace('赛程','') };
+                            cardElement = createMatchCard(safeData); 
+                        }
                         roundDiv.appendChild(cardElement);
                     });
                 });
@@ -487,14 +545,8 @@
             buildBracket(document.getElementById('playoff-bracket'), pLayout, processedData);
         }
 
-        function seededRandom(seed) {
-            let state = seed;
-            return function() { state = (state * 9301 + 49297) % 233280; return state / 233280; };
-        }
-
-        function shuffleArray(array, randomFunc) {
-            for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(randomFunc() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; }
-        }
+        function seededRandom(seed) { let state = seed; return function() { state = (state * 9301 + 49297) % 233280; return state / 233280; }; }
+        function shuffleArray(array, randomFunc) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(randomFunc() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } }
         
         const isMatchInDbEmpty = (matchId, data) => { const match = data[matchId]; return !match || !match.team_a || match.team_a === 'TBD' || match.team_a.trim() === ''; };
         const isMatchFinished = (matchId, data) => { const match = data[matchId]; return match && typeof match.score_a === 'number' && typeof match.score_b === 'number' && (match.score_a > 0 || match.score_b > 0); };
@@ -517,7 +569,6 @@
             let operationMessage = '没有可生成的对战。请确保队伍池正确或所有必需的比赛已完成。';
             const getTeamFromResult = (resultId) => processedData[resultId]?.result_team;
             
-            // 配置淘汰赛阶段的前置推进逻辑
             let playoffAdvancements = [];
             if (!is12Team) {
                 playoffAdvancements = [
@@ -529,7 +580,6 @@
             } else {
                 playoffAdvancements = [
                     { matchId: 'P-WBF', prereqs: ['P-WB1-1', 'P-WB1-2'], getTeams: (data) => [getWinner(data['P-WB1-1']), getWinner(data['P-WB1-2'])] },
-                    // 注意这里的组队逻辑，败者组队伍a等待胜者组的败者。team_b（5号和6号种子）已经在下面生成过了，要保留下来。
                     { matchId: 'P-LB1-1', prereqs: ['P-WB1-2'], getTeams: (data) => [getLoser(data['P-WB1-2']), data['P-LB1-1']?.team_b || 'TBD'] },
                     { matchId: 'P-LB1-2', prereqs: ['P-WB1-1'], getTeams: (data) => [getLoser(data['P-WB1-1']), data['P-LB1-2']?.team_b || 'TBD'] },
                     { matchId: 'P-LB2', prereqs: ['P-LB1-1', 'P-LB1-2'], getTeams: (data) => [getWinner(data['P-LB1-1']), getWinner(data['P-LB1-2'])] },
@@ -596,9 +646,7 @@
                         : (isMatchInDbEmpty('P-WB1-1', groupData) || isMatchInDbEmpty('P-WB1-2', groupData));
 
                     if (isPlayoffSeedingEmpty || (is12Team ? canRegenerateRound(['P-WB1-1', 'P-WB1-2', 'P-LB1-1', 'P-LB1-2']) : canRegenerateRound(['P-WB1-1', 'P-WB1-2']))) {
-                        
                         if (!is12Team) {
-                            // 原版8人赛晋级
                             const promo2_0 = [getTeamFromResult('S3-PROMO-A'), getTeamFromResult('S3-PROMO-B')].filter(Boolean);
                             const promo2_1 = [getTeamFromResult('S5-PROMO-A'), getTeamFromResult('S5-PROMO-B')].filter(Boolean);
                             if (promo2_0.length === 2 && promo2_1.length === 2) {
@@ -608,16 +656,13 @@
                                 operationMessage = '已从小组赛晋级队伍生成淘汰赛第一轮对阵！';
                             }
                         } else {
-                            // 12人赛 引入伯格分（Buchholz）落位逻辑
                             const promo2_0 = [getTeamFromResult('S3-PROMO-1'), getTeamFromResult('S3-PROMO-2'), getTeamFromResult('S3-PROMO-3')].filter(Boolean);
                             const promo2_1 = [getTeamFromResult('S4-PROMO-1'), getTeamFromResult('S4-PROMO-2'), getTeamFromResult('S4-PROMO-3')].filter(Boolean);
                             
                             if (promo2_0.length === 3 && promo2_1.length === 3) {
-                                let teamWins = {};
-                                let teamOpponents = {};
+                                let teamWins = {}; let teamOpponents = {};
                                 [...promo2_0, ...promo2_1].forEach(t => { teamWins[t] = 0; teamOpponents[t] = []; });
                                 
-                                // 根据前三轮记录统计胜负和交战对手
                                 Object.values(groupData).filter(m => m.match_id && m.match_id.startsWith('S')).forEach(m => {
                                     const w = getWinner(m); const l = getLoser(m);
                                     if (w && l) {
@@ -629,7 +674,6 @@
                                 
                                 const getBuchholz = (team) => { return (teamOpponents[team] || []).reduce((sum, opp) => sum + (teamWins[opp] || 0), 0); };
                                 
-                                // 按伯格分排序（若伯格分相同使用队名兜底防报错）
                                 promo2_0.sort((a, b) => { const diff = getBuchholz(b) - getBuchholz(a); return diff !== 0 ? diff : a.localeCompare(b); });
                                 promo2_1.sort((a, b) => { const diff = getBuchholz(b) - getBuchholz(a); return diff !== 0 ? diff : a.localeCompare(b); });
                                 
@@ -637,11 +681,10 @@
                                 const seed4 = promo2_1[0], seed5 = promo2_1[1], seed6 = promo2_1[2];
                                 
                                 idsToDelete.push('P-WB1-1', 'P-WB1-2', 'P-LB1-1', 'P-LB1-2');
-                                dataToUpsert.push({ group: groupName, match_id: 'P-WB1-1', team_a: seed1, team_b: seed4, score_a: 0, score_b: 0 }); // M1
-                                dataToUpsert.push({ group: groupName, match_id: 'P-WB1-2', team_a: seed2, team_b: seed3, score_a: 0, score_b: 0 }); // M2
-                                // 败者组首轮队伍等待胜者组M1/M2打完产生败者后填入
-                                dataToUpsert.push({ group: groupName, match_id: 'P-LB1-1', team_a: 'TBD', team_b: seed5, score_a: 0, score_b: 0 }); // 等待 M2败者 vs Seed 5
-                                dataToUpsert.push({ group: groupName, match_id: 'P-LB1-2', team_a: 'TBD', team_b: seed6, score_a: 0, score_b: 0 }); // 等待 M1败者 vs Seed 6
+                                dataToUpsert.push({ group: groupName, match_id: 'P-WB1-1', team_a: seed1, team_b: seed4, score_a: 0, score_b: 0 }); 
+                                dataToUpsert.push({ group: groupName, match_id: 'P-WB1-2', team_a: seed2, team_b: seed3, score_a: 0, score_b: 0 }); 
+                                dataToUpsert.push({ group: groupName, match_id: 'P-LB1-1', team_a: 'TBD', team_b: seed5, score_a: 0, score_b: 0 }); 
+                                dataToUpsert.push({ group: groupName, match_id: 'P-LB1-2', team_a: 'TBD', team_b: seed6, score_a: 0, score_b: 0 }); 
                                 
                                 operationMessage = '已完成成绩计算，利用伯格分顺位排定淘汰赛首轮和败者组首轮等待位！';
                             }
@@ -683,17 +726,158 @@
             finally { submitChangesBtn.disabled = false; submitChangesBtn.textContent = '提 交 赛 程'; }
         });
 
-        randomDrawBtn.addEventListener('click', handleRandomDrawClick);
-        passwordSubmitModal.addEventListener('click', verifyPassword);
-        passwordInputModal.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyPassword(); });
-        passwordModal.addEventListener('click', (e) => { if (e.target === passwordModal) passwordModal.style.display = 'none'; });
+        // 渲染队伍内每个选手的详细生涯数据
+        function renderTeamStats(teamName, groupName, containerId) {
+            const container = document.getElementById(containerId);
+            if (!teamName || teamName === 'TBD' || teamName === '未知') {
+                container.innerHTML = '<div style="text-align:center; padding: 20px;">暂无队伍信息</div>';
+                return;
+            }
+            
+            // 筛选属于该队的选手
+            const teamPlayers = allRegisteredPlayers.filter(p => p.team === teamName && p.group === groupName);
+            
+            if (teamPlayers.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-muted);">数据库中未找到该队伍的选手名单</div>';
+                return;
+            }
+
+            let html = '<table class="stats-table">';
+            html += '<tr><th>选手ID</th><th>姓名</th><th>ACS</th><th>KDA</th></tr>';
+            
+            teamPlayers.forEach(player => {
+                const uniquePlayerKey = `${player.id}::${groupName}`;
+                const matchStats = processedMatchStats[uniquePlayerKey];
+                
+                let avg_acs = 0;
+                let kda = 0;
+
+                if (matchStats) {
+                    avg_acs = matchStats.acsMatchCount > 0 ? matchStats.acs / matchStats.acsMatchCount : 0;
+                    kda = matchStats.deaths > 0 ? (matchStats.kills + matchStats.assists) / matchStats.deaths : (matchStats.kills + matchStats.assists);
+                }
+
+                html += `
+                    <tr>
+                        <td><a href="player.html?name=${encodeURIComponent(player.name)}&group=${encodeURIComponent(groupName)}" target="_blank">${player.id}</a></td>
+                        <td>${player.name}</td>
+                        <td style="color:var(--primary-color); font-weight:700;">${avg_acs > 0 ? avg_acs.toFixed(1) : '—'}</td>
+                        <td style="font-weight:700;">${(matchStats && (matchStats.kills>0 || matchStats.assists>0 || matchStats.deaths>0)) ? kda.toFixed(2) : '—'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</table>';
+            container.innerHTML = html;
+        }
 
         document.querySelectorAll('.bracket').forEach(bracket => {
             bracket.addEventListener('click', e => {
-                const clickableCard = e.target.closest('.match-card.clickable');
-                if (clickableCard && clickableCard.dataset.link) { window.open(clickableCard.dataset.link, '_blank', 'noopener,noreferrer'); }
+                const card = e.target.closest('.match-card');
+                if (card) {
+                    const matchId = card.dataset.matchId;
+                    const group = card.dataset.group;
+                    if (!matchId || !group) return;
+
+                    const matchData = (allMatchesData[group] && allMatchesData[group][matchId]) || null;
+                    if (!matchData) return;
+
+                    currentEditingMatch = { matchId, group, raw: matchData };
+
+                    document.getElementById('modal-match-title').textContent = `[${group}] 赛事编号：${matchId}`;
+                    document.getElementById('modal-team-a-name').textContent = matchData.team_a || '队伍 A (TBD)';
+                    document.getElementById('modal-team-b-name').textContent = matchData.team_b || '队伍 B (TBD)';
+                    
+                    document.getElementById('modal-input-commentators').value = matchData.commentators || '';
+                    document.getElementById('modal-input-link').value = matchData.link || '';
+
+                    // 使用新的选手个人数据渲染逻辑
+                    renderTeamStats(matchData.team_a, group, 'modal-team-a-stats');
+                    renderTeamStats(matchData.team_b, group, 'modal-team-b-stats');
+
+                    matchDetailModal.style.display = 'flex';
+                }
             });
         });
+
+        modalSaveBtn.addEventListener('click', () => {
+            if (!currentEditingMatch) return;
+            
+            requireAdminAuth(async () => {
+                const newCommentators = document.getElementById('modal-input-commentators').value.trim();
+                const newLink = document.getElementById('modal-input-link').value.trim();
+                
+                const { matchId, group } = currentEditingMatch;
+                modalSaveBtn.disabled = true;
+                modalSaveBtn.textContent = '保存中...';
+                
+                try {
+                    const { error } = await supabaseClient
+                        .from('match_schedule')
+                        .update({ commentators: newCommentators, link: newLink })
+                        .eq('match_id', matchId)
+                        .eq('group', group);
+                        
+                    if (error) throw error;
+                    alert('比赛信息更新成功！');
+                    matchDetailModal.style.display = 'none';
+                    await loadData(); 
+                } catch (err) {
+                    console.error('更新失败:', err);
+                    alert('更新失败: ' + err.message);
+                } finally {
+                    modalSaveBtn.disabled = false;
+                    modalSaveBtn.textContent = '保 存 更 新';
+                }
+            });
+        });
+
+        casterStatsBtn.addEventListener('click', () => {
+            const stats = {};
+            Object.values(allMatchesData).forEach(groupData => {
+                Object.values(groupData).forEach(match => {
+                    if (match.commentators && match.commentators.trim() !== '' && match.commentators !== '暂无数据') {
+                        const casters = match.commentators.split(/[,，、\s]+/).filter(c => c.trim() !== '');
+                        casters.forEach(caster => {
+                            if (!stats[caster]) stats[caster] = { count: 0, matches: [] };
+                            stats[caster].count++;
+                            const teamA = match.team_a || 'TBD'; const teamB = match.team_b || 'TBD';
+                            const matchStr = `[${match.group || '未知组'}] ${match.match_id}: ${teamA} vs ${teamB}`;
+                            stats[caster].matches.push(matchStr);
+                        });
+                    }
+                });
+            });
+
+            if (Object.keys(stats).length === 0) {
+                casterStatsContainer.innerHTML = '<p style="text-align:center; color: var(--text-muted); font-size: 14px;">目前数据库中暂无解说数据</p>';
+            } else {
+                let html = '';
+                const sortedCasters = Object.keys(stats).sort((a, b) => stats[b].count - stats[a].count);
+                sortedCasters.forEach(caster => {
+                    html += `
+                        <div class="caster-stat-item">
+                            <h3 class="caster-stat-header">🎙️ ${caster} <span>总计: ${stats[caster].count} 场</span></h3>
+                            <ul class="caster-stat-list">
+                                ${stats[caster].matches.map(m => `<li>${m}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                });
+                casterStatsContainer.innerHTML = html;
+            }
+            casterModal.style.display = 'flex';
+        });
+
+        modalCloseBtn.addEventListener('click', () => matchDetailModal.style.display = 'none');
+        closeCasterModal.addEventListener('click', () => casterModal.style.display = 'none');
+        matchDetailModal.addEventListener('click', (e) => { if(e.target === matchDetailModal) matchDetailModal.style.display = 'none'; });
+        casterModal.addEventListener('click', (e) => { if (e.target === casterModal) casterModal.style.display = 'none'; });
+        
+        randomDrawBtn.addEventListener('click', handleRandomDrawClick);
+        passwordSubmitModal.addEventListener('click', verifyPassword);
+        passwordInputModal.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyPassword(); });
+        passwordModal.addEventListener('click', (e) => { if (e.target === passwordModal) { passwordModal.style.display = 'none'; pendingAuthAction = null; } });
 
         groupFilters.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
