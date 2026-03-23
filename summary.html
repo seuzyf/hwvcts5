@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS4 - 选手数据汇总</title>
+    <title>HWVCTS5 - 选手数据汇总</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -91,14 +91,17 @@
         select#team-filter:focus { border-color: var(--primary-color); }
         
         .nav-button { 
-            height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center;
+            height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; justify-content: center;
             border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; 
             background: rgba(255, 70, 85, 0.08); border-radius: 6px; font-size: 14px; font-weight: 600;
-            transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px;
+            transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer;
         }
         body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
-        .nav-button:hover { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2); }
-        body.light-theme .nav-button:hover { color: var(--primary-color); }
+        .nav-button:hover:not(:disabled) { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2); }
+        body.light-theme .nav-button:hover:not(:disabled) { color: var(--primary-color); }
+        .nav-button:disabled { border-color: var(--text-muted); color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
+
+        #compare-btn { background-color: rgba(255, 70, 85, 0.15); border-color: var(--primary-color); }
 
         main {
             background-color: var(--card-bg-color); backdrop-filter: blur(10px);
@@ -118,11 +121,11 @@
             background-color: var(--card-bg-color); color: var(--text-muted); font-weight: 700;
             border-bottom: 1px solid var(--border-highlight); padding: 15px 10px; backdrop-filter: blur(10px);
         }
-        #stats-table th, #stats-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
+        #stats-table th, #stats-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; transition: all 0.3s ease;}
         body.light-theme #stats-table th, body.light-theme #stats-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
         #stats-table tbody tr:hover { background-color: rgba(255, 70, 85, 0.05); }
-        #stats-table th { cursor: pointer; position: relative; transition: color 0.3s; }
-        #stats-table th:hover { color: var(--primary-color); }
+        #stats-table th[data-sort-key] { cursor: pointer; position: relative; transition: color 0.3s; }
+        #stats-table th[data-sort-key]:hover { color: var(--primary-color); }
         #stats-table td a { color: var(--primary-color); text-decoration: none; font-weight: 700; transition: all 0.2s; }
         #stats-table td a:hover { text-decoration: underline; text-shadow: 0 0 8px rgba(255, 70, 85, 0.5); }
         
@@ -138,6 +141,11 @@
         .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
         input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
         input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
+
+        /* 对比复选框默认隐藏，激活后显示 */
+        #stats-table th.checkbox-cell, #stats-table td.checkbox-cell { display: none; text-align: center; width: 50px; }
+        #stats-table.compare-mode th.checkbox-cell, #stats-table.compare-mode td.checkbox-cell { display: table-cell; }
+        .compare-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary-color); }
     </style>
 </head>
 <body>
@@ -163,6 +171,7 @@
                 <select id="team-filter">
                     <option value="all">所有队伍</option>
                 </select>
+                <button id="compare-btn" class="nav-button">选 手 数 据 对 比</button>
                 <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
                 <a href="schedule.html" class="nav-button" target="_blank">查 看 赛 程</a>
             </div>
@@ -173,6 +182,7 @@
                 <table id="stats-table">
                     <thead>
                         <tr>
+                            <th class="checkbox-cell">对比</th>
                             <th data-sort-key="id">ID<span class="sort-indicator"></span></th>
                             <th data-sort-key="name">选手姓名<span class="sort-indicator"></span></th>
                             <th data-sort-key="group">组别<span class="sort-indicator"></span></th>
@@ -220,12 +230,17 @@
             const groupFilterButtons = document.getElementById('group-filter-buttons');
             const teamFilter = document.getElementById('team-filter');
             const tableHead = document.querySelector('#stats-table thead');
+            const tableBody = document.getElementById('stats-table-body');
             const themeToggle = document.getElementById('theme-toggle-checkbox');
             const themeText = document.getElementById('theme-text');
+            const compareBtn = document.getElementById('compare-btn');
+            const statsTable = document.getElementById('stats-table');
             
             let allRegisteredPlayers = [];
             let processedMatchStats = {};
             let currentSort = { key: 'avg_acs', order: 'desc' };
+            let selectedForCompare = []; // 存储对比选手 {name, group}
+            let isCompareMode = false; // 比较模式状态
 
             function setTheme(isLight) {
                 document.body.classList.toggle('light-theme', isLight);
@@ -237,15 +252,11 @@
             setTheme((savedTheme === 'light') ? true : false);
             themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
 
-            // 初始化与组别动态刷新逻辑
-            // 初始化与组别动态刷新、自动删除逻辑
             async function initializePlayerIds() {
                 try {
-                    // 获取报名表的选手名单
                     const { data: statsData, error: statsError } = await supabaseClient.from('player_stats').select('player_name, game_id, pre_group');
                     if (statsError) throw statsError;
 
-                    // 获取目标表的现有选手数据
                     const { data: idsData, error: idsError } = await supabaseClient.from('player_ids').select('name, team, "group"');
                     if (idsError && idsError.code !== 'PGRST116') throw idsError;
 
@@ -258,41 +269,26 @@
                     const recordsToUpdate = [];
                     const namesToDelete = [];
 
-                    // 1. 遍历报名表，处理新增和组别更新
                     (statsData || []).forEach(statsPlayer => {
                         if (!statsPlayer.player_name) return;
 
                         let correctedGroup = statsPlayer.pre_group;
-                        if (correctedGroup === '中间组') {
-                            correctedGroup = '中坚组'; // 自动修正报名表的中间组
-                        }
+                        if (correctedGroup === '中间组') correctedGroup = '中坚组'; 
 
                         const existingPlayer = existingPlayersMap.get(statsPlayer.player_name);
 
                         if (!existingPlayer) {
-                            // 新增选手
-                            recordsToInsert.push({
-                                name: statsPlayer.player_name,
-                                id: statsPlayer.game_id || '未填写ID',
-                                group: correctedGroup || null
-                            });
+                            recordsToInsert.push({ name: statsPlayer.player_name, id: statsPlayer.game_id || '未填写ID', group: correctedGroup || null });
                         } else {
-                            // 更新未分队选手的组别
                             const hasNoTeam = !existingPlayer.team || existingPlayer.team.trim() === '';
                             const groupChanged = existingPlayer.group !== correctedGroup;
-
                             if (hasNoTeam && groupChanged) {
-                                recordsToUpdate.push({
-                                    name: statsPlayer.player_name,
-                                    group: correctedGroup || null
-                                });
+                                recordsToUpdate.push({ name: statsPlayer.player_name, group: correctedGroup || null });
                             }
                         }
                     });
 
-                    // 2. 遍历现有选手，处理退赛(删除)逻辑
                     (idsData || []).forEach(existingPlayer => {
-                        // 如果选手不在最新报名表中，且该选手还没有被分配队伍（安全锁）
                         const hasNoTeam = !existingPlayer.team || existingPlayer.team.trim() === '';
                         if (!statsNamesSet.has(existingPlayer.name) && hasNoTeam) {
                             namesToDelete.push(existingPlayer.name);
@@ -301,51 +297,29 @@
 
                     let needReload = false;
 
-                    // 批量执行插入
                     if (recordsToInsert.length > 0) {
-                        const { error: insertError } = await supabaseClient.from('player_ids').insert(recordsToInsert);
-                        if (!insertError) {
-                            console.log(`成功初始化了 ${recordsToInsert.length} 名新选手。`);
-                            needReload = true;
-                        }
+                        const { error } = await supabaseClient.from('player_ids').insert(recordsToInsert);
+                        if (!error) needReload = true;
                     }
 
-                    // 批量执行更新组别
                     if (recordsToUpdate.length > 0) {
-                        const updatePromises = recordsToUpdate.map(p => 
-                            supabaseClient.from('player_ids').update({ group: p.group }).eq('name', p.name)
-                        );
+                        const updatePromises = recordsToUpdate.map(p => supabaseClient.from('player_ids').update({ group: p.group }).eq('name', p.name));
                         await Promise.all(updatePromises);
-                        console.log(`成功刷新了 ${recordsToUpdate.length} 名选手的组别。`);
                         needReload = true;
                     }
 
-                    // 批量执行删除 (清理退赛且未分队的人员)
                     if (namesToDelete.length > 0) {
-                        const { error: deleteError } = await supabaseClient.from('player_ids').delete().in('name', namesToDelete);
-                        if (!deleteError) {
-                            console.log(`成功清理了 ${namesToDelete.length} 名已退赛且未分队的选手。`);
-                            needReload = true;
-                        } else {
-                            console.error("清理退赛选手失败:", deleteError);
-                        }
+                        const { error } = await supabaseClient.from('player_ids').delete().in('name', namesToDelete);
+                        if (!error) needReload = true;
                     }
 
-                    // 如果有任何变更，刷新页面
-                    if (needReload) {
-                        window.location.reload(); 
-                    }
+                    if (needReload) window.location.reload(); 
 
-                } catch (error) {
-                    console.error("选手初始化检测时发生错误:", error);
-                }
+                } catch (error) { console.error("选手初始化检测时发生错误:", error); }
             }
 
             async function loadAndProcessData() {
-                const tableBody = document.getElementById('stats-table-body');
-                tableBody.innerHTML = '<tr><td colspan="14" style="color: var(--text-muted); text-align: center;">正在同步报名名单与组别，请稍候...</td></tr>';
-
-                // 每次加载前先进行名单比对与同步
+                tableBody.innerHTML = '<tr><td colspan="15" style="color: var(--text-muted); text-align: center;">正在同步报名名单与组别，请稍候...</td></tr>';
                 await initializePlayerIds();
 
                 try {
@@ -363,8 +337,7 @@
                     filterAndDisplayData();
 
                 } catch (error) {
-                    console.error("加载数据失败:", error);
-                    tableBody.innerHTML = `<tr><td colspan="14" style="color:var(--primary-color); text-align: center;">数据加载失败: ${error.message}</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="15" style="color:var(--primary-color); text-align: center;">数据加载失败: ${error.message}</td></tr>`;
                 }
             }
 
@@ -472,7 +445,6 @@
             }
             
             function updateTable(data) {
-                const tableBody = document.getElementById('stats-table-body');
                 tableBody.innerHTML = '';
                 data.sort((a, b) => {
                     const aVal = a[currentSort.key]; const bVal = b[currentSort.key];
@@ -484,12 +456,14 @@
                 });
                 updateSortIndicators();
                 if (data.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="14" style="text-align:center; color: var(--text-muted);">没有符合条件的选手。</td></tr>'; return;
+                    tableBody.innerHTML = '<tr><td colspan="15" style="text-align:center; color: var(--text-muted);">没有符合条件的选手。</td></tr>'; return;
                 }
                 data.forEach(player => {
                     const row = document.createElement('tr');
                     const groupParam = player.group ? encodeURIComponent(player.group) : encodeURIComponent('未分组');
+                    const isChecked = selectedForCompare.some(p => p.name === player.name && p.group === player.group);
                     row.innerHTML = `
+                        <td class="checkbox-cell"><input type="checkbox" class="compare-checkbox" data-name="${player.name}" data-group="${player.group || '未分组'}" ${isChecked ? 'checked' : ''}></td>
                         <td><a href="player.html?name=${encodeURIComponent(player.name)}&group=${groupParam}" target="_blank">${player.id}</a></td>
                         <td>${player.name || '—'}</td><td>${player.group || '—'}</td><td>${player.team || '—'}</td><td>${player.topChars}</td>
                         <td>${player.matches_played > 0 ? player.matches_played : '—'}</td>
@@ -501,6 +475,47 @@
                     tableBody.appendChild(row);
                 });
             }
+
+            // 对比选择逻辑
+            tableBody.addEventListener('change', (e) => {
+                if (e.target.classList.contains('compare-checkbox')) {
+                    const cb = e.target;
+                    const name = cb.dataset.name;
+                    const group = cb.dataset.group;
+                    
+                    if (cb.checked) {
+                        if (selectedForCompare.length >= 6) {
+                            cb.checked = false;
+                            alert('最多只能选择6名选手进行对比！');
+                            return;
+                        }
+                        selectedForCompare.push({ name, group });
+                    } else {
+                        selectedForCompare = selectedForCompare.filter(p => !(p.name === name && p.group === group));
+                    }
+                    
+                    compareBtn.textContent = `生 成 对 比 (${selectedForCompare.length}/6)`;
+                    compareBtn.disabled = selectedForCompare.length < 2; 
+                }
+            });
+
+            // 比较按钮点击逻辑 (控制模式切换与跳转)
+            compareBtn.addEventListener('click', () => {
+                if (!isCompareMode) {
+                    // 进入比较模式
+                    isCompareMode = true;
+                    statsTable.classList.add('compare-mode');
+                    selectedForCompare = []; // 清空之前的选中状态
+                    document.querySelectorAll('.compare-checkbox').forEach(cb => cb.checked = false);
+                    compareBtn.textContent = `生 成 对 比 (0/6)`;
+                    compareBtn.disabled = true; // 需选中两人以上才可跳转
+                } else {
+                    // 执行跳转
+                    if (selectedForCompare.length < 2) return;
+                    const queryParams = selectedForCompare.map(p => `p=${encodeURIComponent(p.name)}|${encodeURIComponent(p.group)}`).join('&');
+                    window.open(`compare.html?${queryParams}`, '_blank');
+                }
+            });
 
             tableHead.addEventListener('click', (e) => {
                 const th = e.target.closest('th');
