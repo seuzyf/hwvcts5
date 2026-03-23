@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HWVCTS5 - 选手多维对比</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #ff4655;
+            --bg-color: #0a0a0f;
+            --bg-gradient-mid: #1a0a0a;
+            --text-color: #fff;
+            --card-bg-color: rgba(21, 21, 32, 0.85);
+            --border-color: rgba(255, 70, 85, 0.2);
+            --border-highlight: rgba(255, 70, 85, 0.5);
+            --shadow-color: rgba(0,0,0,0.5);
+            --text-muted: rgba(255, 255, 255, 0.5);
+        }
+        body.light-theme {
+            --primary-color: #e53935;
+            --bg-color: #f4f5f7;
+            --bg-gradient-mid: #e9ecef;
+            --text-color: #1c1e21;
+            --card-bg-color: rgba(255, 255, 255, 0.9);
+            --border-color: rgba(229, 57, 53, 0.3);
+            --border-highlight: rgba(229, 57, 53, 0.6);
+            --shadow-color: rgba(229, 57, 53, 0.15);
+            --text-muted: rgba(0, 0, 0, 0.5);
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
+            color: var(--text-color); margin: 0; padding: 20px 0; min-height: 100vh; position: relative;
+        }
+
+        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255, 70, 85, 0.6); border-radius: 50%; animation: float linear infinite; }
+        body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
+        @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
+
+        .container { width: 90%; max-width: 1400px; margin: 0 auto; position: relative; z-index: 10; }
+        
+        .main-header-block { padding: 25px; text-align: center; margin-bottom: 30px; position: relative; }
+        .main-header-block h1 { font-size: 40px; font-weight: 900; margin: 0; letter-spacing: 3px; background: linear-gradient(135deg, var(--primary-color), #ff8a80); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
+        #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
+        .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
+        .theme-switch input { display:none; }
+        .slider-theme { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
+        body.light-theme .slider-theme { background-color: rgba(0,0,0,0.1); }
+        .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
+        input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
+        input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
+
+        .layout { display: flex; flex-direction: column; gap: 30px; }
+        
+        .section-card {
+            background-color: var(--card-bg-color); backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color); border-radius: 8px; padding: 30px;
+            box-shadow: 0 10px 40px var(--shadow-color); position: relative;
+        }
+        .section-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
+        .section-card h2 { margin-top: 0; color: var(--primary-color); border-bottom: 1px solid var(--border-highlight); padding-bottom: 15px; font-weight: 900; letter-spacing: 2px; text-align: center; }
+
+        #chart-wrapper { width: 100%; max-width: 600px; margin: 0 auto; position: relative; }
+
+        .table-responsive { overflow-x: auto; margin-top: 20px; }
+        #compare-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 15px; text-align: center; }
+        #compare-table th, #compare-table td { padding: 15px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        body.light-theme #compare-table th, body.light-theme #compare-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
+        #compare-table thead th { background-color: rgba(0,0,0,0.2); color: var(--text-muted); font-weight: 700; border-bottom: 2px solid var(--border-highlight); }
+        body.light-theme #compare-table thead th { background-color: rgba(255,255,255,0.5); }
+        #compare-table tbody tr:hover { background-color: rgba(255, 70, 85, 0.05); }
+        .stat-label { font-weight: 700; color: var(--text-color); text-align: right; padding-right: 20px !important; width: 150px; background-color: rgba(255, 70, 85, 0.03); }
+        .player-name-header { font-size: 18px; font-weight: 900; }
+        .player-group-label { font-size: 12px; font-weight: normal; opacity: 0.7; display: block; margin-top: 5px; }
+
+        .highlight-best { color: var(--primary-color); font-weight: 900; }
+        .highlight-best::after { content: ' ★'; font-size: 12px; }
+
+        .btn-back { display: inline-flex; height: 42px; align-items: center; padding: 0 25px; border-radius: 6px; font-weight: 600; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; transition: all 0.3s; background: rgba(255, 70, 85, 0.08); margin: 0 auto; }
+        .btn-back:hover { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    <div class="container">
+        <div class="main-header-block">
+            <div class="theme-switch-wrapper">
+                <span id="theme-text"></span>
+                <label class="theme-switch">
+                    <input type="checkbox" id="theme-toggle-checkbox">
+                    <span class="slider-theme"></span>
+                </label>
+            </div>
+            <h1>选手多维数据对比</h1>
+            <div style="margin-top:20px;">
+                <a href="summary.html" class="btn-back">返 回 数 据 汇 总</a>
+            </div>
+        </div>
+
+        <div class="layout" id="content-layout" style="display:none;">
+            <div class="section-card">
+                <h2>生 涯 能 力 图 (同组百分位)</h2>
+                <div id="chart-wrapper">
+                    <canvas id="compare-radar-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h2>生 涯 数 据 详强</h2>
+                <div class="table-responsive">
+                    <table id="compare-table">
+                        <thead id="compare-table-head"></thead>
+                        <tbody id="compare-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loading-msg" style="text-align:center; color:var(--text-muted); font-size:18px; margin-top:50px;">正在加载对比数据，请稍候...</div>
+    </div>
+
+<script>
+    function createParticles() {
+        const container = document.getElementById('particles');
+        for (let i = 0; i < 50; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = (Math.random() * 8 + 4) + 's';
+            particle.style.animationDelay = Math.random() * 5 + 's';
+            particle.style.width = (Math.random() * 3 + 1) + 'px';
+            particle.style.height = particle.style.width;
+            container.appendChild(particle);
+        }
+    }
+    createParticles();
+
+    const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const CHART_COLORS = [
+        { bg: 'rgba(255, 70, 85, 0.2)', border: 'rgba(255, 70, 85, 1)' },    // 红
+        { bg: 'rgba(54, 162, 235, 0.2)', border: 'rgba(54, 162, 235, 1)' },  // 蓝
+        { bg: 'rgba(255, 206, 86, 0.2)', border: 'rgba(255, 206, 86, 1)' },  // 黄
+        { bg: 'rgba(75, 192, 192, 0.2)', border: 'rgba(75, 192, 192, 1)' },  // 绿
+        { bg: 'rgba(153, 102, 255, 0.2)', border: 'rgba(153, 102, 255, 1)' },// 紫
+        { bg: 'rgba(255, 159, 64, 0.2)', border: 'rgba(255, 159, 64, 1)' }   // 橙
+    ];
+
+    let myRadarChart = null;
+
+    function setTheme(isLight) {
+        document.body.classList.toggle('light-theme', isLight);
+        document.getElementById('theme-toggle-checkbox').checked = isLight;
+        document.getElementById('theme-text').textContent = isLight ? '切换为暗色模式' : '切换为亮色模式';
+        localStorage.setItem('theme', isLight ? 'light' : 'dark');
+        if (window.chartDataToDraw) drawRadarChart(window.chartDataToDraw);
+    }
+    document.getElementById('theme-toggle-checkbox').addEventListener('change', (e) => setTheme(e.target.checked));
+
+    async function init() {
+        setTheme(localStorage.getItem('theme') === 'light');
+        
+        const params = new URLSearchParams(window.location.search);
+        const playerQueries = params.getAll('p');
+        if (playerQueries.length === 0) {
+            document.getElementById('loading-msg').innerHTML = '错误：未选择任何选手。';
+            return;
+        }
+
+        const selectedPlayers = playerQueries.map(q => {
+            const [name, group] = q.split('|');
+            return { name: decodeURIComponent(name), group: decodeURIComponent(group) };
+        });
+
+        try {
+            const [{ data: idsData, error: idErr }, { data: matchesData, error: matchErr }] = await Promise.all([
+                supabaseClient.from('player_ids').select('id, name, "group"'),
+                supabaseClient.from('matches').select('*')
+            ]);
+            
+            if (idErr || matchErr) throw idErr || matchErr;
+
+            const allPlayerData = processAllPlayerData(matchesData);
+            
+            const compareResults = selectedPlayers.map((sp, index) => {
+                const idInfo = idsData.find(i => i.name === sp.name && (i.group === sp.group || (!i.group && sp.group === '未分组')));
+                if (!idInfo) return null;
+                const playerId = idInfo.id;
+                const uniqueKey = `${playerId}::${sp.group}`;
+                
+                const rawData = allPlayerData[uniqueKey];
+                let stats = { matches: 0, acs: 0, kda: 0, map_k: 0, map_d: 0, map_a: 0, round_k: 0, round_d: 0, round_a: 0, survival_rate: 0 };
+                
+                if (rawData && rawData.total_stats.matchCount > 0) {
+                    const s = rawData.total_stats;
+                    stats = {
+                        matches: s.matchCount,
+                        acs: s.acsMatchCount > 0 ? s.acs / s.acsMatchCount : 0,
+                        kda: s.deaths > 0 ? (s.kills + s.assists) / s.deaths : (s.kills + s.assists),
+                        map_k: s.kills / s.matchCount,
+                        map_d: s.deaths / s.matchCount,
+                        map_a: s.assists / s.matchCount,
+                        round_k: s.totalRounds > 0 ? s.kills / s.totalRounds : 0,
+                        round_d: s.totalRounds > 0 ? s.deaths / s.totalRounds : 0,
+                        round_a: s.totalRounds > 0 ? s.assists / s.totalRounds : 0,
+                        survival_rate: s.totalRounds > 0 ? 1 - (s.deaths / s.totalRounds) : 0
+                    };
+                }
+
+                const { groupPlayersForRank } = calculateGroupRanks(allPlayerData, sp.group);
+                const percentiles = [
+                    calculatePercentile(stats.acs, groupPlayersForRank.map(p => p.acs)),
+                    calculatePercentile(stats.round_k, groupPlayersForRank.map(p => p.k_round)),
+                    calculatePercentile(stats.round_a, groupPlayersForRank.map(p => p.a_round)),
+                    calculatePercentile(stats.survival_rate, groupPlayersForRank.map(p => p.survival_rate)),
+                    calculatePercentile(stats.kda, groupPlayersForRank.map(p => p.kda))
+                ];
+
+                return { name: sp.name, group: sp.group, id: playerId, stats, percentiles, colorIndex: index % CHART_COLORS.length };
+            }).filter(Boolean);
+
+            if (compareResults.length === 0) {
+                document.getElementById('loading-msg').innerHTML = '错误：未能找到所选选手的有效数据。';
+                return;
+            }
+
+            document.getElementById('loading-msg').style.display = 'none';
+            document.getElementById('content-layout').style.display = 'flex';
+
+            window.chartDataToDraw = compareResults;
+            drawRadarChart(compareResults);
+            renderTable(compareResults);
+
+        } catch (error) {
+            document.getElementById('loading-msg').innerHTML = `数据加载失败：${error.message}`;
+            console.error(error);
+        }
+    }
+
+    function processAllPlayerData(matches) {
+        const playerData = {};
+        matches.forEach(match => {
+            const scoreText = match['score'] || ''; const score = String(scoreText).split(/[/:：]/).map(Number);
+            const totalRounds = (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1])) ? (score[0] + score[1]) : 0;
+            ['team_a', 'team_b'].forEach(teamKey => {
+                for (let p = 1; p <= 5; p++) {
+                    const playerId = match[`${teamKey}_player${p}_id`];
+                    const playerDataStr = match[`${teamKey}_player${p}_data`];
+                    if (!playerId || !playerDataStr) continue;
+                    const stats = String(playerDataStr).split('/').map(Number);
+                    if (stats.length !== 4 || stats.some(isNaN)) continue;
+
+                    const uniquePlayerKey = `${playerId}::${match.group}`;
+                    if (!playerData[uniquePlayerKey]) { playerData[uniquePlayerKey] = { id: playerId, group: match.group, total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 } }; }
+                    const p_stats = playerData[uniquePlayerKey].total_stats;
+                    if (stats[0] > 0) { p_stats.acs += stats[0]; p_stats.acsMatchCount++; }
+                    p_stats.kills += stats[1]; p_stats.deaths += stats[2]; p_stats.assists += stats[3]; p_stats.matchCount++; p_stats.totalRounds += totalRounds;
+                }
+            });
+        });
+        return playerData;
+    }
+
+    function calculateGroupRanks(allPlayerData, groupName) {
+        const groupPlayersForRank = [];
+        for (const key in allPlayerData) {
+            const p = allPlayerData[key];
+            if (p.group === groupName) {
+                const stats = p.total_stats; if (stats.matchCount === 0 || stats.totalRounds === 0) continue;
+                groupPlayersForRank.push({ 
+                    id: p.id, acs: stats.acsMatchCount > 0 ? stats.acs / stats.acsMatchCount : 0, 
+                    k_round: stats.kills / stats.totalRounds, a_round: stats.assists / stats.totalRounds, 
+                    survival_rate: 1 - (stats.deaths / stats.totalRounds), kda: stats.deaths > 0 ? (stats.kills + stats.assists) / stats.deaths : (stats.kills + stats.assists)
+                });
+            }
+        }
+        return { groupPlayersForRank };
+    }
+
+    function calculatePercentile(playerValue, allValues) {
+        if (allValues.length <= 1) return 50;
+        const sortedValues = [...allValues].sort((a, b) => a - b);
+        const rank = sortedValues.findIndex(v => v === playerValue);
+        if (rank === -1) return 50;
+        return (rank / (sortedValues.length - 1)) * 100;
+    }
+
+    function drawRadarChart(results) {
+        const ctx = document.getElementById('compare-radar-chart').getContext('2d');
+        const isLightTheme = document.body.classList.contains('light-theme');
+        const gridColor = isLightTheme ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
+        const angleLinesColor = isLightTheme ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
+        const pointLabelsColor = isLightTheme ? '#666' : '#ccc';
+
+        if (myRadarChart) myRadarChart.destroy();
+
+        const datasets = results.map(r => ({
+            label: `${r.id} (${r.name})`,
+            data: r.percentiles,
+            backgroundColor: CHART_COLORS[r.colorIndex].bg,
+            borderColor: CHART_COLORS[r.colorIndex].border,
+            borderWidth: 2,
+            pointBackgroundColor: CHART_COLORS[r.colorIndex].border,
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: CHART_COLORS[r.colorIndex].border
+        }));
+
+        myRadarChart = new Chart(ctx, {
+            type: 'radar',
+            data: { labels: ['ACS', '每回合击杀', '每回合助攻', '每回合存活率', 'KDA'], datasets: datasets },
+            options: {
+                responsive: true, maintainAspectRatio: true,
+                scales: { 
+                    r: { min: 0, max: 100, backgroundColor: 'transparent', 
+                         grid: { color: gridColor }, angleLines: { color: angleLinesColor }, 
+                         pointLabels: { color: pointLabelsColor, font: { family: 'Noto Sans SC', size: 13, weight: 700 } }, 
+                         ticks: { display: false, stepSize: 25 } 
+                    } 
+                },
+                plugins: { legend: { position: 'bottom', labels: { color: pointLabelsColor, font: { family: 'Noto Sans SC', size: 14 } } } }
+            }
+        });
+    }
+
+    function format(val, isLowerBetter = false) { return val.toFixed(2); }
+
+    function renderTable(results) {
+        const thead = document.getElementById('compare-table-head');
+        const tbody = document.getElementById('compare-table-body');
+        
+        let headHTML = '<tr><th class="stat-label">数据指标</th>';
+        results.forEach(r => {
+            headHTML += `<th>
+                <span style="color:${CHART_COLORS[r.colorIndex].border};" class="player-name-header">${r.id}</span><br>
+                <span class="player-group-label">${r.name} | ${r.group}</span>
+            </th>`;
+        });
+        headHTML += '</tr>';
+        thead.innerHTML = headHTML;
+
+        const metrics = [
+            { key: 'acs', label: '平均 ACS', reverse: false },
+            { key: 'kda', label: 'KDA', reverse: false },
+            { key: 'map_k', label: '每局击杀', reverse: false },
+            { key: 'map_d', label: '每局死亡', reverse: true }, 
+            { key: 'map_a', label: '每局助攻', reverse: false },
+            { key: 'round_k', label: '每回合击杀', reverse: false },
+            { key: 'round_d', label: '每回合死亡', reverse: true }, 
+            { key: 'round_a', label: '每回合助攻', reverse: false },
+            { key: 'matches', label: '出场次数', reverse: false, noHighlight: true }
+        ];
+
+        let bodyHTML = '';
+        metrics.forEach(m => {
+            let bestVal = null;
+            if (!m.noHighlight) {
+                const vals = results.map(r => r.stats[m.key]);
+                if (m.reverse) bestVal = Math.min(...vals);
+                else bestVal = Math.max(...vals);
+            }
+
+            bodyHTML += `<tr><td class="stat-label">${m.label}</td>`;
+            results.forEach(r => {
+                const val = r.stats[m.key];
+                let displayVal = m.key === 'matches' ? val : format(val);
+                let isBest = !m.noHighlight && val === bestVal && val !== 0;
+                bodyHTML += `<td class="${isBest ? 'highlight-best' : ''}">${displayVal}</td>`;
+            });
+            bodyHTML += `</tr>`;
+        });
+
+        tbody.innerHTML = bodyHTML;
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
