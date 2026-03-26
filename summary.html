@@ -447,13 +447,24 @@
             function updateTable(data) {
                 tableBody.innerHTML = '';
                 data.sort((a, b) => {
+                    // 没有数据的选手永远垫底
+                    const aHasData = a.matches_played > 0;
+                    const bHasData = b.matches_played > 0;
+                    
+                    if (aHasData && !bHasData) return -1;
+                    if (!aHasData && bHasData) return 1;
+                    if (!aHasData && !bHasData) return 0;
+
                     const aVal = a[currentSort.key]; const bVal = b[currentSort.key];
                     const isDeathStat = currentSort.key.includes('_d');
                     let sortOrder = currentSort.order;
+                    // 对于死亡数据，逻辑上应以死亡数更少为排名优先
                     if (isDeathStat) sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
-                    if (typeof aVal === 'string') return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                    
+                    if (typeof aVal === 'string') return sortOrder === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
                     return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
                 });
+                
                 updateSortIndicators();
                 if (data.length === 0) {
                     tableBody.innerHTML = '<tr><td colspan="15" style="text-align:center; color: var(--text-muted);">没有符合条件的选手。</td></tr>'; return;
