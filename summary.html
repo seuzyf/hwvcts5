@@ -124,7 +124,8 @@
         #stats-table th, #stats-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; transition: all 0.3s ease;}
         body.light-theme #stats-table th, body.light-theme #stats-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
         #stats-table tbody tr:hover { background-color: rgba(255, 70, 85, 0.05); }
-        #stats-table th[data-sort-key] { cursor: pointer; position: relative; transition: color 0.3s; }
+        /* 修改点：删除了可排序表头的 position: relative，防止其覆盖 th 原本的 sticky 定位 */
+        #stats-table th[data-sort-key] { cursor: pointer; transition: color 0.3s; }
         #stats-table th[data-sort-key]:hover { color: var(--primary-color); }
         #stats-table td a { color: var(--primary-color); text-decoration: none; font-weight: 700; transition: all 0.2s; }
         #stats-table td a:hover { text-decoration: underline; text-shadow: 0 0 8px rgba(255, 70, 85, 0.5); }
