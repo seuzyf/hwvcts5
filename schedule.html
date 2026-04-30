@@ -51,7 +51,7 @@
         .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
         body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
         .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); }
-        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
+        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text-fill-color; filter: none; }
         .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
         .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; }
         .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 14px; font-weight: 500; height: 100%; transition: all 0.3s ease; }
@@ -343,10 +343,10 @@
             { type: 'round', content: [{ title: '2-0 晋级', ids: ['S3-PROMO-1','S3-PROMO-2','S3-PROMO-3'], type: 'promoted' }, { title: '1-1组', ids: ['S3-1M','S3-2M','S3-3M'] }, { title: '0-2 淘汰', ids: ['S3-ELIM-1','S3-ELIM-2','S3-ELIM-3'], type: 'eliminated' }] },
             { type: 'round', content: [{ title: '2-1 晋级', ids: ['S4-PROMO-1','S4-PROMO-2','S4-PROMO-3'], type: 'promoted' }, { title: '1-2 淘汰', ids: ['S4-ELIM-1','S4-ELIM-2','S4-ELIM-3'], type: 'eliminated' }] }
         ];
-        // 挑战组淘汰赛布局：胜者组R1只有种子1-4，败者组R1是第二轮才加入种子5/6
+        // 挑战组淘汰赛布局
         const playoffBracketLayout_12 = [
             { type: 'round', content: [{ title: '胜者组 R1 (种子1-4)', ids: ['P-WB1-1','P-WB1-2'] }] },
-            { type: 'round', content: [{ title: '胜者组决赛', ids: ['P-WBF'] }, { title: '败者组 R1 (种子5/6入场)', ids: ['P-LB1-1','P-LB1-2'] }] },
+            { type: 'round', content: [{ title: '胜者组决赛', ids: ['P-WBF'] }, { title: '败者组 R1 (4队混抽)', ids: ['P-LB1-1','P-LB1-2'] }] },
             { type: 'round', content: [{ title: '败者组 R2', ids: ['P-LB2'] }] },
             { type: 'round', content: [{ title: '败者组决赛', ids: ['P-LBF'] }] },
             { type: 'round', content: [{ title: '总决赛', ids: ['P-GF'] }] },
@@ -394,11 +394,11 @@
         }
 
         // ── 推导结果节点 ──────────────────────────────────────────────────────────
-        function processResultNodes(rawData, is12TeamFormat) {
+        function processResultNodes(rawData, is12Team) {
             const data = { ...rawData };
             const ensure = id => { if (!data[id]) data[id] = {}; };
 
-            if (!is12TeamFormat) {
+            if (!is12Team) {
                 ensure('S3-PROMO-A'); data['S3-PROMO-A'].result_team = getWinner(data['S2-1W']);
                 ensure('S3-PROMO-B'); data['S3-PROMO-B'].result_team = getWinner(data['S2-2W']);
                 ensure('S3-ELIM-A');  data['S3-ELIM-A'].result_team  = getLoser(data['S2-1L']);
@@ -434,13 +434,9 @@
                 ensure('S4-ELIM-3');  data['S4-ELIM-3'].result_team  = getLoser(data['S3-3M']);
 
                 // 胜者组R1 → 胜者组决赛
-                const wWB1_1 = getWinner(data['P-WB1-1']), lWB1_1 = getLoser(data['P-WB1-1']);
-                const wWB1_2 = getWinner(data['P-WB1-2']), lWB1_2 = getLoser(data['P-WB1-2']);
+                const wWB1_1 = getWinner(data['P-WB1-1']);
+                const wWB1_2 = getWinner(data['P-WB1-2']);
                 if (wWB1_1 && wWB1_2) { ensure('P-WBF'); data['P-WBF'].team_a = wWB1_1; data['P-WBF'].team_b = wWB1_2; }
-
-                // 败者组R1：team_a 由WB1败者推导，team_b 由抽签预置（已存库）
-                if (lWB1_1) { ensure('P-LB1-1'); data['P-LB1-1'].team_a = lWB1_1; }
-                if (lWB1_2) { ensure('P-LB1-2'); data['P-LB1-2'].team_a = lWB1_2; }
 
                 // 败者组R2
                 const wLB1_1 = getWinner(data['P-LB1-1']), wLB1_2 = getWinner(data['P-LB1-2']);
@@ -497,9 +493,6 @@
                     { id: 'P-GF',  prereqs: ['P-WBF','P-LBF'] },
                 ] : [
                     { id: 'P-WBF', prereqs: ['P-WB1-1','P-WB1-2'] },
-                    // LB1-1 / LB1-2 的 team_a 也需要在WB1打完后写入
-                    { id: 'P-LB1-1', prereqs: ['P-WB1-1'], teamAOnly: true },
-                    { id: 'P-LB1-2', prereqs: ['P-WB1-2'], teamAOnly: true },
                     { id: 'P-LB2', prereqs: ['P-LB1-1','P-LB1-2'] },
                     { id: 'P-LBF', prereqs: ['P-WBF','P-LB2'] },
                     { id: 'P-GF',  prereqs: ['P-WBF','P-LBF'] },
@@ -514,36 +507,19 @@
 
                     const existing = groupData[def.id] || {};
 
-                    if (def.teamAOnly) {
-                        // 只更新 team_a（败者组R1，team_b已由抽签写入）
-                        const teamA = processedMatch.team_a;
-                        if (!teamA || teamA === 'TBD') continue;
-                        // team_b 必须已经存在（抽签时预置的种子5/6）
-                        const teamB = existing.team_b;
-                        if (!teamB || teamB === 'TBD') continue;
-                        if (existing.team_a === teamA) continue; // 已是最新
-                        toUpsert.push({
-                            group: groupName, match_id: def.id,
-                            team_a: teamA, team_b: teamB,
-                            score_a: existing.score_a || 0, score_b: existing.score_b || 0,
-                            match_date: existing.match_date || null,
-                            link: existing.link || null,
-                            commentators: existing.commentators || null,
-                        });
-                    } else {
-                        const teamA = processedMatch.team_a;
-                        const teamB = processedMatch.team_b;
-                        if (!teamA || !teamB || teamA === 'TBD' || teamB === 'TBD') continue;
-                        if (existing.team_a === teamA && existing.team_b === teamB) continue;
-                        toUpsert.push({
-                            group: groupName, match_id: def.id,
-                            team_a: teamA, team_b: teamB,
-                            score_a: existing.score_a || 0, score_b: existing.score_b || 0,
-                            match_date: existing.match_date || null,
-                            link: existing.link || null,
-                            commentators: existing.commentators || null,
-                        });
-                    }
+                    const teamA = processedMatch.team_a;
+                    const teamB = processedMatch.team_b;
+                    if (!teamA || !teamB || teamA === 'TBD' || teamB === 'TBD') continue;
+                    if (existing.team_a === teamA && existing.team_b === teamB) continue;
+                    
+                    toUpsert.push({
+                        group: groupName, match_id: def.id,
+                        team_a: teamA, team_b: teamB,
+                        score_a: existing.score_a || 0, score_b: existing.score_b || 0,
+                        match_date: existing.match_date || null,
+                        link: existing.link || null,
+                        commentators: existing.commentators || null,
+                    });
                 }
             }
 
@@ -793,7 +769,7 @@
                     }
 
                 } else {
-                    // ══ 挑战组 12队 淘汰赛抽签 ══════════════════════════════════════
+                    // ══ 挑战组 12队 胜者组第一轮抽签 ══════════════════════════════════════
                     const promo2_0 = ['S3-PROMO-1','S3-PROMO-2','S3-PROMO-3'].map(getResultTeam).filter(Boolean);
                     const promo2_1 = ['S4-PROMO-1','S4-PROMO-2','S4-PROMO-3'].map(getResultTeam).filter(Boolean);
 
@@ -828,13 +804,8 @@
                             : [];
 
                         // ── 种子确认 ─────────────────────────────────────────────
-                        // 种子1/2/3 = 2-0队排名1/2/3
-                        // 种子4     = 2-1队排名第1（本轮参与抽签）
-                        // 种子5/6   = 2-1队排名第2/3（待第二轮加入）
                         const [s1, s2, s3] = sorted2_0;
                         const s4 = sorted2_1[0];
-                        const s5 = sorted2_1[1];
-                        const s6 = sorted2_1[2];
 
                         if (!s1 || !s2 || !s3 || !s4) {
                             alert('2-1队排名第一尚未确定，无法生成第一轮对阵。');
@@ -842,20 +813,14 @@
                         }
 
                         // ── 第一轮随机抽签：[s1, s2, s3, s4] 完全随机两两配对 ────
-                        // 共3种配对方案，用rng随机选一种：
-                        //   方案0: (s1 vs s2) + (s3 vs s4)
-                        //   方案1: (s1 vs s3) + (s2 vs s4)
-                        //   方案2: (s1 vs s4) + (s2 vs s3)
                         const pairingIdx = Math.floor(rng() * 3);
                         let pair1, pair2;
                         if      (pairingIdx === 0) { pair1 = [s1, s2]; pair2 = [s3, s4]; }
                         else if (pairingIdx === 1) { pair1 = [s1, s3]; pair2 = [s2, s4]; }
                         else                       { pair1 = [s1, s4]; pair2 = [s2, s3]; }
 
-                        // 随机决定每对内部谁是 team_a / team_b
                         if (rng() < 0.5) pair1.reverse();
                         if (rng() < 0.5) pair2.reverse();
-                        // 随机决定哪对分配到 WB1-1 / WB1-2
                         if (rng() < 0.5) { [pair1, pair2] = [pair2, pair1]; }
 
                         idsToDelete.push('P-WB1-1','P-WB1-2');
@@ -868,6 +833,44 @@
 
                     } else if (promo2_0.length < 3) {
                         operationMessage = '2-0队伍数量不足3支，请等待小组赛第二轮结束。';
+                    }
+                }
+            }
+
+            // ══ 二点五、挑战组败者组第一轮抽签 (4队混抽) ════════════════════════
+            if (dataToUpsert.length === 0 && is12Team) {
+                const wWB1_1 = getWinner(groupData['P-WB1-1']), lWB1_1 = getLoser(groupData['P-WB1-1']);
+                const wWB1_2 = getWinner(groupData['P-WB1-2']), lWB1_2 = getLoser(groupData['P-WB1-2']);
+
+                // 如果胜者组第一轮已经打完产生了两个败者
+                if (lWB1_1 && lWB1_2) {
+                    const isLB1Empty = isMatchInDbEmpty('P-LB1-1', groupData) || isMatchInDbEmpty('P-LB1-2', groupData);
+                    const canRegenLB1 = canRegenerateRound(['P-LB1-1','P-LB1-2'], groupName);
+
+                    if (isLB1Empty || canRegenLB1) {
+                        // 提取出第5名与第6名队伍 (小组赛2-1组的净胜分2、3名)
+                        const promo2_1 = ['S4-PROMO-1','S4-PROMO-2','S4-PROMO-3'].map(getResultTeam).filter(Boolean);
+                        const sorted2_1 = promo2_1.length === 3
+                            ? [...promo2_1].sort((a, b) => {
+                                const d = calcNetScore(b, groupData) - calcNetScore(a, groupData);
+                                return d !== 0 ? d : a.localeCompare(b);
+                            })
+                            : [];
+                        
+                        const s5 = sorted2_1[1];
+                        const s6 = sorted2_1[2];
+
+                        if (s5 && s6) {
+                            // 败者组 R1 四队混抽
+                            const lb1Teams = [lWB1_1, lWB1_2, s5, s6];
+                            shuffleArray(lb1Teams, rng);
+
+                            idsToDelete.push('P-LB1-1', 'P-LB1-2');
+                            dataToUpsert.push({ group: groupName, match_id: 'P-LB1-1', team_a: lb1Teams[0], team_b: lb1Teams[1], score_a: 0, score_b: 0 });
+                            dataToUpsert.push({ group: groupName, match_id: 'P-LB1-2', team_a: lb1Teams[2], team_b: lb1Teams[3], score_a: 0, score_b: 0 });
+
+                            operationMessage = `已完成挑战组败者组第一轮抽签！\n败者组R1：${lb1Teams[0]} vs ${lb1Teams[1]} ／ ${lb1Teams[2]} vs ${lb1Teams[3]}`;
+                        }
                     }
                 }
             }
@@ -895,20 +898,6 @@
                     if (existing.team_a === tA && existing.team_b === tB) continue;
                     dataToUpsert.push({ group: groupName, match_id: def.id, team_a: tA, team_b: tB, score_a: existing.score_a||0, score_b: existing.score_b||0, match_date: existing.match_date||null, link: existing.link||null });
                     operationMessage = `已推导 ${def.id}：${tA} vs ${tB}`;
-                }
-
-                // 挑战组：WB1打完后更新 LB1-x 的 team_a
-                if (is12Team) {
-                    const lWB1_1 = getLoser(groupData['P-WB1-1']);
-                    const lWB1_2 = getLoser(groupData['P-WB1-2']);
-                    for (const [lid, loser] of [['P-LB1-1', lWB1_1], ['P-LB1-2', lWB1_2]]) {
-                        if (!loser) continue;
-                        const existing = groupData[lid] || {};
-                        if (!existing.team_b || existing.team_b === 'TBD') continue; // team_b未预置则跳过
-                        if (existing.team_a === loser) continue;
-                        dataToUpsert.push({ group: groupName, match_id: lid, team_a: loser, team_b: existing.team_b, score_a: existing.score_a||0, score_b: existing.score_b||0, match_date: existing.match_date||null, link: existing.link||null });
-                        operationMessage = `已更新 ${lid}：${loser} vs ${existing.team_b}`;
-                    }
                 }
             }
 
