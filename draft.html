@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电竞赛事分队系统 - PRO 版 (双模式)</title>
+    <!-- 引入 SheetJS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- 引入电竞字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 默认暗夜模式 (青紫赛博) */
+            --bg-dark: #050914;
+            --primary: #00f0ff;
+            --primary-glow: rgba(0, 240, 255, 0.4);
+            --secondary: #bc13fe;
+            --accent: #ff2a6d;
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+            --glass-bg: rgba(13, 17, 28, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --card-bg: linear-gradient(145deg, rgba(20,25,35,0.8) 0%, rgba(10,15,25,0.9) 100%);
+            --card-selected-bg: linear-gradient(145deg, rgba(0,240,255,0.05) 0%, rgba(10,15,25,0.9) 100%);
+            --box-bg: rgba(0,0,0,0.3);
+            --item-bg: rgba(255,255,255,0.02);
+            --item-hover-bg: rgba(255,255,255,0.05);
+            --role-bg: rgba(188, 19, 254, 0.15);
+            --role-text: #d8b4fe;
+            --role-border: rgba(188, 19, 254, 0.3);
+            --warning-color: #ffeb3b;
+            --grid-line: rgba(255,255,255,0.02);
+            --header-bg: linear-gradient(180deg, rgba(5,9,20,0.9) 0%, rgba(5,9,20,0) 100%);
+            --sidebar-header-bg: rgba(0, 0, 0, 0.2);
+            --modal-bg: linear-gradient(180deg, rgba(20,25,35,1) 0%, rgba(10,15,25,1) 100%);
+            --badge-bg: rgba(255, 255, 255, 0.1);
+            --badge-border: rgba(255, 255, 255, 0.2);
+            --border-light: rgba(255, 255, 255, 0.03);
+            --divider: rgba(255, 255, 255, 0.1);
+            --assigned-bg: rgba(0, 240, 255, 0.1);
+            --assigned-border: rgba(0, 240, 255, 0.4);
+            --scrollbar-track: rgba(0, 0, 0, 0.2);
+            --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+            --bg-grad-1: rgba(188, 19, 254, 0.15);
+            --bg-grad-2: rgba(0, 240, 255, 0.1);
+        }
+
+        /* 日间模式 (红白高亮) */
+        body.day-mode {
+            --bg-dark: #f0f2f5;
+            --primary: #d90429;
+            --primary-glow: rgba(217, 4, 41, 0.3);
+            --secondary: #2b2d42;
+            --accent: #ef233c;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --card-bg: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
+            --card-selected-bg: linear-gradient(145deg, rgba(217, 4, 41, 0.05) 0%, #ffffff 100%);
+            --box-bg: rgba(0,0,0,0.03);
+            --item-bg: rgba(0,0,0,0.02);
+            --item-hover-bg: rgba(0,0,0,0.05);
+            --role-bg: rgba(217, 4, 41, 0.1);
+            --role-text: #d90429;
+            --role-border: rgba(217, 4, 41, 0.2);
+            --warning-color: #d97706; 
+            --grid-line: rgba(0,0,0,0.03);
+            --header-bg: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 100%);
+            --sidebar-header-bg: rgba(0, 0, 0, 0.03);
+            --modal-bg: linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
+            --badge-bg: rgba(0, 0, 0, 0.05);
+            --badge-border: rgba(0, 0, 0, 0.1);
+            --border-light: rgba(0, 0, 0, 0.05);
+            --divider: rgba(0, 0, 0, 0.1);
+            --assigned-bg: rgba(217, 4, 41, 0.1);
+            --assigned-border: rgba(217, 4, 41, 0.4);
+            --scrollbar-track: rgba(0, 0, 0, 0.05);
+            --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+            --bg-grad-1: rgba(217, 4, 41, 0.06);
+            --bg-grad-2: rgba(239, 35, 60, 0.06);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 0% 0%, var(--bg-grad-1), transparent 40%),
+                radial-gradient(circle at 100% 100%, var(--bg-grad-2), transparent 40%),
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background-color 0.4s, color 0.4s;
+        }
+
+        .font-esports { font-family: 'Rajdhani', sans-serif; }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+            transition: background 0.4s, border-color 0.4s;
+        }
+
+        header {
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--assigned-border);
+            position: relative;
+            z-index: 10;
+            background: var(--header-bg);
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-main);
+            text-shadow: 0 0 10px var(--primary-glow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 24px;
+            background: var(--primary);
+            transform: skewX(-20deg);
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        .actions { display: flex; gap: 15px; }
+
+        .btn {
+            background: var(--assigned-bg);
+            border: 1px solid var(--assigned-border);
+            color: var(--primary);
+            padding: 8px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 0 20px var(--primary-glow);
+            transform: translateY(-2px);
+        }
+
+        .btn.btn-secondary {
+            border-color: var(--text-muted);
+            color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .btn.btn-secondary:hover {
+            background: var(--text-main);
+            color: var(--bg-dark);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        #fileInput { display: none; }
+
+        .layout-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        aside {
+            width: 360px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 16px 20px;
+            background: var(--sidebar-header-bg);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary);
+            letter-spacing: 1px;
+        }
+
+        #teamList {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .team-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .team-card:hover {
+            border-color: var(--assigned-border);
+            background: var(--item-hover-bg);
+        }
+
+        .team-card.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow), inset 0 0 10px var(--assigned-bg);
+            background: var(--card-selected-bg);
+        }
+
+        .team-card.selected::before {
+            content: '';
+            position: absolute;
+            left: -1px;
+            top: 20%;
+            height: 60%;
+            width: 3px;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .team-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .team-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
+        }
+
+        .team-score-total {
+            font-size: 22px;
+            color: var(--primary);
+            font-weight: 700;
+            text-align: right;
+            line-height: 1;
+        }
+        .team-score-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .team-roster {
+            background: var(--box-bg);
+            border-radius: 6px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .roster-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 8px;
+            background: var(--item-bg);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .roster-item:hover { background: var(--item-hover-bg); }
+
+        .roster-left { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+        
+        .roster-role {
+            font-size: 11px;
+            padding: 2px 6px;
+            background: var(--role-bg);
+            color: var(--role-text);
+            border-radius: 3px;
+            border: 1px solid var(--role-border);
+            white-space: nowrap;
+        }
+
+        .roster-name {
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+
+        .roster-score {
+            font-family: 'Rajdhani', sans-serif;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        main {
+            flex: 1;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0; 
+        }
+
+        .main-header {
+            padding: 16px 24px;
+            background: var(--sidebar-header-bg);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-text {
+            font-size: 15px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .status-dot.active {
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 var(--primary-glow); }
+            70% { box-shadow: 0 0 0 6px transparent; }
+            100% { box-shadow: 0 0 0 0 transparent; }
+        }
+
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--text-main);
+            cursor: pointer;
+        }
+        
+        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--item-hover-bg); transition: .4s;
+            border-radius: 34px; border: 1px solid var(--badge-border);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px;
+            left: 3px; bottom: 2px; background-color: var(--text-muted);
+            transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--assigned-bg); border-color: var(--primary); }
+        input:checked + .slider:before {
+            transform: translateX(20px); background-color: var(--primary); box-shadow: 0 0 8px var(--primary-glow);
+        }
+
+        #playerGrid {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            align-content: start;
+        }
+
+        .player-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 16px; 
+        }
+
+        .player-card::after {
+            content: ''; position: absolute; top: 0; right: 0; width: 30px; height: 30px;
+            background: linear-gradient(135deg, transparent 50%, var(--item-hover-bg) 50%);
+        }
+
+        .player-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            border-color: var(--primary);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2), 0 0 20px var(--primary-glow);
+            z-index: 2;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .player-title {
+            flex: 1;
+            min-width: 0; 
+        }
+
+        .player-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .game-id {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'Rajdhani', sans-serif;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-badges {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+
+        .badge-base {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .player-role-badge {
+            background: var(--role-bg);
+            color: var(--role-text);
+            border: 1px solid var(--role-border);
+        }
+
+        .pre-group-badge {
+            background: var(--badge-bg);
+            color: var(--text-main);
+            border: 1px solid var(--badge-border);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat-item { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--box-bg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-light);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-family: 'Rajdhani', sans-serif;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: 'Rajdhani', sans-serif;
+            white-space: nowrap;
+        }
+
+        .score-section {
+            border-top: 1px dashed var(--divider);
+            padding-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .score-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .score-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .score-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hw-score-main {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'Rajdhani', sans-serif;
+            line-height: 1;
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .hw-score-sub {
+            font-size: 13px;
+            color: var(--warning-color);
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .team-status {
+            font-size: 11px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            background: var(--badge-bg);
+            color: var(--text-muted);
+            border: 1px solid var(--badge-border);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            max-width: 120px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        .team-status.assigned {
+            background: var(--assigned-bg);
+            color: var(--primary);
+            border-color: var(--assigned-border);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal-content {
+            background: var(--modal-bg);
+            padding: 30px; border-radius: 8px; border: 1px solid var(--primary);
+            box-shadow: 0 0 40px var(--primary-glow), inset 0 0 20px var(--assigned-bg);
+            max-width: 420px; width: 100%; text-align: center;
+            transform: scale(0.95) translateY(-20px); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; overflow: hidden;
+        }
+        .modal-content::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
+            background: var(--primary); box-shadow: 0 0 15px var(--primary);
+        }
+        .modal-overlay.active .modal-content { transform: scale(1) translateY(0); }
+        .modal-title { font-size: 18px; margin-bottom: 24px; color: var(--text-main); line-height: 1.5; }
+        .modal-buttons { display: flex; justify-content: center; gap: 16px; }
+
+        .empty-state {
+            grid-column: 1 / -1; text-align: center; padding: 60px 20px;
+            color: var(--text-muted); font-size: 16px; letter-spacing: 1px;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+        }
+        .empty-state::before {
+            content: '[]'; font-family: 'Rajdhani'; font-size: 40px; color: var(--border-light);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="glass-panel">
+        <div class="logo font-esports">Draft System <span style="color:var(--text-muted); font-size:14px; margin-left:8px; font-weight:500;">HWVCT S6</span></div>
+        <div class="actions">
+            <button class="btn btn-secondary font-esports" id="themeToggleBtn" onclick="toggleTheme()" style="letter-spacing: 1px;">☀️ DAY MODE</button>
+            <label class="btn">
+                导入数据 (EXCEL/CSV)
+                <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
+            </label>
+            <button class="btn btn-secondary" id="exportBtn" onclick="exportData()">导出赛程数据</button>
+        </div>
+    </header>
+
+    <div class="layout-container">
+        <!-- 左侧队伍栏 -->
+        <aside class="glass-panel">
+            <div class="sidebar-header">
+                <span class="sidebar-title font-esports">TEAM ROSTER</span>
+                <span id="totalPlayersCount" class="font-esports" style="font-size: 14px; color: var(--text-muted);">Total: 0</span>
+            </div>
+            <div id="teamList">
+                <div class="empty-state">System Standby.<br>Please import player database.</div>
+            </div>
+        </aside>
+
+        <!-- 右侧选手池 -->
+        <main class="glass-panel">
+            <div class="main-header">
+                <div class="status-text">
+                    <div class="status-dot" id="statusIndicator"></div>
+                    <span id="statusText">Awaiting Team Selection...</span>
+                </div>
+                <label class="switch-container">
+                    <span class="font-esports" style="letter-spacing: 1px; text-transform: uppercase;">Unassigned Only</span>
+                    <div class="switch">
+                        <input type="checkbox" id="showUnassignedOnly" onchange="renderPlayers()" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+            </div>
+            <div id="playerGrid">
+                <div class="empty-state">No Data Found</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 确认模态框 -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-title" id="modalText">CONFIRM ACTION?</div>
+            <div class="modal-buttons">
+                <button class="btn" style="background:transparent; border-color:var(--text-muted); color:var(--text-muted); box-shadow:none;" onclick="closeModal()">CANCEL</button>
+                <button class="btn" id="confirmBtn">CONFIRM EXECUTE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let playersData = [];
+        let selectedTeamName = null;
+        let modalConfirmCallback = null;
+
+        // 主题切换逻辑
+        function toggleTheme() {
+            document.body.classList.toggle('day-mode');
+            const isDay = document.body.classList.contains('day-mode');
+            localStorage.setItem('theme', isDay ? 'day' : 'dark');
+            document.getElementById('themeToggleBtn').innerText = isDay ? '🌙 NIGHT MODE' : '☀️ DAY MODE';
+        }
+
+        // 初始化读取主题缓存
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'day') {
+                document.body.classList.add('day-mode');
+                window.addEventListener('DOMContentLoaded', () => {
+                    document.getElementById('themeToggleBtn').innerText = '🌙 NIGHT MODE';
+                });
+            }
+        })();
+
+        // 导入数据
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                let rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                
+                playersData = rawData.map(row => {
+                    const cleanRow = {};
+                    for (let key in row) {
+                        cleanRow[key.trim()] = row[key];
+                        cleanRow[key.trim().toLowerCase()] = row[key];
+                    }
+
+                    return {
+                        player_name: cleanRow['player_name'] || cleanRow['姓名'] || '未知选手',
+                        game_id: cleanRow['game_id'] || cleanRow['id'] || '-',
+                        player_role: cleanRow['player_role'] || cleanRow['位置'] || 'FLEX',
+                        rank_tier: cleanRow['rank_tier'] || cleanRow['段位'] || 'UNRANKED',
+                        acs: cleanRow['acs'] || 0,
+                        adr: cleanRow['adr'] || 0,
+                        kda: cleanRow['kda'] || '0',
+                        kast: cleanRow['kast'] || '0%',
+                        hw_score: parseFloat(cleanRow['hw_score']) || 0,
+                        pre_group: cleanRow['pre_group'] || cleanRow['预选分组'] || '',
+                        adjustment: parseFloat(cleanRow['调整分']) || parseFloat(cleanRow['调整']) || 0,
+                        huawei_score: parseFloat(cleanRow['华为分']) || parseFloat(cleanRow['总分']) || 0,
+                        team_note: cleanRow['备注'] ? String(cleanRow['备注']).trim() : ''
+                    };
+                });
+
+                selectedTeamName = null;
+                updateUI();
+                e.target.value = ''; 
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function getComputedTeams() {
+            const teamsMap = {};
+            playersData.forEach(p => {
+                const tName = p.team_note;
+                if (tName) {
+                    if (!teamsMap[tName]) {
+                        teamsMap[tName] = { name: tName, totalScore: 0, players: [] };
+                    }
+                    teamsMap[tName].totalScore += p.huawei_score;
+                    teamsMap[tName].players.push(p);
+                }
+            });
+            return Object.values(teamsMap).sort((a, b) => a.totalScore - b.totalScore);
+        }
+
+        function updateUI() {
+            renderTeams();
+            renderPlayers();
+            document.getElementById('totalPlayersCount').innerText = `Total: ${playersData.length}`;
+            updateStatusText();
+        }
+
+        function updateStatusText() {
+            const statusEl = document.getElementById('statusText');
+            const dotEl = document.getElementById('statusIndicator');
+            if (selectedTeamName) {
+                statusEl.innerHTML = `TARGET LOCKED: <span style="color: var(--primary); font-family: 'Rajdhani'; font-size: 18px; font-weight: 700; letter-spacing: 1px;">[ ${selectedTeamName} ]</span> - Select player to draft`;
+                dotEl.classList.add('active');
+            } else {
+                statusEl.innerHTML = `Awaiting Team Selection...`;
+                dotEl.classList.remove('active');
+            }
+        }
+
+        function renderTeams() {
+            const teamListEl = document.getElementById('teamList');
+            const teams = getComputedTeams();
+            
+            if (playersData.length === 0) {
+                teamListEl.innerHTML = '<div class="empty-state">System Standby.<br>Please import player database.</div>';
+                return;
+            }
+            teamListEl.innerHTML = '';
+            if (teams.length === 0) {
+                teamListEl.innerHTML = '<div class="empty-state">No active rosters.<br>Select a player to initiate a new team.</div>';
+                return;
+            }
+
+            teams.forEach(team => {
+                const item = document.createElement('div');
+                item.className = `team-card ${selectedTeamName === team.name ? 'selected' : ''}`;
+                item.onclick = () => selectTeam(team.name);
+                
+                const sortedPlayers = [...team.players].sort((a,b) => b.huawei_score - a.huawei_score);
+                let playersHtml = '';
+                
+                if(sortedPlayers.length > 0) {
+                    playersHtml = `<div class="team-roster">`;
+                    sortedPlayers.forEach(p => {
+                        playersHtml += `
+                            <div class="roster-item">
+                                <div class="roster-left">
+                                    <span class="roster-role">${p.player_role}</span>
+                                    <span class="roster-name" title="${p.player_name}">${p.player_name}</span>
+                                </div>
+                                <span class="roster-score">${p.huawei_score.toFixed(1)}</span>
+                            </div>
+                        `;
+                    });
+                    playersHtml += `</div>`;
+                }
+
+                item.innerHTML = `
+                    <div class="team-info-header">
+                        <div class="team-name">${team.name} <span style="font-size:12px; color:var(--text-muted); font-weight:normal; margin-left:5px;">(${team.players.length}M)</span></div>
+                        <div>
+                            <div class="team-score-total font-esports">${team.totalScore.toFixed(2)}</div>
+                            <div class="team-score-label">TEAM SCORE</div>
+                        </div>
+                    </div>
+                    ${playersHtml}
+                `;
+                teamListEl.appendChild(item);
+            });
+        }
+
+        function selectTeam(teamName) {
+            selectedTeamName = teamName;
+            updateUI();
+        }
+
+        function renderPlayers() {
+            const gridEl = document.getElementById('playerGrid');
+            const showUnassignedOnly = document.getElementById('showUnassignedOnly').checked;
+
+            if (playersData.length === 0) {
+                gridEl.innerHTML = '<div class="empty-state">No Data Found</div>';
+                return;
+            }
+            gridEl.innerHTML = '';
+
+            const displayPlayers = playersData.filter(p => {
+                if (showUnassignedOnly) return !p.team_note;
+                return true;
+            });
+
+            if (displayPlayers.length === 0) {
+                gridEl.innerHTML = '<div class="empty-state">Filter applied: No available players found.</div>';
+                return;
+            }
+
+            displayPlayers.forEach(p => {
+                const realIndex = playersData.indexOf(p);
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                card.onclick = () => handlePlayerClick(realIndex);
+
+                const isAssigned = p.team_note !== '';
+                const statusClass = isAssigned ? 'team-status assigned' : 'team-status';
+                const statusText = isAssigned ? p.team_note : 'UNASSIGNED';
+
+                const preGroupHtml = p.pre_group ? `<div class="badge-base pre-group-badge">预选: ${p.pre_group}</div>` : '';
+                const adjStr = p.adjustment > 0 ? `+${p.adjustment}` : p.adjustment;
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="player-title">
+                            <div class="player-name" title="${p.player_name}">${p.player_name}</div>
+                            <div class="game-id" title="${p.game_id} | ${p.rank_tier}">${p.game_id} <span style="margin:0 4px;color:var(--divider);">|</span> ${p.rank_tier}</div>
+                        </div>
+                        <div class="card-badges">
+                            <div class="badge-base player-role-badge">${p.player_role}</div>
+                            ${preGroupHtml}
+                        </div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">ACS</span>
+                            <span class="stat-value" title="${p.acs}">${p.acs}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">ADR</span>
+                            <span class="stat-value" title="${p.adr}">${p.adr}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">KDA</span>
+                            <span class="stat-value" title="${p.kda}">${p.kda}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">KAST</span>
+                            <span class="stat-value" title="${p.kast}">${p.kast}</span>
+                        </div>
+                    </div>
+
+                    <div class="score-section">
+                        <div class="score-info">
+                            <div class="score-row">
+                                <span class="score-label">华为分 / FINAL</span>
+                                <span class="hw-score-main">${p.huawei_score.toFixed(1)}</span>
+                            </div>
+                            <div class="score-row">
+                                <span class="score-label">原分 / BASE</span>
+                                <span class="hw-score-sub">${p.hw_score} ${p.adjustment !== 0 ? `(调 ${adjStr})` : ''}</span>
+                            </div>
+                        </div>
+                        <div class="${statusClass}" title="${statusText}">${statusText}</div>
+                    </div>
+                `;
+                
+                gridEl.appendChild(card);
+            });
+        }
+
+        function handlePlayerClick(playerIndex) {
+            const player = playersData[playerIndex];
+
+            if (!selectedTeamName) {
+                if (player.team_note) {
+                    showModal(`Remove player <span style="color:var(--primary)">${player.player_name}</span> from roster [${player.team_note}]?`, () => {
+                        playersData[playerIndex].team_note = '';
+                        updateUI();
+                    });
+                } else {
+                    const newTeamName = prompt(`No target team selected. Initialize new roster for ${player.player_name}?\nEnter Team Code Name:`);
+                    if (newTeamName && newTeamName.trim() !== '') {
+                        playersData[playerIndex].team_note = newTeamName.trim();
+                        selectTeam(newTeamName.trim());
+                    }
+                }
+                return;
+            }
+
+            if (player.team_note === selectedTeamName) {
+                showModal(`Remove <span style="color:var(--accent)">${player.player_name}</span> from current roster?`, () => {
+                    playersData[playerIndex].team_note = '';
+                    updateUI();
+                });
+            } else {
+                let msg = `Draft <span style="color:var(--primary)">${player.player_name}</span> into roster [${selectedTeamName}]?`;
+                if (player.team_note) {
+                    msg = `Transfer <span style="color:var(--primary)">${player.player_name}</span> from [${player.team_note}] to roster [${selectedTeamName}]?`;
+                }
+                
+                showModal(msg, () => {
+                    playersData[playerIndex].team_note = selectedTeamName;
+                    updateUI();
+                });
+            }
+        }
+
+        function exportData() {
+            if (playersData.length === 0) {
+                alert("Database empty. Import required.");
+                return;
+            }
+
+            const exportArr = playersData.map(p => ({
+                'player_name': p.player_name,
+                'game_id': p.game_id,
+                'player_role': p.player_role,
+                'rank_tier': p.rank_tier,
+                'acs': p.acs,
+                'adr': p.adr,
+                'kda': p.kda,
+                'kast': p.kast,
+                'hw_score': p.hw_score,
+                'pre_group': p.pre_group,
+                '调整分': p.adjustment,
+                '华为分': p.huawei_score,
+                '备注': p.team_note
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(exportArr);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Draft_Roster");
+            XLSX.writeFile(workbook, "Tournament_Draft_Result.xlsx");
+        }
+
+        function showModal(text, onConfirm) {
+            document.getElementById('modalText').innerHTML = text;
+            modalConfirmCallback = onConfirm;
+            document.getElementById('confirmModal').classList.add('active');
+            
+            const btn = document.getElementById('confirmBtn');
+            btn.onclick = () => {
+                if (modalConfirmCallback) modalConfirmCallback();
+                closeModal();
+            };
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('active');
+            modalConfirmCallback = null;
+        }
+    </script>
+</body>
+</html>
