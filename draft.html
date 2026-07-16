@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电竞赛事分队系统 - PRO 版 (双模式)</title>
+    <title>HWVCT S6 分队系统</title>
     <!-- 引入 SheetJS -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- 引入电竞字体 -->
@@ -640,10 +640,10 @@
         <div class="actions">
             <button class="btn btn-secondary font-esports" id="themeToggleBtn" onclick="toggleTheme()" style="letter-spacing: 1px;">☀️ DAY MODE</button>
             <label class="btn">
-                导入数据 (EXCEL/CSV)
+                导入选手数据
                 <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
             </label>
-            <button class="btn btn-secondary" id="exportBtn" onclick="exportData()">导出赛程数据</button>
+            <button class="btn btn-secondary" id="exportBtn" onclick="exportData()">导出分队数据</button>
         </div>
     </header>
 
@@ -749,7 +749,7 @@
                         pre_group: cleanRow['pre_group'] || cleanRow['预选分组'] || '',
                         adjustment: parseFloat(cleanRow['调整分']) || parseFloat(cleanRow['调整']) || 0,
                         huawei_score: parseFloat(cleanRow['华为分']) || parseFloat(cleanRow['总分']) || 0,
-                        team_note: cleanRow['备注'] ? String(cleanRow['备注']).trim() : ''
+                        team_note: cleanRow['备注（队长/替补/xx队员）'] ? String(cleanRow['备注（队长/替补/xx队员）']).trim() : ''
                     };
                 });
 
@@ -881,7 +881,7 @@
                 const statusClass = isAssigned ? 'team-status assigned' : 'team-status';
                 const statusText = isAssigned ? p.team_note : 'UNASSIGNED';
 
-                const preGroupHtml = p.pre_group ? `<div class="badge-base pre-group-badge">预选: ${p.pre_group}</div>` : '';
+                const preGroupHtml = p.pre_group ? `<div class="badge-base pre-group-badge">分组: ${p.pre_group}</div>` : '';
                 const adjStr = p.adjustment > 0 ? `+${p.adjustment}` : p.adjustment;
 
                 card.innerHTML = `
