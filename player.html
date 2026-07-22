@@ -552,6 +552,10 @@
             return; 
         }
         
+        // 获取赛季切换按钮并添加事件处理
+        const seasonFilterButtons = document.getElementById('season-filter-buttons');
+        let currentSeason = 's6'; // 默认 S6 赛季
+        
         setupStarRating();
         
         const themeToggle = document.getElementById('theme-toggle-checkbox'); const themeText = document.getElementById('theme-text');
@@ -563,10 +567,24 @@
         const savedTheme = localStorage.getItem('theme');
         setTheme((savedTheme === 'light') ? true : false);
         themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
+        
+        // 赛季切换按钮事件处理
+        if (seasonFilterButtons) {
+            seasonFilterButtons.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'BUTTON' || e.target.classList.contains('active')) return;
+                seasonFilterButtons.querySelector('.active').classList.remove('active');
+                e.target.classList.add('active');
+                currentSeason = e.target.dataset.season;
+                main(); // 重新加载当前页面数据
+            });
+        }
 
+        const matchesTable = currentSeason === 's5' ? 's5_matches' : 's6_matches';
+        const playersTable = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
+        
         const [{ data: matches, error: matchesError }, { data: idData, error: idError }] = await Promise.all([ 
-            supabaseClient.from('s6_matches').select('*'), 
-            supabaseClient.from('s6_player_ids').select('*') 
+            supabaseClient.from(matchesTable).select('*'), 
+            supabaseClient.from(playersTable).select('*') 
         ]);
         if(matchesError || idError) { document.body.innerHTML = `<h1 style="text-align:center; color:var(--primary-color);">错误：加载数据失败</h1><p style="text-align:center;">${(matchesError || idError).message}</p>`; return; }
 

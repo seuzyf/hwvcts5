@@ -275,6 +275,7 @@
 
         const groupFilters    = document.getElementById('group-filters');
         const stageFilters    = document.getElementById('stage-filters');
+        const seasonFilterButtons = document.getElementById('season-filter-buttons');
         const swissSection    = document.getElementById('swiss-stage-section');
         const playoffSection  = document.getElementById('playoff-stage-section');
         const themeToggle     = document.getElementById('theme-toggle-checkbox');
@@ -302,6 +303,7 @@
         let isPasswordVerified   = false;
         let pendingDataToUpsert  = [];
         let pendingIdsToDelete   = [];
+        let currentSeason        = 's6'; // 默认 S6 赛季
 
         // ── 主题 ────────────────────────────────────────────────────────────────
         function setTheme(isLight) {
@@ -580,14 +582,18 @@
         // ── 数据加载 ─────────────────────────────────────────────────────────────
         async function loadData() {
             try {
+                const scheduleTable = currentSeason === 's5' ? 's5_match_schedule' : 's6_match_schedule';
+                const playersTable = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
+                const matchesTable = currentSeason === 's5' ? 's5_matches' : 's6_matches';
+                
                 const [
                     { data: scheduleData, error: scheduleError },
                     { data: playersData,  error: playersError  },
                     { data: matchesData,  error: matchesError  }
                 ] = await Promise.all([
-                    supabaseClient.from('s6_match_schedule').select('*'),
-                    supabaseClient.from('s6_player_ids').select('id, name, team, "group"'),
-                    supabaseClient.from('s6_matches').select('*'),
+                    supabaseClient.from(scheduleTable).select('*'),
+                    supabaseClient.from(playersTable).select('id, name, team, "group"'),
+                    supabaseClient.from(matchesTable).select('*'),
                 ]);
                 if (scheduleError || playersError) throw scheduleError || playersError;
 
@@ -1063,6 +1069,14 @@
             const stage = e.target.dataset.stage;
             swissSection.style.display   = stage === 'swiss'   ? 'block' : 'none';
             playoffSection.style.display = stage === 'playoff' ? 'block' : 'none';
+        });
+        // 赛季切换按钮事件处理
+        seasonFilterButtons.addEventListener('click', e => {
+            if (e.target.tagName !== 'BUTTON' || e.target.classList.contains('active')) return;
+            seasonFilterButtons.querySelector('.active').classList.remove('active');
+            e.target.classList.add('active');
+            currentSeason = e.target.dataset.season;
+            loadData(); // 重新加载数据
         });
 
         loadData();
