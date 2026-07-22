@@ -1,1 +1,7 @@
-Nothing should be ignored based on the provided file changes, as they only include HTML source files (player.html, schedule.html) without any build artifacts, dependencies, or temporary files.
+```
+# SQL migration files
+*.sql
+
+# HTML files
+*.html
+```

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS5 - 选手数据汇总</title>
+    <title>HWVCTS6 - 选手数据汇总</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -163,6 +163,10 @@
             <div class="title-badge">VALORANT TOURNAMENT</div>
             <h1>选手数据汇总</h1>
             <div class="controls-container">
+                <div class="filter-group" id="season-filter-buttons">
+                    <button class="active" data-season="s6">S6</button>
+                    <button data-season="s5">S5</button>
+                </div>
                 <div class="filter-group" id="group-filter-buttons">
                     <button class="active" data-group="all">所有组</button>
                     <button data-group="传奇组">传奇组</button>
@@ -228,6 +232,7 @@
             const { createClient } = supabase;
             const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+            const seasonFilterButtons = document.getElementById('season-filter-buttons');
             const groupFilterButtons = document.getElementById('group-filter-buttons');
             const teamFilter = document.getElementById('team-filter');
             const tableHead = document.querySelector('#stats-table thead');
@@ -242,6 +247,11 @@
             let currentSort = { key: 'avg_acs', order: 'desc' };
             let selectedForCompare = []; // 存储对比选手 {name, group}
             let isCompareMode = false; // 比较模式状态
+            let currentSeason = 's6'; // 默认 S6 赛季
+
+            function getTableName(baseName) {
+                return `${currentSeason}_${baseName}`;
+            }
 
             function setTheme(isLight) {
                 document.body.classList.toggle('light-theme', isLight);
@@ -255,10 +265,10 @@
 
             async function initializePlayerIds() {
                 try {
-                    const { data: statsData, error: statsError } = await supabaseClient.from('player_stats').select('player_name, game_id, pre_group');
+                    const { data: statsData, error: statsError } = await supabaseClient.from(getTableName('player_stats')).select('player_name, game_id, pre_group');
                     if (statsError) throw statsError;
 
-                    const { data: idsData, error: idsError } = await supabaseClient.from('player_ids').select('name, team, "group"');
+                    const { data: idsData, error: idsError } = await supabaseClient.from(getTableName('player_ids')).select('name, team, "group"');
                     if (idsError && idsError.code !== 'PGRST116') throw idsError;
 
                     const existingPlayersMap = new Map();
@@ -299,18 +309,18 @@
                     let needReload = false;
 
                     if (recordsToInsert.length > 0) {
-                        const { error } = await supabaseClient.from('player_ids').insert(recordsToInsert);
+                        const { error } = await supabaseClient.from(playerIdsTable).insert(recordsToInsert);
                         if (!error) needReload = true;
                     }
 
                     if (recordsToUpdate.length > 0) {
-                        const updatePromises = recordsToUpdate.map(p => supabaseClient.from('player_ids').update({ group: p.group }).eq('name', p.name));
+                        const updatePromises = recordsToUpdate.map(p => supabaseClient.from(playerIdsTable).update({ group: p.group }).eq('name', p.name));
                         await Promise.all(updatePromises);
                         needReload = true;
                     }
 
                     if (namesToDelete.length > 0) {
-                        const { error } = await supabaseClient.from('player_ids').delete().in('name', namesToDelete);
+                        const { error } = await supabaseClient.from(playerIdsTable).delete().in('name', namesToDelete);
                         if (!error) needReload = true;
                     }
 
@@ -325,8 +335,8 @@
 
                 try {
                     const [{ data: players, error: playersError }, { data: matches, error: matchesError }] = await Promise.all([
-                        supabaseClient.from('player_ids').select('id, name, team, "group"'),
-                        supabaseClient.from('matches').select('*')
+                        supabaseClient.from(getTableName('player_ids')).select('id, name, team, "group"'),
+                        supabaseClient.from(getTableName('matches')).select('*')
                     ]);
 
                     if (playersError || matchesError) throw playersError || matchesError;
@@ -539,6 +549,16 @@
                 }
             });
             
+            // 赛季切换按钮事件
+            seasonFilterButtons.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+                    seasonFilterButtons.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    currentSeason = e.target.getAttribute('data-season');
+                    loadAndProcessData();
+                }
+            });
+
             groupFilterButtons.addEventListener('click', (e) => {
                 if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
                     groupFilterButtons.querySelector('.active').classList.remove('active');
