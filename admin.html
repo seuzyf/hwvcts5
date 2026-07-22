@@ -167,6 +167,12 @@
                 <a href="draft.html" class="nav-button">选 手 分 队</a>
             </div>
             <div class="controls-container">
+                <div class="filter-group" id="season-filter-buttons">
+                    <button class="active" data-season="s6">S6</button>
+                    <button data-season="s5">S5</button>
+                </div>
+            </div>
+            <div class="controls-container">
                 <div class="filter-group" id="tab-filters">
                     <button class="active" data-tab="matches-tab">赛 果 管 理</button>
                     <button data-tab="schedule-tab">赛 程 管 理</button>
@@ -273,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let groupData = { '传奇组': { teams: new Set(), rosters: {} }, '中坚组': { teams: new Set(), rosters: {} }, '挑战组': { teams: new Set(), rosters: {} } };
     let currentScheduleData = [];
     let currentMatchesForEdit = [];
+    let currentSeason = 's6'; // 默认 S6 赛季
 
     const matchIdToName = {
         'S1-1': '0-0组-第1场', 'S1-2': '0-0组-第2场', 'S1-3': '0-0组-第3场', 'S1-4': '0-0组-第4场',
@@ -324,7 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function loadInitialData() {
-        const { data, error } = await supabaseClient.from('player_ids').select('id, name, team, "group", image, honor');
+        const tableName = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
+        const { data, error } = await supabaseClient.from(tableName).select('id, name, team, "group", image, honor');
         if (error) { console.error('无法加载选手数据:', error); return; }
         
         allPlayersData = data;
@@ -643,9 +651,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 核心业务校验方法，并返回被覆盖ID的选手记录
+    // 获取当前赛季的表名
+    function getSeasonTableName(baseName) {
+        return currentSeason === 's5' ? `s5_${baseName}` : `s6_${baseName}`;
+    }
+
     async function validateMatchData(dataArray, isEdit = false) {
         let warnings = [];
         let playerUpdatesMap = new Map();
+        const matchesTable = getSeasonTableName('matches');
+        const playerIdsTable = getSeasonTableName('player_ids');
 
         for (const row of dataArray) {
             // 基础校验
@@ -654,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 判断同地图同时刻的比赛撞车（编辑模式除外或者如果必要可放开）
             if (!isEdit && row.team_a && row.team_b && row.match_date && row.map) {
-                const { data: existing } = await supabaseClient.from('matches').select('id')
+                const { data: existing } = await supabaseClient.from(matchesTable).select('id')
                     .eq('team_a', row.team_a)
                     .eq('team_b', row.team_b)
                     .eq('match_date', row.match_date)

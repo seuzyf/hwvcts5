@@ -574,9 +574,9 @@
                     { data: playersData,  error: playersError  },
                     { data: matchesData,  error: matchesError  }
                 ] = await Promise.all([
-                    supabaseClient.from('match_schedule').select('*'),
-                    supabaseClient.from('player_ids').select('id, name, team, "group"'),
-                    supabaseClient.from('matches').select('*'),
+                    supabaseClient.from('s6_match_schedule').select('*'),
+                    supabaseClient.from('s6_player_ids').select('id, name, team, "group"'),
+                    supabaseClient.from('s6_matches').select('*'),
                 ]);
                 if (scheduleError || playersError) throw scheduleError || playersError;
 

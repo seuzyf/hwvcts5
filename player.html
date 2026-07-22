@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS5 - 选手主页</title>
+    <title>HWVCTS6 - 选手主页</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -503,11 +503,11 @@
         const honor = document.getElementById('honor-input').value.trim(); const password = document.getElementById('profile-password-input').value;
         if (!password) { alert('请输入密码以确认修改！'); return; }
 
-        const { data: playerData, error: fetchError } = await supabaseClient.from('player_ids').select('pwd').eq('name', playerName).single();
+        const { data: playerData, error: fetchError } = await supabaseClient.from('s6_player_ids').select('pwd').eq('name', playerName).single();
         if (fetchError || !playerData) { alert('获取用户信息失败，请重试。'); console.error(fetchError); return; }
         if (playerData.pwd && playerData.pwd !== password) { alert('密码错误！'); return; }
 
-        const { error: updateError } = await supabaseClient.from('player_ids').update({ id: newId, image: imageUrl, honor: honor }).eq('name', playerName);
+        const { error: updateError } = await supabaseClient.from('s6_player_ids').update({ id: newId, image: imageUrl, honor: honor }).eq('name', playerName);
         if (updateError) { alert('更新资料失败: ' + updateError.message); } 
         else { alert('资料更新成功！页面将刷新以显示最新信息。'); window.location.reload(); }
     }
@@ -518,11 +518,11 @@
         if (newPassword !== confirmPassword) { alert('新密码与确认密码不匹配！'); return; }
         if (!newPassword) { alert('新密码不能为空！'); return; }
 
-        const { data: playerData, error: fetchError } = await supabaseClient.from('player_ids').select('pwd').eq('name', playerName).single();
+        const { data: playerData, error: fetchError } = await supabaseClient.from('s6_player_ids').select('pwd').eq('name', playerName).single();
         if (fetchError) { alert('获取用户信息失败，请重试。'); return; }
         if (playerData.pwd && playerData.pwd !== oldPassword) { alert('原密码错误！'); return; }
 
-        const { error: updateError } = await supabaseClient.from('player_ids').update({ pwd: newPassword }).eq('name', playerName);
+        const { error: updateError } = await supabaseClient.from('s6_player_ids').update({ pwd: newPassword }).eq('name', playerName);
         if (updateError) { alert('密码更新失败: ' + updateError.message); } 
         else { alert('密码更新成功！'); document.getElementById('settings-modal').classList.remove('visible'); passwordForm.reset(); }
     }
@@ -553,7 +553,10 @@
         setTheme((savedTheme === 'light') ? true : false);
         themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
 
-        const [{ data: matches, error: matchesError }, { data: idData, error: idError }] = await Promise.all([ supabaseClient.from('matches').select('*'), supabaseClient.from('player_ids').select('*') ]);
+        const [{ data: matches, error: matchesError }, { data: idData, error: idError }] = await Promise.all([ 
+            supabaseClient.from('s6_matches').select('*'), 
+            supabaseClient.from('s6_player_ids').select('*') 
+        ]);
         if(matchesError || idError) { document.body.innerHTML = `<h1 style="text-align:center; color:var(--primary-color);">错误：加载数据失败</h1><p style="text-align:center;">${(matchesError || idError).message}</p>`; return; }
 
         const nameMap = idData.reduce((map, row) => { map[row.name] = row; return map; }, {});
