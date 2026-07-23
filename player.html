@@ -514,11 +514,12 @@
         const honor = document.getElementById('honor-input').value.trim(); const password = document.getElementById('profile-password-input').value;
         if (!password) { alert('请输入密码以确认修改！'); return; }
 
-        const { data: playerData, error: fetchError } = await supabaseClient.from('s6_player_ids').select('pwd').eq('name', playerName).single();
+        const playersTable = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
+        const { data: playerData, error: fetchError } = await supabaseClient.from(playersTable).select('pwd').eq('name', playerName).single();
         if (fetchError || !playerData) { alert('获取用户信息失败，请重试。'); console.error(fetchError); return; }
         if (playerData.pwd && playerData.pwd !== password) { alert('密码错误！'); return; }
 
-        const { error: updateError } = await supabaseClient.from('s6_player_ids').update({ id: newId, image: imageUrl, honor: honor }).eq('name', playerName);
+        const { error: updateError } = await supabaseClient.from(playersTable).update({ id: newId, image: imageUrl, honor: honor }).eq('name', playerName);
         if (updateError) { alert('更新资料失败: ' + updateError.message); } 
         else { alert('资料更新成功！页面将刷新以显示最新信息。'); window.location.reload(); }
     }
@@ -529,11 +530,12 @@
         if (newPassword !== confirmPassword) { alert('新密码与确认密码不匹配！'); return; }
         if (!newPassword) { alert('新密码不能为空！'); return; }
 
-        const { data: playerData, error: fetchError } = await supabaseClient.from('s6_player_ids').select('pwd').eq('name', playerName).single();
+        const playersTable = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
+        const { data: playerData, error: fetchError } = await supabaseClient.from(playersTable).select('pwd').eq('name', playerName).single();
         if (fetchError) { alert('获取用户信息失败，请重试。'); return; }
         if (playerData.pwd && playerData.pwd !== oldPassword) { alert('原密码错误！'); return; }
 
-        const { error: updateError } = await supabaseClient.from('s6_player_ids').update({ pwd: newPassword }).eq('name', playerName);
+        const { error: updateError } = await supabaseClient.from(playersTable).update({ pwd: newPassword }).eq('name', playerName);
         if (updateError) { alert('密码更新失败: ' + updateError.message); } 
         else { alert('密码更新成功！'); document.getElementById('settings-modal').classList.remove('visible'); passwordForm.reset(); }
     }
@@ -546,6 +548,8 @@
         if (!groupName || groupName === 'null' || groupName === 'undefined') {
             groupName = '未分组';
         }
+        // 获取赛季参数，默认为 s6
+        let currentSeason = params.get('season') || 's6';
 
         if (!playerName) { 
             document.body.innerHTML = '<h1 style="text-align:center; margin-top:50px; color:var(--primary-color);">错误：缺少选手真名信息</h1>'; 
@@ -554,7 +558,6 @@
         
         // 获取赛季切换按钮并添加事件处理
         const seasonFilterButtons = document.getElementById('season-filter-buttons');
-        let currentSeason = 's6'; // 默认 S6 赛季
         
         setupStarRating();
         
@@ -570,12 +573,18 @@
         
         // 赛季切换按钮事件处理
         if (seasonFilterButtons) {
+            // 初始化按钮状态
+            seasonFilterButtons.querySelectorAll('button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.season === currentSeason);
+            });
+            
             seasonFilterButtons.addEventListener('click', (e) => {
                 if (e.target.tagName !== 'BUTTON' || e.target.classList.contains('active')) return;
-                seasonFilterButtons.querySelector('.active').classList.remove('active');
-                e.target.classList.add('active');
-                currentSeason = e.target.dataset.season;
-                main(); // 重新加载当前页面数据
+                const newSeason = e.target.dataset.season;
+                // 构建新的 URL，保留 name 和 group 参数，更新 season 参数
+                const newParams = new URLSearchParams(window.location.search);
+                newParams.set('season', newSeason);
+                window.location.search = newParams.toString();
             });
         }
 
