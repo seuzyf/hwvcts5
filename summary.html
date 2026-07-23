@@ -247,7 +247,9 @@
             let currentSort = { key: 'avg_acs', order: 'desc' };
             let selectedForCompare = []; // 存储对比选手 {name, group}
             let isCompareMode = false; // 比较模式状态
-            let currentSeason = 's6'; // 默认 S6 赛季
+            // 从 URL 获取赛季参数，默认为 s6
+            const urlParams = new URLSearchParams(window.location.search);
+            let currentSeason = urlParams.get('season') || 's6';
 
             function getTableName(baseName) {
                 return `${currentSeason}_${baseName}`;
@@ -486,7 +488,7 @@
                     const isChecked = selectedForCompare.some(p => p.name === player.name && p.group === player.group);
                     row.innerHTML = `
                         <td class="checkbox-cell"><input type="checkbox" class="compare-checkbox" data-name="${player.name}" data-group="${player.group || '未分组'}" ${isChecked ? 'checked' : ''}></td>
-                        <td><a href="player.html?name=${encodeURIComponent(player.name)}&group=${groupParam}" target="_blank">${player.id}</a></td>
+                        <td><a href="player.html?name=${encodeURIComponent(player.name)}&group=${groupParam}&season=${currentSeason}" target="_blank">${player.id}</a></td>
                         <td>${player.name || '—'}</td><td>${player.group || '—'}</td><td>${player.team || '—'}</td><td>${player.topChars}</td>
                         <td>${player.matches_played > 0 ? player.matches_played : '—'}</td>
                         <td style="color:var(--primary-color); font-weight:700;">${formatStat(player.avg_acs, 2)}</td>
