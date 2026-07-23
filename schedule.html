@@ -294,6 +294,13 @@
         const modalSaveBtn         = document.getElementById('modal-save-btn');
         const autoSubmitBanner     = document.getElementById('auto-submit-banner');
 
+        // 初始化赛季按钮状态
+        if (seasonFilterButtons) {
+            seasonFilterButtons.querySelectorAll('button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.season === currentSeason);
+            });
+        }
+
         let currentEditingMatch  = null;
         let pendingAuthAction    = null;
         let allMatchesData       = {};
@@ -303,7 +310,9 @@
         let isPasswordVerified   = false;
         let pendingDataToUpsert  = [];
         let pendingIdsToDelete   = [];
-        let currentSeason        = 's6'; // 默认 S6 赛季
+        // 从 URL 获取赛季参数，默认为 s6
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentSeason = urlParams.get('season') || 's6';
 
         // ── 主题 ────────────────────────────────────────────────────────────────
         function setTheme(isLight) {
@@ -973,7 +982,7 @@
                 const kda = stats ? (stats.deaths > 0 ? ((stats.kills + stats.assists) / stats.deaths).toFixed(2) : (stats.kills + stats.assists)) : '—';
                 const hasData = stats && (stats.kills > 0 || stats.assists > 0 || stats.deaths > 0);
                 html += `<tr>
-                    <td><a href="player.html?name=${encodeURIComponent(p.name)}&group=${encodeURIComponent(groupName)}" target="_blank">${p.id}</a></td>
+                    <td><a href="player.html?name=${encodeURIComponent(p.name)}&group=${encodeURIComponent(groupName)}&season=${currentSeason}" target="_blank">${p.id}</a></td>
                     <td>${p.name}</td>
                     <td style="color:var(--primary-color);font-weight:700;">${avg_acs}</td>
                     <td style="font-weight:700;">${hasData ? kda : '—'}</td>
@@ -1076,6 +1085,10 @@
             seasonFilterButtons.querySelector('.active').classList.remove('active');
             e.target.classList.add('active');
             currentSeason = e.target.dataset.season;
+            // 更新 URL 参数，保持赛季状态
+            const newParams = new URLSearchParams(window.location.search);
+            newParams.set('season', currentSeason);
+            window.history.pushState({}, '', '?' + newParams.toString());
             loadData(); // 重新加载数据
         });
 
