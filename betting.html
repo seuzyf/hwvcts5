@@ -354,11 +354,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        let { data: user, error } = await supabaseClient.from('bet_users').select('*').eq('username', username).single();
+        let { data: user, error } = await supabaseClient.from('s6_bet_users').select('*').eq('username', username).single();
 
         if (error && error.code === 'PGRST116') {
             const { data: newUser, error: insertError } = await supabaseClient
-                .from('bet_users')
+                .from('s6_bet_users')
                 .insert([{ username, password }])
                 .select()
                 .single();
@@ -440,9 +440,9 @@ document.addEventListener('DOMContentLoaded', () => {
             { data: players, error: pError }
         ] = await Promise.all([
             supabaseClient.from(currentSeason === 's5' ? 's5_match_schedule' : 's6_match_schedule').select('*').order('id'),
-            supabaseClient.from('bet_bets').select('*'),
-            supabaseClient.from('bet_users').select('id, username, balance'),
-            supabaseClient.from('bet_welfare_claims').select('*'),
+            supabaseClient.from('s6_bet_bets').select('*'),
+            supabaseClient.from('s6_bet_users').select('id, username, balance'),
+            supabaseClient.from('s6_bet_welfare_claims').select('*'),
             supabaseClient.from('betting_groups').select('group_name, is_locked'),
             supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, team, "group"')
         ]);
@@ -673,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             betConfirmBtn.disabled = true; betConfirmBtn.textContent = '提交中...';
-            const { error } = await supabaseClient.from('bet_bets').insert([{ user_id: currentUser.id, match_id: match.id, amount, predicted_winner: selectedTeam }]);
+            const { error } = await supabaseClient.from('s6_bet_bets').insert([{ user_id: currentUser.id, match_id: match.id, amount, predicted_winner: selectedTeam }]);
             betConfirmBtn.disabled = false; betConfirmBtn.textContent = '确 认 预 测';
 
             if (error) {
@@ -715,7 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const listContainer = document.getElementById('existing-bets-list');
         listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">加载中...</p>';
         const { data: bets, error } = await supabaseClient
-            .from('bet_bets').select(`*, bet_users (username)`).eq('match_id', matchId).order('created_at', { ascending: false });
+            .from('s6_bet_bets').select(`*, bet_users (username)`).eq('match_id', matchId).order('created_at', { ascending: false });
 
         if (error) { listContainer.innerHTML = '<p style="color:var(--loss-color)">加载记录失败</p>'; return; }
         if (bets.length === 0) { listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">暂无预测记录</p>'; return; }
@@ -764,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!confirm(`您确定要撤销这笔预测吗？`)) return;
 
-        const { error } = await supabaseClient.from('bet_bets').delete().eq('id', betId);
+        const { error } = await supabaseClient.from('s6_bet_bets').delete().eq('id', betId);
         if (error) { alert('撤销失败: ' + error.message); return; }
         
         alert('撤销成功！');
@@ -785,7 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
         welfareBtn.disabled = true;
         welfareBtn.textContent = '领取中...';
         
-        const { error } = await supabaseClient.from('bet_welfare_claims').insert([{ user_id: currentUser.id }]);
+        const { error } = await supabaseClient.from('s6_bet_welfare_claims').insert([{ user_id: currentUser.id }]);
         
         if (error) {
             alert('领取失败: ' + error.message);
