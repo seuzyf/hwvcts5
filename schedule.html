@@ -94,6 +94,13 @@
         .commentator-info { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.15); letter-spacing: 1px; }
         body.light-theme .commentator-info { border-top-color: rgba(0,0,0,0.15); }
         .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
+        
+        /* 赛季切换按钮样式 */
+        .season-filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; margin-right: 15px; }
+        .season-filter-group button { padding: 0 15px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 13px; font-weight: 600; height: 100%; transition: all 0.3s ease; letter-spacing: 1px; }
+        .season-filter-group button:hover { opacity: 1; color: var(--primary-color); }
+        .season-filter-group button.active { background-color: rgba(255, 70, 85, 0.15); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
+        body.light-theme .season-filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
         #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
         .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
         .theme-switch input { display:none; }
@@ -192,6 +199,10 @@
     <div class="container">
         <div class="main-header-block">
             <div class="theme-switch-wrapper">
+                <div class="season-filter-group" id="season-filter-buttons">
+                    <button class="active" data-season="s6">S6</button>
+                    <button data-season="s5">S5</button>
+                </div>
                 <span id="theme-text"></span>
                 <label class="theme-switch">
                     <input type="checkbox" id="theme-toggle-checkbox">
@@ -199,7 +210,7 @@
                 </label>
             </div>
             <div class="title-badge">VALORANT TOURNAMENT</div>
-            <h1>HWVCTS5 赛程中心</h1>
+            <h1>HWVCTS6 赛程中心</h1>
             <div class="controls-container">
                 <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
                 <a href="summary.html" class="nav-button" target="_blank">查 看 选 手 数 据</a>
@@ -264,6 +275,7 @@
 
         const groupFilters    = document.getElementById('group-filters');
         const stageFilters    = document.getElementById('stage-filters');
+        const seasonFilterButtons = document.getElementById('season-filter-buttons');
         const swissSection    = document.getElementById('swiss-stage-section');
         const playoffSection  = document.getElementById('playoff-stage-section');
         const themeToggle     = document.getElementById('theme-toggle-checkbox');
@@ -291,6 +303,7 @@
         let isPasswordVerified   = false;
         let pendingDataToUpsert  = [];
         let pendingIdsToDelete   = [];
+        let currentSeason        = 's6'; // 默认 S6 赛季
 
         // ── 主题 ────────────────────────────────────────────────────────────────
         function setTheme(isLight) {
@@ -569,14 +582,18 @@
         // ── 数据加载 ─────────────────────────────────────────────────────────────
         async function loadData() {
             try {
+                const scheduleTable = currentSeason === 's5' ? 's5_match_schedule' : 's6_match_schedule';
+                const playersTable = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
+                const matchesTable = currentSeason === 's5' ? 's5_matches' : 's6_matches';
+                
                 const [
                     { data: scheduleData, error: scheduleError },
                     { data: playersData,  error: playersError  },
                     { data: matchesData,  error: matchesError  }
                 ] = await Promise.all([
-                    supabaseClient.from('match_schedule').select('*'),
-                    supabaseClient.from('player_ids').select('id, name, team, "group"'),
-                    supabaseClient.from('matches').select('*'),
+                    supabaseClient.from(scheduleTable).select('*'),
+                    supabaseClient.from(playersTable).select('id, name, team, "group"'),
+                    supabaseClient.from(matchesTable).select('*'),
                 ]);
                 if (scheduleError || playersError) throw scheduleError || playersError;
 
@@ -1052,6 +1069,14 @@
             const stage = e.target.dataset.stage;
             swissSection.style.display   = stage === 'swiss'   ? 'block' : 'none';
             playoffSection.style.display = stage === 'playoff' ? 'block' : 'none';
+        });
+        // 赛季切换按钮事件处理
+        seasonFilterButtons.addEventListener('click', e => {
+            if (e.target.tagName !== 'BUTTON' || e.target.classList.contains('active')) return;
+            seasonFilterButtons.querySelector('.active').classList.remove('active');
+            e.target.classList.add('active');
+            currentSeason = e.target.dataset.season;
+            loadData(); // 重新加载数据
         });
 
         loadData();

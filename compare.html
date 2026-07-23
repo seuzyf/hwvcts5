@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS5 - 选手多维对比</title>
+    <title>HWVCTS6 - 选手多维对比</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -97,9 +97,10 @@
                     <span class="slider-theme"></span>
                 </label>
             </div>
-            <h1>选手多维数据对比</h1>
-            <div style="margin-top:20px;">
+            <h1>HWVCTS6 选手多维数据对比</h1>
+            <div style="margin-top:20px; display:flex; gap:15px; justify-content:center; flex-wrap:wrap;">
                 <a href="summary.html" class="btn-back">返 回 数 据 汇 总</a>
+                <button id="season-toggle-btn" class="btn-back" onclick="toggleSeason()">切 换 赛 季 (当前：S6)</button>
             </div>
         </div>
 
@@ -167,6 +168,10 @@
     document.getElementById('theme-toggle-checkbox').addEventListener('change', (e) => setTheme(e.target.checked));
 
     async function init() {
+        // 默认 S6 赛季，可通过 URL 参数 ?season=s5 切换
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentSeason = urlParams.get('season') === 's5' ? 's5' : 's6';
+        
         setTheme(localStorage.getItem('theme') === 'light');
         
         const params = new URLSearchParams(window.location.search);
@@ -183,8 +188,8 @@
 
         try {
             const [{ data: idsData, error: idErr }, { data: matchesData, error: matchErr }] = await Promise.all([
-                supabaseClient.from('player_ids').select('id, name, "group"'),
-                supabaseClient.from('matches').select('*')
+                supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, "group"'),
+                supabaseClient.from(currentSeason === 's5' ? 's5_matches' : 's6_matches').select('*')
             ]);
             
             if (idErr || matchErr) throw idErr || matchErr;
@@ -380,6 +385,16 @@
         });
 
         tbody.innerHTML = bodyHTML;
+    }
+
+    // 赛季切换功能
+    function toggleSeason() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentSeason = urlParams.get('season') === 's5' ? 's5' : 's6';
+        const newSeason = currentSeason === 's5' ? 's6' : 's5';
+        
+        urlParams.set('season', newSeason);
+        window.location.search = urlParams.toString();
     }
 
     document.addEventListener('DOMContentLoaded', init);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS5 - 赛事预测</title>
+    <title>HWVCTS6 - 赛事预测</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -186,6 +186,10 @@
                  <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
                  <a href="summary.html" class="nav-button">查 看 选 手 数 据</a>
                  <button id="toggle-view-btn" class="nav-button">查 看 预 测 排 名</button>
+                 <div class="filter-group" id="season-filter-buttons">
+                    <button class="active" data-season="s6">S6</button>
+                    <button data-season="s5">S5</button>
+                 </div>
             </div>
         </div>
 
@@ -307,6 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allWelfareData = [];
     let allPlayersData = []; 
     let bettingGroupStatus = {};
+    let currentSeason = 's6'; // 默认 S6 赛季
 
     const loginBtn = document.getElementById('login-btn');
     const logoutBtn = document.getElementById('logout-btn');
@@ -434,12 +439,12 @@ document.addEventListener('DOMContentLoaded', () => {
             { data: groupsStatus, error: gError },
             { data: players, error: pError }
         ] = await Promise.all([
-            supabaseClient.from('match_schedule').select('*').order('id'),
+            supabaseClient.from(currentSeason === 's5' ? 's5_match_schedule' : 's6_match_schedule').select('*').order('id'),
             supabaseClient.from('bet_bets').select('*'),
             supabaseClient.from('bet_users').select('id, username, balance'),
             supabaseClient.from('bet_welfare_claims').select('*'),
             supabaseClient.from('betting_groups').select('group_name, is_locked'),
-            supabaseClient.from('player_ids').select('id, name, team, "group"')
+            supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, team, "group"')
         ]);
 
         if (mError || bError || uError || wError || gError || pError) {

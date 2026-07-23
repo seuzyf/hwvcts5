@@ -1,0 +1,7 @@
+```
+# SQL migration files
+*.sql
+
+# HTML files
+*.html
+```
