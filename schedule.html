@@ -545,7 +545,7 @@
             autoSubmitBanner.textContent = `⚡ 正在自动写入 ${toUpsert.length} 场已确定赛程...`;
 
             try {
-                const { error } = await supabaseClient.from('match_schedule').upsert(toUpsert);
+                const { error } = await supabaseClient.from(scheduleTable).upsert(toUpsert);
                 if (error) throw error;
 
                 // 更新本地缓存
@@ -942,11 +942,11 @@
             submitChangesBtn.disabled = true; submitChangesBtn.textContent = '提交中...';
             try {
                 if (pendingIdsToDelete.length > 0) {
-                    const { error } = await supabaseClient.from('match_schedule').delete().eq('group', groupName).in('match_id', pendingIdsToDelete);
+                    const { error } = await supabaseClient.from(scheduleTable).delete().eq('group', groupName).in('match_id', pendingIdsToDelete);
                     if (error) throw error;
                 }
                 if (pendingDataToUpsert.length > 0) {
-                    const { error } = await supabaseClient.from('match_schedule').upsert(pendingDataToUpsert);
+                    const { error } = await supabaseClient.from(scheduleTable).upsert(pendingDataToUpsert);
                     if (error) throw error;
                 }
                 alert('赛程已成功更新到数据库！');
@@ -1010,7 +1010,7 @@
                 const { matchId, group } = currentEditingMatch;
                 modalSaveBtn.disabled = true; modalSaveBtn.textContent = '保存中...';
                 try {
-                    const { error } = await supabaseClient.from('match_schedule').update({ commentators: newCommentators, link: newLink }).eq('match_id', matchId).eq('group', group);
+                    const { error } = await supabaseClient.from(scheduleTable).update({ commentators: newCommentators, link: newLink }).eq('match_id', matchId).eq('group', group);
                     if (error) throw error;
                     alert('更新成功！');
                     matchDetailModal.style.display = 'none';
