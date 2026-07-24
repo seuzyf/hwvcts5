@@ -443,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
             supabaseClient.from('s6_bet_bets').select('*'),
             supabaseClient.from('s6_bet_users').select('id, username, balance'),
             supabaseClient.from('s6_bet_welfare_claims').select('*'),
-            supabaseClient.from('betting_groups').select('group_name, is_locked'),
+            supabaseClient.from('s6_betting_groups').select('group_name, is_locked'),
             supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, team, "group"')
         ]);
 
