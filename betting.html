@@ -607,7 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const { error: updateError } = await supabaseClient
-            .from('betting_groups')
+            .from('s6_betting_groups')
             .update({ is_locked: !currentStatus })
             .eq('group_name', groupName);
 
@@ -656,7 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const { data: groupStatus, error: groupError } = await supabaseClient
-                .from('betting_groups')
+                .from('s6_betting_groups')
                 .select('is_locked')
                 .eq('group_name', match.group)
                 .single();
@@ -746,7 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const { data: groupStatus, error: groupError } = await supabaseClient
-            .from('betting_groups')
+            .from('s6_betting_groups')
             .select('is_locked')
             .eq('group_name', matchOfBet.group)
             .single();
