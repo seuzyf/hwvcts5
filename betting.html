@@ -186,10 +186,6 @@
                  <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
                  <a href="summary.html" class="nav-button">查 看 选 手 数 据</a>
                  <button id="toggle-view-btn" class="nav-button">查 看 预 测 排 名</button>
-                 <div class="filter-group" id="season-filter-buttons">
-                    <button class="active" data-season="s6">S6</button>
-                    <button data-season="s5">S5</button>
-                 </div>
             </div>
         </div>
 
@@ -714,20 +710,49 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadAndRenderExistingBets(matchId, groupName) {
         const listContainer = document.getElementById('existing-bets-list');
         listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">加载中...</p>';
-        const { data: bets, error } = await supabaseClient
-            .from('s6_bet_bets').select(`*, s6_bet_users (username)`).eq('match_id', matchId).order('created_at', { ascending: false });
-
-        if (error) { listContainer.innerHTML = '<p style="color:var(--loss-color)">加载记录失败</p>'; return; }
-        if (bets.length === 0) { listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">暂无预测记录</p>'; return; }
         
-        const isGroupLocked = bettingGroupStatus[groupName];
+        // 1. 查本场预测记录
+        const { data: bets, error } = await supabaseClient
+            .from('s6_bet_bets')
+            .select('*')
+            .eq('match_id', matchId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            listContainer.innerHTML = `<p style="color:var(--loss-color)">加载失败：${error.message} (code: ${error.code})</p>`;
+            console.error('获取bets出错:', error);
+            return;
+        }
+        if (!bets || bets.length === 0) {
+            listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">暂无预测记录</p>';
+            return;
+        }
+
+        // 2. 收集用户ID并查询用户名
+        const userIds = [...new Set(bets.map(b => b.user_id))];
+        const { data: users, error: userError } = await supabaseClient
+            .from('s6_bet_users')
+            .select('id, username')
+            .in('id', userIds);
+
+        if (userError) {
+            listContainer.innerHTML = `<p style="color:var(--loss-color)">加载用户信息失败：${userError.message} (code: ${userError.code})</p>`;
+            console.error('获取users出错:', userError);
+            return;
+        }
+
+        // 3. 构建映射并渲染
+        const userMap = {};
+        (users || []).forEach(u => { userMap[u.id] = u.username; });
+        const isGroupLocked = bettingGroupStatus[groupName] || false;
 
         listContainer.innerHTML = bets.map(bet => `
             <div class="bet-record">
-                <span>${bet.bet_users ? bet.bet_users.username : '匿名'}</span>
+                <span>${userMap[bet.user_id] || '匿名'}</span>
                 <span style="color:var(--text-color);">支持 ${bet.predicted_winner} <strong>${bet.amount}</strong> 分</span>
                 ${(currentUser && bet.user_id === currentUser.id && !isGroupLocked) ? `<button class="cancel-bet-btn" data-bet-id="${bet.id}">撤销</button>` : '<span></span>'}
             </div>`).join('');
+
         document.querySelectorAll('.cancel-bet-btn').forEach(btn => btn.addEventListener('click', handleCancelBet));
     }
 
