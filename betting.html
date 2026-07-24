@@ -715,7 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const listContainer = document.getElementById('existing-bets-list');
         listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">加载中...</p>';
         const { data: bets, error } = await supabaseClient
-            .from('s6_bet_bets').select(`*, bet_users (username)`).eq('match_id', matchId).order('created_at', { ascending: false });
+            .from('s6_bet_bets').select(`*, s6_bet_users (username)`).eq('match_id', matchId).order('created_at', { ascending: false });
 
         if (error) { listContainer.innerHTML = '<p style="color:var(--loss-color)">加载记录失败</p>'; return; }
         if (bets.length === 0) { listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">暂无预测记录</p>'; return; }
