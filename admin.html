@@ -265,7 +265,7 @@
     createParticles();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
+    const _URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -352,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadScheduleForGroup(groupName) {
-        const { data, error } = await supabaseClient.from('match_schedule').select('*').eq('group', groupName).order('id');
+        const { data, error } = await supabaseClient.from('s6_match_schedule').select('*').eq('group', groupName).order('id');
         if (error) { console.error(`加载 ${groupName}赛程失败:`, error); currentScheduleData = []; } 
         else { currentScheduleData = data.filter(m => m.team_a && m.team_a !== 'TBD'); }
         populateMatchSelector(); document.getElementById('schedule-update-form').style.display = 'none';
@@ -851,7 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
             score_a: scoreA === '' ? null : parseInt(scoreA, 10), score_b: scoreB === '' ? null : parseInt(scoreB, 10),
             match_date: scheduleDate ? new Date(scheduleDate).toISOString() : null, link: document.getElementById('schedule-link').value.trim()
         };
-        const { data, error } = await supabaseClient.from('match_schedule').update(dataToUpdate).eq('id', matchId).select();
+        const { data, error } = await supabaseClient.from('s6_match_schedule').update(dataToUpdate).eq('id', matchId).select();
         if (error) { alert('错误：更新赛程失败！\n' + error.message); console.error(error); } 
         else if (data && data.length > 0) { alert('赛程比分已成功写入数据库！'); await loadScheduleForGroup(getCurrentGroup()); } 
         else { alert('更新失败：未找到匹配的比赛记录。请检查数据库的行级安全(RLS)策略是否允许本次更新操作。'); }
