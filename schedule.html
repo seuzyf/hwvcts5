@@ -179,7 +179,7 @@
                 <h3 style="font-size: 16px; margin: 0 0 15px 0; color: var(--primary-color);">✍️ 更新比赛信息</h3>
                 <div style="display: flex; gap: 20px;">
                     <div style="flex: 1;">
-                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 5px;">解说席 (多人用逗号或空格分隔)</label>
+                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 5px;">解说席 (多人用逗号或空间分隔)</label>
                         <input type="text" id="modal-input-commentators" placeholder="例如: 解说A, 解说B" style="margin: 0; padding: 10px;">
                     </div>
                     <div style="flex: 1;">
@@ -412,6 +412,14 @@
                 else if (match.team_b === team) { wins += match.score_b; losses += match.score_a; }
             });
             return wins - losses;
+        }
+
+        // 检查传奇组单循环赛是否已完成
+        function isLegendRoundRobinComplete(groupData) {
+            const rrMatches = Object.values(groupData).filter(m => m.match_id?.startsWith('RR-'));
+            return rrMatches.length > 0 && rrMatches.every(m => 
+                typeof m.score_a === 'number' && typeof m.score_b === 'number' && (m.score_a > 0 || m.score_b > 0)
+            );
         }
 
         // ── 推导结果节点 ──────────────────────────────────────────────────────────
@@ -692,7 +700,6 @@
             });
         }
 
-        // 在渲染面板时根据不同组别分配对应的布局
         function renderBrackets(groupName, dataSource = allMatchesData) {
             const is12Team = groupName === '挑战组';
             const isS6Legend = groupName === '传奇组' && currentSeason === 's6';
@@ -731,6 +738,10 @@
             const seedInput  = document.getElementById('seed-input').value;
             const seed       = seedInput ? parseInt(seedInput) : Date.now();
             const rng        = seededRandom(seed);
+            
+            // 检查当前阶段
+            const currentStage = stageFilters.querySelector('.active').dataset.stage;
+            const isOnPlayoffStage = currentStage === 'playoff';
 
             let dataToUpsert = [], idsToDelete = [];
             let operationMessage = '没有可生成的对战。请确保队伍池正确或所有必需的比赛已完成。';
@@ -740,138 +751,144 @@
             // ══ 一、小组赛抽签 ══════════════════════════════════════════════════════
             const allTeamsInGroup = Array.from(allTeamsByGroup[groupName] || []);
 
-            if (isS6Legend) {
-                if (allTeamsInGroup.length > 0) {
-                    // 1. 获取队伍列表
-                    const originalTeams = [...allTeamsInGroup].sort();
-                    let teams = [...originalTeams];
-                    if (teams.length % 2 !== 0) teams.push('BYE'); // 奇数队添加 BYE
+            // 如果用户在淘汰赛标签页，跳过小组赛生成，直接进行淘汰赛抽签
+            if (!isOnPlayoffStage) {
+                if (isS6Legend) {
+                    // 传奇组：只有当单循环赛未完成时才生成
+                    if (!isLegendRoundRobinComplete(groupData) && allTeamsInGroup.length > 0) {
+                        // 1. 获取队伍列表
+                        const originalTeams = [...allTeamsInGroup].sort();
+                        let teams = [...originalTeams];
+                        if (teams.length % 2 !== 0) teams.push('BYE'); // 奇数队添加 BYE
 
-                    const numTeams = teams.length;          // 实际参与轮转的队伍数（含 BYE）
-                    const numRounds = numTeams - 1;        // 7 队时 = 7 轮
+                        const numTeams = teams.length;          // 实际参与轮转的队伍数（含 BYE）
+                        const numRounds = numTeams - 1;        // 7 队时 = 7 轮
 
-                    // 2. 圆桌轮转生成每轮比赛
-                    for (let round = 0; round < numRounds; round++) {
-                        let matchIndex = 0; // 当前轮真实比赛序号
-                        for (let i = 0; i < numTeams / 2; i++) {
-                            const teamA = teams[i];
-                            const teamB = teams[numTeams - 1 - i];
+                        // 2. 圆桌轮转生成每轮比赛
+                        for (let round = 0; round < numRounds; round++) {
+                            let matchIndex = 0; // 当前轮真实比赛序号
+                            for (let i = 0; i < numTeams / 2; i++) {
+                                const teamA = teams[i];
+                                const teamB = teams[numTeams - 1 - i];
 
-                            if (teamA === 'BYE' || teamB === 'BYE') continue; // 跳过轮空
+                                if (teamA === 'BYE' || teamB === 'BYE') continue; // 跳过轮空
 
-                            const matchId = `RR-${round + 1}-${matchIndex + 1}`;
-                            matchIndex++;
+                                const matchId = `RR-${round + 1}-${matchIndex + 1}`;
+                                matchIndex++;
 
-                            // 3. 查找历史交手记录
-                            const existingInSlot = groupData[matchId];
-                            const playedAnywhere = Object.values(groupData).find(m =>
-                                ((m.team_a === teamA && m.team_b === teamB) ||
-                                (m.team_a === teamB && m.team_b === teamA)) &&
-                                m.match_id !== matchId
-                            );
+                                // 3. 查找历史交手记录
+                                const existingInSlot = groupData[matchId];
+                                const playedAnywhere = Object.values(groupData).find(m =>
+                                    ((m.team_a === teamA && m.team_b === teamB) ||
+                                    (m.team_a === teamB && m.team_b === teamA)) &&
+                                    m.match_id !== matchId
+                                );
 
-                            // 4. 初始化数据
-                            let scoreA = 0, scoreB = 0;
-                            let targetDbId = existingInSlot?.id;
-                            let matchDate = existingInSlot?.match_date ?? null;
-                            let link = existingInSlot?.link ?? '';
-                            let commentators = existingInSlot?.commentators ?? '';
+                                // 4. 初始化数据
+                                let scoreA = 0, scoreB = 0;
+                                let targetDbId = existingInSlot?.id;
+                                let matchDate = existingInSlot?.match_date ?? null;
+                                let link = existingInSlot?.link ?? '';
+                                let commentators = existingInSlot?.commentators ?? '';
 
-                            if (playedAnywhere) {
-                                // 继承历史比分
-                                scoreA = playedAnywhere.team_a === teamA ? playedAnywhere.score_a : playedAnywhere.score_b;
-                                scoreB = playedAnywhere.team_a === teamA ? playedAnywhere.score_b : playedAnywhere.score_a;
-                                matchDate = playedAnywhere.match_date ?? null;
-                                link = playedAnywhere.link ?? '';
-                                commentators = playedAnywhere.commentators ?? '';
-                                targetDbId = playedAnywhere.id; // 迁移 id
+                                if (playedAnywhere) {
+                                    // 继承历史比分
+                                    scoreA = playedAnywhere.team_a === teamA ? playedAnywhere.score_a : playedAnywhere.score_b;
+                                    scoreB = playedAnywhere.team_a === teamA ? playedAnywhere.score_b : playedAnywhere.score_a;
+                                    matchDate = playedAnywhere.match_date ?? null;
+                                    link = playedAnywhere.link ?? '';
+                                    commentators = playedAnywhere.commentators ?? '';
+                                    targetDbId = playedAnywhere.id; // 迁移 id
 
-                                // 如果当前槽位有旧记录且不是同一行，标记删除
-                                if (existingInSlot && existingInSlot.id !== playedAnywhere.id) {
-                                    idsToDelete.push(existingInSlot.match_id);
+                                    // 如果当前槽位有旧记录且不是同一行，标记删除
+                                    if (existingInSlot && existingInSlot.id !== playedAnywhere.id) {
+                                        idsToDelete.push(existingInSlot.match_id);
+                                    }
+                                } else if (existingInSlot) {
+                                    // 保持已有数据
+                                    scoreA = existingInSlot.score_a || 0;
+                                    scoreB = existingInSlot.score_b || 0;
                                 }
-                            } else if (existingInSlot) {
-                                // 保持已有数据
-                                scoreA = existingInSlot.score_a || 0;
-                                scoreB = existingInSlot.score_b || 0;
+
+                                // 5. 构造 upsert 数据
+                                const payload = {
+                                    group: groupName,
+                                    match_id: matchId,
+                                    team_a: teamA,
+                                    team_b: teamB,
+                                    score_a: scoreA,
+                                    score_b: scoreB,
+                                    match_date: matchDate,
+                                    link: link,
+                                    commentators: commentators,
+                                };
+                                if (targetDbId) payload.id = targetDbId;
+
+                                dataToUpsert.push(payload);
                             }
 
-                            // 5. 构造 upsert 数据
-                            const payload = {
-                                group: groupName,
-                                match_id: matchId,
-                                team_a: teamA,
-                                team_b: teamB,
-                                score_a: scoreA,
-                                score_b: scoreB,
-                                match_date: matchDate,
-                                link: link,
-                                commentators: commentators,
-                            };
-                            if (targetDbId) payload.id = targetDbId;
-
-                            dataToUpsert.push(payload);
+                            // 6. 轮转队伍顺序（固定第一个，其余右移）
+                            const fixed = teams[0];
+                            const rest = teams.slice(1);
+                            const rotatedRest = [rest[rest.length - 1], ...rest.slice(0, -1)];
+                            teams = [fixed, ...rotatedRest];
                         }
 
-                        // 6. 轮转队伍顺序（固定第一个，其余右移）
-                        const fixed = teams[0];
-                        const rest = teams.slice(1);
-                        const rotatedRest = [rest[rest.length - 1], ...rest.slice(0, -1)];
-                        teams = [fixed, ...rotatedRest];
-                    }
-
-                    // 7. 清理废弃旧瑞士轮记录
-                    Object.values(groupData).forEach(m => {
-                        if (m.match_id && !m.match_id.startsWith('RR-') && !m.match_id.startsWith('P-')) {
-                            const isInherited = dataToUpsert.some(u => u.id === m.id);
-                            if (!isInherited && !idsToDelete.includes(m.match_id)) {
-                                idsToDelete.push(m.match_id);
+                        // 7. 清理废弃旧瑞士轮记录
+                        Object.values(groupData).forEach(m => {
+                            if (m.match_id && !m.match_id.startsWith('RR-') && !m.match_id.startsWith('P-')) {
+                                const isInherited = dataToUpsert.some(u => u.id === m.id);
+                                if (!isInherited && !idsToDelete.includes(m.match_id)) {
+                                    idsToDelete.push(m.match_id);
+                                }
                             }
-                        }
-                    });
+                        });
 
-                    operationMessage = '已生成传奇组 7 轮单循环赛程，并自动继承历史数据。';
-                }
-            } else {
-                // 中坚组与挑战组 - 瑞士轮逻辑
-                if (allTeamsInGroup.length > 0) {
-                    const teamRecords = {};
-                    allTeamsInGroup.forEach(t => { teamRecords[t] = { wins: 0, losses: 0, played: 0 }; });
-                    Object.values(groupData).filter(m => m.match_id?.startsWith('S')).forEach(match => {
-                        if (typeof match.score_a === 'number' && typeof match.score_b === 'number' && (match.score_a > 0 || match.score_b > 0)) {
-                            const w = getWinner(match), l = getLoser(match);
-                            if (w && teamRecords[w]) { teamRecords[w].wins++; teamRecords[w].played++; }
-                            if (l && teamRecords[l]) { teamRecords[l].losses++; teamRecords[l].played++; }
-                        }
-                    });
-
-                    const teamsByRecord = {};
-                    for (const t in teamRecords) {
-                        const key = teamRecords[t].played === 0 ? '0-0' : `${teamRecords[t].wins}-${teamRecords[t].losses}`;
-                        if (!teamsByRecord[key]) teamsByRecord[key] = [];
-                        teamsByRecord[key].push(t);
+                        operationMessage = '已生成传奇组 7 轮单循环赛程，并自动继承历史数据。';
+                    } else {
+                        operationMessage = '传奇组小组赛已完成，请切换到淘汰赛标签页进行淘汰赛抽签。';
                     }
-                    for (const rec in teamsByRecord) shuffleArray(teamsByRecord[rec], rng);
+                } else {
+                    // 中坚组与挑战组 - 瑞士轮逻辑
+                    if (allTeamsInGroup.length > 0) {
+                        const teamRecords = {};
+                        allTeamsInGroup.forEach(t => { teamRecords[t] = { wins: 0, losses: 0, played: 0 }; });
+                        Object.values(groupData).filter(m => m.match_id?.startsWith('S')).forEach(match => {
+                            if (typeof match.score_a === 'number' && typeof match.score_b === 'number' && (match.score_a > 0 || match.score_b > 0)) {
+                                const w = getWinner(match), l = getLoser(match);
+                                if (w && teamRecords[w]) { teamRecords[w].wins++; teamRecords[w].played++; }
+                                if (l && teamRecords[l]) { teamRecords[l].losses++; teamRecords[l].played++; }
+                            }
+                        });
 
-                    const assignments = is12Team
-                        ? { '0-0':['S1-1','S1-2','S1-3','S1-4','S1-5','S1-6'], '1-0':['S2-1W','S2-2W','S2-3W'], '0-1':['S2-1L','S2-2L','S2-3L'], '1-1':['S3-1M','S3-2M','S3-3M'] }
-                        : { '0-0':['S1-1','S1-2','S1-3','S1-4'], '1-0':['S2-1W','S2-2W'], '0-1':['S2-1L','S2-2L'], '1-1':['S3-1M','S3-2M'] };
+                        const teamsByRecord = {};
+                        for (const t in teamRecords) {
+                            const key = teamRecords[t].played === 0 ? '0-0' : `${teamRecords[t].wins}-${teamRecords[t].losses}`;
+                            if (!teamsByRecord[key]) teamsByRecord[key] = [];
+                            teamsByRecord[key].push(t);
+                        }
+                        for (const rec in teamsByRecord) shuffleArray(teamsByRecord[rec], rng);
 
-                    for (const rec in assignments) {
-                        const teams   = teamsByRecord[rec] || [];
-                        const matchIds = assignments[rec];
-                        const needed  = matchIds.length * 2;
-                        if (teams.length >= needed && (matchIds.some(id => isMatchInDbEmpty(id, groupData)) || canRegenerateRound(matchIds, groupName))) {
-                            idsToDelete.push(...matchIds);
-                            let idx = 0;
-                            for (const matchId of matchIds) {
-                                const tA = teams[idx++] || 'TBD', tB = teams[idx++] || 'TBD';
-                                if (tA !== 'TBD' && tB !== 'TBD') {
-                                    const existing = groupData[matchId] || {};
-                                    const payload = { group: groupName, match_id: matchId, team_a: tA, team_b: tB, score_a: 0, score_b: 0 };
-                                    if (existing.id) payload.id = existing.id; // 添加现有 ID 以确保更新
-                                    dataToUpsert.push(payload);
-                                    operationMessage = `已为 ${rec} 组生成对阵！`;
+                        const assignments = is12Team
+                            ? { '0-0':['S1-1','S1-2','S1-3','S1-4','S1-5','S1-6'], '1-0':['S2-1W','S2-2W','S2-3W'], '0-1':['S2-1L','S2-2L','S2-3L'], '1-1':['S3-1M','S3-2M','S3-3M'] }
+                            : { '0-0':['S1-1','S1-2','S1-3','S1-4'], '1-0':['S2-1W','S2-2W'], '0-1':['S2-1L','S2-2L'], '1-1':['S3-1M','S3-2M'] };
+
+                        for (const rec in assignments) {
+                            const teams   = teamsByRecord[rec] || [];
+                            const matchIds = assignments[rec];
+                            const needed  = matchIds.length * 2;
+                            if (teams.length >= needed && (matchIds.some(id => isMatchInDbEmpty(id, groupData)) || canRegenerateRound(matchIds, groupName))) {
+                                idsToDelete.push(...matchIds);
+                                let idx = 0;
+                                for (const matchId of matchIds) {
+                                    const tA = teams[idx++] || 'TBD', tB = teams[idx++] || 'TBD';
+                                    if (tA !== 'TBD' && tB !== 'TBD') {
+                                        const existing = groupData[matchId] || {};
+                                        const payload = { group: groupName, match_id: matchId, team_a: tA, team_b: tB, score_a: 0, score_b: 0 };
+                                        if (existing.id) payload.id = existing.id; // 添加现有 ID 以确保更新
+                                        dataToUpsert.push(payload);
+                                        operationMessage = `已为 ${rec} 组生成对阵！`;
+                                    }
                                 }
                             }
                         }
@@ -882,7 +899,89 @@
             // ══ 二、淘汰赛第一轮抽签 ═══════════════════════════════════════════════
             if (dataToUpsert.length === 0) {
 
-                if (!is12Team) {
+                if (isS6Legend) {
+                    // ══ 传奇组淘汰赛抽签 ══════════════════════════════════════════════════════
+                    if (!isLegendRoundRobinComplete(groupData)) {
+                        operationMessage = '传奇组小组赛尚未完成，请先完成所有单循环赛再进行淘汰赛抽签。';
+                    } else {
+                        // 计算单循环赛积分排名
+                        const teamRecords = {};
+                        allTeamsInGroup.forEach(t => { 
+                            teamRecords[t] = { wins: 0, losses: 0, scoreFor: 0, scoreAgainst: 0, played: 0 }; 
+                        });
+                        
+                        Object.values(groupData).filter(m => m.match_id?.startsWith('RR-')).forEach(match => {
+                            if (typeof match.score_a === 'number' && typeof match.score_b === 'number' && (match.score_a > 0 || match.score_b > 0)) {
+                                const w = getWinner(match), l = getLoser(match);
+                                if (w && teamRecords[w]) { 
+                                    teamRecords[w].wins++; 
+                                    teamRecords[w].played++;
+                                    teamRecords[w].scoreFor += match.team_a === w ? match.score_a : match.score_b;
+                                    teamRecords[w].scoreAgainst += match.team_a === w ? match.score_b : match.score_a;
+                                }
+                                if (l && teamRecords[l]) { 
+                                    teamRecords[l].losses++; 
+                                    teamRecords[l].played++;
+                                    teamRecords[l].scoreFor += match.team_a === l ? match.score_a : match.score_b;
+                                    teamRecords[l].scoreAgainst += match.team_a === l ? match.score_b : match.score_a;
+                                }
+                            }
+                        });
+                        
+                        // 按胜场数排名，胜场相同则按净胜分排名
+                        const sortedTeams = Object.entries(teamRecords)
+                            .filter(([_, rec]) => rec.played > 0)
+                            .sort((a, b) => {
+                                if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
+                                const netA = a[1].scoreFor - a[1].scoreAgainst;
+                                const netB = b[1].scoreFor - b[1].scoreAgainst;
+                                if (netB !== netA) return netB - netA;
+                                return a[0].localeCompare(b[0]);
+                            })
+                            .map(([team, _]) => team);
+                        
+                        // 取前4名晋级淘汰赛
+                        const top4 = sortedTeams.slice(0, 4);
+                        
+                        if (top4.length === 4) {
+                            const [s1, s2, s3, s4] = top4;
+                            
+                            // 种子配对：1 vs 4, 2 vs 3
+                            let pair1 = [s1, s4];
+                            let pair2 = [s2, s3];
+                            
+                            // 随机交换主客场
+                            if (rng() < 0.5) pair1.reverse();
+                            if (rng() < 0.5) pair2.reverse();
+                            
+                            const isWB1Empty = isMatchInDbEmpty('P-WB1-1', groupData) || isMatchInDbEmpty('P-WB1-2', groupData);
+                            const canRegenWB1 = canRegenerateRound(['P-WB1-1','P-WB1-2'], groupName);
+                            
+                            if (isWB1Empty || canRegenWB1) {
+                                idsToDelete.push('P-WB1-1','P-WB1-2');
+                                
+                                const ex1 = groupData['P-WB1-1'] || {};
+                                const pl1 = { group: groupName, match_id: 'P-WB1-1', team_a: pair1[0], team_b: pair1[1], score_a: 0, score_b: 0 };
+                                if (ex1.id) pl1.id = ex1.id;
+                                dataToUpsert.push(pl1);
+                                
+                                const ex2 = groupData['P-WB1-2'] || {};
+                                const pl2 = { group: groupName, match_id: 'P-WB1-2', team_a: pair2[0], team_b: pair2[1], score_a: 0, score_b: 0 };
+                                if (ex2.id) pl2.id = ex2.id;
+                                dataToUpsert.push(pl2);
+                                
+                                operationMessage = `已完成传奇组淘汰赛第一轮抽签！\n` +
+                                    `小组赛排名：${sortedTeams.join(' > ')}\n` +
+                                    `胜者组R1：${pair1[0]} vs ${pair1[1]} ／ ${pair2[0]} vs ${pair2[1]}`;
+                            } else {
+                                operationMessage = '传奇组淘汰赛第一轮已存在或已完成。';
+                            }
+                        } else {
+                            operationMessage = `传奇组队伍不足4支（当前${top4.length}支），无法生成淘汰赛对阵。`;
+                        }
+                    }
+                } else if (!is12Team) {
+                    // ══ 中坚组淘汰赛抽签（原有逻辑）══════════════════════════════════════════════
                     const isWB1Empty  = isMatchInDbEmpty('P-WB1-1', groupData) || isMatchInDbEmpty('P-WB1-2', groupData);
                     const canRegenWB1 = canRegenerateRound(['P-WB1-1','P-WB1-2'], groupName);
                     if (isWB1Empty || canRegenWB1) {
@@ -907,6 +1006,7 @@
                     }
 
                 } else {
+                    // ══ 挑战组淘汰赛抽签（原有逻辑）══════════════════════════════════════════════
                     const promo2_0 = ['S3-PROMO-1','S3-PROMO-2','S3-PROMO-3'].map(getResultTeam).filter(Boolean);
                     const promo2_1 = ['S4-PROMO-1','S4-PROMO-2','S4-PROMO-3'].map(getResultTeam).filter(Boolean);
 
