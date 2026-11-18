@@ -6,6 +6,7 @@
     <title>HWVCTS6 - 赛事预测</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/auth.js"></script>
     <style>
         :root {
             --primary-color: #ff4655;
@@ -171,7 +172,8 @@
                 <div id="user-display" style="display: none;">
                     <div style="margin-bottom: 5px;">
                         <span id="username-display"></span> | 剩余分数: <span id="user-balance"></span>
-                        <button id="logout-btn" class="nav-button" style="height: 24px; padding: 0 10px; margin-left: 10px; font-size: 11px;">登 出</button>
+                        <a href="home.html" class="nav-button" style="height: 24px; padding: 0 10px; margin-left: 10px; font-size: 11px; text-decoration: none;">个 人 主 页</a>
+                        <button id="logout-btn" class="nav-button" style="height: 24px; padding: 0 10px; margin-left: 6px; font-size: 11px;">登 出</button>
                     </div>
                     <button id="welfare-btn" class="nav-button" style="display:none; height: 28px; font-size: 12px;">领 取 低 保 (+5分)</button>
                 </div>
@@ -183,6 +185,8 @@
             <h1 id="main-title">赛事预测</h1>
             <p class="disclaimer">本功能仅供娱乐，预测分数无任何实际价值</p>
             <div class="controls-container">
+                 <a href="home.html" class="nav-button">个 人 主 页</a>
+                 <a href="events.html" class="nav-button">活 动 大 厅</a>
                  <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
                  <a href="summary.html" class="nav-button">查 看 选 手 数 据</a>
                  <button id="toggle-view-btn" class="nav-button">查 看 预 测 排 名</button>
@@ -349,40 +353,19 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('请输入用户名和密码');
             return;
         }
-
-        let { data: user, error } = await supabaseClient.from('s6_bet_users').select('*').eq('username', username).single();
-
-        if (error && error.code === 'PGRST116') {
-            const { data: newUser, error: insertError } = await supabaseClient
-                .from('s6_bet_users')
-                .insert([{ username, password }])
-                .select()
-                .single();
-
-            if (insertError) {
-                alert('注册失败: ' + insertError.message);
-                return;
-            }
-            currentUser = newUser;
-            alert('注册成功，初始分数为100！');
-        } else if (error) {
-            alert('数据库查询失败: ' + error.message);
-            return;
-        } else {
-            if (user.password !== password) {
-                alert('密码错误！');
-                return;
-            }
-            currentUser = user;
+        try {
+            // 统一账号登录（auth.js）：用户不存在时自动注册，与原行为一致
+            currentUser = await HWAuth.login(username, password);
+            loginModal.classList.remove('visible');
+            await initializePage();
+        } catch (err) {
+            alert(err.message || '登录失败，请重试');
         }
-        localStorage.setItem('betting-user', JSON.stringify(currentUser));
-        loginModal.classList.remove('visible');
-        await initializePage();
     }
 
     function handleLogout() {
+        HWAuth.logout();
         currentUser = null;
-        localStorage.removeItem('betting-user');
         updateUserDisplay();
         renderMatches();
     }
@@ -437,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ] = await Promise.all([
             supabaseClient.from(currentSeason === 's5' ? 's5_match_schedule' : 's6_match_schedule').select('*').order('id'),
             supabaseClient.from('s6_bet_bets').select('*'),
-            supabaseClient.from('s6_bet_users').select('id, username, balance'),
+            supabaseClient.from(HWAuth.accountTable()).select('id, username, balance'),
             supabaseClient.from('s6_bet_welfare_claims').select('*'),
             supabaseClient.from('s6_betting_groups').select('group_name, is_locked'),
             supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, team, "group"')
@@ -460,11 +443,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }, {});
 
         await calculateAllUserBalances();
-        
-        const storedUser = localStorage.getItem('betting-user');
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            currentUser = allUsersData.find(u => u.id === parsedUser.id) || null;
+
+        // 从统一账号会话恢复登录态（旧 betting-user 键已由 auth.js 自动收编）
+        const sessionUser = HWAuth.getSession();
+        if (sessionUser) {
+            currentUser = allUsersData.find(u => u.id === sessionUser.id) || null;
+            if (!currentUser) HWAuth.logout(); // 账号已不存在
+        } else {
+            currentUser = null;
         }
 
         updateUserDisplay();
@@ -731,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2. 收集用户ID并查询用户名
         const userIds = [...new Set(bets.map(b => b.user_id))];
         const { data: users, error: userError } = await supabaseClient
-            .from('s6_bet_users')
+            .from(HWAuth.accountTable())
             .select('id, username')
             .in('id', userIds);
 
@@ -931,7 +917,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.modal-backdrop').forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('visible'); }));
 
-    initializePage();
+    // 统一账号：初始化会话并探测账号表（升级前用旧表，升级后自动切新表）
+    HWAuth.init();
+    HWAuth.detectAccountSource().catch(() => {}).finally(() => initializePage());
 });
 </script>
 </body>

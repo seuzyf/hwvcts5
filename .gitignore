@@ -1,7 +1,10 @@
-```
-# SQL migration files
-*.sql
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.log
 
-# HTML files
-*.html
-```
+# Node tooling (if added later)
+node_modules/
+
+# Local scratch
+.scratch/
