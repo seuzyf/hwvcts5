@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HWVCTS — 比赛中心</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/theme.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/layout.js"></script>
+    <style>
+        .switch-wrap { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ash); }
+        .switch { position: relative; display: inline-block; width: 36px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .switch .slider {
+            position: absolute; inset: 0; cursor: pointer;
+            background: var(--obsidian); border: 1px solid var(--border); border-radius: 20px;
+            transition: 0.2s;
+        }
+        .switch .slider::before {
+            content: ""; position: absolute; height: 14px; width: 14px; left: 2px; bottom: 2px;
+            background: var(--ash); border-radius: 50%; transition: 0.2s;
+        }
+        .switch input:checked + .slider { background: var(--graphite); border-color: var(--smoke); }
+        .switch input:checked + .slider::before { transform: translateX(16px); background: var(--pure-white); }
+
+        .match-list { display: flex; flex-direction: column; gap: 8px; }
+        .match-card {
+            display: flex; align-items: center; gap: 16px;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: border-color 0.15s ease, background 0.15s ease;
+        }
+        .match-card:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.04); }
+        .match-card .m-meta {
+            font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+            text-transform: uppercase; color: var(--smoke); width: 150px; flex-shrink: 0;
+        }
+        .match-card .m-meta .map { color: var(--ash); display: block; }
+        .match-card .m-teams {
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 14px;
+            font-size: 14px; font-weight: 500; color: var(--pure-white);
+        }
+        .match-card .m-score {
+            font-family: var(--font-mono); font-size: 15px; color: var(--pure-white);
+            background: var(--obsidian); border: 1px solid var(--border);
+            padding: 3px 12px; border-radius: var(--r-badge);
+        }
+        .match-card .m-tag { flex-shrink: 0; }
+
+        /* Match detail modal table */
+        .cmp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .cmp-table th {
+            font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+            color: var(--smoke); padding: 7px 6px; border-bottom: 1px solid var(--border);
+            text-align: center; font-weight: 500;
+        }
+        .cmp-table th.team-head { color: var(--pure-white); font-size: 12px; text-transform: none; letter-spacing: 0.02em; }
+        .cmp-table td {
+            padding: 8px 6px; text-align: center; color: var(--ash);
+            border-bottom: 1px solid rgba(54, 55, 57, 0.4);
+        }
+        .cmp-table td.pid { text-align: left; }
+        .cmp-table .pid-id { font-family: var(--font-mono); font-size: 12px; color: var(--pure-white); }
+        .cmp-table .pid-name { font-size: 11px; color: var(--smoke); }
+        .cmp-table td.sep { width: 14px; background: linear-gradient(90deg, transparent, var(--border), transparent); border: none; }
+        .cmp-table .acs { font-family: var(--font-mono); color: var(--pure-white); }
+        .score-line { font-family: var(--font-mono); font-size: 13px; color: var(--mist); display: inline-flex; gap: 6px; align-items: center; margin-left: 14px; }
+        .score-line .win { color: var(--success-green); }
+        .score-line .loss { color: #ff8f8f; }
+        .score-line .smap { color: var(--smoke); font-size: 10px; text-transform: uppercase; }
+
+        .roster-list { list-style: none; margin: 0; padding: 0; }
+        .roster-list li {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 4px; border-bottom: 1px solid rgba(54, 55, 57, 0.5);
+            font-size: 14px;
+        }
+        .roster-list li:last-child { border-bottom: none; }
+        .roster-list .r-name { font-weight: 500; color: var(--pure-white); }
+        .roster-list .r-id { font-family: var(--font-mono); font-size: 12px; color: var(--smoke); }
+        .sub-label {
+            margin-left: auto; font-family: var(--font-mono); font-size: 10px;
+            padding: 2px 8px; border-radius: var(--r-badge);
+            background: var(--graphite); color: var(--ash);
+        }
+    </style>
+</head>
+<body data-page="matches">
+    <main class="page">
+        <div class="container">
+            <header class="page-header flex-between">
+                <div>
+                    <span class="eyebrow">Matches</span>
+                    <h1 class="page-title">比赛中心</h1>
+                    <p class="page-sub">华为无畏契约锦标赛 · 积分榜与比赛结果</p>
+                </div>
+                <div class="filter-bar" style="margin:0;">
+                    <div class="seg" id="season-filter-buttons">
+                        <button class="active" data-season="s6" type="button">S6</button>
+                        <button data-season="s5" type="button">S5</button>
+                    </div>
+                    <div class="seg" id="group-filter-buttons">
+                        <button class="active" data-group="传奇组" type="button">传奇组</button>
+                        <button data-group="中坚组" type="button">中坚组</button>
+                        <button data-group="挑战组" type="button">挑战组</button>
+                    </div>
+                    <div class="seg" id="stage-filter-buttons">
+                        <button class="active" data-stage="all" type="button">所有赛段</button>
+                        <button data-stage="小组赛" type="button">小组赛</button>
+                        <button data-stage="淘汰赛" type="button">淘汰赛</button>
+                    </div>
+                </div>
+            </header>
+
+            <section class="card" style="margin-bottom:16px;">
+                <div class="block-head-flex flex-between" style="margin-bottom:14px;">
+                    <h2 id="standings-title" style="margin:0; font-size:16px; font-weight:500; color:var(--pure-white);">战队积分榜</h2>
+                    <span class="eyebrow">Standings</span>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table" id="standings-table">
+                        <thead>
+                            <tr><th>排名</th><th>队伍</th><th>胜场</th><th>负场</th><th>净胜分</th></tr>
+                        </thead>
+                        <tbody id="standings-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="flex-between" style="margin-bottom:14px;">
+                    <h2 id="matches-title" style="margin:0; font-size:16px; font-weight:500; color:var(--pure-white);">比赛结果</h2>
+                    <div class="switch-wrap">
+                        <span>合并统计（BO 系列）</span>
+                        <label class="switch">
+                            <input type="checkbox" id="merge-stats-checkbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div id="matches-view"><div class="empty-state">正在加载比赛数据…</div></div>
+            </section>
+        </div>
+    </main>
+
+    <div id="modal" class="modal-backdrop">
+        <div class="modal-panel wide" id="modal-content-body"></div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
+        var SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
+        var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        var matchesView = document.getElementById('matches-view');
+        var modal = document.getElementById('modal');
+        var modalContent = document.getElementById('modal-content-body');
+        var standingsTableBody = document.getElementById('standings-table-body');
+        var groupFilterButtons = document.getElementById('group-filter-buttons');
+        var stageFilterButtons = document.getElementById('stage-filter-buttons');
+        var matchesTitle = document.getElementById('matches-title');
+        var standingsTitle = document.getElementById('standings-title');
+        var mergeStatsCheckbox = document.getElementById('merge-stats-checkbox');
+        var seasonFilterButtons = document.getElementById('season-filter-buttons');
+
+        var allMatchesData = [];
+        var allPlayersData = [];
+        var idNameMap = {};
+        var currentSeason = 's6';
+
+        function loadDataFromSupabase() {
+            matchesView.innerHTML = '<div class="empty-state">正在加载比赛数据…</div>';
+            Promise.all([
+                supabaseClient.from(currentSeason === 's5' ? 's5_matches' : 's6_matches').select('*'),
+                supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, team, "group"')
+            ]).then(function (rs) {
+                var matchesError = rs[0].error, playersError = rs[1].error;
+                if (matchesError || playersError) throw matchesError || playersError;
+
+                allMatchesData = rs[0].data;
+                allPlayersData = rs[1].data;
+                idNameMap = allPlayersData.reduce(function (map, p) { map[p.id] = p.name; return map; }, {});
+
+                try {
+                    localStorage.setItem('valorantPlayerSummary', JSON.stringify(processAllPlayerData(allMatchesData)));
+                    localStorage.setItem('valorantIdNameMap', JSON.stringify(idNameMap));
+                } catch (e) { /* quota */ }
+
+                var activeBtn = document.querySelector('#group-filter-buttons button.active');
+                if (activeBtn) activeBtn.classList.remove('active');
+                var legend = document.querySelector('#group-filter-buttons button[data-group="传奇组"]');
+                if (legend) legend.classList.add('active');
+                updateDisplay();
+            }).catch(function (error) {
+                matchesView.innerHTML = '<div class="empty-state"><strong>数据加载失败</strong><br>' + (error.message || error) + '</div>';
+            });
+        }
+
+        seasonFilterButtons.addEventListener('click', function (e) {
+            if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+                seasonFilterButtons.querySelector('.active').classList.remove('active');
+                e.target.classList.add('active');
+                currentSeason = e.target.dataset.season;
+                loadDataFromSupabase();
+            }
+        });
+        groupFilterButtons.addEventListener('click', function (e) {
+            if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+                groupFilterButtons.querySelector('.active').classList.remove('active');
+                e.target.classList.add('active');
+                updateDisplay();
+            }
+        });
+        stageFilterButtons.addEventListener('click', function (e) {
+            if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+                stageFilterButtons.querySelector('.active').classList.remove('active');
+                e.target.classList.add('active');
+                updateDisplay();
+            }
+        });
+
+        function updateDisplay() {
+            var activeGroup = groupFilterButtons.querySelector('.active').dataset.group;
+            var selectedStage = stageFilterButtons.querySelector('.active').dataset.stage;
+            matchesTitle.textContent = '比赛结果 · ' + activeGroup;
+            standingsTitle.textContent = '战队积分榜 · ' + activeGroup;
+
+            var groupMatches = allMatchesData.filter(function (m) { return m.group === activeGroup; });
+            var filteredMatches = groupMatches.filter(function (match) {
+                return selectedStage === 'all' ||
+                    ((match.stage === '小组赛' ? '小组赛' : '淘汰赛') === selectedStage);
+            });
+
+            displayMatchCards(filteredMatches, groupMatches);
+            calculateAndDisplayStandings(groupMatches, activeGroup);
+        }
+
+        function processAllPlayerData(matches) {
+            var playerData = {};
+            matches.forEach(function (match) {
+                var score = String(match['score']).split(/[/:：]/).map(Number);
+                var totalRounds = (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1])) ? (score[0] + score[1]) : 0;
+                ['team_a', 'team_b'].forEach(function (teamKey) {
+                    var teamName = match[teamKey];
+                    for (var p = 1; p <= 5; p++) {
+                        var playerId = match[teamKey + '_player' + p + '_id'];
+                        var playerDataStr = match[teamKey + '_player' + p + '_data'];
+                        var playerCh = match[teamKey + '_player' + p + '_ch'];
+                        if (!playerId || !playerDataStr) continue;
+
+                        var stats = String(playerDataStr).split('/').map(Number);
+                        if (stats.length !== 4 || stats.some(isNaN)) continue;
+
+                        var uniquePlayerKey = playerId + '::' + match.group;
+                        if (!playerData[uniquePlayerKey]) {
+                            var registeredPlayer = allPlayersData.find(function (pl) { return pl.id === playerId; });
+                            playerData[uniquePlayerKey] = {
+                                id: playerId, group: match.group,
+                                team: registeredPlayer ? registeredPlayer.team : teamName,
+                                total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, totalRounds: 0 },
+                                by_character: {}
+                            };
+                        }
+
+                        var playerEntry = playerData[uniquePlayerKey];
+                        var p_stats = playerEntry.total_stats;
+                        p_stats.acs += stats[0];
+                        p_stats.kills += stats[1];
+                        p_stats.deaths += stats[2];
+                        p_stats.assists += stats[3];
+                        p_stats.matchCount++;
+                        p_stats.totalRounds += totalRounds;
+
+                        if (playerCh) {
+                            var charName = String(playerCh).trim();
+                            if (!playerEntry.by_character[charName]) {
+                                playerEntry.by_character[charName] = { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, totalRounds: 0 };
+                            }
+                            var charStats = playerEntry.by_character[charName];
+                            charStats.acs += stats[0];
+                            charStats.kills += stats[1];
+                            charStats.deaths += stats[2];
+                            charStats.assists += stats[3];
+                            charStats.matchCount++;
+                            charStats.totalRounds += totalRounds;
+                        }
+                    }
+                });
+            });
+            return playerData;
+        }
+
+        function displayMatchCards(matches, allGroupMatches) {
+            if (matches.length === 0) {
+                matchesView.innerHTML = '<div class="empty-state">当前筛选条件下没有比赛。</div>';
+                return;
+            }
+            var wrap = document.createElement('div');
+            wrap.className = 'match-list';
+            matches.forEach(function (match) {
+                var originalIndex = allGroupMatches.findIndex(function (m) { return m.id === match.id; });
+                wrap.appendChild(createMatchCard(match, originalIndex));
+            });
+            matchesView.innerHTML = '';
+            matchesView.appendChild(wrap);
+        }
+
+        function calculateAndDisplayStandings(groupMatches, activeGroup) {
+            var teamStandings = {};
+            var teamsInGroup = new Set(allPlayersData.filter(function (p) { return p.group === activeGroup && p.team; }).map(function (p) { return p.team; }));
+            teamsInGroup.forEach(function (teamName) {
+                teamStandings[teamName] = { wins: 0, losses: 0, roundDiff: 0 };
+            });
+
+            groupMatches.forEach(function (match) {
+                var teamA = match.team_a, teamB = match.team_b;
+                if (!match.score) return;
+                var parts = String(match.score).split(/[/:：]/).map(Number);
+                var scoreA = parts[0], scoreB = parts[1];
+                if (isNaN(scoreA) || isNaN(scoreB)) return;
+
+                if (!teamStandings[teamA]) teamStandings[teamA] = { wins: 0, losses: 0, roundDiff: 0 };
+                if (!teamStandings[teamB]) teamStandings[teamB] = { wins: 0, losses: 0, roundDiff: 0 };
+
+                if (scoreA > scoreB) {
+                    teamStandings[teamA].wins++;
+                    teamStandings[teamB].losses++;
+                } else {
+                    teamStandings[teamB].wins++;
+                    teamStandings[teamA].losses++;
+                }
+                teamStandings[teamA].roundDiff += (scoreA - scoreB);
+                teamStandings[teamB].roundDiff += (scoreB - scoreA);
+            });
+
+            var sortedTeams = Object.keys(teamStandings).sort(function (a, b) {
+                return teamStandings[b].wins - teamStandings[a].wins ||
+                    teamStandings[b].roundDiff - teamStandings[a].roundDiff;
+            });
+
+            standingsTableBody.innerHTML = sortedTeams.map(function (teamName, index) {
+                var team = teamStandings[teamName];
+                return '<tr><td class="mono">' + (index + 1) + '</td>' +
+                    '<td style="color:var(--pure-white); font-weight:500; cursor:pointer;" class="team-name-cell" data-team="' + teamName + '">' + teamName + '</td>' +
+                    '<td class="mono">' + team.wins + '</td><td class="mono">' + team.losses + '</td>' +
+                    '<td class="mono">' + (team.roundDiff > 0 ? '+' : '') + team.roundDiff + '</td></tr>';
+            }).join('');
+        }
+
+        function createMatchCard(matchData, index) {
+            var card = document.createElement('div');
+            var stageType = (matchData.stage === '小组赛') ? '小组赛' : '淘汰赛';
+            card.className = 'match-card';
+            card.dataset.matchIndex = index;
+            var score = String(matchData.score).replace(/[/：]/, ' : ');
+            var stageBadge = matchData.stage === '决赛' ? '<span class="badge badge-gold m-tag">决赛</span>'
+                : '<span class="badge badge-quiet m-tag">' + esc(stageType) + '</span>';
+            card.innerHTML =
+                '<div class="m-meta"><span class="map">' + esc(matchData.map || '') + '</span>' + esc(matchData.match_date || '') + '</div>' +
+                '<div class="m-teams">' +
+                '  <span>' + esc(matchData.team_a) + '</span>' +
+                '  <span class="m-score">' + esc(score) + '</span>' +
+                '  <span>' + esc(matchData.team_b) + '</span>' +
+                '</div>' + stageBadge;
+            return card;
+        }
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        function showModalWithContent(htmlContent) {
+            modalContent.innerHTML =
+                '<button class="modal-close" type="button" id="dynamic-close">&times;</button>' + htmlContent;
+            modal.classList.add('visible');
+            document.getElementById('dynamic-close').addEventListener('click', function () {
+                modal.classList.remove('visible');
+            });
+        }
+
+        function showMatchDetails(matches) {
+            if (!Array.isArray(matches)) matches = [matches];
+            var mainMatch = matches[0];
+            var team_a = mainMatch.team_a, team_b = mainMatch.team_b;
+            var combinedPlayerData = {};
+
+            matches.forEach(function (match) {
+                var isReversed = match.team_a !== team_a;
+                ['team_a', 'team_b'].forEach(function (teamKey, teamIndex) {
+                    var currentTeamKey = isReversed ? (teamIndex === 0 ? 'team_b' : 'team_a') : teamKey;
+                    var currentTeamName = match[currentTeamKey];
+                    for (var p = 1; p <= 5; p++) {
+                        var playerId = match[currentTeamKey + '_player' + p + '_id'];
+                        var playerDataStr = match[currentTeamKey + '_player' + p + '_data'];
+                        var playerCh = match[currentTeamKey + '_player' + p + '_ch'];
+                        if (!playerId || !playerDataStr) continue;
+
+                        var stats = String(playerDataStr).split('/').map(Number);
+                        if (stats.length !== 4 || stats.some(isNaN)) continue;
+
+                        if (!combinedPlayerData[playerId]) {
+                            combinedPlayerData[playerId] = { id: playerId, name: idNameMap[playerId] || '', team: currentTeamName, characters: new Set(), acs: 0, k: 0, d: 0, a: 0, count: 0, acsCount: 0 };
+                        }
+                        var pData = combinedPlayerData[playerId];
+                        if (stats[0] > 0) { pData.acs += stats[0]; pData.acsCount++; }
+                        pData.k += stats[1];
+                        pData.d += stats[2];
+                        pData.a += stats[3];
+                        if (playerCh) pData.characters.add(playerCh);
+                        pData.count++;
+                    }
+                });
+            });
+
+            var teamAPlayers = Object.values(combinedPlayerData).filter(function (p) { return p.team === team_a; });
+            var teamBPlayers = Object.values(combinedPlayerData).filter(function (p) { return p.team === team_b; });
+            var finalTeamAPlayers = teamAPlayers.map(function (p) { return Object.assign({}, p, { acs: (p.acsCount > 0 ? p.acs / p.acsCount : 0).toFixed(0) }); }).sort(function (a, b) { return b.acs - a.acs; });
+            var finalTeamBPlayers = teamBPlayers.map(function (p) { return Object.assign({}, p, { acs: (p.acsCount > 0 ? p.acs / p.acsCount : 0).toFixed(0) }); }).sort(function (a, b) { return b.acs - a.acs; });
+
+            var rowsHTML = '';
+            var maxPlayers = Math.max(finalTeamAPlayers.length, finalTeamBPlayers.length);
+            var placeholder = { id: '-', name: '', characters: new Set(), acs: '-', k: '-', d: '-', a: '-', count: '-' };
+            for (var i = 0; i < maxPlayers; i++) {
+                var pA = finalTeamAPlayers[i] || placeholder;
+                var pB = finalTeamBPlayers[i] || placeholder;
+                rowsHTML += '<tr>' +
+                    '<td class="pid"><div class="pid-id">' + esc(pA.id) + '</div><div class="pid-name">' + esc(pA.name) + '</div></td>' +
+                    '<td>' + esc(Array.from(pA.characters).join(', ')) + '</td>' +
+                    '<td class="acs">' + pA.acs + '</td><td>' + pA.k + '</td><td>' + pA.d + '</td><td>' + pA.a + '</td><td>' + pA.count + '</td>' +
+                    '<td class="sep"></td>' +
+                    '<td class="pid"><div class="pid-id">' + esc(pB.id) + '</div><div class="pid-name">' + esc(pB.name) + '</div></td>' +
+                    '<td>' + esc(Array.from(pB.characters).join(', ')) + '</td>' +
+                    '<td class="acs">' + pB.acs + '</td><td>' + pB.k + '</td><td>' + pB.d + '</td><td>' + pB.a + '</td><td>' + pB.count + '</td>' +
+                    '</tr>';
+            }
+
+            var scoreHTML = matches.map(function (match) {
+                var isReversed = match.team_a !== team_a;
+                var scores = String(match.score).split(/[:/：]/).map(Number);
+                var scoreA = isReversed ? scores[1] : scores[0];
+                var scoreB = isReversed ? scores[0] : scores[1];
+                return '<span class="score-line">' +
+                    '<span class="' + (scoreA >= 13 ? 'win' : 'loss') + '">' + scoreA + '</span>:' +
+                    '<span class="' + (scoreB >= 13 ? 'win' : 'loss') + '">' + scoreB + '</span>' +
+                    '<span class="smap">' + esc(match.map) + '</span></span>';
+            }).join('');
+
+            var modalHTML =
+                '<span class="eyebrow">Match Detail</span>' +
+                '<h3 class="modal-title" style="margin:8px 0 16px;">' + esc(team_a) + ' <span class="smoke" style="font-weight:400;">vs</span> ' + esc(team_b) + '</h3>' +
+                '<div class="table-wrap"><table class="cmp-table">' +
+                '<thead><tr>' +
+                '  <th colspan="7" class="team-head">' + esc(team_a) + '</th>' +
+                '  <th style="border:none;">' + scoreHTML + '</th>' +
+                '  <th colspan="7" class="team-head">' + esc(team_b) + '</th>' +
+                '</tr><tr>' +
+                '  <th>ID/真名</th><th>角色</th><th>ACS</th><th>K</th><th>D</th><th>A</th><th>图</th>' +
+                '  <th class="sep"></th>' +
+                '  <th>ID/真名</th><th>角色</th><th>ACS</th><th>K</th><th>D</th><th>A</th><th>图</th>' +
+                '</tr></thead><tbody>' + rowsHTML + '</tbody></table></div>';
+            showModalWithContent(modalHTML);
+        }
+
+        function showTeamRoster(teamName, groupName) {
+            var officialRoster = allPlayersData
+                .filter(function (p) { return p.team === teamName && p.group === groupName; })
+                .map(function (p) { return p.id; });
+
+            var playedPlayers = {};
+            var teamMatches = allMatchesData.filter(function (m) {
+                return m.group === groupName && (m.team_a === teamName || m.team_b === teamName);
+            });
+
+            var series = {};
+            teamMatches.forEach(function (m) {
+                var opponent = m.team_a === teamName ? m.team_b : m.team_a;
+                var seriesKey = m.match_date + '-' + m.stage + '-' + opponent;
+                if (!series[seriesKey]) series[seriesKey] = [];
+                series[seriesKey].push(m);
+            });
+
+            Object.values(series).forEach(function (matchesInSeries) {
+                var playersInSeries = new Set();
+                matchesInSeries.forEach(function (match) {
+                    var teamKey = match.team_a === teamName ? 'team_a' : 'team_b';
+                    for (var i = 1; i <= 5; i++) {
+                        var playerId = match[teamKey + '_player' + i + '_id'];
+                        if (playerId) playersInSeries.add(playerId);
+                    }
+                });
+                playersInSeries.forEach(function (playerId) {
+                    if (!playedPlayers[playerId]) playedPlayers[playerId] = { count: 0 };
+                    playedPlayers[playerId].count++;
+                });
+            });
+
+            var finalRoster = officialRoster.map(function (id) {
+                return { id: id, name: idNameMap[id] || id, isSub: false };
+            });
+            Object.keys(playedPlayers).forEach(function (playerId) {
+                if (officialRoster.indexOf(playerId) === -1) {
+                    finalRoster.push({ id: playerId, name: idNameMap[playerId] || playerId, isSub: true, subCount: playedPlayers[playerId].count });
+                }
+            });
+
+            var rosterHTML =
+                '<span class="eyebrow">Roster</span>' +
+                '<h3 class="modal-title" style="margin:8px 0 16px;">' + esc(teamName) +
+                ' <span class="smoke" style="font-size:13px; font-weight:400;">(' + esc(groupName) + ')</span></h3>' +
+                '<ul class="roster-list">' +
+                (finalRoster.length > 0 ? finalRoster.map(function (player) {
+                    return '<li><span class="r-name">' + esc(player.name) + '</span>' +
+                        '<span class="r-id">(' + esc(player.id) + ')</span>' +
+                        (player.isSub ? '<span class="sub-label">替补 ' + player.subCount + ' 次</span>' : '') + '</li>';
+                }).join('') : '<li class="smoke">暂无该队伍成员信息</li>') +
+                '</ul>';
+            showModalWithContent(rosterHTML);
+        }
+
+        matchesView.addEventListener('click', function (e) {
+            var clickedCard = e.target.closest('.match-card');
+            if (!clickedCard) return;
+
+            var activeGroup = groupFilterButtons.querySelector('.active').dataset.group;
+            var groupMatches = allMatchesData.filter(function (m) { return m.group === activeGroup; });
+            var matchIndex = parseInt(clickedCard.dataset.matchIndex, 10);
+            var clickedMatch = groupMatches[matchIndex];
+            if (!clickedMatch) return;
+
+            if (mergeStatsCheckbox.checked) {
+                var match_date = clickedMatch.match_date, team_a = clickedMatch.team_a, team_b = clickedMatch.team_b, stage = clickedMatch.stage;
+                var relatedMatches = groupMatches.filter(function (m) {
+                    return m.match_date === match_date && m.stage === stage &&
+                        ((m.team_a === team_a && m.team_b === team_b) || (m.team_a === team_b && m.team_b === team_a));
+                });
+                showMatchDetails(relatedMatches.length > 0 ? relatedMatches : [clickedMatch]);
+            } else {
+                showMatchDetails([clickedMatch]);
+            }
+        });
+
+        standingsTableBody.addEventListener('click', function (e) {
+            var clickedCell = e.target.closest('.team-name-cell');
+            if (!clickedCell) return;
+            var teamName = clickedCell.dataset.team;
+            var activeGroup = groupFilterButtons.querySelector('.active').dataset.group;
+            if (teamName) showTeamRoster(teamName, activeGroup);
+        });
+
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) modal.classList.remove('visible');
+        });
+
+        loadDataFromSupabase();
+    });
+    </script>
+</body>
+</html>

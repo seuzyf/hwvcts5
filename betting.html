@@ -7,20 +7,22 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/auth.js"></script>
+    <link rel="stylesheet" href="css/theme.css">
+    <script src="js/layout.js"></script>
     <style>
         :root {
-            --primary-color: #ff4655;
-            --bg-color: #0a0a0f;
-            --bg-gradient-mid: #1a0a0a;
+            --primary-color: #e6e6e6;
+            --bg-color: #040506;
+            --bg-gradient-mid: #07080a;
             --text-color: #fff;
-            --card-bg-color: rgba(21, 21, 32, 0.85);
+            --card-bg-color: rgba(7,8,10,0.88);
             --header-bg-color: transparent;
-            --border-color: rgba(255, 70, 85, 0.2);
-            --border-highlight: rgba(255, 70, 85, 0.5);
+            --border-color: rgba(255,255,255,0.12);
+            --border-highlight: rgba(255,255,255,0.28);
             --shadow-color: rgba(0,0,0,0.5);
             --control-height: 42px;
             --win-color: #81c784;
-            --loss-color: #ff8a80;
+            --loss-color: #9c9c9d;
             --text-muted: rgba(255, 255, 255, 0.5);
         }
         body.light-theme {
@@ -38,29 +40,29 @@
             --text-muted: rgba(0, 0, 0, 0.5);
         }
         body {
-            font-family: 'Noto Sans SC', sans-serif;
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
             background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
             color: var(--text-color); margin: 0; padding: 20px 0; line-height: 1.6; min-height: 100vh; position: relative;
         }
 
         .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255, 70, 85, 0.6); border-radius: 50%; animation: float linear infinite; }
+        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255,255,255,0.32); border-radius: 50%; animation: float linear infinite; }
         body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
         @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
 
         .container { width: 90%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
         .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
-        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
+        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
         body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
-        .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); }
+        .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #9c9c9d, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255,255,255,0.16)); }
         body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
         
         .disclaimer { font-size: 13px; color: var(--text-muted); margin: 0 0 20px 0; letter-spacing: 1px; }
         .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
         
-        .nav-button { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; padding: 0 25px; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; transition: all 0.3s; background: rgba(255, 70, 85, 0.08); backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer; }
+        .nav-button { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; padding: 0 25px; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; transition: all 0.3s; background: rgba(255,255,255,0.06); backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer; }
         body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
-        .nav-button:hover { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2); }
+        .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
         body.light-theme .nav-button:hover { color: var(--primary-color); }
 
         #main-content { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; }
@@ -105,7 +107,7 @@
         .modal-body { display: flex; flex-direction: column; gap: 15px; max-height: 60vh; overflow-y: auto; padding-right: 5px; }
         .modal-body::-webkit-scrollbar { width: 4px; }
         .modal-body::-webkit-scrollbar-track { background: transparent; }
-        .modal-body::-webkit-scrollbar-thumb { background: rgba(255, 70, 85, 0.5); border-radius: 2px; }
+        .modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 2px; }
         
         .modal-body input { height: var(--control-height); padding: 0 15px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; font-size: 14px; font-family: 'Noto Sans SC'; outline: none; transition: border-color 0.3s; box-sizing: border-box; width: 100%; }
         body.light-theme .modal-body input { background: #fff; }
@@ -126,9 +128,9 @@
         .history-table th, .leaderboard-table th { padding: 12px 8px; border-bottom: 1px solid var(--border-highlight); text-align: center; color: var(--text-muted); font-weight: 700; }
         .history-table td, .leaderboard-table td { padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; white-space: nowrap; }
         body.light-theme .history-table td, body.light-theme .leaderboard-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
-        .leaderboard-table tbody tr:hover { background: rgba(255,70,85,0.05); }
+        .leaderboard-table tbody tr:hover { background: rgba(255,255,255,0.05); }
         .leaderboard-table .username-cell { cursor: pointer; color: var(--primary-color); font-weight: 900; transition: color 0.2s; letter-spacing: 1px; }
-        .leaderboard-table .username-cell:hover { text-decoration: underline; text-shadow: 0 0 8px rgba(255,70,85,0.5); }
+        .leaderboard-table .username-cell:hover { text-decoration: underline; text-shadow: 0 0 8px rgba(255,255,255,0.28); }
 
         .roster-list { list-style: none; padding: 0; font-size: 14px; }
         .roster-list li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 500; }
@@ -155,24 +157,16 @@
         .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
         input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
         input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
+        body { padding-top: 80px; }
     </style>
 </head>
-<body>
-    <div class="particles" id="particles"></div>
+<body data-page="betting">
     <div class="container">
         <div class="main-header-block">
-            <div class="theme-switch-wrapper">
-                <span id="theme-text"></span>
-                <label class="theme-switch">
-                    <input type="checkbox" id="theme-toggle-checkbox">
-                    <span class="slider-theme"></span>
-                </label>
-            </div>
             <div class="user-info">
                 <div id="user-display" style="display: none;">
                     <div style="margin-bottom: 5px;">
                         <span id="username-display"></span> | 剩余分数: <span id="user-balance"></span>
-                        <a href="home.html" class="nav-button" style="height: 24px; padding: 0 10px; margin-left: 10px; font-size: 11px; text-decoration: none;">个 人 主 页</a>
                         <button id="logout-btn" class="nav-button" style="height: 24px; padding: 0 10px; margin-left: 6px; font-size: 11px;">登 出</button>
                     </div>
                     <button id="welfare-btn" class="nav-button" style="display:none; height: 28px; font-size: 12px;">领 取 低 保 (+5分)</button>
@@ -185,10 +179,6 @@
             <h1 id="main-title">赛事预测</h1>
             <p class="disclaimer">本功能仅供娱乐，预测分数无任何实际价值</p>
             <div class="controls-container">
-                 <a href="home.html" class="nav-button">个 人 主 页</a>
-                 <a href="events.html" class="nav-button">活 动 大 厅</a>
-                 <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
-                 <a href="summary.html" class="nav-button">查 看 选 手 数 据</a>
                  <button id="toggle-view-btn" class="nav-button">查 看 预 测 排 名</button>
             </div>
         </div>
@@ -283,20 +273,6 @@
     </div>
 
 <script>
-    function createParticles() {
-        const container = document.getElementById('particles');
-        for (let i = 0; i < 50; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            particle.style.left = Math.random() * 100 + '%';
-            particle.style.animationDuration = (Math.random() * 8 + 4) + 's';
-            particle.style.animationDelay = Math.random() * 5 + 's';
-            particle.style.width = (Math.random() * 3 + 1) + 'px';
-            particle.style.height = particle.style.width;
-            container.appendChild(particle);
-        }
-    }
-    createParticles();
 
 document.addEventListener('DOMContentLoaded', () => {
     const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
@@ -326,19 +302,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainTitle = document.getElementById('main-title');
     const welfareBtn = document.getElementById('welfare-btn');
     
-    // Theme toggle setup
-    const themeToggle = document.getElementById('theme-toggle-checkbox');
-    const themeText = document.getElementById('theme-text');
-    function setTheme(isLight) {
-        document.body.classList.toggle('light-theme', isLight);
-        themeToggle.checked = isLight;
-        themeText.textContent = isLight ? '切换为暗色模式' : '切换为亮色模式';
-        localStorage.setItem('theme', isLight ? 'light' : 'dark');
-    }
-    const savedTheme = localStorage.getItem('theme');
-    setTheme((savedTheme === 'light') ? true : false);
-    themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
-
     loginBtn.addEventListener('click', () => loginModal.classList.add('visible'));
     loginConfirmBtn.addEventListener('click', handleLoginOrRegister);
     logoutBtn.addEventListener('click', handleLogout);

@@ -3,375 +3,310 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS6 - 选手数据汇总</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
+    <title>HWVCTS — 数据中心</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/theme.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/layout.js"></script>
     <style>
-        :root {
-            --primary-color: #ff4655;
-            --bg-color: #0a0a0f;
-            --bg-gradient-mid: #1a0a0a;
-            --text-color: #fff;
-            --card-bg-color: rgba(21, 21, 32, 0.85);
-            --header-bg-color: transparent;
-            --border-color: rgba(255, 70, 85, 0.2);
-            --border-highlight: rgba(255, 70, 85, 0.5);
-            --shadow-color: rgba(0,0,0,0.5);
-            --control-height: 42px;
-            --text-muted: rgba(255, 255, 255, 0.5);
+        .tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+        .tab-btn {
+            padding: 10px 16px; background: none; border: none;
+            border-bottom: 2px solid transparent; margin-bottom: -1px;
+            color: var(--ash); font-size: 14px; font-weight: 500; cursor: pointer;
+            transition: color .15s ease, border-color .15s ease;
         }
-        body.light-theme {
-            --primary-color: #e53935;
-            --bg-color: #f4f5f7;
-            --bg-gradient-mid: #e9ecef;
-            --text-color: #1c1e21;
-            --card-bg-color: rgba(255, 255, 255, 0.9);
-            --header-bg-color: transparent;
-            --border-color: rgba(229, 57, 53, 0.3);
-            --border-highlight: rgba(229, 57, 53, 0.6);
-            --shadow-color: rgba(229, 57, 53, 0.15);
-            --text-muted: rgba(0, 0, 0, 0.5);
-        }
-        body {
-            font-family: 'Noto Sans SC', sans-serif;
-            background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px 0;
-            line-height: 1.6;
-            transition: background 0.3s, color 0.3s;
-            min-height: 100vh;
-            position: relative;
-        }
+        .tab-btn:hover { color: var(--pure-white); }
+        .tab-btn.active { color: var(--pure-white); border-bottom-color: var(--coral-pulse); }
 
-        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255, 70, 85, 0.6); border-radius: 50%; animation: float linear infinite; }
-        body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
-        @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
+        /* stats table */
+        .table-card { background: var(--ink); border-radius: var(--r-card); box-shadow: var(--key-shadow); overflow: hidden; }
+        .table-container { max-height: 72vh; overflow: auto; }
+        .table-container::-webkit-scrollbar { width: 8px; height: 8px; }
+        .table-container::-webkit-scrollbar-thumb { background: var(--graphite); border-radius: 4px; }
 
-        .container { width: 95%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
-        
-        .main-header-block {
-            background-color: var(--header-bg-color);
-            padding: 25px; text-align: center; margin-bottom: 40px; position: relative;
-        }
-        .title-badge {
-            display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15);
-            border: 1px solid var(--border-highlight); border-radius: 20px;
-            font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase;
-        }
-        body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
-        .main-header-block h1 { 
-            font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0;
-            background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); 
-        }
-        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
-        
-        .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 35px; }
-        .filter-group { 
-            background-color: var(--card-bg-color); padding: 5px; 
-            border: 1px solid var(--border-color); border-radius: 6px;
-            display: inline-flex; height: var(--control-height); align-items: center;
-        }
-        .filter-group button { 
-            padding: 0 20px; border: none; background-color: transparent; 
-            color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; 
-            font-size: 14px; height: 100%; transition: all 0.3s ease; font-weight: 500;
-        }
-        .filter-group button:hover { opacity: 1; color: var(--primary-color); }
-        .filter-group button.active { background-color: rgba(255, 70, 85, 0.15); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
-        body.light-theme .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
-
-        select#team-filter {
-            height: var(--control-height); padding: 0 15px; border-radius: 6px; font-family: 'Noto Sans SC', sans-serif; font-weight: 500;
-            border: 1px solid var(--border-color); background-color: var(--card-bg-color); color: var(--text-color); outline: none;
-        }
-        select#team-filter:focus { border-color: var(--primary-color); }
-        
-        .nav-button { 
-            height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; justify-content: center;
-            border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; 
-            background: rgba(255, 70, 85, 0.08); border-radius: 6px; font-size: 14px; font-weight: 600;
-            transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer;
-        }
-        body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
-        .nav-button:hover:not(:disabled) { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2); }
-        body.light-theme .nav-button:hover:not(:disabled) { color: var(--primary-color); }
-        .nav-button:disabled { border-color: var(--text-muted); color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
-
-        #compare-btn { background-color: rgba(255, 70, 85, 0.15); border-color: var(--primary-color); }
-
-        main {
-            background-color: var(--card-bg-color); backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color); border-radius: 8px; padding: 25px;
-            box-shadow: 0 10px 40px var(--shadow-color); position: relative;
-        }
-        main::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
-        
-        .table-container { max-height: 75vh; overflow: auto; padding-right: 5px; }
-        .table-container::-webkit-scrollbar { width: 6px; height: 6px; }
-        .table-container::-webkit-scrollbar-track { background: transparent; }
-        .table-container::-webkit-scrollbar-thumb { background: rgba(255, 70, 85, 0.5); border-radius: 4px; }
-
-        #stats-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+        #stats-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
         #stats-table thead th {
             position: sticky; top: 0; z-index: 1;
-            background-color: var(--card-bg-color); color: var(--text-muted); font-weight: 700;
-            border-bottom: 1px solid var(--border-highlight); padding: 15px 10px; backdrop-filter: blur(10px);
+            background: var(--obsidian);
+            font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+            letter-spacing: .05em; text-transform: uppercase; color: var(--smoke);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 10px; text-align: left; white-space: nowrap;
         }
-        #stats-table th, #stats-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; transition: all 0.3s ease;}
-        body.light-theme #stats-table th, body.light-theme #stats-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
-        #stats-table tbody tr:hover { background-color: rgba(255, 70, 85, 0.05); }
-        /* 修改点：删除了可排序表头的 position: relative，防止其覆盖 th 原本的 sticky 定位 */
-        #stats-table th[data-sort-key] { cursor: pointer; transition: color 0.3s; }
-        #stats-table th[data-sort-key]:hover { color: var(--primary-color); }
-        #stats-table td a { color: var(--primary-color); text-decoration: none; font-weight: 700; transition: all 0.2s; }
-        #stats-table td a:hover { text-decoration: underline; text-shadow: 0 0 8px rgba(255, 70, 85, 0.5); }
-        
-        .sort-indicator { font-size: 10px; margin-left: 5px; color: var(--primary-color); opacity: 0; display: inline-block; width: 1em; transition: opacity 0.3s; }
+        #stats-table th, #stats-table td {
+            padding: 11px 10px; text-align: left;
+            border-bottom: 1px solid rgba(54,55,57,.45); white-space: nowrap;
+        }
+        #stats-table tbody tr { transition: background .12s ease; }
+        #stats-table tbody tr:hover { background: rgba(255,255,255,.03); }
+        #stats-table th[data-sort-key] { cursor: pointer; }
+        #stats-table th[data-sort-key]:hover { color: var(--mist); }
+        #stats-table td a { color: var(--mist); text-decoration: none; font-family: var(--font-mono); font-size: 12px; }
+        #stats-table td a:hover { color: var(--pure-white); text-decoration: underline; }
+        .sort-indicator { font-size: 9px; margin-left: 5px; color: var(--coral-pulse); opacity: 0; display: inline-block; }
         th.sorted .sort-indicator { opacity: 1; }
 
-        .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
-        #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
-        .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
-        .theme-switch input { display:none; }
-        .slider-theme { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
-        body.light-theme .slider-theme { background-color: rgba(0,0,0,0.1); }
-        .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
-        input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
-        input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
-
-        /* 对比复选框默认隐藏，激活后显示 */
-        #stats-table th.checkbox-cell, #stats-table td.checkbox-cell { display: none; text-align: center; width: 50px; }
+        #stats-table th.checkbox-cell, #stats-table td.checkbox-cell { display: none; text-align: center; width: 44px; }
         #stats-table.compare-mode th.checkbox-cell, #stats-table.compare-mode td.checkbox-cell { display: table-cell; }
-        .compare-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary-color); }
+        .compare-checkbox { width: 15px; height: 15px; cursor: pointer; accent-color: var(--coral-pulse); }
+
+        /* compare pane */
+        #compare-pane .chart-wrap { width: 100%; max-width: 560px; margin: 0 auto; position: relative; }
+        #compare-table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: center; }
+        #compare-table th, #compare-table td { padding: 13px 10px; border-bottom: 1px solid rgba(54,55,57,.5); }
+        #compare-table thead th { background: var(--obsidian); color: var(--ash); border-bottom: 1px solid var(--border); }
+        #compare-table .stat-label {
+            font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em;
+            color: var(--smoke); text-align: right; padding-right: 18px !important; width: 150px;
+            background: rgba(255,255,255,.02); text-transform: uppercase;
+        }
+        #compare-table .player-name-header { font-family: var(--font-mono); font-size: 15px; font-weight: 500; color: var(--pure-white); }
+        #compare-table .player-group-label { font-size: 11px; color: var(--smoke); display: block; margin-top: 4px; }
+        #compare-table .highlight-best { color: var(--pure-white); font-weight: 600; }
+        #compare-table .highlight-best::after { content: ' ★'; font-size: 11px; color: var(--coral-pulse); }
+
+        .selected-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
     </style>
 </head>
-<body>
-    <div class="particles" id="particles"></div>
-    <div class="container">
-        <div class="main-header-block">
-            <div class="theme-switch-wrapper">
-                <span id="theme-text"></span>
-                <label class="theme-switch">
-                    <input type="checkbox" id="theme-toggle-checkbox">
-                    <span class="slider-theme"></span>
-                </label>
-            </div>
-            <div class="title-badge">VALORANT TOURNAMENT</div>
-            <h1>选手数据汇总</h1>
-            <div class="controls-container">
-                <div class="filter-group" id="season-filter-buttons">
-                    <button class="active" data-season="s6">S6</button>
-                    <button data-season="s5">S5</button>
+<body data-page="summary">
+    <main class="page">
+        <div class="container">
+            <header class="page-header flex-between">
+                <div>
+                    <span class="eyebrow">Stats</span>
+                    <h1 class="page-title">数据中心</h1>
+                    <p class="page-sub">选手生涯数据汇总与多维对比</p>
                 </div>
-                <div class="filter-group" id="group-filter-buttons">
-                    <button class="active" data-group="all">所有组</button>
-                    <button data-group="传奇组">传奇组</button>
-                    <button data-group="中坚组">中坚组</button>
-                    <button data-group="挑战组">挑战组</button>
+                <div class="filter-bar" style="margin:0;">
+                    <div class="seg" id="season-filter-buttons">
+                        <button class="active" data-season="s6" type="button">S6</button>
+                        <button data-season="s5" type="button">S5</button>
+                    </div>
+                    <div class="seg" id="group-filter-buttons">
+                        <button class="active" data-group="all" type="button">所有组</button>
+                        <button data-group="传奇组" type="button">传奇组</button>
+                        <button data-group="中坚组" type="button">中坚组</button>
+                        <button data-group="挑战组" type="button">挑战组</button>
+                    </div>
+                    <select class="select" id="team-filter" style="width:auto; min-width:130px; height:36px; padding-top:0; padding-bottom:0;">
+                        <option value="all">所有队伍</option>
+                    </select>
                 </div>
-                <select id="team-filter">
-                    <option value="all">所有队伍</option>
-                </select>
-                <button id="compare-btn" class="nav-button">选 手 数 据 对 比</button>
-                <a href="home.html" class="nav-button">个 人 主 页</a>
-                <a href="events.html" class="nav-button">活 动 大 厅</a>
-                <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
-                <a href="schedule.html" class="nav-button" target="_blank">查 看 赛 程</a>
-            </div>
-        </div>
+            </header>
 
-        <main>
-            <div class="table-container">
-                <table id="stats-table">
-                    <thead>
-                        <tr>
-                            <th class="checkbox-cell">对比</th>
-                            <th data-sort-key="id">ID<span class="sort-indicator"></span></th>
-                            <th data-sort-key="name">选手姓名<span class="sort-indicator"></span></th>
-                            <th data-sort-key="group">组别<span class="sort-indicator"></span></th>
-                            <th data-sort-key="team">队伍<span class="sort-indicator"></span></th>
-                            <th>最常用角色</th>
-                            <th data-sort-key="matches_played">出场<span class="sort-indicator"></span></th>
-                            <th data-sort-key="avg_acs">ACS<span class="sort-indicator"></span></th>
-                            <th data-sort-key="kda">KDA<span class="sort-indicator"></span></th>
-                            <th data-sort-key="map_k">每局击杀<span class="sort-indicator"></span></th>
-                            <th data-sort-key="map_d">每局死亡<span class="sort-indicator"></span></th>
-                            <th data-sort-key="map_a">每局助攻<span class="sort-indicator"></span></th>
-                            <th data-sort-key="round_k">每回合击杀<span class="sort-indicator"></span></th>
-                            <th data-sort-key="round_d">每回合死亡<span class="sort-indicator"></span></th>
-                            <th data-sort-key="round_a">每回合助攻<span class="sort-indicator"></span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="stats-table-body"></tbody>
-                </table>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="table" type="button">数据汇总</button>
+                <button class="tab-btn" data-tab="compare" type="button">多维对比</button>
             </div>
-        </main>
-    </div>
+
+            <!-- Tab 1: stats table -->
+            <section id="table-pane">
+                <div class="filter-bar">
+                    <button id="compare-btn" class="btn btn-ghost" type="button">选择选手对比</button>
+                    <span class="smoke" style="font-size:12px;">勾选 2–6 名选手后点击「生成对比」</span>
+                </div>
+                <div class="table-card">
+                    <div class="table-container">
+                        <table id="stats-table">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell">对比</th>
+                                    <th data-sort-key="id">ID<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="name">选手姓名<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="group">组别<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="team">队伍<span class="sort-indicator"></span></th>
+                                    <th>最常用角色</th>
+                                    <th data-sort-key="matches_played">出场<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="avg_acs">ACS<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="kda">KDA<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="map_k">每局击杀<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="map_d">每局死亡<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="map_a">每局助攻<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="round_k">每回合击杀<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="round_d">每回合死亡<span class="sort-indicator"></span></th>
+                                    <th data-sort-key="round_a">每回合助攻<span class="sort-indicator"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="stats-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 2: multi-dimension compare (merged from compare.html) -->
+            <section id="compare-pane" hidden>
+                <div class="selected-chips" id="compare-chips"></div>
+                <div class="table-card" style="margin-bottom:16px;">
+                    <div style="padding:24px;">
+                        <div class="flex-between" style="margin-bottom:14px;">
+                            <h2 style="margin:0; font-size:16px; font-weight:500; color:var(--pure-white);">生涯能力图（同组百分位）</h2>
+                            <span class="eyebrow">Radar</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="compare-radar-chart"></canvas></div>
+                    </div>
+                </div>
+                <div class="table-card">
+                    <div style="padding:24px;">
+                        <div class="flex-between" style="margin-bottom:14px;">
+                            <h2 style="margin:0; font-size:16px; font-weight:500; color:var(--pure-white);">生涯数据详情</h2>
+                            <span class="eyebrow">Detail</span>
+                        </div>
+                        <div class="table-wrap">
+                            <table id="compare-table">
+                                <thead id="compare-table-head"></thead>
+                                <tbody id="compare-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div id="loading-msg" class="empty-state" style="display:none;"></div>
+            </section>
+        </div>
+    </main>
 
     <script>
-        function createParticles() {
-            const container = document.getElementById('particles');
-            for (let i = 0; i < 50; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.animationDuration = (Math.random() * 8 + 4) + 's';
-                particle.style.animationDelay = Math.random() * 5 + 's';
-                particle.style.width = (Math.random() * 3 + 1) + 'px';
-                particle.style.height = particle.style.width;
-                container.appendChild(particle);
+        document.addEventListener('DOMContentLoaded', function () {
+            var SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
+            var SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
+            var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+            var seasonFilterButtons = document.getElementById('season-filter-buttons');
+            var groupFilterButtons = document.getElementById('group-filter-buttons');
+            var teamFilter = document.getElementById('team-filter');
+            var tableHead = document.querySelector('#stats-table thead');
+            var tableBody = document.getElementById('stats-table-body');
+            var compareBtn = document.getElementById('compare-btn');
+            var statsTable = document.getElementById('stats-table');
+
+            var allRegisteredPlayers = [];
+            var processedMatchStats = {};
+            var currentSort = { key: 'avg_acs', order: 'desc' };
+            var selectedForCompare = [];
+            var isCompareMode = false;
+
+            var urlParams = new URLSearchParams(window.location.search);
+            var currentSeason = urlParams.get('season') || 's6';
+
+            function getTableName(baseName) { return currentSeason + '_' + baseName; }
+
+            /* ================= Tab switching ================= */
+            var tabBtns = document.querySelectorAll('.tab-btn');
+            var tablePane = document.getElementById('table-pane');
+            var comparePane = document.getElementById('compare-pane');
+
+            function switchTab(name) {
+                tabBtns.forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
+                tablePane.hidden = name !== 'table';
+                comparePane.hidden = name !== 'compare';
+                if (name === 'compare') renderCompareTab();
+                location.hash = name === 'compare' ? 'compare' : '';
             }
-        }
-        createParticles();
+            tabBtns.forEach(function (b) {
+                b.addEventListener('click', function () { switchTab(b.dataset.tab); });
+            });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
-            const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
-            const { createClient } = supabase;
-            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-            const seasonFilterButtons = document.getElementById('season-filter-buttons');
-            const groupFilterButtons = document.getElementById('group-filter-buttons');
-            const teamFilter = document.getElementById('team-filter');
-            const tableHead = document.querySelector('#stats-table thead');
-            const tableBody = document.getElementById('stats-table-body');
-            const themeToggle = document.getElementById('theme-toggle-checkbox');
-            const themeText = document.getElementById('theme-text');
-            const compareBtn = document.getElementById('compare-btn');
-            const statsTable = document.getElementById('stats-table');
-            
-            let allRegisteredPlayers = [];
-            let processedMatchStats = {};
-            let currentSort = { key: 'avg_acs', order: 'desc' };
-            let selectedForCompare = []; // 存储对比选手 {name, group}
-            let isCompareMode = false; // 比较模式状态
-            // 从 URL 获取赛季参数，默认为 s6
-            const urlParams = new URLSearchParams(window.location.search);
-            let currentSeason = urlParams.get('season') || 's6';
-
-            function getTableName(baseName) {
-                return `${currentSeason}_${baseName}`;
-            }
-
-            function setTheme(isLight) {
-                document.body.classList.toggle('light-theme', isLight);
-                themeToggle.checked = isLight;
-                themeText.textContent = isLight ? '切换为暗色模式' : '切换为亮色模式';
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-            }
-            const savedTheme = localStorage.getItem('theme');
-            setTheme((savedTheme === 'light') ? true : false);
-            themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
-
-            async function initializePlayerIds() {
+            /* ================= Data loading ================= */
+            function initializePlayerIds() {
                 try {
-                    const { data: statsData, error: statsError } = await supabaseClient.from(getTableName('player_stats')).select('player_name, game_id, pre_group');
-                    if (statsError) throw statsError;
+                    return supabaseClient.from(getTableName('player_stats')).select('player_name, game_id, pre_group')
+                        .then(function (statsRes) {
+                            if (statsRes.error) throw statsRes.error;
+                            return supabaseClient.from(getTableName('player_ids')).select('name, team, "group"')
+                                .then(function (idsRes) {
+                                    if (idsRes.error && idsRes.error.code !== 'PGRST116') throw idsRes.error;
+                                    var statsData = statsRes.data || [];
+                                    var idsData = idsRes.data || [];
 
-                    const { data: idsData, error: idsError } = await supabaseClient.from(getTableName('player_ids')).select('name, team, "group"');
-                    if (idsError && idsError.code !== 'PGRST116') throw idsError;
+                                    var existingPlayersMap = new Map();
+                                    idsData.forEach(function (p) { existingPlayersMap.set(p.name, p); });
 
-                    const existingPlayersMap = new Map();
-                    (idsData || []).forEach(p => existingPlayersMap.set(p.name, p));
-                    
-                    const statsNamesSet = new Set((statsData || []).map(p => p.player_name).filter(Boolean));
+                                    var statsNamesSet = new Set(statsData.map(function (p) { return p.player_name; }).filter(Boolean));
 
-                    const recordsToInsert = [];
-                    const recordsToUpdate = [];
-                    const namesToDelete = [];
+                                    var recordsToInsert = [], recordsToUpdate = [], namesToDelete = [];
 
-                    (statsData || []).forEach(statsPlayer => {
-                        if (!statsPlayer.player_name) return;
+                                    statsData.forEach(function (statsPlayer) {
+                                        if (!statsPlayer.player_name) return;
+                                        var correctedGroup = statsPlayer.pre_group;
+                                        if (correctedGroup === '中间组') correctedGroup = '中坚组';
+                                        var existingPlayer = existingPlayersMap.get(statsPlayer.player_name);
+                                        if (!existingPlayer) {
+                                            recordsToInsert.push({ name: statsPlayer.player_name, id: statsPlayer.game_id || '未填写ID', group: correctedGroup || null });
+                                        } else {
+                                            var hasNoTeam = !existingPlayer.team || existingPlayer.team.trim() === '';
+                                            var groupChanged = existingPlayer.group !== correctedGroup;
+                                            if (hasNoTeam && groupChanged) recordsToUpdate.push({ name: statsPlayer.player_name, group: correctedGroup || null });
+                                        }
+                                    });
 
-                        let correctedGroup = statsPlayer.pre_group;
-                        if (correctedGroup === '中间组') correctedGroup = '中坚组'; 
+                                    idsData.forEach(function (existingPlayer) {
+                                        var hasNoTeam = !existingPlayer.team || existingPlayer.team.trim() === '';
+                                        if (!statsNamesSet.has(existingPlayer.name) && hasNoTeam) namesToDelete.push(existingPlayer.name);
+                                    });
 
-                        const existingPlayer = existingPlayersMap.get(statsPlayer.player_name);
-
-                        if (!existingPlayer) {
-                            recordsToInsert.push({ name: statsPlayer.player_name, id: statsPlayer.game_id || '未填写ID', group: correctedGroup || null });
-                        } else {
-                            const hasNoTeam = !existingPlayer.team || existingPlayer.team.trim() === '';
-                            const groupChanged = existingPlayer.group !== correctedGroup;
-                            if (hasNoTeam && groupChanged) {
-                                recordsToUpdate.push({ name: statsPlayer.player_name, group: correctedGroup || null });
-                            }
-                        }
-                    });
-
-                    (idsData || []).forEach(existingPlayer => {
-                        const hasNoTeam = !existingPlayer.team || existingPlayer.team.trim() === '';
-                        if (!statsNamesSet.has(existingPlayer.name) && hasNoTeam) {
-                            namesToDelete.push(existingPlayer.name);
-                        }
-                    });
-
-                    let needReload = false;
-
-                    if (recordsToInsert.length > 0) {
-                        const { error } = await supabaseClient.from(playerIdsTable).insert(recordsToInsert);
-                        if (!error) needReload = true;
-                    }
-
-                    if (recordsToUpdate.length > 0) {
-                        const updatePromises = recordsToUpdate.map(p => supabaseClient.from(playerIdsTable).update({ group: p.group }).eq('name', p.name));
-                        await Promise.all(updatePromises);
-                        needReload = true;
-                    }
-
-                    if (namesToDelete.length > 0) {
-                        const { error } = await supabaseClient.from(playerIdsTable).delete().in('name', namesToDelete);
-                        if (!error) needReload = true;
-                    }
-
-                    if (needReload) window.location.reload(); 
-
-                } catch (error) { console.error("选手初始化检测时发生错误:", error); }
-            }
-
-            async function loadAndProcessData() {
-                tableBody.innerHTML = '<tr><td colspan="15" style="color: var(--text-muted); text-align: center;">正在同步报名名单与组别，请稍候...</td></tr>';
-                await initializePlayerIds();
-
-                try {
-                    const [{ data: players, error: playersError }, { data: matches, error: matchesError }] = await Promise.all([
-                        supabaseClient.from(getTableName('player_ids')).select('id, name, team, "group"'),
-                        supabaseClient.from(getTableName('matches')).select('*')
-                    ]);
-
-                    if (playersError || matchesError) throw playersError || matchesError;
-                    
-                    allRegisteredPlayers = players;
-                    processedMatchStats = processMatchData(matches);
-                    
-                    updateTeamFilter();
-                    filterAndDisplayData();
-
+                                    var needReload = false;
+                                    var ops = [];
+                                    if (recordsToInsert.length > 0) {
+                                        ops.push(supabaseClient.from(getTableName('player_ids')).insert(recordsToInsert).then(function (r) { if (!r.error) needReload = true; }));
+                                    }
+                                    recordsToUpdate.forEach(function (p) {
+                                        ops.push(supabaseClient.from(getTableName('player_ids')).update({ group: p.group }).eq('name', p.name).then(function () { needReload = true; }));
+                                    });
+                                    if (namesToDelete.length > 0) {
+                                        ops.push(supabaseClient.from(getTableName('player_ids')).delete().in('name', namesToDelete).then(function (r) { if (!r.error) needReload = true; }));
+                                    }
+                                    return Promise.all(ops).then(function () {
+                                        if (needReload) window.location.reload();
+                                    });
+                                });
+                        });
                 } catch (error) {
-                    tableBody.innerHTML = `<tr><td colspan="15" style="color:var(--primary-color); text-align: center;">数据加载失败: ${error.message}</td></tr>`;
+                    console.error('选手初始化检测时发生错误:', error);
+                    return Promise.resolve();
                 }
             }
 
+            function loadAndProcessData() {
+                tableBody.innerHTML = '<tr><td colspan="15" style="color: var(--smoke); text-align: center;">正在同步报名名单与组别，请稍候...</td></tr>';
+                initializePlayerIds().then(function () {
+                    return Promise.all([
+                        supabaseClient.from(getTableName('player_ids')).select('id, name, team, "group"'),
+                        supabaseClient.from(getTableName('matches')).select('*')
+                    ]);
+                }).then(function (rs) {
+                    var playersError = rs[0].error, matchesError = rs[1].error;
+                    if (playersError || matchesError) throw playersError || matchesError;
+
+                    allRegisteredPlayers = rs[0].data || [];
+                    processedMatchStats = processMatchData(rs[1].data || []);
+
+                    updateTeamFilter();
+                    filterAndDisplayData();
+                }).catch(function (error) {
+                    tableBody.innerHTML = '<tr><td colspan="15" style="color: var(--coral-pulse); text-align: center;">数据加载失败: ' + (error.message || error) + '</td></tr>';
+                });
+            }
+
             function processMatchData(matches) {
-                const playerData = {};
-                 matches.forEach(match => {
-                    const score = String(match['score']).split(/[/:：]/).map(Number);
-                    const totalRounds = (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1])) ? (score[0] + score[1]) : 0;
-                    ['team_a', 'team_b'].forEach(teamKey => {
-                        for (let p = 1; p <= 5; p++) {
-                            const playerId = match[`${teamKey}_player${p}_id`];
-                            const playerDataStr = match[`${teamKey}_player${p}_data`];
-                            const playerCh = match[`${teamKey}_player${p}_ch`];
+                var playerData = {};
+                matches.forEach(function (match) {
+                    var score = String(match['score']).split(/[/:：]/).map(Number);
+                    var totalRounds = (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1])) ? (score[0] + score[1]) : 0;
+                    ['team_a', 'team_b'].forEach(function (teamKey) {
+                        for (var p = 1; p <= 5; p++) {
+                            var playerId = match[teamKey + '_player' + p + '_id'];
+                            var playerDataStr = match[teamKey + '_player' + p + '_data'];
+                            var playerCh = match[teamKey + '_player' + p + '_ch'];
                             if (!playerId || !playerDataStr) continue;
 
-                            const stats = String(playerDataStr).split('/').map(Number);
+                            var stats = String(playerDataStr).split('/').map(Number);
                             if (stats.length !== 4 || stats.some(isNaN)) continue;
-                            
-                            const uniquePlayerKey = `${playerId}::${match.group}`;
+
+                            var uniquePlayerKey = playerId + '::' + match.group;
                             if (!playerData[uniquePlayerKey]) {
                                 playerData[uniquePlayerKey] = {
                                     id: playerId, group: match.group,
@@ -379,16 +314,21 @@
                                     by_character: {}
                                 };
                             }
-                            
-                            const p_stats = playerData[uniquePlayerKey].total_stats;
+
+                            var p_stats = playerData[uniquePlayerKey].total_stats;
                             if (stats[0] > 0) { p_stats.acs += stats[0]; p_stats.acsMatchCount++; }
-                            p_stats.kills += stats[1]; p_stats.deaths += stats[2]; p_stats.assists += stats[3];
-                            p_stats.matchCount++; p_stats.totalRounds += totalRounds;
+                            p_stats.kills += stats[1];
+                            p_stats.deaths += stats[2];
+                            p_stats.assists += stats[3];
+                            p_stats.matchCount++;
+                            p_stats.totalRounds += totalRounds;
 
                             if (playerCh) {
-                                const charName = String(playerCh).trim();
-                                if (!playerData[uniquePlayerKey].by_character[charName]) { playerData[uniquePlayerKey].by_character[charName] = { matchCount: 0 }; }
-                                playerData[uniquePlayerKey].by_character[charName].matchCount++; 
+                                var charName = String(playerCh).trim();
+                                if (!playerData[uniquePlayerKey].by_character[charName]) {
+                                    playerData[uniquePlayerKey].by_character[charName] = { matchCount: 0 };
+                                }
+                                playerData[uniquePlayerKey].by_character[charName].matchCount++;
                             }
                         }
                     });
@@ -397,27 +337,29 @@
             }
 
             function updateTeamFilter() {
-                const selectedGroup = groupFilterButtons.querySelector('.active').dataset.group;
-                const teams = new Set();
-                allRegisteredPlayers.forEach(player => {
-                    if (player.team && (selectedGroup === 'all' || player.group === selectedGroup)) { teams.add(player.team); }
+                var selectedGroup = groupFilterButtons.querySelector('.active').dataset.group;
+                var teams = new Set();
+                allRegisteredPlayers.forEach(function (player) {
+                    if (player.team && (selectedGroup === 'all' || player.group === selectedGroup)) teams.add(player.team);
                 });
-                const currentTeam = teamFilter.value;
+                var currentTeam = teamFilter.value;
                 teamFilter.innerHTML = '<option value="all">所有队伍</option>';
-                Array.from(teams).sort().forEach(team => {
-                    const option = document.createElement('option'); option.value = team; option.textContent = team; teamFilter.appendChild(option);
+                Array.from(teams).sort().forEach(function (team) {
+                    var option = document.createElement('option');
+                    option.value = team; option.textContent = team;
+                    teamFilter.appendChild(option);
                 });
                 teamFilter.value = teams.has(currentTeam) ? currentTeam : 'all';
             }
 
             function filterAndDisplayData() {
-                const selectedGroup = groupFilterButtons.querySelector('.active').dataset.group;
-                const selectedTeam = teamFilter.value;
-                const combinedPlayerData = allRegisteredPlayers.map(player => {
-                    const uniquePlayerKey = `${player.id}::${player.group}`;
-                    const matchStats = processedMatchStats[uniquePlayerKey];
+                var selectedGroup = groupFilterButtons.querySelector('.active').dataset.group;
+                var selectedTeam = teamFilter.value;
+                var combinedPlayerData = allRegisteredPlayers.map(function (player) {
+                    var uniquePlayerKey = player.id + '::' + player.group;
+                    var matchStats = processedMatchStats[uniquePlayerKey];
                     if (matchStats) {
-                        const stats = matchStats.total_stats;
+                        var stats = matchStats.total_stats;
                         return {
                             id: player.id, name: player.name, group: player.group, team: player.team,
                             matches_played: stats.matchCount,
@@ -429,132 +371,132 @@
                             round_k: stats.totalRounds > 0 ? stats.kills / stats.totalRounds : 0,
                             round_d: stats.totalRounds > 0 ? stats.deaths / stats.totalRounds : 0,
                             round_a: stats.totalRounds > 0 ? stats.assists / stats.totalRounds : 0,
-                            topChars: Object.entries(matchStats.by_character).sort(([,a],[,b]) => b.matchCount - a.matchCount).slice(0, 3).map(([charName]) => charName).join('、') || 'N/A',
+                            topChars: Object.entries(matchStats.by_character).sort(function (a, b) { return b[1].matchCount - a[1].matchCount; }).slice(0, 3).map(function (e) { return e[0]; }).join('、') || 'N/A'
                         };
-                    } else {
-                        return { id: player.id, name: player.name, group: player.group, team: player.team, matches_played: 0, avg_acs: 0, kda: 0, map_k: 0, map_d: 0, map_a: 0, round_k: 0, round_d: 0, round_a: 0, topChars: '—' };
                     }
+                    return { id: player.id, name: player.name, group: player.group, team: player.team, matches_played: 0, avg_acs: 0, kda: 0, map_k: 0, map_d: 0, map_a: 0, round_k: 0, round_d: 0, round_a: 0, topChars: '—' };
                 });
-                const filteredData = combinedPlayerData.filter(player => {
-                    const groupMatch = selectedGroup === 'all' || player.group === selectedGroup;
-                    const teamMatch = selectedTeam === 'all' || player.team === selectedTeam;
+                var filteredData = combinedPlayerData.filter(function (player) {
+                    var groupMatch = selectedGroup === 'all' || player.group === selectedGroup;
+                    var teamMatch = selectedTeam === 'all' || player.team === selectedTeam;
                     return groupMatch && teamMatch;
                 });
                 updateTable(filteredData);
             }
 
-            function formatStat(value, precision = 2) { if (value === 0 || value === null || value === undefined) return '—'; return value.toFixed(precision); }
+            function formatStat(value, precision) {
+                if (value === 0 || value === null || value === undefined) return '—';
+                return value.toFixed(precision == null ? 2 : precision);
+            }
 
             function updateSortIndicators() {
-                document.querySelectorAll('#stats-table th').forEach(th => {
+                document.querySelectorAll('#stats-table th').forEach(function (th) {
                     th.classList.remove('sorted');
-                    const indicator = th.querySelector('.sort-indicator');
+                    var indicator = th.querySelector('.sort-indicator');
                     if (indicator) indicator.textContent = '';
                 });
-                const activeTh = document.querySelector(`#stats-table th[data-sort-key="${currentSort.key}"]`);
+                var activeTh = document.querySelector('#stats-table th[data-sort-key="' + currentSort.key + '"]');
                 if (activeTh) {
                     activeTh.classList.add('sorted');
-                    const indicator = activeTh.querySelector('.sort-indicator');
+                    var indicator = activeTh.querySelector('.sort-indicator');
                     if (indicator) indicator.textContent = currentSort.order === 'desc' ? ' ▼' : ' ▲';
                 }
             }
-            
+
             function updateTable(data) {
                 tableBody.innerHTML = '';
-                data.sort((a, b) => {
-                    // 没有数据的选手永远垫底
-                    const aHasData = a.matches_played > 0;
-                    const bHasData = b.matches_played > 0;
-                    
+                data.sort(function (a, b) {
+                    var aHasData = a.matches_played > 0;
+                    var bHasData = b.matches_played > 0;
                     if (aHasData && !bHasData) return -1;
                     if (!aHasData && bHasData) return 1;
                     if (!aHasData && !bHasData) return 0;
 
-                    const aVal = a[currentSort.key]; const bVal = b[currentSort.key];
-                    const isDeathStat = currentSort.key.includes('_d');
-                    let sortOrder = currentSort.order;
-                    // 对于死亡数据，逻辑上应以死亡数更少为排名优先
+                    var aVal = a[currentSort.key], bVal = b[currentSort.key];
+                    var isDeathStat = currentSort.key.includes('_d');
+                    var sortOrder = currentSort.order;
                     if (isDeathStat) sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
-                    
+
                     if (typeof aVal === 'string') return sortOrder === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
                     return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
                 });
-                
+
                 updateSortIndicators();
                 if (data.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="15" style="text-align:center; color: var(--text-muted);">没有符合条件的选手。</td></tr>'; return;
+                    tableBody.innerHTML = '<tr><td colspan="15" style="text-align:center; color: var(--smoke);">没有符合条件的选手。</td></tr>';
+                    return;
                 }
-                data.forEach(player => {
-                    const row = document.createElement('tr');
-                    const groupParam = player.group ? encodeURIComponent(player.group) : encodeURIComponent('未分组');
-                    const isChecked = selectedForCompare.some(p => p.name === player.name && p.group === player.group);
-                    row.innerHTML = `
-                        <td class="checkbox-cell"><input type="checkbox" class="compare-checkbox" data-name="${player.name}" data-group="${player.group || '未分组'}" ${isChecked ? 'checked' : ''}></td>
-                        <td><a href="player.html?name=${encodeURIComponent(player.name)}&group=${groupParam}&season=${currentSeason}" target="_blank">${player.id}</a></td>
-                        <td>${player.name || '—'}</td><td>${player.group || '—'}</td><td>${player.team || '—'}</td><td>${player.topChars}</td>
-                        <td>${player.matches_played > 0 ? player.matches_played : '—'}</td>
-                        <td style="color:var(--primary-color); font-weight:700;">${formatStat(player.avg_acs, 2)}</td>
-                        <td style="font-weight:700;">${formatStat(player.kda, 2)}</td>
-                        <td>${formatStat(player.map_k, 1)}</td><td>${formatStat(player.map_d, 1)}</td><td>${formatStat(player.map_a, 1)}</td>
-                        <td>${formatStat(player.round_k, 2)}</td><td>${formatStat(player.round_d, 2)}</td><td>${formatStat(player.round_a, 2)}</td>
-                    `;
+                data.forEach(function (player) {
+                    var row = document.createElement('tr');
+                    var groupParam = player.group ? encodeURIComponent(player.group) : encodeURIComponent('未分组');
+                    var isChecked = selectedForCompare.some(function (p) { return p.name === player.name && p.group === player.group; });
+                    row.innerHTML =
+                        '<td class="checkbox-cell"><input type="checkbox" class="compare-checkbox" data-name="' + escapeAttr(player.name) + '" data-group="' + escapeAttr(player.group || '未分组') + '"' + (isChecked ? ' checked' : '') + '></td>' +
+                        '<td><a href="player.html?name=' + encodeURIComponent(player.name) + '&group=' + groupParam + '&season=' + currentSeason + '" target="_blank">' + escapeHtml(player.id) + '</a></td>' +
+                        '<td>' + escapeHtml(player.name || '—') + '</td><td>' + escapeHtml(player.group || '—') + '</td><td>' + escapeHtml(player.team || '—') + '</td><td>' + escapeHtml(player.topChars) + '</td>' +
+                        '<td>' + (player.matches_played > 0 ? player.matches_played : '—') + '</td>' +
+                        '<td style="color:var(--pure-white); font-weight:600;">' + formatStat(player.avg_acs, 2) + '</td>' +
+                        '<td style="font-weight:600;">' + formatStat(player.kda, 2) + '</td>' +
+                        '<td>' + formatStat(player.map_k, 1) + '</td><td>' + formatStat(player.map_d, 1) + '</td><td>' + formatStat(player.map_a, 1) + '</td>' +
+                        '<td>' + formatStat(player.round_k, 2) + '</td><td>' + formatStat(player.round_d, 2) + '</td><td>' + formatStat(player.round_a, 2) + '</td>';
                     tableBody.appendChild(row);
                 });
             }
 
-            // 对比选择逻辑
-            tableBody.addEventListener('change', (e) => {
-                if (e.target.classList.contains('compare-checkbox')) {
-                    const cb = e.target;
-                    const name = cb.dataset.name;
-                    const group = cb.dataset.group;
-                    
-                    if (cb.checked) {
-                        if (selectedForCompare.length >= 6) {
-                            cb.checked = false;
-                            alert('最多只能选择6名选手进行对比！');
-                            return;
-                        }
-                        selectedForCompare.push({ name, group });
-                    } else {
-                        selectedForCompare = selectedForCompare.filter(p => !(p.name === name && p.group === group));
+            function escapeHtml(s) {
+                return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            }
+            function escapeAttr(s) { return escapeHtml(s); }
+
+            /* ================= Compare selection ================= */
+            tableBody.addEventListener('change', function (e) {
+                if (!e.target.classList.contains('compare-checkbox')) return;
+                var cb = e.target;
+                var name = cb.dataset.name;
+                var group = cb.dataset.group;
+
+                if (cb.checked) {
+                    if (selectedForCompare.length >= 6) {
+                        cb.checked = false;
+                        alert('最多只能选择 6 名选手进行对比！');
+                        return;
                     }
-                    
-                    compareBtn.textContent = `生 成 对 比 (${selectedForCompare.length}/6)`;
-                    compareBtn.disabled = selectedForCompare.length < 2; 
+                    selectedForCompare.push({ name: name, group: group });
+                } else {
+                    selectedForCompare = selectedForCompare.filter(function (p) { return !(p.name === name && p.group === group); });
                 }
+
+                compareBtn.textContent = isCompareMode ? ('生成对比 (' + selectedForCompare.length + '/6)') : '选择选手对比';
+                compareBtn.disabled = isCompareMode && selectedForCompare.length < 2;
             });
 
-            // 比较按钮点击逻辑 (控制模式切换与跳转)
-            compareBtn.addEventListener('click', () => {
+            compareBtn.addEventListener('click', function () {
                 if (!isCompareMode) {
-                    // 进入比较模式
                     isCompareMode = true;
                     statsTable.classList.add('compare-mode');
-                    selectedForCompare = []; // 清空之前的选中状态
-                    document.querySelectorAll('.compare-checkbox').forEach(cb => cb.checked = false);
-                    compareBtn.textContent = `生 成 对 比 (0/6)`;
-                    compareBtn.disabled = true; // 需选中两人以上才可跳转
+                    selectedForCompare = [];
+                    document.querySelectorAll('.compare-checkbox').forEach(function (cb) { cb.checked = false; });
+                    compareBtn.textContent = '生成对比 (0/6)';
+                    compareBtn.disabled = true;
                 } else {
-                    // 执行跳转
                     if (selectedForCompare.length < 2) return;
-                    const queryParams = selectedForCompare.map(p => `p=${encodeURIComponent(p.name)}|${encodeURIComponent(p.group)}`).join('&');
-                    window.open(`compare.html?${queryParams}`, '_blank');
+                    switchTab('compare');
                 }
             });
 
-            tableHead.addEventListener('click', (e) => {
-                const th = e.target.closest('th');
+            tableHead.addEventListener('click', function (e) {
+                var th = e.target.closest('th');
                 if (th && th.dataset.sortKey) {
-                    const key = th.dataset.sortKey;
-                    if (currentSort.key === key) { currentSort.order = currentSort.order === 'desc' ? 'asc' : 'desc'; } 
+                    var key = th.dataset.sortKey;
+                    if (currentSort.key === key) currentSort.order = currentSort.order === 'desc' ? 'asc' : 'desc';
                     else { currentSort.key = key; currentSort.order = 'desc'; }
                     filterAndDisplayData();
                 }
             });
-            
-            // 赛季切换按钮事件
-            seasonFilterButtons.addEventListener('click', (e) => {
+
+            seasonFilterButtons.addEventListener('click', function (e) {
                 if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
                     seasonFilterButtons.querySelector('.active').classList.remove('active');
                     e.target.classList.add('active');
@@ -563,16 +505,269 @@
                 }
             });
 
-            groupFilterButtons.addEventListener('click', (e) => {
+            groupFilterButtons.addEventListener('click', function (e) {
                 if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
                     groupFilterButtons.querySelector('.active').classList.remove('active');
                     e.target.classList.add('active');
-                    updateTeamFilter(); filterAndDisplayData();
+                    updateTeamFilter();
+                    filterAndDisplayData();
                 }
             });
 
             teamFilter.addEventListener('change', filterAndDisplayData);
+
+            /* ================= Compare pane (merged from compare.html) ================= */
+            var CHART_COLORS = [
+                { bg: 'rgba(255, 99, 99, 0.18)', border: '#ff6363' },
+                { bg: 'rgba(86, 194, 255, 0.15)', border: '#56c2ff' },
+                { bg: 'rgba(255, 206, 86, 0.15)', border: '#ffce56' },
+                { bg: 'rgba(89, 212, 153, 0.15)', border: '#59d499' },
+                { bg: 'rgba(153, 102, 255, 0.15)', border: '#9966ff' },
+                { bg: 'rgba(255, 159, 64, 0.15)', border: '#ff9f40' }
+            ];
+            var myRadarChart = null;
+
+            function renderCompareTab() {
+                var chips = document.getElementById('compare-chips');
+                var loadingMsg = document.getElementById('loading-msg');
+
+                if (selectedForCompare.length < 2) {
+                    chips.innerHTML = '';
+                    if (myRadarChart) { myRadarChart.destroy(); myRadarChart = null; }
+                    document.getElementById('compare-table-head').innerHTML = '';
+                    document.getElementById('compare-table-body').innerHTML = '';
+                    loadingMsg.style.display = 'block';
+                    loadingMsg.innerHTML = '尚未选择选手。<br><br>请回到「数据汇总」勾选 2–6 名选手后点击「生成对比」。';
+                    return;
+                }
+
+                chips.innerHTML = selectedForCompare.map(function (p, i) {
+                    return '<span class="chip"><span style="width:8px;height:8px;border-radius:50%;background:' + CHART_COLORS[i % CHART_COLORS.length].border + ';display:inline-block;"></span>' +
+                        escapeHtml(p.name) + ' · ' + escapeHtml(p.group) + '</span>';
+                }).join('');
+
+                loadingMsg.style.display = 'block';
+                loadingMsg.textContent = '正在加载对比数据…';
+
+                loadCompareData(selectedForCompare, currentSeason).then(function (results) {
+                    if (!results || results.length === 0) {
+                        loadingMsg.textContent = '错误：未能找到所选选手的有效数据。';
+                        return;
+                    }
+                    loadingMsg.style.display = 'none';
+                    window.chartDataToDraw = results;
+                    drawRadarChart(results);
+                    renderCompareTable(results);
+                }).catch(function (error) {
+                    loadingMsg.textContent = '数据加载失败：' + (error.message || error);
+                    console.error(error);
+                });
+            }
+
+            function loadCompareData(selectedPlayers, season) {
+                var sb = supabaseClient;
+                return Promise.all([
+                    sb.from(season === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, "group"'),
+                    sb.from(season === 's5' ? 's5_matches' : 's6_matches').select('*')
+                ]).then(function (rs) {
+                    if (rs[0].error || rs[1].error) throw rs[0].error || rs[1].error;
+
+                    var idsData = rs[0].data || [];
+                    var matchesData = rs[1].data || [];
+                    var allPlayerData = processAllPlayerData(matchesData);
+
+                    var compareResults = selectedPlayers.map(function (sp, index) {
+                        var idInfo = idsData.find(function (i) {
+                            return i.name === sp.name && (i.group === sp.group || (!i.group && sp.group === '未分组'));
+                        });
+                        if (!idInfo) return null;
+                        var playerId = idInfo.id;
+                        var uniqueKey = playerId + '::' + sp.group;
+
+                        var rawData = allPlayerData[uniqueKey];
+                        var stats = { matches: 0, acs: 0, kda: 0, map_k: 0, map_d: 0, map_a: 0, round_k: 0, round_d: 0, round_a: 0, survival_rate: 0 };
+
+                        if (rawData && rawData.total_stats.matchCount > 0) {
+                            var s = rawData.total_stats;
+                            stats = {
+                                matches: s.matchCount,
+                                acs: s.acsMatchCount > 0 ? s.acs / s.acsMatchCount : 0,
+                                kda: s.deaths > 0 ? (s.kills + s.assists) / s.deaths : (s.kills + s.assists),
+                                map_k: s.kills / s.matchCount,
+                                map_d: s.deaths / s.matchCount,
+                                map_a: s.assists / s.matchCount,
+                                round_k: s.totalRounds > 0 ? s.kills / s.totalRounds : 0,
+                                round_d: s.totalRounds > 0 ? s.deaths / s.totalRounds : 0,
+                                round_a: s.totalRounds > 0 ? s.assists / s.totalRounds : 0,
+                                survival_rate: s.totalRounds > 0 ? 1 - (s.deaths / s.totalRounds) : 0
+                            };
+                        }
+
+                        var groupPlayersForRank = calculateGroupRanks(allPlayerData, sp.group);
+                        var percentiles = [
+                            calculatePercentile(stats.acs, groupPlayersForRank.map(function (p) { return p.acs; })),
+                            calculatePercentile(stats.round_k, groupPlayersForRank.map(function (p) { return p.k_round; })),
+                            calculatePercentile(stats.round_a, groupPlayersForRank.map(function (p) { return p.a_round; })),
+                            calculatePercentile(stats.survival_rate, groupPlayersForRank.map(function (p) { return p.survival_rate; })),
+                            calculatePercentile(stats.kda, groupPlayersForRank.map(function (p) { return p.kda; }))
+                        ];
+
+                        return { name: sp.name, group: sp.group, id: playerId, stats: stats, percentiles: percentiles, colorIndex: index % CHART_COLORS.length };
+                    }).filter(Boolean);
+
+                    return compareResults;
+                });
+            }
+
+            function processAllPlayerData(matches) {
+                var playerData = {};
+                matches.forEach(function (match) {
+                    var scoreText = match['score'] || '';
+                    var score = String(scoreText).split(/[/:：]/).map(Number);
+                    var totalRounds = (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1])) ? (score[0] + score[1]) : 0;
+                    ['team_a', 'team_b'].forEach(function (teamKey) {
+                        for (var p = 1; p <= 5; p++) {
+                            var playerId = match[teamKey + '_player' + p + '_id'];
+                            var playerDataStr = match[teamKey + '_player' + p + '_data'];
+                            if (!playerId || !playerDataStr) continue;
+                            var stats = String(playerDataStr).split('/').map(Number);
+                            if (stats.length !== 4 || stats.some(isNaN)) continue;
+
+                            var uniquePlayerKey = playerId + '::' + match.group;
+                            if (!playerData[uniquePlayerKey]) {
+                                playerData[uniquePlayerKey] = { id: playerId, group: match.group, total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 } };
+                            }
+                            var p_stats = playerData[uniquePlayerKey].total_stats;
+                            if (stats[0] > 0) { p_stats.acs += stats[0]; p_stats.acsMatchCount++; }
+                            p_stats.kills += stats[1];
+                            p_stats.deaths += stats[2];
+                            p_stats.assists += stats[3];
+                            p_stats.matchCount++;
+                            p_stats.totalRounds += totalRounds;
+                        }
+                    });
+                });
+                return playerData;
+            }
+
+            function calculateGroupRanks(allPlayerData, groupName) {
+                var groupPlayersForRank = [];
+                for (var key in allPlayerData) {
+                    var p = allPlayerData[key];
+                    if (p.group === groupName) {
+                        var stats = p.total_stats;
+                        if (stats.matchCount === 0 || stats.totalRounds === 0) continue;
+                        groupPlayersForRank.push({
+                            id: p.id,
+                            acs: stats.acsMatchCount > 0 ? stats.acs / stats.acsMatchCount : 0,
+                            k_round: stats.kills / stats.totalRounds,
+                            a_round: stats.assists / stats.totalRounds,
+                            survival_rate: 1 - (stats.deaths / stats.totalRounds),
+                            kda: stats.deaths > 0 ? (stats.kills + stats.assists) / stats.deaths : (stats.kills + stats.assists)
+                        });
+                    }
+                }
+                return groupPlayersForRank;
+            }
+
+            function calculatePercentile(playerValue, allValues) {
+                if (allValues.length <= 1) return 50;
+                var sortedValues = allValues.slice().sort(function (a, b) { return a - b; });
+                var rank = sortedValues.findIndex(function (v) { return v === playerValue; });
+                if (rank === -1) return 50;
+                return (rank / (sortedValues.length - 1)) * 100;
+            }
+
+            function drawRadarChart(results) {
+                var canvas = document.getElementById('compare-radar-chart');
+                var ctx = canvas.getContext('2d');
+                var gridColor = 'rgba(255, 255, 255, 0.08)';
+                var pointLabelsColor = '#9c9c9d';
+
+                if (myRadarChart) myRadarChart.destroy();
+
+                var datasets = results.map(function (r) {
+                    return {
+                        label: r.id + ' (' + r.name + ')',
+                        data: r.percentiles,
+                        backgroundColor: CHART_COLORS[r.colorIndex].bg,
+                        borderColor: CHART_COLORS[r.colorIndex].border,
+                        borderWidth: 2,
+                        pointBackgroundColor: CHART_COLORS[r.colorIndex].border,
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: CHART_COLORS[r.colorIndex].border
+                    };
+                });
+
+                myRadarChart = new Chart(ctx, {
+                    type: 'radar',
+                    data: { labels: ['ACS', '每回合击杀', '每回合助攻', '每回合存活率', 'KDA'], datasets: datasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: true,
+                        scales: {
+                            r: {
+                                min: 0, max: 100, backgroundColor: 'transparent',
+                                grid: { color: gridColor }, angleLines: { color: gridColor },
+                                pointLabels: { color: pointLabelsColor, font: { family: 'Inter', size: 13, weight: 500 } },
+                                ticks: { display: false, stepSize: 25 }
+                            }
+                        },
+                        plugins: { legend: { position: 'bottom', labels: { color: pointLabelsColor, font: { family: 'Inter', size: 13 } } } }
+                    }
+                });
+            }
+
+            function renderCompareTable(results) {
+                var thead = document.getElementById('compare-table-head');
+                var tbody = document.getElementById('compare-table-body');
+
+                var headHTML = '<tr><th class="stat-label">数据指标</th>';
+                results.forEach(function (r) {
+                    headHTML += '<th>' +
+                        '<span class="player-name-header" style="color:' + CHART_COLORS[r.colorIndex].border + ';">' + escapeHtml(r.id) + '</span>' +
+                        '<span class="player-group-label">' + escapeHtml(r.name) + ' | ' + escapeHtml(r.group) + '</span>' +
+                        '</th>';
+                });
+                headHTML += '</tr>';
+                thead.innerHTML = headHTML;
+
+                var metrics = [
+                    { key: 'acs', label: '平均 ACS', reverse: false },
+                    { key: 'kda', label: 'KDA', reverse: false },
+                    { key: 'map_k', label: '每局击杀', reverse: false },
+                    { key: 'map_d', label: '每局死亡', reverse: true },
+                    { key: 'map_a', label: '每局助攻', reverse: false },
+                    { key: 'round_k', label: '每回合击杀', reverse: false },
+                    { key: 'round_d', label: '每回合死亡', reverse: true },
+                    { key: 'round_a', label: '每回合助攻', reverse: false },
+                    { key: 'matches', label: '出场次数', reverse: false, noHighlight: true }
+                ];
+
+                var bodyHTML = '';
+                metrics.forEach(function (m) {
+                    var bestVal = null;
+                    if (!m.noHighlight) {
+                        var vals = results.map(function (r) { return r.stats[m.key]; });
+                        bestVal = m.reverse ? Math.min.apply(null, vals) : Math.max.apply(null, vals);
+                    }
+
+                    bodyHTML += '<tr><td class="stat-label">' + m.label + '</td>';
+                    results.forEach(function (r) {
+                        var val = r.stats[m.key];
+                        var displayVal = m.key === 'matches' ? val : val.toFixed(2);
+                        var isBest = !m.noHighlight && val === bestVal && val !== 0;
+                        bodyHTML += '<td class="' + (isBest ? 'highlight-best' : '') + '">' + displayVal + '</td>';
+                    });
+                    bodyHTML += '</tr>';
+                });
+
+                tbody.innerHTML = bodyHTML;
+            }
+
+            /* ================= boot ================= */
             loadAndProcessData();
+            if (location.hash === '#compare') switchTab('compare');
         });
     </script>
 </body>

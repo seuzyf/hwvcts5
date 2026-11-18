@@ -9,25 +9,28 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="css/theme.css">
+    <script src="js/auth.js"></script>
+    <script src="js/layout.js"></script>
     <style>
         :root {
-            --primary-color: #ff4655;
-            --bg-color: #0a0a0f;
-            --bg-gradient-mid: #1a0a0a;
+            --primary-color: #e6e6e6;
+            --bg-color: #040506;
+            --bg-gradient-mid: #07080a;
             --text-color: #fff;
-            --card-bg-color: rgba(21, 21, 32, 0.85);
+            --card-bg-color: rgba(7,8,10,0.88);
             --header-bg-color: transparent;
-            --border-color: rgba(255, 70, 85, 0.2);
-            --border-highlight: rgba(255, 70, 85, 0.5);
+            --border-color: rgba(255,255,255,0.12);
+            --border-highlight: rgba(255,255,255,0.28);
             --shadow-color: rgba(0,0,0,0.5);
             --winner-color: #81c784;
             --control-height: 42px;
-            --star-color: #ff4655;
+            --star-color: #e6e6e6;
             --star-color-inactive: rgba(255,255,255,0.2);
             --text-muted: rgba(255, 255, 255, 0.5);
 
             --gold-color: #FFD700; --gold-glow: rgba(255, 215, 0, 0.7); --gold-light: #fff3cd; --gold-main: #ffd700; --gold-medium: #ffc107; --gold-dark: #b8860b;
-            --cool-light: #ff8a80; --cool-main: #ff4655; --cool-medium: #d32f2f; --cool-dark: #b71c1c;
+            --cool-light: #9c9c9d; --cool-main: #e6e6e6; --cool-medium: #d32f2f; --cool-dark: #b71c1c;
         }
         body.light-theme {
             --primary-color: #e53935;
@@ -43,13 +46,13 @@
             --text-muted: rgba(0, 0, 0, 0.5);
         }
         body {
-            font-family: 'Noto Sans SC', sans-serif;
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
             background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
             color: var(--text-color); margin: 0; padding: 20px 0; min-height: 100vh; position: relative;
         }
 
         .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255, 70, 85, 0.6); border-radius: 50%; animation: float linear infinite; }
+        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255,255,255,0.32); border-radius: 50%; animation: float linear infinite; }
         body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
         @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
 
@@ -65,7 +68,7 @@
         .season-filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; margin-right: 15px; }
         .season-filter-group button { padding: 0 15px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 13px; font-weight: 600; height: 100%; transition: all 0.3s ease; letter-spacing: 1px; }
         .season-filter-group button:hover { opacity: 1; color: var(--primary-color); }
-        .season-filter-group button.active { background-color: rgba(255, 70, 85, 0.15); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
+        .season-filter-group button.active { background-color: rgba(255,255,255,0.08); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
         /* 禁用状态样式 */
         .season-filter-group button:disabled { opacity: 0.3; cursor: not-allowed; color: var(--text-muted); background-color: transparent; }
         .season-filter-group button:disabled:hover { color: var(--text-muted); opacity: 0.3; }
@@ -81,13 +84,13 @@
         input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
         input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
 
-        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
+        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
         body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
         .title-badge.unassigned { background: rgba(100, 100, 100, 0.2); color: #aaa; border-color: rgba(255,255,255,0.2); }
         body.light-theme .title-badge.unassigned { background: rgba(0,0,0,0.05); color: #666; border-color: rgba(0,0,0,0.1); }
 
         #player-avatar-container { margin-bottom: 15px; }
-        .player-avatar { width: 100px; height: 100px; border-radius: 6px; border: 2px solid var(--primary-color); object-fit: cover; object-position: center center; box-shadow: 0 0 15px rgba(255, 70, 85, 0.4); }
+        .player-avatar { width: 100px; height: 100px; border-radius: 6px; border: 2px solid var(--primary-color); object-fit: cover; object-position: center center; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
         
         .main-header-block h1 { margin: 0; font-weight: 900; font-size: 50px; display: flex; align-items: baseline; justify-content: center; gap: 15px; flex-wrap: wrap; letter-spacing: 2px; }
         .player-id { color: var(--text-color); }
@@ -96,18 +99,18 @@
         #player-honors { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 20px; }
         .honor-item { display: inline-flex; align-items: center; gap: 10px; padding: 5px 12px; position: relative; }
         .honor-item .crown-icon { font-size: 1.3em; background: linear-gradient(135deg, var(--gold-light), var(--gold-main), var(--gold-dark)); -webkit-background-clip: text; color: transparent; filter: drop-shadow(0 0 6px var(--gold-glow)); animation: crown-shimmer 3s infinite ease-in-out, subtle-bob 4s infinite ease-in-out 0.2s; }
-        .honor-text { font-family: 'Noto Sans SC', sans-serif; font-weight: 900; font-size: 24px; letter-spacing: 2px; color: transparent; background-size: 300% 100%; -webkit-background-clip: text; animation: subtle-bob 4s ease-in-out infinite, gradient-flow 8s ease-in-out infinite; }
+        .honor-text { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-weight: 900; font-size: 24px; letter-spacing: 2px; color: transparent; background-size: 300% 100%; -webkit-background-clip: text; animation: subtle-bob 4s ease-in-out infinite, gradient-flow 8s ease-in-out infinite; }
         .honor-text.champion { background-image: linear-gradient(135deg, var(--gold-light) 10%, var(--gold-main) 30%, var(--gold-medium) 45%, #d4af37 60%, var(--gold-dark) 75%, var(--gold-main) 90%); filter: drop-shadow(0 2px 4px rgba(184, 134, 11, 0.2)); }
-        .honor-text.cool-gradient { background-image: linear-gradient(135deg, var(--cool-light) 0%, var(--cool-medium) 40%, var(--cool-main) 70%, var(--cool-dark) 100%); filter: drop-shadow(0 2px 4px rgba(255, 70, 85, 0.2)); }
+        .honor-text.cool-gradient { background-image: linear-gradient(135deg, var(--cool-light) 0%, var(--cool-medium) 40%, var(--cool-main) 70%, var(--cool-dark) 100%); filter: drop-shadow(0 2px 4px rgba(255,255,255,0.12)); }
 
         @keyframes crown-shimmer { 0%, 100% { background-position: 0% 50%; filter: drop-shadow(0 0 5px var(--gold-glow)); } 50% { background-position: 100% 50%; filter: drop-shadow(0 0 8px var(--gold-glow)); } }
         @keyframes gradient-flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         @keyframes subtle-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
         .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 30px; }
-        .nav-button { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; padding: 0 25px; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; transition: all 0.3s; background: rgba(255, 70, 85, 0.08); backdrop-filter: blur(5px); letter-spacing: 1px; }
+        .nav-button { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; padding: 0 25px; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; transition: all 0.3s; background: rgba(255,255,255,0.06); backdrop-filter: blur(5px); letter-spacing: 1px; }
         body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
-        .nav-button:hover { background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2); }
+        .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
         body.light-theme .nav-button:hover { color: var(--primary-color); }
 
         .main-layout { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; }
@@ -124,14 +127,14 @@
         .summary-list strong { color: var(--text-muted); font-weight: 500; }
         .summary-list span { font-weight: 700; color: var(--text-color); font-size: 16px; }
         .rank-top { font-size: 12px; color: var(--primary-color); font-weight: 900; margin-left: 5px; }
-        #radar-chart-container { position: relative; margin: 20px auto; max-width: 300px; filter: drop-shadow(0 0 10px rgba(255,70,85,0.1)); }
+        #radar-chart-container { position: relative; margin: 20px auto; max-width: 300px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.07)); }
         
         #character-stats-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; margin-top: 10px; }
         #character-stats-table thead th { background-color: transparent; color: var(--text-muted); padding: 12px 8px; border-bottom: 1px solid var(--border-highlight); font-weight: 700; }
         #character-stats-table th, #character-stats-table td { padding: 12px 8px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
         body.light-theme #character-stats-table th, body.light-theme #character-stats-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
         #character-stats-table tbody tr:last-child td { border-bottom: none; }
-        #character-stats-table tbody tr:hover { background-color: rgba(255, 70, 85, 0.05); }
+        #character-stats-table tbody tr:hover { background-color: rgba(255,255,255,0.05); }
 
         #comments-section h2 { display: flex; justify-content: space-between; align-items: center; }
         .player-avg-score { color: var(--primary-color); font-size: 14px; font-weight: 700; letter-spacing: 1px; }
@@ -143,7 +146,7 @@
         .comment-rating { white-space: nowrap; color: var(--text-muted); }
         .comment-rating span { font-weight: 900; color: var(--primary-color); font-size: 15px; }
         .comment-body { font-size: 15px; line-height: 1.6; word-wrap: break-word; color: var(--text-color); opacity: 0.9; }
-        .delete-comment-btn, .reply-comment-btn { background: rgba(255,70,85,0.1); color: var(--primary-color); border: 1px solid var(--primary-color); border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; flex-shrink: 0; }
+        .delete-comment-btn, .reply-comment-btn { background: rgba(255,255,255,0.07); color: var(--primary-color); border: 1px solid var(--primary-color); border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; flex-shrink: 0; }
         .delete-comment-btn:hover, .reply-comment-btn:hover { background: var(--primary-color); color: #fff; }
         .reply-comment-btn { border-color: var(--text-muted); color: var(--text-muted); }
         .replies-container { margin-left: 20px; margin-top: 15px; border-left: 2px solid var(--border-color); padding-left: 15px; }
@@ -160,7 +163,7 @@
         body.light-theme #comment-form textarea { background: #fff; }
         #comment-form textarea:focus { border-color: var(--primary-color); }
         #comment-form button { height: var(--control-height); border: none; border-radius: 4px; background-color: var(--primary-color); color: white; font-weight: 700; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; align-self: flex-start; padding: 0 30px; }
-        #comment-form button:hover { background: #ff8a80; box-shadow: 0 0 15px rgba(255,70,85,0.4); }
+        #comment-form button:hover { background: #9c9c9d; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
         #comment-form button:disabled { background-color: #333; cursor: not-allowed; box-shadow: none; color: #888; }
         .reply-form-container { margin-top: 15px; }
 
@@ -175,7 +178,7 @@
         body.light-theme .settings-switch { background-color: rgba(255,255,255,0.5); }
         .settings-switch label { flex: 1; text-align: center; padding: 10px; border-radius: 2px; cursor: pointer; transition: all 0.3s; font-size: 14px; font-weight: 500; color: var(--text-muted); }
         .settings-switch input { display: none; }
-        .settings-switch input:checked + label { background-color: rgba(255,70,85,0.15); color: var(--primary-color); font-weight: 700; }
+        .settings-switch input:checked + label { background-color: rgba(255,255,255,0.08); color: var(--primary-color); font-weight: 700; }
 
         .settings-form { display: none; flex-direction: column; gap: 15px; }
         .settings-form.active { display: flex; }
@@ -185,16 +188,16 @@
         body.light-theme .settings-form input { background: #fff; }
         .settings-form input:focus { border-color: var(--primary-color); }
         .settings-form button { height: var(--control-height); border: none; border-radius: 4px; background-color: var(--primary-color); color: white; font-weight: 700; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
-        .settings-form button:hover { background: #ff8a80; box-shadow: 0 0 15px rgba(255,70,85,0.4); }
+        .settings-form button:hover { background: #9c9c9d; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
 
         .tooltip { position: relative; display: inline-flex; justify-content: center; align-items: center; cursor: help; border: 1px solid var(--text-muted); border-radius: 50%; width: 16px; height: 16px; font-size: 11px; }
         .tooltip .tooltiptext { visibility: hidden; width: 260px; background-color: #151520; color: #fff; text-align: left; border-radius: 4px; border: 1px solid var(--border-color); padding: 10px; position: absolute; z-index: 10; bottom: 150%; left: 50%; margin-left: -130px; opacity: 0; transition: opacity 0.3s; font-size: 12px; line-height: 1.5; font-weight: normal; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         body.light-theme .tooltip .tooltiptext { background-color: #fff; color: #333; }
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        body { padding-top: 80px; }
     </style>
 </head>
-<body>
-    <div class="particles" id="particles"></div>
+<body data-page="player" data-crumb="数据">
     <div class="container">
         <div class="main-header-block">
             <div class="top-right-controls">
@@ -205,13 +208,6 @@
                 <button id="settings-btn" title="修改资料">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19.8298 12.1741C19.9363 11.6963 19.9363 11.1963 19.8298 10.7185L21.6569 9.28148C21.8617 9.1237 21.9213 8.84815 21.8024 8.62222L20.0445 5.37778C19.9256 5.15185 19.6582 5.06667 19.4445 5.17037L17.2223 6.0963C16.6371 5.65185 15.9927 5.2963 15.3038 5.03704L14.9334 2.62222C14.9067 2.41481 14.7334 2.25185 14.526 2.25185H10.4741C10.2667 2.25185 10.0934 2.41481 10.0667 2.62222L9.6963 5.03704C8.99824 5.30519 8.36223 5.65185 7.77788 6.0963L5.55565 5.17037C5.34195 5.06667 5.07454 5.15185 4.95565 5.37778L3.19778 8.62222C3.07889 8.84815 3.13843 9.1237 3.34324 9.28148L5.17048 10.7185C5.06399 11.1963 5.06399 11.6963 5.17048 12.1741L3.34324 13.6111C3.13843 13.7689 3.07889 14.0444 3.19778 14.2704L4.95565 17.5148C5.07454 17.7407 5.34195 17.8259 5.55565 17.7222L7.77788 16.7963C8.36223 17.2407 8.99824 17.587 9.6963 17.8552L10.0667 20.27C10.0934 20.4774 10.2667 20.6404 10.4741 20.6404H14.526C14.7334 20.6404 14.9067 20.4774 14.9334 20.27L15.3038 17.8552C15.9927 17.5959 16.6371 17.25 17.2223 16.7963L19.4445 17.7222C19.6582 17.8259 19.9256 17.7407 20.0445 17.5148L21.8024 14.2704C21.9213 14.0444 21.8617 13.7689 21.6569 13.6111L19.8298 12.1741ZM12.5 14.9404C10.8167 14.9404 9.44454 13.5681 9.44454 11.8848C9.44454 10.2015 10.8167 8.82926 12.5 8.82926C14.1834 8.82926 15.5556 10.2015 15.5556 11.8848C15.5556 13.5681 14.1834 14.9404 12.5 14.9404Z"></path></svg>
                 </button>
-                <div class="theme-switch-wrapper">
-                    <span id="theme-text"></span>
-                    <label class="theme-switch">
-                        <input type="checkbox" id="theme-toggle-checkbox">
-                        <span class="slider-theme"></span>
-                    </label>
-                </div>
             </div>
             
             <div id="player-avatar-container"></div>
@@ -220,10 +216,6 @@
             <div id="player-honors"></div>
             
             <div class="controls-container">
-                <a href="home.html" class="nav-button">个 人 主 页</a>
-                <a href="events.html" class="nav-button">活 动 大 厅</a>
-                <a href="index.html" class="nav-button">返 回 比 赛 中 心</a>
-                <a href="summary.html" class="nav-button">查 看 选 手 数 据</a>
             </div>
         </div>
         
@@ -323,20 +315,6 @@
     </div>
 
 <script>
-    function createParticles() {
-        const container = document.getElementById('particles');
-        for (let i = 0; i < 50; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            particle.style.left = Math.random() * 100 + '%';
-            particle.style.animationDuration = (Math.random() * 8 + 4) + 's';
-            particle.style.animationDelay = Math.random() * 5 + 's';
-            particle.style.width = (Math.random() * 3 + 1) + 'px';
-            particle.style.height = particle.style.width;
-            container.appendChild(particle);
-        }
-    }
-    createParticles();
 
     const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
@@ -480,9 +458,9 @@
             data: {
                 labels: ['ACS', '每回合击杀', '每回合助攻', '每回合存活率', 'KDA'],
                 datasets: [{
-                    label: '选手能力 (百分位)', data: percentileData, backgroundColor: 'rgba(255, 70, 85, 0.2)', borderColor: 'rgba(255, 70, 85, 1)',
-                    borderWidth: 2, pointBackgroundColor: 'rgba(255, 70, 85, 1)', pointBorderColor: '#fff',
-                    pointHoverBackgroundColor: '#fff', pointHoverBorderColor: 'rgba(255, 70, 85, 1)'
+                    label: '选手能力 (百分位)', data: percentileData, backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,1)',
+                    borderWidth: 2, pointBackgroundColor: 'rgba(255,255,255,1)', pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff', pointHoverBorderColor: 'rgba(255,255,255,1)'
                 }]
             },
             options: {
@@ -562,16 +540,6 @@
         const seasonFilterButtons = document.getElementById('season-filter-buttons');
         
         setupStarRating();
-        
-        const themeToggle = document.getElementById('theme-toggle-checkbox'); const themeText = document.getElementById('theme-text');
-        function setTheme(isLight) {
-            document.body.classList.toggle('light-theme', isLight); themeToggle.checked = isLight;
-            themeText.textContent = isLight ? '切换为亮色模式' : '切换为暗色模式'; localStorage.setItem('theme', isLight ? 'light' : 'dark');
-            if (window.playerRadarPercentiles) drawRadarChart(window.playerRadarPercentiles);
-        }
-        const savedTheme = localStorage.getItem('theme');
-        setTheme((savedTheme === 'light') ? true : false);
-        themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
         
         // 检查当前选手在S5表中是否存在，若不存在则禁用S5按钮
         const { data: s5Check } = await supabaseClient.from('s5_player_ids').select('name').eq('name', playerName).maybeSingle();
