@@ -3,734 +3,452 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCT S6 分队系统</title>
-    <!-- 引入 SheetJS -->
+    <title>HWVCTS — 分队系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/theme.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- 引入电竞字体 -->
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="js/auth.js"></script>
+    <script src="js/layout.js"></script>
     <style>
-        :root {
-            /* 默认暗夜模式 (青紫赛博) */
-            --bg-dark: #050914;
-            --primary: #00f0ff;
-            --primary-glow: rgba(0, 240, 255, 0.4);
-            --secondary: #bc13fe;
-            --accent: #ff2a6d;
-            --text-main: #f8fafc;
-            --text-muted: #64748b;
-            --glass-bg: rgba(13, 17, 28, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --card-bg: linear-gradient(145deg, rgba(20,25,35,0.8) 0%, rgba(10,15,25,0.9) 100%);
-            --card-selected-bg: linear-gradient(145deg, rgba(0,240,255,0.05) 0%, rgba(10,15,25,0.9) 100%);
-            --box-bg: rgba(0,0,0,0.3);
-            --item-bg: rgba(255,255,255,0.02);
-            --item-hover-bg: rgba(255,255,255,0.05);
-            --role-bg: rgba(188, 19, 254, 0.15);
-            --role-text: #d8b4fe;
-            --role-border: rgba(188, 19, 254, 0.3);
-            --warning-color: #ffeb3b;
-            --grid-line: rgba(255,255,255,0.02);
-            --header-bg: linear-gradient(180deg, rgba(5,9,20,0.9) 0%, rgba(5,9,20,0) 100%);
-            --sidebar-header-bg: rgba(0, 0, 0, 0.2);
-            --modal-bg: linear-gradient(180deg, rgba(20,25,35,1) 0%, rgba(10,15,25,1) 100%);
-            --badge-bg: rgba(255, 255, 255, 0.1);
-            --badge-border: rgba(255, 255, 255, 0.2);
-            --border-light: rgba(255, 255, 255, 0.03);
-            --divider: rgba(255, 255, 255, 0.1);
-            --assigned-bg: rgba(0, 240, 255, 0.1);
-            --assigned-border: rgba(0, 240, 255, 0.4);
-            --scrollbar-track: rgba(0, 0, 0, 0.2);
-            --scrollbar-thumb: rgba(255, 255, 255, 0.15);
-            --bg-grad-1: rgba(188, 19, 254, 0.15);
-            --bg-grad-2: rgba(0, 240, 255, 0.1);
+        /* ===== page tabs ===== */
+        .draft-tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+        .draft-tab {
+            padding: 10px 18px; background: none; border: none;
+            border-bottom: 2px solid transparent; margin-bottom: -1px;
+            color: var(--ash); font-size: 14px; font-weight: 500; cursor: pointer;
+            transition: color .15s ease, border-color .15s ease;
         }
+        .draft-tab:hover { color: var(--pure-white); }
+        .draft-tab.active { color: var(--pure-white); border-bottom-color: var(--coral-pulse); }
 
-        /* 日间模式 (红白高亮) */
-        body.day-mode {
-            --bg-dark: #f0f2f5;
-            --primary: #d90429;
-            --primary-glow: rgba(217, 4, 41, 0.3);
-            --secondary: #2b2d42;
-            --accent: #ef233c;
-            --text-main: #111827;
-            --text-muted: #6b7280;
-            --glass-bg: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(0, 0, 0, 0.08);
-            --card-bg: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
-            --card-selected-bg: linear-gradient(145deg, rgba(217, 4, 41, 0.05) 0%, #ffffff 100%);
-            --box-bg: rgba(0,0,0,0.03);
-            --item-bg: rgba(0,0,0,0.02);
-            --item-hover-bg: rgba(0,0,0,0.05);
-            --role-bg: rgba(217, 4, 41, 0.1);
-            --role-text: #d90429;
-            --role-border: rgba(217, 4, 41, 0.2);
-            --warning-color: #d97706; 
-            --grid-line: rgba(0,0,0,0.03);
-            --header-bg: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 100%);
-            --sidebar-header-bg: rgba(0, 0, 0, 0.03);
-            --modal-bg: linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
-            --badge-bg: rgba(0, 0, 0, 0.05);
-            --badge-border: rgba(0, 0, 0, 0.1);
-            --border-light: rgba(0, 0, 0, 0.05);
-            --divider: rgba(0, 0, 0, 0.1);
-            --assigned-bg: rgba(217, 4, 41, 0.1);
-            --assigned-border: rgba(217, 4, 41, 0.4);
-            --scrollbar-track: rgba(0, 0, 0, 0.05);
-            --scrollbar-thumb: rgba(0, 0, 0, 0.2);
-            --bg-grad-1: rgba(217, 4, 41, 0.06);
-            --bg-grad-2: rgba(239, 35, 60, 0.06);
-        }
+        .pane-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        /* ============================================================
+           IMPORT PANE — spreadsheet draft tool
+           ============================================================ */
+        #import-pane .import-layout { display: flex; gap: 16px; min-height: 520px; }
+        #import-pane aside {
+            width: 340px; flex-shrink: 0;
+            background: var(--ink); border: 1px solid var(--border);
+            border-radius: var(--r-card); display: flex; flex-direction: column; overflow: hidden;
+        }
+        #import-pane .sidebar-header {
+            padding: 14px 18px; background: var(--obsidian);
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        #import-pane .sidebar-title {
+            font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+            letter-spacing: .08em; text-transform: uppercase; color: var(--ash);
+        }
+        #import-pane #totalPlayersCount { font-family: var(--font-mono); font-size: 11px; color: var(--smoke); }
+        #import-pane #teamList { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
-            background-image: 
-                radial-gradient(circle at 0% 0%, var(--bg-grad-1), transparent 40%),
-                radial-gradient(circle at 100% 100%, var(--bg-grad-2), transparent 40%),
-                linear-gradient(var(--grid-line) 1px, transparent 1px),
-                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-            background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
-            color: var(--text-main);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            transition: background-color 0.4s, color 0.4s;
+        #import-pane .team-card {
+            background: var(--obsidian); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px; cursor: pointer; position: relative;
+            transition: border-color .15s ease, box-shadow .15s ease;
         }
+        #import-pane .team-card:hover { border-color: var(--smoke); }
+        #import-pane .team-card.selected {
+            border-color: var(--mist);
+            box-shadow: rgba(255,255,255,.06) 0px 1px 0px 0px inset, rgba(255,255,255,.3) 0 0 0 1px;
+        }
+        #import-pane .team-info-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        #import-pane .team-name { font-size: 15px; font-weight: 600; color: var(--pure-white); }
+        #import-pane .team-score-total { font-family: var(--font-sf); font-size: 18px; font-weight: 500; color: var(--pure-white); text-align: right; line-height: 1.1; }
+        #import-pane .team-score-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--smoke); }
+        #import-pane .team-roster { background: rgba(0,0,0,.25); border-radius: 6px; padding: 7px; display: flex; flex-direction: column; gap: 5px; }
+        #import-pane .roster-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 5px 8px; background: rgba(255,255,255,.02); border-radius: 4px; font-size: 12px;
+        }
+        #import-pane .roster-left { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+        #import-pane .roster-role {
+            font-family: var(--font-mono); font-size: 10px; padding: 2px 6px;
+            background: var(--graphite); color: var(--ash); border-radius: 3px; white-space: nowrap;
+        }
+        #import-pane .roster-name { color: var(--mist); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+        #import-pane .roster-score { font-family: var(--font-mono); font-size: 12px; color: var(--pure-white); }
 
-        .font-esports { font-family: 'Rajdhani', sans-serif; }
+        #import-pane .import-main {
+            flex: 1; min-width: 0; background: var(--ink); border: 1px solid var(--border);
+            border-radius: var(--r-card); display: flex; flex-direction: column; overflow: hidden;
+        }
+        #import-pane .main-header {
+            padding: 13px 18px; background: var(--obsidian); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        #import-pane .status-text { font-family: var(--font-mono); font-size: 11px; color: var(--ash); display: flex; align-items: center; gap: 8px; letter-spacing: .03em; }
+        #import-pane .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--smoke); }
+        #import-pane .status-dot.active { background: var(--success-green); box-shadow: 0 0 8px rgba(89,212,153,.5); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(89,212,153,.4); } 70% { box-shadow: 0 0 0 6px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
-            transition: background 0.4s, border-color 0.4s;
+        #import-pane .switch-container { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ash); cursor: pointer; }
+        #import-pane .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        #import-pane .switch input { opacity: 0; width: 0; height: 0; }
+        #import-pane .slider {
+            position: absolute; cursor: pointer; inset: 0;
+            background: var(--graphite); border: 1px solid var(--border); border-radius: 20px; transition: .2s;
         }
+        #import-pane .slider:before {
+            position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px;
+            background: var(--ash); border-radius: 50%; transition: .2s;
+        }
+        #import-pane .switch input:checked + .slider { background: var(--slate); border-color: var(--smoke); }
+        #import-pane .switch input:checked + .slider:before { transform: translateX(18px); background: var(--pure-white); }
 
-        header {
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--assigned-border);
-            position: relative;
-            z-index: 10;
-            background: var(--header-bg);
+        #import-pane #playerGrid {
+            flex: 1; overflow-y: auto; padding: 18px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+            gap: 14px; align-content: start;
         }
+        #import-pane .player-card {
+            background: var(--obsidian); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px; cursor: pointer;
+            display: flex; flex-direction: column; gap: 13px; position: relative;
+            transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+        }
+        #import-pane .player-card:hover {
+            transform: translateY(-2px); border-color: var(--smoke);
+            box-shadow: rgba(255,255,255,.05) 0 1px 0 0 inset, rgba(255,255,255,.2) 0 0 0 1px, rgba(0,0,0,.2) 0 -1px 0 0 inset;
+        }
+        #import-pane .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        #import-pane .player-title { flex: 1; min-width: 0; }
+        #import-pane .player-name { font-size: 16px; font-weight: 600; color: var(--pure-white); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #import-pane .game-id { font-family: var(--font-mono); font-size: 11px; color: var(--smoke); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #import-pane .card-badges { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; flex-shrink: 0; }
+        #import-pane .badge-base { font-family: var(--font-mono); font-size: 10px; padding: 3px 7px; border-radius: var(--r-badge); white-space: nowrap; }
+        #import-pane .player-role-badge { background: var(--graphite); color: var(--mist); }
+        #import-pane .pre-group-badge { background: transparent; border: 1px solid var(--border); color: var(--ash); }
+        #import-pane .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+        #import-pane .stat-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0,0,0,.25); padding: 7px 10px; border-radius: 6px; border: 1px solid rgba(54,55,57,.5);
+        }
+        #import-pane .stat-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: .07em; text-transform: uppercase; color: var(--smoke); }
+        #import-pane .stat-value { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--pure-white); white-space: nowrap; }
+        #import-pane .score-section {
+            border-top: 1px dashed rgba(54,55,57,.7); padding-top: 13px;
+            display: flex; justify-content: space-between; align-items: flex-end;
+        }
+        #import-pane .score-info { display: flex; flex-direction: column; gap: 3px; }
+        #import-pane .score-row { display: flex; align-items: baseline; gap: 8px; }
+        #import-pane .score-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: .07em; text-transform: uppercase; color: var(--smoke); }
+        #import-pane .hw-score-main { font-family: var(--font-sf); font-size: 22px; font-weight: 500; color: var(--pure-white); line-height: 1; }
+        #import-pane .hw-score-sub { font-family: var(--font-mono); font-size: 11px; color: var(--ash); }
+        #import-pane .team-status {
+            font-family: var(--font-mono); font-size: 10px; padding: 5px 10px; border-radius: var(--r-badge);
+            background: var(--graphite); color: var(--ash); max-width: 120px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+        }
+        #import-pane .team-status.assigned { background: var(--ember-hush); color: var(--coral-pulse); }
+        #import-pane .empty-state::before { content: none; }
+        #import-pane .empty-state { grid-column: 1 / -1; }
 
-        .logo {
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--text-main);
-            text-shadow: 0 0 10px var(--primary-glow);
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        /* ============================================================
+           DRAW PANE — live random draw tool (former s5draft)
+           ============================================================ */
+        #draw-pane .draft-workspace { display: flex; gap: 16px; min-height: 460px; }
+        #draw-pane .side-panel { width: 300px; display: flex; flex-direction: column; gap: 16px; flex-shrink: 0; }
+        #draw-pane .panel-box {
+            background: var(--ink); border: 1px solid var(--border);
+            border-radius: var(--r-card); padding: 18px; flex: 1; display: flex; flex-direction: column;
         }
-        
-        .logo::before {
-            content: '';
-            display: inline-block;
-            width: 12px;
-            height: 24px;
-            background: var(--primary);
-            transform: skewX(-20deg);
-            box-shadow: 0 0 15px var(--primary);
+        #draw-pane .block-title {
+            font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .07em;
+            text-transform: uppercase; color: var(--smoke); margin: 0 0 14px;
+            display: flex; justify-content: space-between; align-items: center; gap: 8px;
         }
+        #draw-pane #status-text { font-size: 11px; color: var(--ash); text-transform: none; letter-spacing: 0; }
+        #draw-pane .team-select {
+            width: 100%; padding: 10px 12px; background: var(--obsidian);
+            border: 1px solid var(--border); color: var(--pure-white); font-size: 14px;
+            outline: none; border-radius: var(--r-input); cursor: pointer; margin-bottom: 14px;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239c9c9d' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center;
+        }
+        #draw-pane .team-select option { background: var(--obsidian); }
+        #draw-pane .draw-btn-huge {
+            width: 100%; padding: 13px; background: var(--mist); border: none;
+            color: var(--iron); font-size: 15px; font-weight: 600; letter-spacing: .1em;
+            cursor: pointer; border-radius: var(--r-btn); transition: background .15s ease, transform .1s ease;
+            box-shadow: var(--btn-lift);
+        }
+        #draw-pane .draw-btn-huge:hover:not(:disabled) { background: var(--pure-white); transform: translateY(-1px); }
+        #draw-pane .draw-btn-huge:disabled { opacity: .4; cursor: not-allowed; }
+        #draw-pane .pool-stats {
+            font-family: var(--font-sf); font-size: 30px; font-weight: 500;
+            color: var(--pure-white); text-align: center; margin: 6px 0 2px;
+        }
+        #draw-pane .pool-list { flex: 1; overflow-y: auto; font-size: 12px; color: var(--ash); margin-top: 12px; }
+        #draw-pane .pool-item { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(54,55,57,.5); gap: 8px; }
+        #draw-pane .pool-item:last-child { border-bottom: none; }
 
-        .actions { display: flex; gap: 15px; }
-
-        .btn {
-            background: var(--assigned-bg);
-            border: 1px solid var(--assigned-border);
-            color: var(--primary);
-            padding: 8px 24px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 16px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: inline-block;
-        }
-
-        .btn:hover {
-            background: var(--primary);
-            color: #ffffff;
-            box-shadow: 0 0 20px var(--primary-glow);
-            transform: translateY(-2px);
-        }
-
-        .btn.btn-secondary {
-            border-color: var(--text-muted);
-            color: var(--text-muted);
-            background: rgba(0, 0, 0, 0.05);
-        }
-        .btn.btn-secondary:hover {
-            background: var(--text-main);
-            color: var(--bg-dark);
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-        }
-
-        #fileInput { display: none; }
-
-        .layout-container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-            padding: 20px;
-            gap: 20px;
-        }
-
-        aside {
-            width: 360px;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-
-        .sidebar-header {
-            padding: 16px 20px;
-            background: var(--sidebar-header-bg);
-            border-bottom: 1px solid var(--glass-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .sidebar-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--primary);
-            letter-spacing: 1px;
-        }
-
-        #teamList {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .team-card {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 8px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-        }
-
-        .team-card:hover {
-            border-color: var(--assigned-border);
-            background: var(--item-hover-bg);
-        }
-
-        .team-card.selected {
-            border-color: var(--primary);
-            box-shadow: 0 0 20px var(--primary-glow), inset 0 0 10px var(--assigned-bg);
-            background: var(--card-selected-bg);
-        }
-
-        .team-card.selected::before {
-            content: '';
-            position: absolute;
-            left: -1px;
-            top: 20%;
-            height: 60%;
-            width: 3px;
-            background: var(--primary);
-            box-shadow: 0 0 10px var(--primary);
-            border-radius: 0 4px 4px 0;
-        }
-
-        .team-info-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
-
-        .team-name {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-main);
-            letter-spacing: 0.5px;
-        }
-
-        .team-score-total {
-            font-size: 22px;
-            color: var(--primary);
-            font-weight: 700;
-            text-align: right;
-            line-height: 1;
-        }
-        .team-score-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .team-roster {
-            background: var(--box-bg);
-            border-radius: 6px;
-            padding: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .roster-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 4px 8px;
-            background: var(--item-bg);
-            border-radius: 4px;
-            font-size: 13px;
-        }
-
-        .roster-item:hover { background: var(--item-hover-bg); }
-
-        .roster-left { display: flex; align-items: center; gap: 8px; overflow: hidden; }
-        
-        .roster-role {
-            font-size: 11px;
-            padding: 2px 6px;
-            background: var(--role-bg);
-            color: var(--role-text);
-            border-radius: 3px;
-            border: 1px solid var(--role-border);
-            white-space: nowrap;
-        }
-
-        .roster-name {
-            color: var(--text-main);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 120px;
-        }
-
-        .roster-score {
-            font-family: 'Rajdhani', sans-serif;
-            color: var(--primary);
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        main {
-            flex: 1;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-width: 0; 
-        }
-
-        .main-header {
-            padding: 16px 24px;
-            background: var(--sidebar-header-bg);
-            border-bottom: 1px solid var(--glass-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .status-text {
-            font-size: 15px;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--text-muted);
-        }
-        .status-dot.active {
-            background: var(--primary);
-            box-shadow: 0 0 10px var(--primary-glow);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 var(--primary-glow); }
-            70% { box-shadow: 0 0 0 6px transparent; }
-            100% { box-shadow: 0 0 0 0 transparent; }
-        }
-
-        .switch-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            color: var(--text-main);
-            cursor: pointer;
-        }
-        
-        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: var(--item-hover-bg); transition: .4s;
-            border-radius: 34px; border: 1px solid var(--badge-border);
-        }
-        .slider:before {
-            position: absolute; content: ""; height: 16px; width: 16px;
-            left: 3px; bottom: 2px; background-color: var(--text-muted);
-            transition: .4s; border-radius: 50%;
-        }
-        input:checked + .slider { background-color: var(--assigned-bg); border-color: var(--primary); }
-        input:checked + .slider:before {
-            transform: translateX(20px); background-color: var(--primary); box-shadow: 0 0 8px var(--primary-glow);
-        }
-
-        #playerGrid {
-            flex: 1;
-            overflow-y: auto;
+        #draw-pane .core-arena {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; overflow: hidden; min-width: 0;
+            background: var(--ink); border: 1px solid var(--border); border-radius: var(--r-card);
             padding: 24px;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-            align-content: start;
+        }
+        #draw-pane .cards-container { display: flex; gap: 22px; justify-content: center; align-items: center; perspective: 1200px; width: 100%; flex-wrap: wrap; }
+
+        #draw-pane .card-wrapper { display: flex; flex-direction: column; align-items: center; gap: 12px; transition: all .4s cubic-bezier(.175,.885,.32,1.275); }
+        #draw-pane .card { width: 220px; height: 340px; position: relative; cursor: pointer; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.4,0,.2,1); }
+        #draw-pane .card-wrapper:hover { transform: translateY(-8px) scale(1.04); }
+        #draw-pane .card.flipped { transform: rotateY(180deg); }
+        #draw-pane .card-face {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
+        }
+        #draw-pane .card-back {
+            background: var(--obsidian); display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--key-shadow);
+        }
+        #draw-pane .card-back::after { content: 'V'; font-family: var(--font-sf); font-size: 72px; font-weight: 700; color: var(--graphite); font-style: italic; }
+        #draw-pane .card-front {
+            background: var(--ink); transform: rotateY(180deg); display: flex; flex-direction: column;
+            box-shadow: var(--key-shadow);
+        }
+        #draw-pane .card-header {
+            padding: 14px 10px; text-align: center; background: var(--obsidian);
+            border-bottom: 1px solid var(--border);
+        }
+        #draw-pane .player-name { font-size: 19px; font-weight: 600; color: var(--pure-white); margin-bottom: 3px; }
+        #draw-pane .player-gameid { font-family: var(--font-mono); font-size: 11px; color: var(--smoke); margin-bottom: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #draw-pane .player-hwscore { font-family: var(--font-sf); font-size: 22px; font-weight: 500; color: var(--pure-white); }
+        #draw-pane .card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; gap: 9px; }
+        #draw-pane .stat-row { display: flex; justify-content: space-between; font-size: 12px; border-bottom: 1px dashed rgba(54,55,57,.6); padding-bottom: 5px; }
+        #draw-pane .stat-label { color: var(--smoke); font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+        #draw-pane .stat-val { font-family: var(--font-mono); font-weight: 500; color: var(--mist); text-align: right; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* card quality tiers (kept from s5draft) */
+        @keyframes diamond-gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        #draw-pane .card-front.quality-diamond {
+            border: 2px solid transparent;
+            background: linear-gradient(var(--ink), var(--ink)) padding-box,
+                        linear-gradient(135deg, #00f2fe, #4facfe, #f093fb, #f5576c) border-box;
+            background-size: 300% 300%;
+            animation: diamond-gradient 4s ease infinite;
+            box-shadow: 0 0 18px rgba(79,172,254,.35);
+        }
+        #draw-pane .card-front.quality-gold { border: 2px solid #ffd700; box-shadow: 0 0 14px rgba(255,215,0,.5); }
+        #draw-pane .card-front.quality-silver { border: 2px solid #c0c0c0; box-shadow: 0 0 14px rgba(192,192,192,.4); }
+
+        #draw-pane .refresh-btn {
+            background: transparent; border: 1px solid var(--border); color: var(--ash);
+            padding: 6px 14px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em;
+            cursor: pointer; border-radius: var(--r-badge); transition: .15s;
+        }
+        #draw-pane .refresh-btn:hover:not(:disabled) { border-color: var(--smoke); color: var(--pure-white); }
+        #draw-pane .refresh-btn:disabled { opacity: .3; cursor: not-allowed; }
+        #draw-pane .card-wrapper.selected { z-index: 50; animation: select-pop 1s forwards; }
+        #draw-pane .card-wrapper.faded { opacity: 0; transform: scale(.5); pointer-events: none; }
+        @keyframes select-pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); filter: brightness(1.2) drop-shadow(0 0 24px rgba(255,255,255,.4)); }
+            100% { transform: scale(0); opacity: 0; }
+        }
+        #draw-pane .result-banner {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%) scale(0);
+            background: var(--mist); color: var(--void-black);
+            font-size: 22px; font-weight: 600; padding: 14px 44px; border-radius: 12px;
+            box-shadow: var(--panel-shadow); white-space: nowrap; opacity: 0; z-index: 100; pointer-events: none;
+        }
+        #draw-pane .result-banner.show { animation: banner-in-out 2.5s cubic-bezier(.175,.885,.32,1.275) forwards; }
+        @keyframes banner-in-out {
+            0% { transform: translate(-50%,-50%) scale(0); opacity: 0; }
+            15% { transform: translate(-50%,-50%) scale(1.1); opacity: 1; }
+            30% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+            80% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%,-50%) scale(1.5); opacity: 0; }
         }
 
-        .player-card {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 8px;
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 16px; 
+        #draw-pane .roster-area { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; margin-top: 16px; }
+        #draw-pane .team-box {
+            min-width: 240px; background: var(--ink); border: 1px solid var(--border);
+            border-top: 3px solid var(--graphite); padding: 14px; border-radius: 10px;
         }
+        #draw-pane .team-box.full { border-top-color: var(--mist); }
+        #draw-pane .team-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 9px;
+        }
+        #draw-pane .team-name { font-size: 14px; font-weight: 600; color: var(--pure-white); }
+        #draw-pane .team-score { font-family: var(--font-mono); font-size: 12px; color: var(--ash); }
+        #draw-pane .member-list { display: flex; flex-direction: column; gap: 6px; }
+        #draw-pane .member-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 7px 9px; background: rgba(255,255,255,.02); border-radius: 5px;
+            font-size: 12px; border-left: 2px solid transparent; transition: .15s;
+        }
+        #draw-pane .member-row:hover { background: rgba(255,255,255,.05); border-left-color: var(--mist); }
+        #draw-pane .m-name { font-weight: 500; color: var(--mist); }
+        #draw-pane .m-role {
+            font-family: var(--font-mono); font-size: 10px; padding: 1px 6px;
+            background: var(--graphite); color: var(--ash); border-radius: 3px; margin-left: 5px;
+        }
+        #draw-pane .m-score { font-family: var(--font-mono); color: var(--pure-white); font-weight: 500; }
 
-        .player-card::after {
-            content: ''; position: absolute; top: 0; right: 0; width: 30px; height: 30px;
-            background: linear-gradient(135deg, transparent 50%, var(--item-hover-bg) 50%);
-        }
+        /* toolbar buttons for draw pane */
+        .btn[disabled] { opacity: .4; cursor: not-allowed; }
+        .btn-success-ghost { border-color: rgba(89,212,153,.4); color: var(--success-green); background: transparent; }
+        .btn-success-ghost:hover:not(:disabled) { background: rgba(89,212,153,.08); border-color: rgba(89,212,153,.6); color: var(--success-green); }
 
-        .player-card:hover {
-            transform: translateY(-4px) scale(1.02);
-            border-color: var(--primary);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2), 0 0 20px var(--primary-glow);
-            z-index: 2;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 10px;
-        }
-
-        .player-title {
-            flex: 1;
-            min-width: 0; 
-        }
-
-        .player-name {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .game-id {
-            font-size: 12px;
-            color: var(--text-muted);
-            font-family: 'Rajdhani', sans-serif;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .card-badges {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            align-items: flex-end;
-            flex-shrink: 0;
-        }
-
-        .badge-base {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-        }
-
-        .player-role-badge {
-            background: var(--role-bg);
-            color: var(--role-text);
-            border: 1px solid var(--role-border);
-        }
-
-        .pre-group-badge {
-            background: var(--badge-bg);
-            color: var(--text-main);
-            border: 1px solid var(--badge-border);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .stat-item { 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--box-bg);
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid var(--border-light);
-        }
-
-        .stat-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            font-family: 'Rajdhani', sans-serif;
-            letter-spacing: 1px;
-        }
-
-        .stat-value {
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--text-main);
-            font-family: 'Rajdhani', sans-serif;
-            white-space: nowrap;
-        }
-
-        .score-section {
-            border-top: 1px dashed var(--divider);
-            padding-top: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-        }
-
-        .score-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .score-row {
-            display: flex;
-            align-items: baseline;
-            gap: 8px;
-        }
-
-        .score-label {
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .hw-score-main {
-            font-size: 26px;
-            font-weight: 700;
-            color: var(--primary);
-            font-family: 'Rajdhani', sans-serif;
-            line-height: 1;
-            text-shadow: 0 0 10px var(--primary-glow);
-        }
-
-        .hw-score-sub {
-            font-size: 13px;
-            color: var(--warning-color);
-            font-family: 'Rajdhani', sans-serif;
-        }
-
-        .team-status {
-            font-size: 11px;
-            padding: 6px 12px;
-            border-radius: 4px;
-            background: var(--badge-bg);
-            color: var(--text-muted);
-            border: 1px solid var(--badge-border);
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            max-width: 120px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-align: center;
-        }
-
-        .team-status.assigned {
-            background: var(--assigned-bg);
-            color: var(--primary);
-            border-color: var(--assigned-border);
-            box-shadow: 0 0 10px var(--primary-glow);
-        }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
-
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
-            display: flex; justify-content: center; align-items: center;
-            z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
-        }
-        .modal-overlay.active { opacity: 1; pointer-events: all; }
-        .modal-content {
-            background: var(--modal-bg);
-            padding: 30px; border-radius: 8px; border: 1px solid var(--primary);
-            box-shadow: 0 0 40px var(--primary-glow), inset 0 0 20px var(--assigned-bg);
-            max-width: 420px; width: 100%; text-align: center;
-            transform: scale(0.95) translateY(-20px); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative; overflow: hidden;
-        }
-        .modal-content::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
-            background: var(--primary); box-shadow: 0 0 15px var(--primary);
-        }
-        .modal-overlay.active .modal-content { transform: scale(1) translateY(0); }
-        .modal-title { font-size: 18px; margin-bottom: 24px; color: var(--text-main); line-height: 1.5; }
-        .modal-buttons { display: flex; justify-content: center; gap: 16px; }
-
-        .empty-state {
-            grid-column: 1 / -1; text-align: center; padding: 60px 20px;
-            color: var(--text-muted); font-size: 16px; letter-spacing: 1px;
-            display: flex; flex-direction: column; align-items: center; gap: 10px;
-        }
-        .empty-state::before {
-            content: '[]'; font-family: 'Rajdhani'; font-size: 40px; color: var(--border-light);
+        @media (max-width: 900px) {
+            #import-pane .import-layout { flex-direction: column; }
+            #import-pane aside { width: 100%; max-height: 300px; }
+            #draw-pane .draft-workspace { flex-direction: column; }
+            #draw-pane .side-panel { width: 100%; }
         }
     </style>
 </head>
-<body>
+<body data-page="draft">
+    <main class="page">
+        <div class="container">
+            <header class="page-header">
+                <span class="eyebrow">Draft</span>
+                <h1 class="page-title">分队系统</h1>
+                <p class="page-sub">两种模式：<strong style="color:var(--mist);">表格分队</strong> 导入选手库手动编队导出；<strong style="color:var(--mist);">随机抽取</strong> 从选手池抽卡招募并同步数据库。</p>
+            </header>
 
-    <header class="glass-panel">
-        <div class="logo font-esports">Draft System <span style="color:var(--text-muted); font-size:14px; margin-left:8px; font-weight:500;">HWVCT S6</span></div>
-        <div class="actions">
-            <a href="home.html" class="btn btn-secondary font-esports" style="text-decoration:none; letter-spacing: 1px;">个人主页</a>
-            <a href="events.html" class="btn btn-secondary font-esports" style="text-decoration:none; letter-spacing: 1px;">活动大厅</a>
-            <button class="btn btn-secondary font-esports" id="themeToggleBtn" onclick="toggleTheme()" style="letter-spacing: 1px;">☀️ DAY MODE</button>
-            <label class="btn">
-                导入选手数据
-                <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
-            </label>
-            <button class="btn btn-secondary" id="exportBtn" onclick="exportData()">导出分队数据</button>
-        </div>
-    </header>
-
-    <div class="layout-container">
-        <!-- 左侧队伍栏 -->
-        <aside class="glass-panel">
-            <div class="sidebar-header">
-                <span class="sidebar-title font-esports">TEAM ROSTER</span>
-                <span id="totalPlayersCount" class="font-esports" style="font-size: 14px; color: var(--text-muted);">Total: 0</span>
+            <div class="draft-tabs">
+                <button class="draft-tab active" data-pane="import" type="button">表格分队</button>
+                <button class="draft-tab" data-pane="draw" type="button">随机抽取</button>
             </div>
-            <div id="teamList">
-                <div class="empty-state">System Standby.<br>Please import player database.</div>
-            </div>
-        </aside>
 
-        <!-- 右侧选手池 -->
-        <main class="glass-panel">
-            <div class="main-header">
-                <div class="status-text">
-                    <div class="status-dot" id="statusIndicator"></div>
-                    <span id="statusText">Awaiting Team Selection...</span>
+            <!-- ============ PANE 1: spreadsheet draft ============ -->
+            <section id="import-pane">
+                <div class="pane-toolbar">
+                    <label class="btn btn-primary" style="cursor:pointer;">
+                        导入选手数据
+                        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display:none;">
+                    </label>
+                    <button class="btn btn-ghost" id="exportBtn" type="button">导出分队数据</button>
+                    <span class="smoke" style="font-size:12px;">支持 .xlsx / .xls / .csv，列名兼容中英文</span>
                 </div>
-                <label class="switch-container">
-                    <span class="font-esports" style="letter-spacing: 1px; text-transform: uppercase;">Unassigned Only</span>
-                    <div class="switch">
-                        <input type="checkbox" id="showUnassignedOnly" onchange="renderPlayers()" checked>
-                        <span class="slider"></span>
+                <div class="import-layout">
+                    <aside>
+                        <div class="sidebar-header">
+                            <span class="sidebar-title">Team Roster</span>
+                            <span id="totalPlayersCount">Total: 0</span>
+                        </div>
+                        <div id="teamList">
+                            <div class="empty-state">等待导入选手库…</div>
+                        </div>
+                    </aside>
+                    <div class="import-main">
+                        <div class="main-header">
+                            <div class="status-text">
+                                <div class="status-dot" id="statusIndicator"></div>
+                                <span id="statusText">Awaiting Team Selection…</span>
+                            </div>
+                            <label class="switch-container">
+                                <span>仅显示未分队</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="showUnassignedOnly" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </label>
+                        </div>
+                        <div id="playerGrid">
+                            <div class="empty-state">No Data Found</div>
+                        </div>
                     </div>
-                </label>
-            </div>
-            <div id="playerGrid">
-                <div class="empty-state">No Data Found</div>
-            </div>
-        </main>
-    </div>
+                </div>
+            </section>
 
-    <!-- 确认模态框 -->
-    <div class="modal-overlay" id="confirmModal">
-        <div class="modal-content">
-            <div class="modal-title" id="modalText">CONFIRM ACTION?</div>
-            <div class="modal-buttons">
-                <button class="btn" style="background:transparent; border-color:var(--text-muted); color:var(--text-muted); box-shadow:none;" onclick="closeModal()">CANCEL</button>
-                <button class="btn" id="confirmBtn">CONFIRM EXECUTE</button>
+            <!-- ============ PANE 2: live draw ============ -->
+            <section id="draw-pane" hidden>
+                <div class="pane-toolbar">
+                    <div class="seg" id="group-filter-buttons">
+                        <button class="active" data-group="传奇组" type="button">传奇组</button>
+                        <button data-group="中坚组" type="button">中坚组</button>
+                        <button data-group="挑战组" type="button">挑战组</button>
+                    </div>
+                    <div style="flex:1"></div>
+                    <button class="btn btn-ghost" id="undo-btn" disabled type="button">撤销上一次抽取</button>
+                    <button class="btn btn-success-ghost" id="submit-btn" disabled type="button">同步至最终数据表</button>
+                </div>
+
+                <div class="draft-workspace">
+                    <aside class="side-panel">
+                        <div class="panel-box">
+                            <h3 class="block-title">操作面板 <span id="status-text">初始化中…</span></h3>
+                            <select id="target-team" class="team-select">
+                                <option value="">加载队伍中...</option>
+                            </select>
+                            <button id="draw-btn" class="draw-btn-huge" disabled>开始抽取</button>
+                        </div>
+                        <div class="panel-box" style="flex:1;">
+                            <h3 class="block-title">待选池 (TOP)</h3>
+                            <div class="pool-stats" id="pool-count">0</div>
+                            <div style="text-align:center; color:var(--smoke); font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase;">名剩余选手</div>
+                            <div class="pool-list" id="pool-list"></div>
+                        </div>
+                    </aside>
+                    <div class="core-arena">
+                        <div class="cards-container" id="cards-container">
+                            <div class="empty-state">请在左侧选择目标队伍并点击开始抽取</div>
+                        </div>
+                        <div class="result-banner" id="result-banner"></div>
+                    </div>
+                </div>
+
+                <div class="roster-area" id="roster-area"></div>
+            </section>
+        </div>
+    </main>
+
+    <!-- import-pane confirm -->
+    <div class="modal-backdrop" id="confirmModal">
+        <div class="modal-panel" style="max-width:420px; text-align:center;">
+            <div class="modal-title" id="modalText" style="margin-bottom:20px; line-height:1.6;"></div>
+            <div class="modal-actions" style="justify-content:center;">
+                <button class="btn btn-ghost" type="button" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" id="confirmBtn" type="button">确认执行</button>
             </div>
         </div>
     </div>
 
+    <!-- draw-pane confirm -->
+    <div class="modal-backdrop" id="confirm-modal">
+        <div class="modal-panel" style="max-width:400px; text-align:center;">
+            <span class="eyebrow">Confirm</span>
+            <div class="modal-title" id="confirm-msg" style="margin:10px 0 20px; line-height:1.6;"></div>
+            <div class="modal-actions" style="justify-content:center;">
+                <button class="btn btn-ghost" id="confirm-cancel" type="button">取消</button>
+                <button class="btn btn-primary" id="confirm-ok" type="button">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         PANE 1 script — spreadsheet draft (global functions kept:
+         renderPlayers / exportData / closeModal are used inline)
+         ============================================================ -->
     <script>
         let playersData = [];
         let selectedTeamName = null;
         let modalConfirmCallback = null;
 
-        // 主题切换逻辑
-        function toggleTheme() {
-            document.body.classList.toggle('day-mode');
-            const isDay = document.body.classList.contains('day-mode');
-            localStorage.setItem('theme', isDay ? 'day' : 'dark');
-            document.getElementById('themeToggleBtn').innerText = isDay ? '🌙 NIGHT MODE' : '☀️ DAY MODE';
-        }
-
-        // 初始化读取主题缓存
-        (function() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'day') {
-                document.body.classList.add('day-mode');
-                window.addEventListener('DOMContentLoaded', () => {
-                    document.getElementById('themeToggleBtn').innerText = '🌙 NIGHT MODE';
-                });
-            }
-        })();
-
-        // 导入数据
-        document.getElementById('fileInput').addEventListener('change', function(e) {
+        document.getElementById('fileInput').addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(evt) {
+            reader.onload = function (evt) {
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                
+
                 let rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-                
+
                 playersData = rawData.map(row => {
                     const cleanRow = {};
                     for (let key in row) {
@@ -757,7 +475,7 @@
 
                 selectedTeamName = null;
                 updateUI();
-                e.target.value = ''; 
+                e.target.value = '';
             };
             reader.readAsArrayBuffer(file);
         });
@@ -788,10 +506,10 @@
             const statusEl = document.getElementById('statusText');
             const dotEl = document.getElementById('statusIndicator');
             if (selectedTeamName) {
-                statusEl.innerHTML = `TARGET LOCKED: <span style="color: var(--primary); font-family: 'Rajdhani'; font-size: 18px; font-weight: 700; letter-spacing: 1px;">[ ${selectedTeamName} ]</span> - Select player to draft`;
+                statusEl.innerHTML = `TARGET LOCKED: <span style="color: var(--pure-white); font-family: var(--font-mono); font-weight: 500;">[ ${selectedTeamName} ]</span> — 选择选手入队`;
                 dotEl.classList.add('active');
             } else {
-                statusEl.innerHTML = `Awaiting Team Selection...`;
+                statusEl.innerHTML = `Awaiting Team Selection…`;
                 dotEl.classList.remove('active');
             }
         }
@@ -799,14 +517,14 @@
         function renderTeams() {
             const teamListEl = document.getElementById('teamList');
             const teams = getComputedTeams();
-            
+
             if (playersData.length === 0) {
-                teamListEl.innerHTML = '<div class="empty-state">System Standby.<br>Please import player database.</div>';
+                teamListEl.innerHTML = '<div class="empty-state">等待导入选手库…</div>';
                 return;
             }
             teamListEl.innerHTML = '';
             if (teams.length === 0) {
-                teamListEl.innerHTML = '<div class="empty-state">No active rosters.<br>Select a player to initiate a new team.</div>';
+                teamListEl.innerHTML = '<div class="empty-state">暂无队伍。<br>先选中一名选手以创建新队伍。</div>';
                 return;
             }
 
@@ -814,11 +532,11 @@
                 const item = document.createElement('div');
                 item.className = `team-card ${selectedTeamName === team.name ? 'selected' : ''}`;
                 item.onclick = () => selectTeam(team.name);
-                
-                const sortedPlayers = [...team.players].sort((a,b) => b.huawei_score - a.huawei_score);
+
+                const sortedPlayers = [...team.players].sort((a, b) => b.huawei_score - a.huawei_score);
                 let playersHtml = '';
-                
-                if(sortedPlayers.length > 0) {
+
+                if (sortedPlayers.length > 0) {
                     playersHtml = `<div class="team-roster">`;
                     sortedPlayers.forEach(p => {
                         playersHtml += `
@@ -836,10 +554,10 @@
 
                 item.innerHTML = `
                     <div class="team-info-header">
-                        <div class="team-name">${team.name} <span style="font-size:12px; color:var(--text-muted); font-weight:normal; margin-left:5px;">(${team.players.length}M)</span></div>
+                        <div class="team-name">${team.name} <span style="font-size:11px; color:var(--smoke); font-weight:400; margin-left:5px;">(${team.players.length}M)</span></div>
                         <div>
-                            <div class="team-score-total font-esports">${team.totalScore.toFixed(2)}</div>
-                            <div class="team-score-label">TEAM SCORE</div>
+                            <div class="team-score-total">${team.totalScore.toFixed(2)}</div>
+                            <div class="team-score-label">Team Score</div>
                         </div>
                     </div>
                     ${playersHtml}
@@ -869,7 +587,7 @@
             });
 
             if (displayPlayers.length === 0) {
-                gridEl.innerHTML = '<div class="empty-state">Filter applied: No available players found.</div>';
+                gridEl.innerHTML = '<div class="empty-state">当前筛选下没有可选选手。</div>';
                 return;
             }
 
@@ -890,48 +608,36 @@
                     <div class="card-header">
                         <div class="player-title">
                             <div class="player-name" title="${p.player_name}">${p.player_name}</div>
-                            <div class="game-id" title="${p.game_id} | ${p.rank_tier}">${p.game_id} <span style="margin:0 4px;color:var(--divider);">|</span> ${p.rank_tier}</div>
+                            <div class="game-id" title="${p.game_id} | ${p.rank_tier}">${p.game_id} · ${p.rank_tier}</div>
                         </div>
                         <div class="card-badges">
                             <div class="badge-base player-role-badge">${p.player_role}</div>
                             ${preGroupHtml}
                         </div>
                     </div>
-                    
+
                     <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label">ACS</span>
-                            <span class="stat-value" title="${p.acs}">${p.acs}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">ADR</span>
-                            <span class="stat-value" title="${p.adr}">${p.adr}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">KDA</span>
-                            <span class="stat-value" title="${p.kda}">${p.kda}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">KAST</span>
-                            <span class="stat-value" title="${p.kast}">${p.kast}</span>
-                        </div>
+                        <div class="stat-item"><span class="stat-label">ACS</span><span class="stat-value" title="${p.acs}">${p.acs}</span></div>
+                        <div class="stat-item"><span class="stat-label">ADR</span><span class="stat-value" title="${p.adr}">${p.adr}</span></div>
+                        <div class="stat-item"><span class="stat-label">KDA</span><span class="stat-value" title="${p.kda}">${p.kda}</span></div>
+                        <div class="stat-item"><span class="stat-label">KAST</span><span class="stat-value" title="${p.kast}">${p.kast}</span></div>
                     </div>
 
                     <div class="score-section">
                         <div class="score-info">
                             <div class="score-row">
-                                <span class="score-label">华为分 / FINAL</span>
+                                <span class="score-label">华为分 / Final</span>
                                 <span class="hw-score-main">${p.huawei_score.toFixed(1)}</span>
                             </div>
                             <div class="score-row">
-                                <span class="score-label">原分 / BASE</span>
+                                <span class="score-label">原分 / Base</span>
                                 <span class="hw-score-sub">${p.hw_score} ${p.adjustment !== 0 ? `(调 ${adjStr})` : ''}</span>
                             </div>
                         </div>
                         <div class="${statusClass}" title="${statusText}">${statusText}</div>
                     </div>
                 `;
-                
+
                 gridEl.appendChild(card);
             });
         }
@@ -941,12 +647,12 @@
 
             if (!selectedTeamName) {
                 if (player.team_note) {
-                    showModal(`Remove player <span style="color:var(--primary)">${player.player_name}</span> from roster [${player.team_note}]?`, () => {
+                    showModal(`将 <span style="color:var(--mist)">${player.player_name}</span> 移出队伍 [${player.team_note}]？`, () => {
                         playersData[playerIndex].team_note = '';
                         updateUI();
                     });
                 } else {
-                    const newTeamName = prompt(`No target team selected. Initialize new roster for ${player.player_name}?\nEnter Team Code Name:`);
+                    const newTeamName = prompt(`尚未选择目标队伍。为 ${player.player_name} 创建新队伍？\n请输入队伍代号：`);
                     if (newTeamName && newTeamName.trim() !== '') {
                         playersData[playerIndex].team_note = newTeamName.trim();
                         selectTeam(newTeamName.trim());
@@ -956,16 +662,16 @@
             }
 
             if (player.team_note === selectedTeamName) {
-                showModal(`Remove <span style="color:var(--accent)">${player.player_name}</span> from current roster?`, () => {
+                showModal(`将 <span style="color:var(--coral-pulse)">${player.player_name}</span> 移出当前队伍？`, () => {
                     playersData[playerIndex].team_note = '';
                     updateUI();
                 });
             } else {
-                let msg = `Draft <span style="color:var(--primary)">${player.player_name}</span> into roster [${selectedTeamName}]?`;
+                let msg = `将 <span style="color:var(--mist)">${player.player_name}</span> 招入队伍 [${selectedTeamName}]？`;
                 if (player.team_note) {
-                    msg = `Transfer <span style="color:var(--primary)">${player.player_name}</span> from [${player.team_note}] to roster [${selectedTeamName}]?`;
+                    msg = `将 <span style="color:var(--mist)">${player.player_name}</span> 从 [${player.team_note}] 转入 [${selectedTeamName}]？`;
                 }
-                
+
                 showModal(msg, () => {
                     playersData[playerIndex].team_note = selectedTeamName;
                     updateUI();
@@ -975,7 +681,7 @@
 
         function exportData() {
             if (playersData.length === 0) {
-                alert("Database empty. Import required.");
+                alert("数据库为空，请先导入选手数据。");
                 return;
             }
 
@@ -1004,8 +710,8 @@
         function showModal(text, onConfirm) {
             document.getElementById('modalText').innerHTML = text;
             modalConfirmCallback = onConfirm;
-            document.getElementById('confirmModal').classList.add('active');
-            
+            document.getElementById('confirmModal').classList.add('visible');
+
             const btn = document.getElementById('confirmBtn');
             btn.onclick = () => {
                 if (modalConfirmCallback) modalConfirmCallback();
@@ -1014,9 +720,529 @@
         }
 
         function closeModal() {
-            document.getElementById('confirmModal').classList.remove('active');
+            document.getElementById('confirmModal').classList.remove('visible');
             modalConfirmCallback = null;
         }
+
+        document.getElementById('exportBtn').addEventListener('click', exportData);
+        document.getElementById('showUnassignedOnly').addEventListener('change', renderPlayers);
+    </script>
+
+    <!-- ============================================================
+         PANE 2 script — live random draw (scoped in IIFE to avoid
+         renderTeams name clash; handleRefresh exposed for inline onclick)
+         ============================================================ -->
+    <script>
+    (function () {
+        'use strict';
+
+        let rawData = [];
+        let allPlayers = [];
+        let currentGroup = '传奇组';
+        let pool = [];
+        let teams = {};
+        let drawnPlayers = [];
+        let pendingIdsToSubmit = [];
+        let lastDraft = null;
+        let isDrawing = false;
+        let seenInCurrentDraw = new Set();
+
+        const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const groupFilterButtons = document.getElementById('group-filter-buttons');
+        const targetTeamSelect = document.getElementById('target-team');
+        const drawBtn = document.getElementById('draw-btn');
+        const cardsContainer = document.getElementById('cards-container');
+        const rosterArea = document.getElementById('roster-area');
+        const poolCountEl = document.getElementById('pool-count');
+        const poolListEl = document.getElementById('pool-list');
+        const statusText = document.getElementById('status-text');
+        const undoBtn = document.getElementById('undo-btn');
+        const submitBtn = document.getElementById('submit-btn');
+
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmMsg = document.getElementById('confirm-msg');
+        let confirmResolve = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            groupFilterButtons.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+                    groupFilterButtons.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    currentGroup = e.target.dataset.group;
+                    processGroupData();
+                }
+            });
+            drawBtn.addEventListener('click', startDraw);
+            undoBtn.addEventListener('click', handleUndo);
+            submitBtn.addEventListener('click', handleSubmit);
+
+            document.getElementById('confirm-cancel').addEventListener('click', () => {
+                confirmModal.classList.remove('visible');
+                if (confirmResolve) confirmResolve(false);
+            });
+            document.getElementById('confirm-ok').addEventListener('click', () => {
+                confirmModal.classList.remove('visible');
+                if (confirmResolve) confirmResolve(true);
+            });
+
+            loadData();
+        });
+
+        function createSeededRandom(seed) {
+            return function () {
+                seed = (seed * 9301 + 49297) % 233280;
+                return seed / 233280;
+            };
+        }
+
+        function getRandomElements(arr, n, randomFunc = Math.random) {
+            let result = new Array(n), len = arr.length, taken = new Array(len);
+            if (n > len) n = len;
+            while (n--) {
+                let x = Math.floor(randomFunc() * len);
+                result[n] = arr[x in taken ? taken[x] : x];
+                taken[x] = --len in taken ? taken[len] : len;
+            }
+            return result;
+        }
+
+        async function loadData() {
+            setStatus('同步数据中…', 'var(--ash)');
+            drawBtn.disabled = true;
+            submitBtn.disabled = true;
+            undoBtn.disabled = true;
+            cardsContainer.innerHTML = '<div class="empty-state">正在加载数据库信息…</div>';
+            pendingIdsToSubmit = [];
+            lastDraft = null;
+
+            const { data, error } = await supabaseClient.from('player_stats').select('*');
+            if (error) {
+                alert("加载失败: " + error.message);
+                setStatus('数据加载失败', 'var(--coral-pulse)');
+                return;
+            }
+
+            rawData = data || [];
+            processGroupData();
+        }
+
+        function processGroupData() {
+            const targetGroups = currentGroup === '中坚组' ? ['中坚组', '中间组'] : [currentGroup];
+            allPlayers = rawData.filter(p => targetGroups.includes(p.pre_group?.trim()));
+
+            teams = {};
+            pool = [];
+            cardsContainer.innerHTML = '<div class="empty-state">请在左侧选择目标队伍并点击开始抽取</div>';
+
+            allPlayers.forEach(p => {
+                if (p.team && p.team.trim() !== '') {
+                    if (!teams[p.team]) {
+                        teams[p.team] = { name: p.team, totalScore: 0, members: [] };
+                    }
+                    teams[p.team].members.push(p);
+                    teams[p.team].totalScore += (p.hw_score || 0);
+                } else {
+                    if (p.role !== '队长' && p.role !== '替补') {
+                        pool.push(p);
+                    }
+                }
+            });
+
+            pool.sort((a, b) => (b.hw_score || 0) - (a.hw_score || 0));
+
+            renderTeams();
+            renderPool();
+
+            setStatus('数据就绪', 'var(--success-green)');
+            drawBtn.disabled = (pool.length === 0);
+        }
+
+        function setStatus(text, color) {
+            statusText.textContent = text;
+            statusText.style.color = color;
+        }
+
+        function renderTeams() {
+            const sortedTeams = Object.values(teams).sort((a, b) => a.totalScore - b.totalScore);
+
+            targetTeamSelect.innerHTML = '';
+            if (sortedTeams.length === 0) {
+                targetTeamSelect.innerHTML = '<option value="">暂无已初始化的队伍</option>';
+            } else {
+                sortedTeams.forEach(t => {
+                    const isFull = t.members.length >= 6;
+                    const opt = document.createElement('option');
+                    opt.value = t.name;
+                    opt.textContent = `${t.name} (当前分:${t.totalScore})${isFull ? ' - 已满员' : ''}`;
+                    if (isFull) opt.disabled = true;
+                    targetTeamSelect.appendChild(opt);
+                });
+            }
+
+            rosterArea.innerHTML = '';
+            sortedTeams.forEach(t => {
+                const isFull = t.members.length >= 6;
+                const tBox = document.createElement('div');
+                tBox.className = `team-box ${isFull ? 'full' : ''}`;
+
+                const membersHtml = t.members.sort((a, b) => (b.hw_score || 0) - (a.hw_score || 0)).map(m => {
+                    const isPending = pendingIdsToSubmit.some(pid => pid.name === m.player_name);
+                    return `
+                    <div class="member-row" style="${isPending ? 'border-left-color: var(--success-green); background: rgba(89,212,153,.08);' : ''}">
+                        <span class="m-name">${m.player_name || '-'} <span class="m-role">${m.role || '队员'}</span></span>
+                        <span class="m-score">${m.hw_score || 0}</span>
+                    </div>
+                `}).join('');
+
+                tBox.innerHTML = `
+                    <div class="team-header">
+                        <span class="team-name">${t.name} ${isFull ? '<span style="font-size:11px;color:var(--smoke);font-weight:400">[满员]</span>' : ''}</span>
+                        <span class="team-score">总分 ${t.totalScore}</span>
+                    </div>
+                    <div class="member-list">${membersHtml}</div>
+                `;
+                rosterArea.appendChild(tBox);
+            });
+        }
+
+        function renderPool() {
+            poolCountEl.textContent = pool.length;
+            poolListEl.innerHTML = '';
+
+            const topCandidates = pool.slice(0, 10);
+            topCandidates.forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.className = 'pool-item';
+                row.innerHTML = `<span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${p.game_id}">${idx + 1}. ${p.player_name}</span> <span style="color:var(--pure-white); font-family:var(--font-mono); margin-left:10px;">${p.hw_score || 0}</span>`;
+                poolListEl.appendChild(row);
+            });
+            if (pool.length > 10) {
+                const more = document.createElement('div');
+                more.style.textAlign = 'center';
+                more.style.marginTop = '10px';
+                more.style.color = 'var(--smoke)';
+                more.textContent = `... 以及其他 ${pool.length - 10} 人`;
+                poolListEl.appendChild(more);
+            }
+        }
+
+        function getPlayerQualityClass(player) {
+            const index = pool.findIndex(p => p.player_name === player.player_name);
+            if (index >= 0 && index <= 2) return 'quality-diamond';
+            if (index >= 3 && index <= 6) return 'quality-gold';
+            if (index >= 7 && index <= 9) return 'quality-silver';
+            return '';
+        }
+
+        async function startDraw() {
+            if (isDrawing || pool.length === 0) return;
+            const targetTeam = targetTeamSelect.value;
+            if (!targetTeam) return alert("请先选择一支队伍！");
+
+            if (teams[targetTeam] && teams[targetTeam].members.length >= 6) {
+                return alert("当前队伍已满员（6人），请选择其他队伍！");
+            }
+
+            isDrawing = true;
+            drawBtn.disabled = true;
+            setStatus('发牌中…', 'var(--ash)');
+            cardsContainer.innerHTML = '';
+
+            const clickTimeSeed = Date.now();
+            const seededRand = createSeededRandom(clickTimeSeed);
+
+            const candidates = pool.slice(0, 10);
+            const numToDraw = Math.min(3, candidates.length);
+            drawnPlayers = getRandomElements(candidates, numToDraw, seededRand);
+
+            seenInCurrentDraw.clear();
+            drawnPlayers.forEach(p => seenInCurrentDraw.add(p.player_name));
+
+            drawnPlayers.forEach((p, idx) => {
+                const qClass = getPlayerQualityClass(p);
+                const wrapper = document.createElement('div');
+                wrapper.className = 'card-wrapper';
+                wrapper.innerHTML = `
+                    <div class="card" id="card-${idx}">
+                        <div class="card-face card-back"></div>
+                        <div class="card-face card-front ${qClass}">
+                            <div class="card-header">
+                                <div class="player-name">${p.player_name || '-'}</div>
+                                <div class="player-gameid" title="${p.game_id || '-'}">${p.game_id || '-'}</div>
+                                <div class="player-hwscore">${p.hw_score || 0} <span style="font-size:11px;color:var(--smoke)">分</span></div>
+                            </div>
+                            <div class="card-body">
+                                <div class="stat-row"><span class="stat-label">段位</span><span class="stat-val">${p.rank_tier || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">位置</span><span class="stat-val">${p.player_role || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">近期ACS</span><span class="stat-val">${p.acs || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">KDA</span><span class="stat-val">${p.kda || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">ADR</span><span class="stat-val">${p.adr || '-'}</span></div>
+                                <div class="stat-row"><span class="stat-label">KAST</span><span class="stat-val">${p.kast || '-'}</span></div>
+                                <div style="flex:1"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="refresh-btn" data-refresh="${idx}" id="refresh-${idx}">更换候选人</button>
+                `;
+
+                const cardEl = wrapper.querySelector('.card');
+                cardEl.addEventListener('click', () => selectPlayer(idx, targetTeam, wrapper));
+                wrapper.querySelector('[data-refresh]').addEventListener('click', () => handleRefresh(idx));
+                cardsContainer.appendChild(wrapper);
+            });
+
+            for (let i = 0; i < drawnPlayers.length; i++) {
+                await new Promise(r => setTimeout(r, 300));
+                const el = document.getElementById(`card-${i}`);
+                if (el) el.classList.add('flipped');
+            }
+
+            setStatus('等待做出选择…', 'var(--mist)');
+            isDrawing = false;
+        }
+
+        async function handleRefresh(idx) {
+            if (isDrawing) return;
+            isDrawing = true;
+
+            const refreshBtn = document.getElementById(`refresh-${idx}`);
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '已更换';
+
+            const cardEl = document.getElementById(`card-${idx}`);
+            const candidates = pool.slice(0, 10);
+            const available = candidates.filter(p => !seenInCurrentDraw.has(p.player_name));
+
+            if (available.length === 0) {
+                alert("Top10 候选池中已无其他未展示过的选手可供更换！");
+                isDrawing = false;
+                return;
+            }
+
+            const clickTimeSeed = Date.now();
+            const seededRand = createSeededRandom(clickTimeSeed);
+            const newPlayer = getRandomElements(available, 1, seededRand)[0];
+            drawnPlayers[idx] = newPlayer;
+            seenInCurrentDraw.add(newPlayer.player_name);
+
+            cardEl.classList.remove('flipped');
+            await new Promise(r => setTimeout(r, 600));
+
+            const front = cardEl.querySelector('.card-front');
+            const qClass = getPlayerQualityClass(newPlayer);
+            front.className = `card-face card-front ${qClass}`;
+
+            front.querySelector('.player-name').textContent = newPlayer.player_name || '-';
+            front.querySelector('.player-gameid').textContent = newPlayer.game_id || '-';
+            front.querySelector('.player-gameid').title = newPlayer.game_id || '-';
+            front.querySelector('.player-hwscore').innerHTML = `${newPlayer.hw_score || 0} <span style="font-size:11px;color:var(--smoke)">分</span>`;
+
+            const vals = front.querySelectorAll('.stat-val');
+            vals[0].textContent = newPlayer.rank_tier || '-';
+            vals[1].textContent = newPlayer.player_role || '-';
+            vals[2].textContent = newPlayer.acs || '-';
+            vals[3].textContent = newPlayer.kda || '-';
+            vals[4].textContent = newPlayer.adr || '-';
+            vals[5].textContent = newPlayer.kast || '-';
+
+            cardEl.classList.add('flipped');
+            isDrawing = false;
+        }
+        window.handleRefresh = handleRefresh;
+
+        function customConfirm(msg) {
+            confirmMsg.textContent = msg;
+            confirmModal.classList.add('visible');
+            return new Promise(resolve => {
+                confirmResolve = resolve;
+            });
+        }
+
+        async function selectPlayer(idx, teamName, wrapperEl) {
+            if (isDrawing) return;
+            const player = drawnPlayers[idx];
+
+            const confirmed = await customConfirm(`确定将 ${player.player_name} 招募至 [${teamName}] 吗？`);
+            if (!confirmed) return;
+
+            isDrawing = true;
+            setStatus('实时写入 stats 表中…', 'var(--ash)');
+
+            const { data, error } = await supabaseClient.from('player_stats')
+                .update({ team: teamName, role: '选手' })
+                .eq('player_name', player.player_name)
+                .select();
+
+            if (error) {
+                alert("写入数据库报错: " + error.message);
+                isDrawing = false;
+                setStatus('网络/数据库错误', 'var(--coral-pulse)');
+                return;
+            }
+            if (!data || data.length === 0) {
+                alert(`数据库更新失败！\n\n可能原因：\n1. player_stats 表开启了 RLS 且未允许匿名 Update\n2. 表中没有 player_name 为 "${player.player_name}" 的数据\n\n本次操作已被阻断。`);
+                isDrawing = false;
+                setStatus('更新被数据库拦截', 'var(--coral-pulse)');
+                return;
+            }
+
+            wrapperEl.classList.add('selected');
+            const otherWrappers = Array.from(cardsContainer.children).filter(w => w !== wrapperEl);
+            otherWrappers.forEach(w => w.classList.add('faded'));
+
+            player.team = teamName;
+            player.role = '选手';
+            lastDraft = { ...player };
+            pendingIdsToSubmit.push({ name: player.player_name, team: teamName });
+
+            pool = pool.filter(p => p.player_name !== player.player_name);
+            if (!teams[teamName]) {
+                teams[teamName] = { name: teamName, totalScore: 0, members: [] };
+            }
+            teams[teamName].members.push(player);
+            teams[teamName].totalScore += (player.hw_score || 0);
+
+            setTimeout(() => {
+                const banner = document.getElementById('result-banner');
+                banner.textContent = `🎉 ${player.player_name} 加入了 ${teamName}！`;
+                banner.classList.add('show');
+
+                setTimeout(() => {
+                    banner.classList.remove('show');
+                    isDrawing = false;
+
+                    renderTeams();
+                    renderPool();
+                    updateControls();
+
+                    cardsContainer.innerHTML = '<div class="empty-state">请继续选择队伍抽取</div>';
+                    setStatus('抽取成功，等待下一次操作', 'var(--success-green)');
+                }, 2500);
+            }, 800);
+        }
+
+        function updateControls() {
+            undoBtn.disabled = !lastDraft;
+            submitBtn.disabled = pendingIdsToSubmit.length === 0;
+            drawBtn.disabled = pool.length === 0;
+        }
+
+        async function handleUndo() {
+            if (!lastDraft) return;
+            const confirmed = await customConfirm(`确定要撤销对 ${lastDraft.player_name} 的招募吗？该选手将回到池中。`);
+            if (!confirmed) return;
+
+            setStatus('正在撤销数据…', 'var(--ash)');
+
+            const { data, error } = await supabaseClient.from('player_stats')
+                .update({ team: null, role: '选手' })
+                .eq('player_name', lastDraft.player_name)
+                .select();
+
+            if (error) {
+                alert("撤销时数据库报错: " + error.message);
+                return;
+            }
+            if (!data || data.length === 0) {
+                alert("撤销失败！数据库未执行修改操作（RLS 拦截或数据不匹配）。");
+                setStatus('撤销被拦截', 'var(--coral-pulse)');
+                return;
+            }
+
+            teams[lastDraft.team].members = teams[lastDraft.team].members.filter(m => m.player_name !== lastDraft.player_name);
+            teams[lastDraft.team].totalScore -= (lastDraft.hw_score || 0);
+
+            lastDraft.team = null;
+            lastDraft.role = '选手';
+            pool.push(lastDraft);
+            pool.sort((a, b) => (b.hw_score || 0) - (a.hw_score || 0));
+
+            pendingIdsToSubmit = pendingIdsToSubmit.filter(p => p.name !== lastDraft.player_name);
+            lastDraft = null;
+
+            renderTeams();
+            renderPool();
+            updateControls();
+            cardsContainer.innerHTML = '<div class="empty-state">已撤销，请重新抽取</div>';
+            setStatus('撤销成功', 'var(--success-green)');
+        }
+
+        async function handleSubmit() {
+            if (pendingIdsToSubmit.length === 0) return;
+
+            const confirmed = await customConfirm(`即将把近期抽取的 ${pendingIdsToSubmit.length} 名选手及相关队长同步至【最终的 player_ids 表】。确认提交吗？`);
+            if (!confirmed) return;
+
+            setStatus('正在同步最终表…', 'var(--success-green)');
+            submitBtn.disabled = true;
+            undoBtn.disabled = true;
+            drawBtn.disabled = true;
+
+            try {
+                let captainsToSubmit = [];
+                Object.values(teams).forEach(team => {
+                    team.members.forEach(m => {
+                        if (m.role === '队长') {
+                            captainsToSubmit.push({ name: m.player_name, team: team.name });
+                        }
+                    });
+                });
+
+                const allToSubmit = [...pendingIdsToSubmit, ...captainsToSubmit];
+                const uniqueToSubmit = Array.from(new Map(allToSubmit.map(item => [item.name, item])).values());
+
+                const updatePromises = uniqueToSubmit.map(async (p) => {
+                    const { data, error } = await supabaseClient.from('player_ids')
+                        .update({ team: p.team })
+                        .eq('name', p.name)
+                        .select();
+
+                    if (error) throw error;
+                    if (!data || data.length === 0) {
+                        throw new Error(`无法修改选手 '${p.name}'：RLS 权限不足，或 player_ids 表中无 'name' 为 '${p.name}' 的数据。`);
+                    }
+                });
+
+                await Promise.all(updatePromises);
+
+                alert("🎉 所有分队数据及队长信息已成功同步至 player_ids 表！");
+                pendingIdsToSubmit = [];
+                lastDraft = null;
+                updateControls();
+                renderTeams();
+                setStatus('所有数据同步完毕', 'var(--success-green)');
+            } catch (err) {
+                alert("同步中止：" + err.message);
+                setStatus('同步遭遇错误', 'var(--coral-pulse)');
+                updateControls();
+            }
+        }
+    })();
+    </script>
+
+    <!-- pane tabs -->
+    <script>
+        (function () {
+            var tabs = document.querySelectorAll('.draft-tab');
+            var importPane = document.getElementById('import-pane');
+            var drawPane = document.getElementById('draw-pane');
+
+            function activate(name) {
+                tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.pane === name); });
+                importPane.hidden = name !== 'import';
+                drawPane.hidden = name !== 'draw';
+            }
+            tabs.forEach(function (t) {
+                t.addEventListener('click', function () {
+                    activate(t.dataset.pane);
+                    location.hash = t.dataset.pane === 'draw' ? 'draw' : '';
+                });
+            });
+            if (location.hash === '#draw') activate('draw');
+        })();
     </script>
 </body>
 </html>

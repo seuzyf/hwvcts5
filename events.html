@@ -3,358 +3,271 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS - 活动大厅</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
+    <title>HWVCTS — 活动大厅</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/theme.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/layout.js"></script>
     <style>
-        :root {
-            --primary-color: #ff4655;
-            --bg-color: #0a0a0f;
-            --bg-gradient-mid: #1a0a0a;
-            --text-color: #fff;
-            --card-bg-color: rgba(21, 21, 32, 0.85);
-            --border-color: rgba(255, 70, 85, 0.2);
-            --border-highlight: rgba(255, 70, 85, 0.5);
-            --gold-color: #ffd700;
-            --shadow-color: rgba(0,0,0,0.5);
-            --control-height: 42px;
-            --win-color: #81c784;
-            --loss-color: #ff8a80;
-            --text-muted: rgba(255, 255, 255, 0.5);
-        }
-        body.light-theme {
-            --primary-color: #e53935;
-            --bg-color: #f4f5f7;
-            --bg-gradient-mid: #e9ecef;
-            --text-color: #1c1e21;
-            --card-bg-color: rgba(255, 255, 255, 0.9);
-            --border-color: rgba(229, 57, 53, 0.3);
-            --border-highlight: rgba(229, 57, 53, 0.6);
-            --shadow-color: rgba(229, 57, 53, 0.15);
-            --win-color: #4CAF50;
-            --loss-color: #F44336;
-            --text-muted: rgba(0, 0, 0, 0.5);
-        }
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Noto Sans SC', sans-serif;
-            background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
-            color: var(--text-color);
-            margin: 0; padding: 20px 0;
-            line-height: 1.6; min-height: 100vh;
-            transition: background .3s, color .3s;
-        }
-        .particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255,70,85,.6); border-radius: 50%; animation: float linear infinite; }
-        @keyframes float {
-            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
-            10% { opacity: 1; } 90% { opacity: 1; }
-            100% { transform: translateY(-10vh) translateX(100px); opacity: 0; }
-        }
-        .container { width: 92%; max-width: 1300px; margin: 0 auto; position: relative; z-index: 10; }
-
-        .main-header-block { text-align: center; padding: 25px 0 6px; margin-bottom: 26px; position: relative; }
-        .title-badge {
-            display: inline-block; padding: 6px 20px; background: rgba(255,70,85,.15);
-            border: 1px solid var(--border-highlight); border-radius: 20px;
-            font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 18px;
-        }
-        .main-header-block h1 {
-            font-size: 52px; font-weight: 900; letter-spacing: 8px; margin: 0 0 8px;
-            background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 30px rgba(255,70,85,.3));
-        }
-        .header-sub { color: var(--text-muted); letter-spacing: 4px; font-size: 14px; font-weight: 300; margin: 0; }
-        .theme-switch-wrapper { position: absolute; top: 0; right: 0; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted); }
-        .theme-switch { display: inline-block; height: 20px; width: 40px; position: relative; }
-        .theme-switch input { display: none; }
-        .slider-theme { background-color: rgba(255,255,255,.1); border: 1px solid var(--border-color); position: absolute; inset: 0; cursor: pointer; transition: .4s; border-radius: 20px; }
-        body.light-theme .slider-theme { background-color: rgba(0,0,0,.1); }
-        .slider-theme:before { content: ""; position: absolute; height: 14px; width: 14px; left: 3px; bottom: 2px; background-color: var(--text-color); transition: .4s; border-radius: 50%; }
-        input:checked + .slider-theme { background-color: var(--primary-color) !important; border-color: var(--primary-color); }
-        input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
-
-        .controls-container { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
-        .nav-button {
-            height: var(--control-height); padding: 0 22px; display: inline-flex; align-items: center;
-            border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none;
-            background: rgba(255,70,85,.08); border-radius: 6px; font-size: 14px; font-weight: 600;
-            letter-spacing: 1px; transition: all .3s; cursor: pointer; font-family: inherit;
-        }
-        .nav-button:hover { background: rgba(255,70,85,.2); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,70,85,.2); }
-        .nav-button.ghost { background: transparent; color: var(--text-muted); }
-        .nav-button.ghost:hover { color: var(--primary-color); }
-        .nav-button.small { height: 32px; padding: 0 14px; font-size: 12px; }
-
-        .tabs { display: flex; gap: 8px; justify-content: center; margin-top: 18px; }
+        .tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
         .tab-btn {
-            height: 40px; padding: 0 28px; border: 1px solid var(--border-color); background: rgba(255,255,255,.03);
-            color: var(--text-muted); border-radius: 6px; cursor: pointer; font-size: 14px; letter-spacing: 3px;
-            font-family: inherit; transition: .25s;
+            padding: 10px 16px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            color: var(--ash);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.15s ease, border-color 0.15s ease;
         }
-        .tab-btn.active { background: rgba(255,70,85,.15); color: var(--primary-color); border-color: var(--border-highlight); font-weight: 700; }
-        .tab-badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--primary-color); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
-
-        .filter-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 18px 0 26px; }
-        .filter-chip {
-            padding: 6px 18px; border: 1px solid var(--border-color); border-radius: 16px;
-            background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer;
-            font-family: inherit; transition: .2s; letter-spacing: 1px;
+        .tab-btn:hover { color: var(--pure-white); }
+        .tab-btn.active { color: var(--pure-white); border-bottom-color: var(--coral-pulse); }
+        .tab-badge {
+            display: inline-block; min-width: 17px; padding: 0 5px; margin-left: 6px;
+            border-radius: 9px; background: var(--graphite); color: var(--mist);
+            font-family: var(--font-mono); font-size: 10px; line-height: 17px; text-align: center;
         }
-        .filter-chip.active { background: rgba(255,70,85,.15); color: var(--primary-color); border-color: var(--border-highlight); }
 
-        /* 活动卡片 */
-        .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; }
+
         .event-card {
-            background: var(--card-bg-color); backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color); border-radius: 10px;
-            padding: 22px; position: relative; cursor: pointer;
-            transition: .28s; display: flex; flex-direction: column; gap: 10px;
-            box-shadow: 0 10px 30px var(--shadow-color);
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 22px;
+            background: var(--ink);
+            border-radius: var(--r-card);
+            box-shadow: var(--key-shadow);
+            cursor: pointer;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
         }
-        .event-card:hover { transform: translateY(-5px); border-color: var(--border-highlight); box-shadow: 0 18px 40px rgba(0,0,0,.45); }
+        .event-card:hover { box-shadow: var(--key-shadow-hover); transform: translateY(-3px); }
         .ev-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-        .ev-emoji { font-size: 34px; }
         .ev-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-        .badge { font-size: 11px; padding: 3px 10px; border-radius: 10px; font-weight: 600; letter-spacing: 1px; white-space: nowrap; }
-        .badge-type { background: rgba(255,255,255,.06); color: var(--text-muted); border: 1px solid var(--border-color); }
-        .st-registration { background: rgba(255,70,85,.14); color: var(--primary-color); border: 1px solid var(--border-highlight); }
-        .st-ongoing { background: rgba(129,199,132,.14); color: var(--win-color); border: 1px solid rgba(129,199,132,.4); }
-        .st-finished, .st-draft, .st-cancelled { background: rgba(255,255,255,.07); color: var(--text-muted); border: 1px solid var(--border-color); }
-        .ev-title { font-size: 19px; font-weight: 900; letter-spacing: 1px; margin: 0; }
-        .ev-desc { font-size: 13px; color: var(--text-muted); line-height: 1.55; flex: 1;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .ev-meta { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
-        .ev-meta span b { color: var(--text-color); font-weight: 600; }
-        .ev-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border-color); }
-        .slot-bar { flex: 1; margin-right: 14px; }
-        .slot-text { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .slot-track { height: 5px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
-        .slot-fill { height: 100%; background: linear-gradient(90deg, var(--primary-color), #ff8a80); border-radius: 3px; transition: width .4s; }
-        .slot-fill.full { background: var(--loss-color); }
+        .ev-title { margin: 0; font-size: 17px; font-weight: 500; color: var(--pure-white); letter-spacing: 0.2px; }
+        .ev-desc {
+            font-size: 13px; color: var(--ash); line-height: 1.55; flex: 1; margin: 0;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .ev-meta { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--smoke); }
+        .ev-foot {
+            display: flex; align-items: center; gap: 14px;
+            padding-top: 12px; border-top: 1px solid rgba(54, 55, 57, 0.6);
+        }
+        .slot-bar { flex: 1; }
+        .slot-text { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em; color: var(--smoke); margin-bottom: 5px; text-transform: uppercase; }
+        .slot-track { height: 4px; background: var(--obsidian); border-radius: 2px; overflow: hidden; }
+        .slot-fill { height: 100%; background: var(--mist); border-radius: 2px; transition: width 0.4s ease; }
+        .slot-fill.full { background: var(--coral-pulse); }
 
-        /* 我的报名 */
-        .mine-list { display: flex; flex-direction: column; gap: 14px; }
+        /* Mine list */
+        .mine-list { display: flex; flex-direction: column; gap: 10px; }
         .mine-item {
-            display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
-            background: var(--card-bg-color); border: 1px solid var(--border-color);
-            border-radius: 8px; padding: 18px 22px;
+            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+            padding: 16px 18px;
+            background: var(--ink);
+            border-radius: var(--r-card);
+            box-shadow: var(--key-shadow);
         }
-        .mine-item .emoji { font-size: 30px; }
         .mine-info { flex: 1; min-width: 200px; }
-        .mine-info .t { font-weight: 800; font-size: 16px; letter-spacing: 1px; }
-        .mine-info .s { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+        .mine-info .t { font-size: 15px; font-weight: 500; color: var(--pure-white); }
+        .mine-info .s { font-size: 12px; color: var(--smoke); margin-top: 3px; }
         .mine-ops { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .status-chip { font-size: 11px; padding: 4px 12px; border-radius: 10px; font-weight: 600; letter-spacing: 1px; white-space: nowrap; }
-        .st-pending  { background: rgba(255,215,0,.12); color: var(--gold-color); border: 1px solid rgba(255,215,0,.35); }
-        .st-approved { background: rgba(129,199,132,.12); color: var(--win-color); border: 1px solid rgba(129,199,132,.4); }
-        .st-rejected, .st-cancelled { background: rgba(255,138,128,.1); color: var(--loss-color); border: 1px solid rgba(255,138,128,.35); }
 
-        .content-block {
-            background: var(--card-bg-color); backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color); border-radius: 8px;
-            padding: 26px 30px; box-shadow: 0 10px 40px var(--shadow-color); position: relative;
+        /* Detail modal bits */
+        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 16px 0; }
+        .meta-cell { background: var(--obsidian); border: 1px solid var(--border); border-radius: var(--r-btn); padding: 9px 11px; }
+        .meta-cell .k { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--smoke); }
+        .meta-cell .v { font-size: 13px; font-weight: 500; color: var(--mist); margin-top: 3px; }
+        .desc-block {
+            font-size: 13px; color: var(--ash); white-space: pre-line; line-height: 1.7;
+            background: var(--obsidian); border: 1px solid var(--border);
+            border-radius: var(--r-btn); padding: 13px 15px;
         }
-        .content-block::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
-            background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px;
+        .roster-list { list-style: none; margin: 0; padding: 0; max-height: 230px; overflow-y: auto; }
+        .roster-list li {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 4px; border-bottom: 1px solid rgba(54, 55, 57, 0.5);
+            font-size: 13px;
         }
-        .empty-hint { text-align: center; color: var(--text-muted); font-size: 14px; padding: 40px 0; }
-
-        /* 弹窗通用 */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(5,5,10,.82); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; overflow-y: auto; }
-        .modal-backdrop.visible { display: flex; }
-        .modal-panel { background: #151520; border: 1px solid var(--border-highlight); border-radius: 10px; width: 100%; max-width: 560px; padding: 28px 30px; position: relative; color: #fff; margin: auto; max-height: 90vh; overflow-y: auto; }
-        .modal-panel.wide { max-width: 680px; }
-        .modal-panel h3 { margin: 0 0 6px; letter-spacing: 2px; font-size: 20px; }
-        .modal-panel h4 { margin: 20px 0 8px; font-size: 14px; color: var(--primary-color); letter-spacing: 2px; }
-        .modal-close-x { position: absolute; top: 10px; right: 16px; font-size: 26px; color: rgba(255,255,255,.4); cursor: pointer; background: none; border: none; }
-        .modal-close-x:hover { color: var(--primary-color); }
-        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 14px 0; }
-        .meta-cell { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 6px; padding: 8px 10px; }
-        .meta-cell .k { font-size: 10px; color: rgba(255,255,255,.4); letter-spacing: 1px; }
-        .meta-cell .v { font-size: 13px; font-weight: 600; margin-top: 2px; }
-        .desc-text { font-size: 13px; color: rgba(255,255,255,.7); white-space: pre-line; line-height: 1.7; background: rgba(255,255,255,.03); border-radius: 6px; padding: 12px 14px; border: 1px solid rgba(255,255,255,.07); }
-        .roster-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
-        .roster-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; }
         .roster-list li:last-child { border-bottom: none; }
-        .roster-list .team { font-weight: 700; flex: 1; }
-        .roster-list .who { color: rgba(255,255,255,.5); font-size: 12px; }
-        .roster-list .op { display: flex; gap: 6px; }
-        .mini-btn { font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: transparent; color: rgba(255,255,255,.6); font-family: inherit; }
-        .mini-btn.ok { border-color: rgba(129,199,132,.5); color: var(--win-color); }
-        .mini-btn.no { border-color: rgba(255,138,128,.5); color: var(--loss-color); }
-        .mini-btn:hover { background: rgba(255,255,255,.08); }
-
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
-        .form-grid .full { grid-column: 1 / -1; }
-        .modal-panel label { display: block; font-size: 12px; color: rgba(255,255,255,.5); margin: 12px 0 4px; letter-spacing: 1px; }
-        .modal-panel input, .modal-panel textarea, .modal-panel select {
-            width: 100%; padding: 10px 12px; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.15);
-            border-radius: 6px; color: #fff; font-size: 14px; outline: none; font-family: inherit; resize: vertical;
+        .roster-list .team { font-weight: 500; color: var(--pure-white); flex: 1; }
+        .roster-list .who { color: var(--smoke); font-size: 12px; }
+        .mini-btn {
+            font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+            padding: 4px 9px; border-radius: var(--r-badge);
+            border: 1px solid var(--border); background: transparent;
+            color: var(--ash); cursor: pointer;
         }
-        .modal-panel input:focus, .modal-panel textarea:focus, .modal-panel select:focus { border-color: var(--primary-color); }
-        .modal-panel select option { background: #151520; }
-        .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; flex-wrap: wrap; }
-        .btn { height: 40px; padding: 0 20px; border-radius: 6px; cursor: pointer; font-size: 13px; letter-spacing: 2px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-family: inherit; }
-        .btn.primary { background: rgba(255,70,85,.18); border-color: var(--primary-color); color: var(--primary-color); font-weight: 700; }
-        .btn.primary:hover { background: var(--primary-color); color: #fff; }
-        .btn:disabled { opacity: .5; cursor: wait; }
-        .notice { font-size: 12px; color: rgba(255,255,255,.45); text-align: center; margin-top: 12px; line-height: 1.6; }
-        .my-reg-box { background: rgba(255,215,0,.06); border: 1px solid rgba(255,215,0,.3); border-radius: 6px; padding: 12px 14px; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .mini-btn:hover { background: var(--graphite); color: var(--pure-white); }
+        .mini-btn.ok { border-color: rgba(89, 212, 153, 0.4); color: var(--success-green); }
+        .mini-btn.no { border-color: rgba(255, 99, 99, 0.4); color: #ff8f8f; }
 
-        @media (max-width: 640px) {
-            .main-header-block h1 { font-size: 36px; letter-spacing: 4px; }
-            .theme-switch-wrapper { position: static; justify-content: center; margin-bottom: 10px; }
-            .form-grid { grid-template-columns: 1fr; }
-            .modal-panel { padding: 22px 18px; }
+        .my-reg-box {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            padding: 13px 15px; margin-top: 16px;
+            background: rgba(255, 215, 0, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.25);
+            border-radius: var(--r-btn);
+            font-size: 13px; color: var(--ash);
         }
+        .section-label {
+            font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+            letter-spacing: 0.06em; text-transform: uppercase; color: var(--smoke);
+            margin: 20px 0 8px;
+        }
+        .modal-note { font-family: var(--font-mono); font-size: 10px; color: var(--smoke); text-align: center; margin-top: 16px; letter-spacing: 0.03em; }
+        .admin-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .admin-row .select { width: auto; flex: 1; min-width: 150px; }
     </style>
 </head>
-<body>
-    <div class="particles" id="particles"></div>
-    <div class="container">
-        <div class="main-header-block">
-            <div class="theme-switch-wrapper">
-                <span id="theme-text">切换为亮色模式</span>
-                <label class="theme-switch">
-                    <input type="checkbox" id="theme-toggle-checkbox">
-                    <span class="slider-theme"></span>
-                </label>
-            </div>
-            <div class="title-badge">VALORANT EVENTS</div>
-            <h1>活动大厅</h1>
-            <p class="header-sub">把 每 一 场 赛 事 当 作 一 个 活 动 · 自 主 报 名</p>
-            <div class="controls-container">
-                <a href="home.html" class="nav-button">个 人 主 页</a>
-                <a href="index.html" class="nav-button">比 赛 中 心</a>
-                <button id="auth-btn" class="nav-button ghost">登 录 / 注 册</button>
-                <button id="create-ev-btn" class="nav-button" style="display:none;">＋ 创 建 活 动</button>
-            </div>
+<body data-page="events">
+    <main class="page">
+        <div class="container">
+            <header class="page-header">
+                <span class="eyebrow">Events</span>
+                <h1 class="page-title">活动大厅</h1>
+                <p class="page-sub">把每一场赛事当作一个活动 —— 浏览、报名、跟踪审核状态。</p>
+            </header>
+
             <div class="tabs">
-                <button class="tab-btn active" data-tab="hall">活 动 大 厅</button>
-                <button class="tab-btn" data-tab="mine">我 的 报 名<span class="tab-badge" id="mine-badge" style="display:none;">0</span></button>
+                <button class="tab-btn active" data-tab="hall" type="button">活动大厅</button>
+                <button class="tab-btn" data-tab="mine" type="button">我的报名<span class="tab-badge" id="mine-badge" style="display:none;">0</span></button>
             </div>
+
+            <div class="filter-bar" id="filter-bar">
+                <div class="seg" id="status-filter">
+                    <button class="active" data-status="all" type="button">全部</button>
+                    <button data-status="registration" type="button">报名中</button>
+                    <button data-status="ongoing" type="button">进行中</button>
+                    <button data-status="finished" type="button">已结束</button>
+                </div>
+                <div style="flex:1"></div>
+                <button class="btn btn-primary" id="create-ev-btn" style="display:none;" type="button">＋ 创建活动</button>
+            </div>
+
+            <div id="main-content"><div class="empty-state">正在加载活动…</div></div>
         </div>
+    </main>
 
-        <div class="filter-row" id="filter-row">
-            <button class="filter-chip active" data-status="all">全部</button>
-            <button class="filter-chip" data-status="registration">报名中</button>
-            <button class="filter-chip" data-status="ongoing">进行中</button>
-            <button class="filter-chip" data-status="finished">已结束</button>
-        </div>
-
-        <main id="main-content">
-            <div class="content-block"><p class="empty-hint">正在加载活动...</p></div>
-        </main>
-    </div>
-
-    <!-- 活动详情 / 报名弹窗 -->
+    <!-- 活动详情 -->
     <div class="modal-backdrop" id="detail-modal">
         <div class="modal-panel wide" id="detail-panel"></div>
     </div>
 
-    <!-- 创建活动弹窗 -->
+    <!-- 创建活动 -->
     <div class="modal-backdrop" id="create-modal">
         <div class="modal-panel wide">
-            <button class="modal-close-x" onclick="document.getElementById('create-modal').classList.remove('visible')">&times;</button>
-            <h3>创 建 活 动</h3>
-            <p class="notice" style="text-align:left;margin:0;">赛事数据与报名信息分表存储：这里只创建 <b>events</b>，报名由参与者在大厅提交。</p>
+            <button class="modal-close" data-close="create-modal" type="button">&times;</button>
+            <span class="eyebrow">Admin</span>
+            <h3 class="modal-title" style="margin-top:8px;">创建活动</h3>
+            <p class="notice mt-16">赛事数据与报名信息分表存储：这里只写入 <strong>events</strong>，报名由参与者在大厅提交。</p>
             <form id="create-form">
-                <div class="form-grid">
-                    <div class="full"><label>活动标题 *</label><input id="cf-title" required maxlength="40" placeholder="例如：S6 冬季杯"></div>
-                    <div><label>类型</label>
-                        <select id="cf-type">
+                <div class="form-row">
+                    <div class="full">
+                        <label class="form-label" for="cf-title">活动标题 *</label>
+                        <input class="input" id="cf-title" required maxlength="40" placeholder="例如：S6 冬季杯">
+                    </div>
+                    <div>
+                        <label class="form-label" for="cf-type">类型</label>
+                        <select class="select" id="cf-type">
                             <option value="tournament">赛事 tournament</option>
                             <option value="scrim">训练赛 scrim</option>
                             <option value="showmatch">表演赛 showmatch</option>
                             <option value="activity">活动 activity</option>
                         </select>
                     </div>
-                    <div><label>赛季</label><input id="cf-season" value="S6" maxlength="10"></div>
-                    <div><label>状态</label>
-                        <select id="cf-status">
+                    <div>
+                        <label class="form-label" for="cf-season">赛季</label>
+                        <input class="input" id="cf-season" value="S6" maxlength="10">
+                    </div>
+                    <div>
+                        <label class="form-label" for="cf-status">状态</label>
+                        <select class="select" id="cf-status">
                             <option value="registration">报名中</option>
                             <option value="draft">草稿（先不公开）</option>
                             <option value="ongoing">进行中</option>
                             <option value="finished">已结束</option>
                         </select>
                     </div>
-                    <div><label>名额上限（空 = 不限）</label><input id="cf-slots" type="number" min="1" placeholder="16"></div>
-                    <div><label>开始时间</label><input id="cf-start" type="datetime-local"></div>
-                    <div><label>结束时间</label><input id="cf-end" type="datetime-local"></div>
-                    <div class="full"><label>报名截止</label><input id="cf-deadline" type="datetime-local"></div>
-                    <div><label>形式（BO1/BO3…）</label><input id="cf-format" maxlength="20" placeholder="BO3"></div>
-                    <div><label>封面图标</label><input id="cf-emoji" value="🏆" maxlength="4"></div>
-                    <div class="full"><label>地点 / 房间说明</label><input id="cf-venue" maxlength="60" placeholder="自定义房间：HWVCT-XXX"></div>
-                    <div class="full"><label>活动简介</label><textarea id="cf-desc" rows="3" maxlength="400" placeholder="这场活动是做什么的？"></textarea></div>
-                    <div class="full"><label>赛制 / 规则</label><textarea id="cf-rules" rows="3" maxlength="400" placeholder="BO3 单败、迟到判负……"></textarea></div>
+                    <div>
+                        <label class="form-label" for="cf-slots">名额上限（空 = 不限）</label>
+                        <input class="input" id="cf-slots" type="number" min="1" placeholder="16">
+                    </div>
+                    <div>
+                        <label class="form-label" for="cf-start">开始时间</label>
+                        <input class="input" id="cf-start" type="datetime-local">
+                    </div>
+                    <div>
+                        <label class="form-label" for="cf-end">结束时间</label>
+                        <input class="input" id="cf-end" type="datetime-local">
+                    </div>
+                    <div class="full">
+                        <label class="form-label" for="cf-deadline">报名截止</label>
+                        <input class="input" id="cf-deadline" type="datetime-local">
+                    </div>
+                    <div>
+                        <label class="form-label" for="cf-format">形式（BO1/BO3…）</label>
+                        <input class="input" id="cf-format" maxlength="20" placeholder="BO3">
+                    </div>
+                    <div>
+                        <label class="form-label" for="cf-emoji">封面图标</label>
+                        <input class="input" id="cf-emoji" value="🏆" maxlength="4">
+                    </div>
+                    <div class="full">
+                        <label class="form-label" for="cf-venue">地点 / 房间说明</label>
+                        <input class="input" id="cf-venue" maxlength="60" placeholder="自定义房间：HWVCT-XXX">
+                    </div>
+                    <div class="full">
+                        <label class="form-label" for="cf-desc">活动简介</label>
+                        <textarea class="textarea" id="cf-desc" rows="3" maxlength="400" placeholder="这场活动是做什么的？"></textarea>
+                    </div>
+                    <div class="full">
+                        <label class="form-label" for="cf-rules">赛制 / 规则</label>
+                        <textarea class="textarea" id="cf-rules" rows="3" maxlength="400" placeholder="BO3 单败、迟到判负……"></textarea>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn" onclick="document.getElementById('create-modal').classList.remove('visible')">取 消</button>
-                    <button type="submit" class="btn primary" id="cf-submit">创 建</button>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" type="button" data-close="create-modal">取消</button>
+                    <button class="btn btn-primary" id="cf-submit" type="submit">创建</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- 管理员验证弹窗 -->
+    <!-- 管理员验证 -->
     <div class="modal-backdrop" id="admin-modal">
         <div class="modal-panel" style="max-width:400px;">
-            <button class="modal-close-x" onclick="document.getElementById('admin-modal').classList.remove('visible')">&times;</button>
-            <h3 style="text-align:center;">管 理 员 验 证</h3>
-            <label>输入管理口令以创建/审核活动</label>
-            <input type="password" id="admin-pwd" placeholder="管理口令" style="width:100%;padding:10px 12px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#fff;font-size:14px;outline:none;">
-            <div class="modal-footer">
-                <button class="btn" onclick="document.getElementById('admin-modal').classList.remove('visible')">取 消</button>
-                <button class="btn primary" id="admin-verify-btn">验 证</button>
+            <button class="modal-close" data-close="admin-modal" type="button">&times;</button>
+            <span class="eyebrow">Admin Gate</span>
+            <h3 class="modal-title" style="margin-top:8px;">管理员验证</h3>
+            <label class="form-label" for="admin-pwd">管理口令</label>
+            <input class="input" id="admin-pwd" type="password" placeholder="输入管理口令以创建 / 审核活动">
+            <div class="modal-actions">
+                <button class="btn btn-ghost" type="button" data-close="admin-modal">取消</button>
+                <button class="btn btn-primary" id="admin-verify-btn" type="button">验证</button>
             </div>
         </div>
     </div>
 
-    <script src="js/auth.js"></script>
     <script>
     (function () {
         'use strict';
 
-        /* ---------- 粒子 & 主题 ---------- */
-        var pContainer = document.getElementById('particles');
-        for (var i = 0; i < 40; i++) {
-            var p = document.createElement('div');
-            p.className = 'particle';
-            p.style.left = Math.random() * 100 + '%';
-            p.style.animationDuration = (Math.random() * 6 + 4) + 's';
-            p.style.animationDelay = (Math.random() * 8) + 's';
-            pContainer.appendChild(p);
-        }
-        var themeToggle = document.getElementById('theme-toggle-checkbox');
-        var themeText = document.getElementById('theme-text');
-        function setTheme(isLight) {
-            document.body.classList.toggle('light-theme', isLight);
-            themeToggle.checked = isLight;
-            themeText.textContent = isLight ? '切换为暗色模式' : '切换为亮色模式';
-            localStorage.setItem('theme', isLight ? 'light' : 'dark');
-        }
-        setTheme(localStorage.getItem('theme') === 'light');
-        themeToggle.addEventListener('change', function (e) { setTheme(e.target.checked); });
-
-        /* ---------- 常量与状态 ---------- */
         var EV_STATUS = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
         var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回' };
         var TYPE_LABEL = { tournament: '赛事', scrim: '训练赛', showmatch: '表演赛', activity: '活动' };
+        var EV_BADGE = { draft: 'badge-quiet', registration: 'badge-coral', ongoing: 'badge-green', finished: 'badge-quiet', cancelled: 'badge-quiet' };
+        var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet' };
 
-        var allEvents = [];
-        var allRegs = [];
-        var userMap = {};
-        var currentTab = 'hall';
-        var currentFilter = 'all';
-        var tableMissing = false;
-
-        var main = document.getElementById('main-content');
-        var authBtn = document.getElementById('auth-btn');
-        var createBtn = document.getElementById('create-ev-btn');
+        var allEvents = [], allRegs = [], userMap = {};
+        var currentTab = 'hall', currentFilter = 'all', tableMissing = false;
         var ADMIN_TTL = 15 * 60 * 1000;
+        var main = document.getElementById('main-content');
+        var createBtn = document.getElementById('create-ev-btn');
 
         function esc(s) {
             return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -372,7 +285,7 @@
             return t > 0 && (Date.now() - t) < ADMIN_TTL;
         }
 
-        /* ---------- 数据加载 ---------- */
+        /* ---------- data ---------- */
         function loadData() {
             var sb = HWAuth.getClient();
             return Promise.all([
@@ -380,14 +293,9 @@
                 sb.from('event_registrations').select('*').order('created_at', { ascending: false }),
                 sb.from('site_users').select('id, username, nickname')
             ]).then(function (rs) {
-                var evErr = rs[0].error, regErr = rs[1].error, usrErr = rs[2].error;
-                if ((evErr && HWAuth.isMissingTable(evErr)) ||
-                    (regErr && HWAuth.isMissingTable(regErr)) ||
-                    (usrErr && HWAuth.isMissingTable(usrErr))) {
-                    tableMissing = true;
-                    return;
-                }
-                if (evErr || regErr) throw evErr || regErr;
+                var errs = [rs[0].error, rs[1].error, rs[2].error];
+                if (errs.some(function (e) { return e && HWAuth.isMissingTable(e); })) { tableMissing = true; return; }
+                if (errs[0] || errs[1]) throw errs[0] || errs[1];
                 tableMissing = false;
                 allEvents = rs[0].data || [];
                 allRegs = rs[1].data || [];
@@ -409,66 +317,106 @@
             }) || null;
         }
 
-        /* ---------- 渲染：活动大厅 ---------- */
+        /* ---------- render ---------- */
+        function render() {
+            if (typeof HWLayout !== 'undefined') HWLayout.renderAuth();
+            updateTabs();
+            updateAdminUI();
+            if (currentTab === 'mine') renderMine();
+            else renderHall();
+        }
+
+        function updateTabs() {
+            var u = HWAuth.getSession();
+            var badge = document.getElementById('mine-badge');
+            if (u) {
+                var n = allRegs.filter(function (r) { return r.user_id === u.id && r.status !== 'cancelled'; }).length;
+                badge.textContent = n;
+                badge.style.display = n > 0 ? 'inline-block' : 'none';
+            } else badge.style.display = 'none';
+        }
+
+        function updateAdminUI() {
+            createBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
+        }
+
+        function renderMissing() {
+            main.innerHTML =
+                '<div class="card" style="text-align:center; padding:48px 24px;">' +
+                '<span class="eyebrow">Setup Required</span>' +
+                '<h2 style="font-weight:400; color:var(--pure-white); margin:12px 0 10px;">数据库尚未升级</h2>' +
+                '<p class="muted" style="font-size:14px; max-width:540px; margin:0 auto 20px; line-height:1.8;">' +
+                '活动大厅依赖新表 <span class="mono" style="color:var(--mist)">events / event_registrations / site_users</span>。<br>' +
+                '请在 Supabase SQL Editor 整段执行 <span class="mono" style="color:var(--mist)">supabase/schema.sql</span> 后刷新。' +
+                '执行前比赛中心 / 赛程 / 竞猜等旧功能不受影响。</p>' +
+                '<button class="btn btn-primary" id="reload-btn" type="button">已执行，刷新</button>' +
+                '</div>';
+            document.getElementById('reload-btn').addEventListener('click', function () { location.reload(); });
+        }
+
         function renderHall() {
+            if (tableMissing) { renderMissing(); return; }
             var list = allEvents.filter(function (ev) {
                 if (ev.status === 'draft' && !isAdmin()) return false;
-                if (currentFilter === 'all') return true;
-                return ev.status === currentFilter;
+                return currentFilter === 'all' || ev.status === currentFilter;
             });
-
-            if (tableMissing) { renderMissing(); return; }
             if (list.length === 0) {
-                main.innerHTML = '<div class="content-block"><p class="empty-hint">该筛选条件下暂无活动</p></div>';
+                main.innerHTML = '<div class="empty-state">该筛选条件下暂无活动。</div>';
                 return;
             }
-
-            var u = HWAuth.getSession();
             main.innerHTML = '<div class="events-grid">' + list.map(function (ev) {
                 var regs = activeRegsOf(ev.id);
                 var slots = ev.max_slots;
                 var pct = slots ? Math.min(100, Math.round(regs.length / slots * 100)) : 0;
                 var full = slots && regs.length >= slots;
-                var mine = u ? allRegs.find(function (r) { return r.event_id === ev.id && r.user_id === u.id && r.status !== 'cancelled'; }) : null;
+                var mine = myRegOf(ev.id);
 
-                return '<div class="event-card" data-id="' + ev.id + '">' +
+                var mineBadge = '';
+                if (mine) {
+                    mineBadge = mine.status === 'approved'
+                        ? '<span class="badge badge-green">✓ 已报名</span>'
+                        : '<span class="badge badge-gold">已提交报名</span>';
+                }
+
+                return '<article class="event-card" data-id="' + ev.id + '" tabindex="0">' +
                     '<div class="ev-top">' +
-                    '  <span class="ev-emoji">' + esc(ev.cover_emoji || '🏆') + '</span>' +
+                    '  <span class="icon-circle">' + esc(ev.cover_emoji || '🏆') + '</span>' +
                     '  <div class="ev-badges">' +
-                    '    <span class="badge badge-type">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + '</span>' +
-                    '    <span class="badge st-' + esc(ev.status) + '">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
-                    (mine ? '<span class="badge st-' + (mine.status === 'approved' ? 'ongoing' : 'registration') + '" style="' + (mine.status === 'approved' ? '' : 'background:rgba(255,215,0,.12);color:#ffd700;border-color:rgba(255,215,0,.35);') + '">' + (mine.status === 'approved' ? '✓ 已报名' : '已提交报名') + '</span>' : '') +
+                    '    <span class="badge badge-quiet">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + '</span>' +
+                    '    <span class="badge ' + (EV_BADGE[ev.status] || '') + '">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
+                         mineBadge +
                     '  </div>' +
                     '</div>' +
                     '<h3 class="ev-title">' + esc(ev.title) + '</h3>' +
                     '<p class="ev-desc">' + esc(ev.description || '暂无简介') + '</p>' +
                     '<div class="ev-meta">' +
-                    '  <span>🗓️ <b>' + fmtTime(ev.start_time) + '</b>' + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
-                    (ev.reg_deadline ? '<span>📌 报名截止 ' + fmtTime(ev.reg_deadline) + '</span>' : '') +
-                    (ev.venue ? '<span>📍 ' + esc(ev.venue) + '</span>' : '') +
+                    '  <span>' + fmtTime(ev.start_time) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
+                    (ev.reg_deadline ? '<span>报名截止 ' + fmtTime(ev.reg_deadline) + '</span>' : '') +
+                    (ev.venue ? '<span>' + esc(ev.venue) + '</span>' : '') +
                     '</div>' +
                     '<div class="ev-foot">' +
                     '  <div class="slot-bar">' +
-                    '    <div class="slot-text">' + (slots ? (full ? '名额已满' : '已报名 ' + regs.length + ' / ' + slots) : '已报名 ' + regs.length + ' 人（不限名额）') + '</div>' +
+                    '    <div class="slot-text">' + (slots ? (full ? '名额已满' : regs.length + ' / ' + slots + ' 已报名') : regs.length + ' 已报名 · 不限') + '</div>' +
                     '    <div class="slot-track"><div class="slot-fill' + (full ? ' full' : '') + '" style="width:' + (slots ? pct : Math.min(100, regs.length * 8)) + '%"></div></div>' +
                     '  </div>' +
-                    '  <span class="nav-button small" style="pointer-events:none;">详 情</span>' +
+                    '  <span class="btn btn-ghost btn-sm" style="pointer-events:none;">详情</span>' +
                     '</div>' +
-                '</div>';
+                '</article>';
             }).join('') + '</div>';
 
             main.querySelectorAll('.event-card').forEach(function (card) {
-                card.addEventListener('click', function () { openDetail(parseInt(card.dataset.id, 10)); });
+                var open = function () { openDetail(parseInt(card.dataset.id, 10)); };
+                card.addEventListener('click', open);
+                card.addEventListener('keydown', function (e) { if (e.key === 'Enter') open(); });
             });
         }
 
-        /* ---------- 渲染：我的报名 ---------- */
         function renderMine() {
             if (tableMissing) { renderMissing(); return; }
             var u = HWAuth.getSession();
             if (!u) {
-                main.innerHTML = '<div class="content-block"><p class="empty-hint">登录后查看我的报名<br><br>' +
-                    '<button class="nav-button" id="mine-login">登 录 / 注 册</button></p></div>';
+                main.innerHTML = '<div class="empty-state">登录后查看我的报名。<br><br>' +
+                    '<button class="btn btn-primary" id="mine-login" type="button">登录 / 注册</button></div>';
                 document.getElementById('mine-login').addEventListener('click', function () {
                     HWAuth.openModal({ stay: true }).then(render).catch(function () {});
                 });
@@ -476,8 +424,8 @@
             }
             var mine = allRegs.filter(function (r) { return r.user_id === u.id; });
             if (mine.length === 0) {
-                main.innerHTML = '<div class="content-block"><p class="empty-hint">你还没有报名任何活动<br><br>' +
-                    '<button class="nav-button" id="go-hall">去 活 动 大 厅 看 看</button></p></div>';
+                main.innerHTML = '<div class="empty-state">你还没有报名任何活动。<br><br>' +
+                    '<button class="btn btn-primary" id="go-hall" type="button">去活动大厅看看</button></div>';
                 document.getElementById('go-hall').addEventListener('click', function () { switchTab('hall'); });
                 return;
             }
@@ -485,17 +433,17 @@
                 var ev = allEvents.find(function (e) { return e.id === r.event_id; }) || {};
                 var canCancel = r.status === 'pending' || r.status === 'approved';
                 return '<div class="mine-item">' +
-                    '<span class="emoji">' + esc(ev.cover_emoji || '📋') + '</span>' +
+                    '<span class="icon-circle">' + esc(ev.cover_emoji || '📋') + '</span>' +
                     '<div class="mine-info">' +
                     '  <div class="t">' + esc(ev.title || '（活动已删除）') + '</div>' +
                     '  <div class="s">报名于 ' + fmtTime(r.created_at) +
                     (r.team_name ? ' · 战队「' + esc(r.team_name) + '」' : '') +
-                    (ev.start_time ? ' · 活动时间 ' + fmtTime(ev.start_time) : '') + '</div>' +
+                    (ev.start_time ? ' · 活动 ' + fmtTime(ev.start_time) : '') + '</div>' +
                     '</div>' +
                     '<div class="mine-ops">' +
-                    '  <span class="status-chip st-' + esc(r.status) + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
-                    (ev.id ? '<button class="nav-button small ghost" data-detail="' + ev.id + '">活动详情</button>' : '') +
-                    (canCancel ? '<button class="nav-button small ghost" data-cancel="' + r.id + '">撤 回</button>' : '') +
+                    '  <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
+                    (ev.id ? '<button class="btn btn-ghost btn-sm" data-detail="' + ev.id + '" type="button">活动详情</button>' : '') +
+                    (canCancel ? '<button class="btn btn-danger-ghost btn-sm" data-cancel="' + r.id + '" type="button">撤回</button>' : '') +
                     '</div>' +
                 '</div>';
             }).join('') + '</div>';
@@ -508,117 +456,93 @@
             });
         }
 
-        function renderMissing() {
-            main.innerHTML = '<div class="content-block" style="text-align:center;">' +
-                '<h3 style="letter-spacing:2px;color:var(--primary-color);">数 据 库 尚 未 升 级</h3>' +
-                '<p style="color:var(--text-muted);font-size:14px;max-width:560px;margin:10px auto 18px;line-height:1.8;">' +
-                '活动大厅依赖新表 <code>events / event_registrations / site_users</code>。<br>' +
-                '请在 Supabase Dashboard → SQL Editor 中整段执行 <code>supabase/schema.sql</code>，然后刷新本页。<br>' +
-                '脚本执行前，原有比赛中心 / 赛程 / 竞猜等功能不受影响。</p>' +
-                '<button class="nav-button" onclick="location.reload()">已 执 行 ， 刷 新</button>' +
-                '</div>';
-        }
-
-        /* ---------- Tab / 筛选 ---------- */
-        function switchTab(tab) {
-            currentTab = tab;
-            document.querySelectorAll('.tab-btn').forEach(function (b) {
-                b.classList.toggle('active', b.dataset.tab === tab);
-            });
-            document.getElementById('filter-row').style.display = tab === 'hall' ? 'flex' : 'none';
-            render();
-        }
-        document.querySelectorAll('.tab-btn').forEach(function (b) {
-            b.addEventListener('click', function () {
-                switchTab(b.dataset.tab);
-                if (b.dataset.tab === 'mine') location.hash = 'mine';
-                else location.hash = '';
-            });
-        });
-        document.querySelectorAll('.filter-chip').forEach(function (b) {
-            b.addEventListener('click', function () {
-                document.querySelectorAll('.filter-chip').forEach(function (x) { x.classList.remove('active'); });
-                b.classList.add('active');
-                currentFilter = b.dataset.status;
-                renderHall();
-            });
-        });
-
-        /* ---------- 详情弹窗 ---------- */
+        /* ---------- detail ---------- */
         function openDetail(eventId) {
             var ev = allEvents.find(function (e) { return e.id === eventId; });
             if (!ev) return;
             var panel = document.getElementById('detail-panel');
             var u = HWAuth.getSession();
             var regs = activeRegsOf(ev.id);
-            var mine = u ? allRegs.find(function (r) { return r.event_id === ev.id && r.user_id === u.id && r.status !== 'cancelled'; }) : null;
+            var mine = myRegOf(ev.id);
             var slots = ev.max_slots;
             var full = slots && regs.length >= slots;
             var deadlinePassed = ev.reg_deadline && new Date(ev.reg_deadline) < new Date();
             var canRegister = ev.status === 'registration' && !deadlinePassed && !full && !mine;
 
             var rosterHtml = regs.length === 0
-                ? '<p class="notice" style="text-align:left;">暂无报名</p>'
-                : '<ul class="roster-list">' + regs.sort(function (a, b) {
+                ? '<div class="empty-state" style="padding:20px 0;">暂无报名</div>'
+                : '<ul class="roster-list">' + regs.slice().sort(function (a, b) {
                     return (a.status === 'approved' ? 0 : 1) - (b.status === 'approved' ? 0 : 1);
                 }).map(function (r) {
                     var who = userMap[r.user_id] || {};
                     return '<li>' +
-                        '<span class="status-chip st-' + esc(r.status) + '" style="min-width:64px;text-align:center;">' + (REG_STATUS[r.status] || r.status) + '</span>' +
+                        '<span class="badge ' + (REG_BADGE[r.status] || '') + '" style="min-width:62px; justify-content:center;">' + (REG_STATUS[r.status] || r.status) + '</span>' +
                         '<span class="team">' + esc(r.team_name || who.nickname || who.username || ('用户#' + r.user_id)) + '</span>' +
                         '<span class="who">' + esc(who.username ? '@' + who.username : '') + (r.members && r.members.length ? ' · ' + r.members.length + ' 人' : '') + '</span>' +
-                        (isAdmin() && r.status === 'pending' ? '<span class="op">' +
-                            '<button class="mini-btn ok" data-approve="' + r.id + '">通过</button>' +
-                            '<button class="mini-btn no" data-reject="' + r.id + '">拒绝</button></span>' : '') +
+                        (isAdmin() && r.status === 'pending'
+                            ? '<span style="display:flex; gap:6px;"><button class="mini-btn ok" data-approve="' + r.id + '" type="button">通过</button>' +
+                              '<button class="mini-btn no" data-reject="' + r.id + '" type="button">拒绝</button></span>'
+                            : '') +
                         '</li>';
                 }).join('') + '</ul>';
 
-            var myRegHtml = '';
-            if (mine) {
-                myRegHtml = '<div class="my-reg-box">' +
-                    '<span>我的报名：<b style="color:' + (mine.status === 'approved' ? 'var(--win-color)' : mine.status === 'pending' ? 'var(--gold-color)' : 'var(--loss-color)') + '">' + (REG_STATUS[mine.status] || mine.status) + '</b></span>' +
-                    (mine.team_name ? '<span style="color:rgba(255,255,255,.5)">战队 ' + esc(mine.team_name) + '</span>' : '') +
-                    ((mine.status === 'pending' || mine.status === 'approved') ? '<button class="mini-btn no" data-cancel="' + mine.id + '" style="margin-left:auto;">撤回报名</button>' : '') +
-                    '</div>';
-            }
+            var myRegHtml = mine
+                ? '<div class="my-reg-box">' +
+                  '<span>我的报名：<strong style="color:' +
+                  (mine.status === 'approved' ? 'var(--success-green)' : mine.status === 'pending' ? '#ffd700' : '#ff8f8f') +
+                  '">' + (REG_STATUS[mine.status] || mine.status) + '</strong></span>' +
+                  (mine.team_name ? '<span class="smoke">战队 ' + esc(mine.team_name) + '</span>' : '') +
+                  ((mine.status === 'pending' || mine.status === 'approved')
+                      ? '<button class="mini-btn no" data-cancel="' + mine.id + '" style="margin-left:auto;" type="button">撤回报名</button>' : '') +
+                  '</div>'
+                : '';
 
-            var registerFormHtml = canRegister
-                ? (u
-                    ? '<h4>提 交 报 名</h4><form id="reg-form">' +
-                      '<div class="form-grid">' +
-                      '  <div class="full"><label>战队名 *（个人赛可填自己昵称）</label><input id="rf-team" required maxlength="24" placeholder="战队名称"></div>' +
-                      '  <div class="full"><label>队员名单（每行一个，可选）</label><textarea id="rf-members" rows="3" placeholder="张三&#10;李四"></textarea></div>' +
-                      '  <div><label>联系方式（微信/QQ，可选）</label><input id="rf-contact" maxlength="40"></div>' +
-                      '  <div><label>游戏内 ID</label><input id="rf-ingame" maxlength="30" value="' + esc(u.game_id || '') + '"></div>' +
-                      '  <div class="full"><label>备注</label><input id="rf-note" maxlength="100" placeholder="想说的话 / 组队需求"></div>' +
+            var registerHtml;
+            if (canRegister) {
+                registerHtml = u
+                    ? '<form id="reg-form">' +
+                      '<div class="form-row">' +
+                      '  <div class="full"><label class="form-label" for="rf-team">战队名 *（个人赛可填昵称）</label>' +
+                      '  <input class="input" id="rf-team" required maxlength="24" placeholder="战队名称"></div>' +
+                      '  <div class="full"><label class="form-label" for="rf-members">队员名单（每行一个，可选）</label>' +
+                      '  <textarea class="textarea" id="rf-members" rows="3" placeholder="张三&#10;李四"></textarea></div>' +
+                      '  <div><label class="form-label" for="rf-contact">联系方式（可选）</label>' +
+                      '  <input class="input" id="rf-contact" maxlength="40" placeholder="微信 / QQ"></div>' +
+                      '  <div><label class="form-label" for="rf-ingame">游戏内 ID</label>' +
+                      '  <input class="input" id="rf-ingame" maxlength="30" value="' + esc(u.game_id || '') + '"></div>' +
+                      '  <div class="full"><label class="form-label" for="rf-note">备注</label>' +
+                      '  <input class="input" id="rf-note" maxlength="100" placeholder="想说的话 / 组队需求"></div>' +
                       '</div>' +
-                      '<div class="modal-footer"><button type="submit" class="btn primary" id="rf-submit">确 认 报 名</button></div>' +
+                      '<div class="modal-actions"><button class="btn btn-primary" id="rf-submit" type="submit">确认报名</button></div>' +
                       '</form>'
-                    : '<p class="notice">登录后即可报名本活动</p><div class="modal-footer" style="justify-content:center;">' +
-                      '<button class="btn primary" id="rf-login">登 录 / 注 册</button></div>')
-                : (mine ? '' : '<p class="notice">' +
-                    (ev.status !== 'registration' ? '当前状态（' + (EV_STATUS[ev.status] || ev.status) + '）不可报名。' :
-                     deadlinePassed ? '报名已截止。' :
-                     full ? '名额已满。' : '不可报名。') + '</p>');
+                    : '<div class="empty-state" style="padding:24px 0;">登录后即可报名本活动。<br><br>' +
+                      '<button class="btn btn-primary" id="rf-login" type="button">登录 / 注册</button></div>';
+            } else if (!mine) {
+                registerHtml = '<div class="notice">' +
+                    (ev.status !== 'registration' ? '当前状态（' + (EV_STATUS[ev.status] || ev.status) + '）不可报名。'
+                     : deadlinePassed ? '报名已截止。'
+                     : full ? '名额已满。' : '暂不可报名。') + '</div>';
+            } else registerHtml = '';
 
             var adminHtml = isAdmin()
-                ? '<h4>管 理（管 理 员）</h4>' +
-                  '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-                  '  <select id="adm-status" style="width:auto;flex:1;min-width:140px;">' +
-                  ['draft', 'registration', 'ongoing', 'finished', 'cancelled'].map(function (s) {
-                      return '<option value="' + s + '"' + (ev.status === s ? ' selected' : '') + '>' + (EV_STATUS[s]) + '</option>';
-                  }).join('') + '</select>' +
-                  '  <button class="btn" id="adm-save-status" style="height:36px;">更新活动状态</button>' +
+                ? '<div class="section-label">管理（管理员）</div>' +
+                  '<div class="admin-row">' +
+                  '  <select class="select" id="adm-status">' +
+                       ['draft', 'registration', 'ongoing', 'finished', 'cancelled'].map(function (s) {
+                           return '<option value="' + s + '"' + (ev.status === s ? ' selected' : '') + '>' + EV_STATUS[s] + '</option>';
+                       }).join('') +
+                  '  </select>' +
+                  '  <button class="btn btn-ghost" id="adm-save-status" type="button">更新活动状态</button>' +
                   '</div>'
                 : '';
 
             panel.innerHTML =
-                '<button class="modal-close-x" id="detail-close">&times;</button>' +
-                '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">' +
-                '  <span style="font-size:36px;">' + esc(ev.cover_emoji || '🏆') + '</span>' +
-                '  <h3 style="margin:0;">' + esc(ev.title) + '</h3>' +
-                '  <span class="badge st-' + esc(ev.status) + '">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
-                '  <span class="badge badge-type">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
+                '<button class="modal-close" id="detail-close" type="button">&times;</button>' +
+                '<div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:6px;">' +
+                '  <span class="icon-circle" style="width:52px;height:52px;font-size:24px;">' + esc(ev.cover_emoji || '🏆') + '</span>' +
+                '  <div><span class="eyebrow">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
+                '  <h3 class="modal-title" style="font-size:20px; margin-top:4px;">' + esc(ev.title) + '</h3></div>' +
+                '  <span class="badge ' + (EV_BADGE[ev.status] || '') + '" style="margin-left:auto;">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
                 '</div>' +
                 '<div class="meta-grid">' +
                 '  <div class="meta-cell"><div class="k">开始时间</div><div class="v">' + fmtTime(ev.start_time) + '</div></div>' +
@@ -627,13 +551,13 @@
                 '  <div class="meta-cell"><div class="k">名额</div><div class="v">' + (slots ? regs.length + ' / ' + slots : regs.length + '（不限）') + '</div></div>' +
                 (ev.venue ? '<div class="meta-cell" style="grid-column:1/-1;"><div class="k">地点 / 房间</div><div class="v">' + esc(ev.venue) + '</div></div>' : '') +
                 '</div>' +
-                (ev.description ? '<div class="desc-text">' + esc(ev.description) + '</div>' : '') +
-                (ev.rules ? '<h4>赛 制 / 规 则</h4><div class="desc-text">' + esc(ev.rules) + '</div>' : '') +
-                '<h4>报 名 名 单（' + regs.length + '）</h4>' + rosterHtml +
-                (myRegHtml ? '<div style="margin-top:16px;">' + myRegHtml + '</div>' : '') +
-                (registerFormHtml ? '<div style="margin-top:6px;">' + registerFormHtml + '</div>' : '') +
-                (adminHtml ? '<div style="margin-top:6px;">' + adminHtml + '</div>' : '') +
-                '<p class="notice">赛事数据存于 <b>events</b> 表 · 报名信息存于 <b>event_registrations</b> 表，彼此独立</p>';
+                (ev.description ? '<div class="desc-block">' + esc(ev.description) + '</div>' : '') +
+                (ev.rules ? '<div class="section-label">赛制 / 规则</div><div class="desc-block">' + esc(ev.rules) + '</div>' : '') +
+                '<div class="section-label">报名名单（' + regs.length + '）</div>' + rosterHtml +
+                myRegHtml +
+                (registerHtml ? '<div style="margin-top:18px;">' + registerHtml + '</div>' : '') +
+                adminHtml +
+                '<p class="modal-note">赛事数据存于 EVENTS 表 · 报名信息存于 REGISTRATIONS 表，彼此独立</p>';
 
             document.getElementById('detail-modal').classList.add('visible');
             document.getElementById('detail-close').addEventListener('click', closeDetail);
@@ -649,42 +573,31 @@
             });
 
             var rfLogin = document.getElementById('rf-login');
-            if (rfLogin) {
-                    rfLogin.addEventListener('click', function () {
-                    HWAuth.openModal({ stay: true }).then(function () { openDetail(eventId); render(); }).catch(function () {});
-                });
-            }
+            if (rfLogin) rfLogin.addEventListener('click', function () {
+                HWAuth.openModal({ stay: true }).then(function () { openDetail(eventId); render(); }).catch(function () {});
+            });
             var rfForm = document.getElementById('reg-form');
-            if (rfForm) {
-                rfForm.addEventListener('submit', function (e) {
-                    e.preventDefault();
-                    submitReg(ev, rfForm);
-                });
-            }
+            if (rfForm) rfForm.addEventListener('submit', function (e) { e.preventDefault(); submitReg(ev); });
+
             var admSave = document.getElementById('adm-save-status');
-            if (admSave) {
-                admSave.addEventListener('click', function () {
-                    var newStatus = document.getElementById('adm-status').value;
-                    HWAuth.getClient().from('events').update({ status: newStatus }).eq('id', ev.id)
-                        .then(function (res) {
-                            if (res.error) { alert('更新失败: ' + res.error.message); return; }
-                            alert('活动状态已更新为「' + EV_STATUS[newStatus] + '」');
-                            closeDetail();
-                            refresh();
-                        });
-                });
-            }
+            if (admSave) admSave.addEventListener('click', function () {
+                var newStatus = document.getElementById('adm-status').value;
+                HWAuth.getClient().from('events').update({ status: newStatus }).eq('id', ev.id)
+                    .then(function (res) {
+                        if (res.error) { alert('更新失败: ' + res.error.message); return; }
+                        closeDetail();
+                        refresh();
+                    });
+            });
         }
 
-        function closeDetail() {
-            document.getElementById('detail-modal').classList.remove('visible');
-        }
+        function closeDetail() { document.getElementById('detail-modal').classList.remove('visible'); }
         document.getElementById('detail-modal').addEventListener('click', function (e) {
             if (e.target.id === 'detail-modal') closeDetail();
         });
 
-        /* ---------- 报名操作 ---------- */
-        function submitReg(ev, form) {
+        /* ---------- registration ops ---------- */
+        function submitReg(ev) {
             var u = HWAuth.getSession();
             if (!u) return;
             var teamName = document.getElementById('rf-team').value.trim();
@@ -698,29 +611,17 @@
             if (ingame) note = (note ? note + ' | ' : '') + '游戏ID: ' + ingame;
 
             var btn = document.getElementById('rf-submit');
-            btn.disabled = true; btn.textContent = '提交中...';
+            btn.disabled = true; btn.textContent = '提交中…';
 
-            // 一人一活动一条：已存在（含已撤回）则更新，否则插入
-            var existing = allRegs.find(function (r) {
-                return r.event_id === ev.id && r.user_id === u.id;
-            });
-            var payload = {
-                team_name: teamName,
-                members: members,
-                contact: contact,
-                note: note,
-                status: 'pending',
-                updated_at: new Date().toISOString()
-            };
-
+            var existing = allRegs.find(function (r) { return r.event_id === ev.id && r.user_id === u.id; });
+            var payload = { team_name: teamName, members: members, contact: contact, note: note, status: 'pending', updated_at: new Date().toISOString() };
             var sb = HWAuth.getClient();
             var op = existing
                 ? sb.from('event_registrations').update(payload).eq('id', existing.id).select()
                 : sb.from('event_registrations').insert([Object.assign({ event_id: ev.id, user_id: u.id }, payload)]).select();
 
             op.then(function (res) {
-                if (res.error) { alert('报名失败: ' + res.error.message); btn.disabled = false; btn.textContent = '确 认 报 名'; return; }
-                alert('报名提交成功！等待管理员审核。');
+                if (res.error) { alert('报名失败: ' + res.error.message); btn.disabled = false; btn.textContent = '确认报名'; return; }
                 closeDetail();
                 refresh();
             });
@@ -733,8 +634,7 @@
                 .eq('id', regId)
                 .then(function (res) {
                     if (res.error) { alert('撤回失败: ' + res.error.message); return; }
-                    alert('已撤回报名');
-                    if (keepDetailEventId != null) { closeDetail(); }
+                    if (keepDetailEventId != null) closeDetail();
                     refresh();
                 });
         }
@@ -749,40 +649,35 @@
                 });
         }
 
-        /* ---------- 创建活动（管理员） ---------- */
+        /* ---------- admin create ---------- */
+        var pendingAdminAction = null;
         function requestAdminThen(fn) {
             if (isAdmin()) { fn(); return; }
-            document.getElementById('admin-modal').classList.add('visible');
             document.getElementById('admin-pwd').value = '';
+            document.getElementById('admin-modal').classList.add('visible');
             pendingAdminAction = fn;
         }
-        var pendingAdminAction = null;
         document.getElementById('admin-verify-btn').addEventListener('click', function () {
             var pwd = document.getElementById('admin-pwd').value;
             if (!pwd) return;
             var btn = document.getElementById('admin-verify-btn');
-            btn.disabled = true; btn.textContent = '验证中...';
+            btn.disabled = true; btn.textContent = '验证中…';
             HWAuth.getClient().rpc('check_admin_password', { input_pwd: pwd })
                 .then(function (res) {
-                    btn.disabled = false; btn.textContent = '验 证';
-                    if (res.error || res.data !== true) {
-                        alert('管理口令错误！');
-                        return;
-                    }
+                    btn.disabled = false; btn.textContent = '验证';
+                    if (res.error || res.data !== true) { alert('管理口令错误！'); return; }
                     sessionStorage.setItem('hw_admin_verified_at', String(Date.now()));
                     document.getElementById('admin-modal').classList.remove('visible');
                     updateAdminUI();
                     if (pendingAdminAction) { var f = pendingAdminAction; pendingAdminAction = null; f(); }
                 }).catch(function (e) {
-                    btn.disabled = false; btn.textContent = '验 证';
+                    btn.disabled = false; btn.textContent = '验证';
                     alert('验证失败: ' + (e.message || e));
                 });
         });
 
         createBtn.addEventListener('click', function () {
-            requestAdminThen(function () {
-                document.getElementById('create-modal').classList.add('visible');
-            });
+            requestAdminThen(function () { document.getElementById('create-modal').classList.add('visible'); });
         });
 
         document.getElementById('create-form').addEventListener('submit', function (e) {
@@ -806,11 +701,10 @@
                 created_by: 'admin'
             };
             var btn = document.getElementById('cf-submit');
-            btn.disabled = true; btn.textContent = '创建中...';
+            btn.disabled = true; btn.textContent = '创建中…';
             HWAuth.getClient().from('events').insert([row]).then(function (res) {
-                btn.disabled = false; btn.textContent = '创 建';
+                btn.disabled = false; btn.textContent = '创建';
                 if (res.error) { alert('创建失败: ' + res.error.message); return; }
-                alert('活动已创建！');
                 document.getElementById('create-modal').classList.remove('visible');
                 document.getElementById('create-form').reset();
                 document.getElementById('cf-season').value = 'S6';
@@ -819,48 +713,45 @@
             });
         });
 
-        function updateAdminUI() {
-            createBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
+        /* ---------- tabs / filters ---------- */
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(function (b) {
+                b.classList.toggle('active', b.dataset.tab === tab);
+            });
+            document.getElementById('filter-bar').style.display = tab === 'hall' ? 'flex' : 'none';
+            render();
         }
+        document.querySelectorAll('.tab-btn').forEach(function (b) {
+            b.addEventListener('click', function () {
+                switchTab(b.dataset.tab);
+                location.hash = b.dataset.tab === 'mine' ? 'mine' : '';
+            });
+        });
+        document.getElementById('status-filter').addEventListener('click', function (e) {
+            var btn = e.target.closest('button');
+            if (!btn) return;
+            document.querySelectorAll('#status-filter button').forEach(function (x) { x.classList.remove('active'); });
+            btn.classList.add('active');
+            currentFilter = btn.dataset.status;
+            renderHall();
+        });
 
-        /* ---------- 顶栏 ---------- */
-        function updateAuthUI() {
-            var u = HWAuth.getSession();
-            if (u) {
-                authBtn.textContent = '👤 ' + (u.nickname || u.username) + ' · 个人主页';
-                authBtn.onclick = function () { location.href = 'home.html'; };
-            } else {
-                authBtn.textContent = '登 录 / 注 册';
-                authBtn.onclick = function () { HWAuth.openModal({ stay: true }).then(render).catch(function () {}); };
-            }
-            var badge = document.getElementById('mine-badge');
-            if (u) {
-                var n = allRegs.filter(function (r) { return r.user_id === u.id && r.status !== 'cancelled'; }).length;
-                badge.textContent = n;
-                badge.style.display = n > 0 ? 'inline-block' : 'none';
-            } else {
-                badge.style.display = 'none';
-            }
-        }
-
-        /* ---------- 总渲染 ---------- */
-        function render() {
-            updateAuthUI();
-            updateAdminUI();
-            if (currentTab === 'mine') renderMine();
-            else renderHall();
-        }
+        /* ---------- global ---------- */
+        document.querySelectorAll('[data-close]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                document.getElementById(b.dataset.close).classList.remove('visible');
+            });
+        });
 
         function refresh() {
             return loadData().then(render).catch(function (err) {
                 console.error(err);
-                main.innerHTML = '<div class="content-block"><p class="empty-hint" style="color:var(--loss-color)">加载失败：' + esc(err.message || err) + '</p></div>';
+                main.innerHTML = '<div class="empty-state"><strong>加载失败</strong><br>' + esc(err.message || err) + '</div>';
             });
         }
 
-        HWAuth.on(function (evt) {
-            if (evt === 'login' || evt === 'logout') render();
-        });
+        HWAuth.on(function (evt) { if (evt === 'login' || evt === 'logout') refresh(); });
 
         HWAuth.init();
         HWAuth.detectAccountSource().catch(function () {}).finally(function () {

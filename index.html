@@ -3,879 +3,482 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS6 - 比赛中心</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
+    <title>HWVCTS — 主页</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/theme.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/layout.js"></script>
     <style>
-        :root {
-            --primary-color: #ff4655;
-            --bg-color: #0a0a0f;
-            --bg-gradient-mid: #1a0a0a;
-            --text-color: #fff;
-            --card-bg-color: rgba(21, 21, 32, 0.85);
-            --header-bg-color: transparent;
-            --border-color: rgba(255, 70, 85, 0.2);
-            --border-highlight: rgba(255, 70, 85, 0.5);
-            --gold-color: #ffd700;
-            --shadow-color: rgba(0,0,0,0.5);
-            --control-height: 42px;
-            --group-stage-bg: rgba(255, 255, 255, 0.03);
-            --playoff-stage-bg: rgba(255, 70, 85, 0.05);
-            --final-stage-bg: rgba(255, 215, 0, 0.08);
-            --win-color: #81c784;
-            --loss-color: #ff8a80;
-            --text-muted: rgba(255, 255, 255, 0.5);
+        /* Hero */
+        .hero { padding: 56px 0 48px; }
+        .hero .eyebrow { display: block; margin-bottom: 14px; }
+        .hero h1 {
+            margin: 0 0 14px;
+            font-size: 56px;
+            font-weight: 400;
+            line-height: 1.17;
+            letter-spacing: 0.22px;
+            color: var(--pure-white);
         }
-        body.light-theme {
-            --primary-color: #e53935;
-            --bg-color: #f4f5f7;
-            --bg-gradient-mid: #e9ecef;
-            --text-color: #1c1e21;
-            --card-bg-color: rgba(255, 255, 255, 0.9);
-            --header-bg-color: transparent;
-            --border-color: rgba(229, 57, 53, 0.3);
-            --border-highlight: rgba(229, 57, 53, 0.6);
-            --shadow-color: rgba(229, 57, 53, 0.15);
-            --group-stage-bg: rgba(0, 0, 0, 0.02);
-            --playoff-stage-bg: rgba(229, 57, 53, 0.05);
-            --final-stage-bg: rgba(255, 215, 0, 0.1);
-            --win-color: #4CAF50;
-            --loss-color: #F44336;
-            --text-muted: rgba(0, 0, 0, 0.5);
-        }
-        
-        body {
-            font-family: 'Noto Sans SC', sans-serif;
-            background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px 0;
-            line-height: 1.6;
-            transition: background 0.3s, color 0.3s;
-            min-height: 100vh;
-            position: relative;
-        }
-
-        /* 粒子背景 */
-        .particles {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            pointer-events: none;
-        }
-        .particle {
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            background: rgba(255, 70, 85, 0.6);
-            border-radius: 50%;
-            animation: float linear infinite;
-        }
-        body.light-theme .particle {
-            background: rgba(229, 57, 53, 0.4);
-        }
-        @keyframes float {
-            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-10vh) translateX(100px); opacity: 0; }
-        }
-
-        .container { width: 90%; max-width: 1400px; margin: 0 auto; position: relative; z-index: 10; }
-        
-        .main-header-block {
-            background-color: var(--header-bg-color);
-            padding: 25px;
-            text-align: center;
-            margin-bottom: 40px;
-            position: relative;
-        }
-        
-        .title-badge {
-            display: inline-block; padding: 6px 20px; background: rgba(255, 70, 85, 0.15);
-            border: 1px solid var(--border-highlight); border-radius: 20px;
-            font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase;
-        }
-        body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
-
-        .main-header-block h1 { 
-            font-size: 64px; font-weight: 900; letter-spacing: 8px;
-            background: linear-gradient(135deg, var(--primary-color), #ff8a80, var(--primary-color));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 30px rgba(255, 70, 85, 0.3)); margin: 0 0 10px 0; 
-        }
-        body.light-theme .main-header-block h1 {
-            background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            filter: none;
-        }
-
-        .controls-container {
+        .hero h1 .accent-name { color: var(--coral-pulse); }
+        .hero .lead { margin: 0; font-size: 16px; color: var(--ash); max-width: 520px; line-height: 1.6; }
+        .hero-actions { display: flex; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
+        .hero-meta {
+            margin-top: 26px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--smoke);
             display: flex;
-            justify-content: center;
+            gap: 8px;
             align-items: center;
-            gap: 15px;
             flex-wrap: wrap;
-            margin-top: 35px;
         }
-        .filter-group { 
-            background-color: var(--card-bg-color); padding: 5px; 
-            border: 1px solid var(--border-color); border-radius: 6px;
-            display: inline-flex; height: var(--control-height); align-items: center;
-        }
-        .filter-group button { 
-            padding: 0 20px; border: none; background-color: transparent; 
-            color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; 
-            font-size: 14px; height: 100%; transition: all 0.3s ease;
-            font-family: 'Noto Sans SC', sans-serif; letter-spacing: 1px;
-        }
-        .filter-group button:hover { opacity: 1; color: var(--primary-color); }
-        .filter-group button.active { 
-            background-color: rgba(255, 70, 85, 0.15); color: var(--primary-color); opacity: 1; 
-            border: 1px solid var(--border-color);
-        }
-        body.light-theme .filter-group button.active {
-            background-color: rgba(229, 57, 53, 0.1);
-        }
+        .hero-meta .pipe { color: var(--slate); }
 
-        .nav-button { 
-            height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center;
-            border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; 
-            background: rgba(255, 70, 85, 0.08); border-radius: 6px; font-size: 14px; font-weight: 600;
-            letter-spacing: 1px; transition: all 0.3s ease; backdrop-filter: blur(5px);
-        }
-        body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
-        .nav-button:hover { 
-            background-color: rgba(255, 70, 85, 0.2); color: var(--text-color); 
-            border-color: var(--primary-color); transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 70, 85, 0.2);
-        }
-        body.light-theme .nav-button:hover { color: var(--primary-color); }
-        
-        .content-block {
-            background-color: var(--card-bg-color);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 10px 40px var(--shadow-color);
-            margin-bottom: 40px;
-            position: relative;
-        }
-        .content-block::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; 
-            background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px;
-        }
-        
-        .content-block-header {
+        /* Stats */
+        .stats-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--ink); border-radius: var(--r-card); padding: 20px 22px; box-shadow: var(--key-shadow); }
+
+        /* Lists */
+        .list { display: flex; flex-direction: column; gap: 8px; }
+        .list-item {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 15px;
-            margin-bottom: 25px;
+            gap: 14px;
+            padding: 13px 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            text-decoration: none;
+            color: var(--mist);
+            transition: border-color 0.15s ease, background 0.15s ease;
         }
-        .content-block-header h2 {
-            font-size: 20px; font-weight: 900; color: var(--primary-color);
-            letter-spacing: 2px; margin: 0; padding: 0;
+        .list-item:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.04); }
+        .list-item .li-icon {
+            width: 36px; height: 36px; border-radius: var(--r-circle);
+            background: var(--obsidian); border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; flex-shrink: 0;
         }
-        .header-controls { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-muted); }
-        .merge-stats-switch { display: flex; align-items: center; gap: 8px; }
-        .merge-stats-switch .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
-        .merge-stats-switch .switch input { opacity: 0; width: 0; height: 0; }
-        .merge-stats-switch .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); transition: .4s; border-radius: 22px; }
-        body.light-theme .merge-stats-switch .slider { background-color: rgba(0,0,0,0.1); }
-        .merge-stats-switch .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: var(--text-color); transition: .4s; border-radius: 50%; }
-        .merge-stats-switch input:checked + .slider { background-color: var(--primary-color); border-color: var(--primary-color); }
-        .merge-stats-switch input:checked + .slider:before { transform: translateX(18px); background-color: #fff; }
-        
-        .tooltip { position: relative; display: flex; align-items: center; cursor: help; }
-        .tooltip .tooltip-icon { font-weight: bold; color: var(--text-muted); border: 1px solid var(--text-muted); border-radius: 50%; width: 16px; height: 16px; display: inline-flex; justify-content: center; align-items: center; line-height: 1; font-size: 12px;}
-        .tooltip .tooltiptext { visibility: hidden; width: 220px; background-color: #151520; color: #fff; border: 1px solid var(--border-color); text-align: left; border-radius: 4px; padding: 10px; position: absolute; z-index: 10; bottom: 150%; left: 50%; margin-left: -110px; opacity: 0; transition: opacity 0.3s; font-size: 12px; font-weight: 400; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-        body.light-theme .tooltip .tooltiptext { background-color: #fff; color: #333; }
-        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        .list-item .li-main { flex: 1; min-width: 0; }
+        .list-item .li-title { font-size: 14px; font-weight: 500; color: var(--pure-white); }
+        .list-item .li-sub { font-size: 12px; color: var(--smoke); margin-top: 2px; }
+        .list-item .li-end { flex-shrink: 0; }
 
-        #matches-view {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        .match-card {
-            background-color: var(--group-stage-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            overflow: hidden;
-            transition: all 0.3s;
-            cursor: pointer;
-            position: relative;
-        }
-        .match-card.stage-小组赛 { background-color: var(--group-stage-bg); }
-        .match-card.stage-淘汰赛 { background-color: var(--playoff-stage-bg); border-color: var(--border-highlight); }
-        .match-card.stage-is-final { background-color: var(--final-stage-bg); border: 1px solid var(--gold-color); }
-        
-        .match-card:hover { transform: translateY(-5px); border-color: var(--primary-color); box-shadow: 0 8px 20px rgba(255, 70, 85, 0.2); }
-        body.light-theme .match-card:hover { box-shadow: 0 8px 20px rgba(229, 57, 53, 0.2); }
-        
-        .match-header { display: flex; flex-direction: column; padding: 20px 15px; }
-        .match-card::after {
-            content: attr(data-stage-name);
-            position: absolute; top: 0; right: 0; padding: 4px 12px;
-            border-bottom-left-radius: 6px;
-            font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 1px;
-            z-index: 5;
-        }
-        .stage-小组赛::after { background-color: rgba(255,255,255,0.15); color: var(--text-color); }
-        body.light-theme .stage-小组赛::after { background-color: rgba(0,0,0,0.5); color: #fff; }
-        .stage-淘汰赛::after { background-color: var(--primary-color); }
-        .stage-is-final::after { background-image: linear-gradient(135deg, #ffd700, #b48600); color: #0a0a0f; }
-        
-        .match-meta {
-            display: flex;
-            justify-content: flex-start;
-            align-items: baseline;
-            width: 100%;
-            margin-bottom: 15px;
-            gap: 15px;
-        }
-        .match-meta .map { font-weight: 700; font-size: 14px; letter-spacing: 1px; color: var(--text-muted); }
-        .match-meta .date { font-size: 12px; color: var(--text-muted); }
-        .match-teams { display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 18px; font-weight: 900; }
-        .team-name { flex: 1; text-align: center; letter-spacing: 1px; }
-        .score { color: var(--primary-color); padding: 0 15px; font-size: 20px; }
-        
-        #standings-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        #standings-table thead th { 
-            background-color: transparent; color: var(--text-muted); 
-            border-bottom: 1px solid var(--border-highlight); font-weight: 700;
-        }
-        #standings-table th, #standings-table td { padding: 15px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        body.light-theme #standings-table th, body.light-theme #standings-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
-        #standings-table tbody tr:last-child td { border-bottom: none; }
-        #standings-table tbody tr:hover { background-color: rgba(255, 70, 85, 0.05); }
-        #standings-table td:first-child, #standings-table th:first-child { text-align: center; font-weight: 900; color: var(--text-muted); }
-        .team-name-cell { color: var(--primary-color); font-weight: bold; cursor: pointer; letter-spacing: 1px; }
-        .team-name-cell:hover { text-decoration: underline; }
+        .empty-line { padding: 22px 8px; text-align: center; font-size: 13px; color: var(--smoke); line-height: 1.8; }
+        .empty-line a { color: var(--ash); }
 
-        .modal-backdrop {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            z-index: 1000; display: flex; justify-content: center; align-items: center;
-            opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
-            padding: 15px; box-sizing: border-box;
+        /* Profile card */
+        .profile-card { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
+        .profile-avatar {
+            width: 72px; height: 72px; border-radius: var(--r-circle);
+            background: var(--ember-hush);
+            border: 1px solid rgba(255, 99, 99, 0.4);
+            color: var(--coral-pulse);
+            font-family: var(--font-sf);
+            font-size: 28px; font-weight: 600;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
         }
-        .modal-backdrop.visible { opacity: 1; visibility: visible; }
-        .modal-content {
-            background-color: var(--card-bg-color);
-            border-radius: 4px; border: 1px solid var(--border-highlight);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            width: 100%; max-width: 1100px; max-height: 90vh;
-            overflow-y: auto; transform: scale(0.9); transition: transform 0.3s;
-            padding: 25px 30px; position: relative;
-        }
-        body.light-theme .modal-content { box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .modal-backdrop.visible .modal-content { transform: scale(1); }
-        
-        .modal-content::-webkit-scrollbar { width: 4px; }
-        .modal-content::-webkit-scrollbar-track { background: transparent; }
-        .modal-content::-webkit-scrollbar-thumb { background: rgba(255, 70, 85, 0.5); border-radius: 2px; }
+        .profile-main { flex: 1; min-width: 220px; }
+        .profile-name { margin: 0; font-size: 24px; font-weight: 500; color: var(--pure-white); letter-spacing: 0.2px; }
+        .profile-handle { font-family: var(--font-mono); font-size: 12px; color: var(--smoke); margin-left: 8px; }
+        .profile-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+        .profile-bio { margin-top: 12px; font-size: 14px; color: var(--ash); line-height: 1.6; }
+        .profile-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
-        .modal-header { font-size: 20px; font-weight: 900; color: var(--primary-color); margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; letter-spacing: 2px; }
-        .roster-list { list-style: none; padding: 0; font-size: 15px; }
-        .roster-list li { padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        body.light-theme .roster-list li { border-bottom: 1px solid rgba(0,0,0,0.05); }
-        .roster-list li:last-child { border-bottom: none; }
-        .roster-list .sub-label { color: var(--primary-color); font-size: 12px; margin-left: 8px; border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 12px; }
-        
-        .player-comparison-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .player-comparison-table th, .player-comparison-table td { padding: 10px 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: normal; }
-        body.light-theme .player-comparison-table th, body.light-theme .player-comparison-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
-        .player-comparison-table thead th { padding: 12px 8px; vertical-align: middle; white-space: nowrap; color: var(--text-muted); font-weight: 500; }
-        .player-comparison-table tbody tr:last-child td { border-bottom: none; }
-        .player-comparison-table tbody tr:hover { background: rgba(255, 70, 85, 0.05); }
-        .player-comparison-table .team-name-header { font-size: 18px; font-weight: 900; color: var(--text-color); letter-spacing: 1px; }
-        .player-comparison-table .score-details { font-size: 15px; font-weight: 700; padding: 0; color: var(--text-color); }
-        .score-details .score-line { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 2px 0; }
-        .score-details .score-map { color: var(--text-muted); font-size: 12px; font-weight: normal; }
-        .score-win { color: var(--win-color); }
-        .score-loss { color: var(--loss-color); }
-        .player-comparison-table .stat-header th { font-size: 12px; border-bottom: 1px solid var(--border-highlight); }
-        .player-comparison-table td.player-id-cell { text-align: left; }
-        .player-id-cell .player-id { font-weight: 700; color: var(--text-color); }
-        .player-id-cell .player-name { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-        .player-comparison-table td.player-acs { font-weight: 900; color: var(--primary-color); font-size: 14px; }
-        .player-comparison-table .separator { width: 1px; padding: 0; background: rgba(255,255,255,0.02); }
-        body.light-theme .player-comparison-table .separator { background: rgba(0,0,0,0.02); }
-        
-        .top-right-controls { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 15px; z-index: 20; }
-        #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
-        .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
-        .theme-switch input { display:none; }
-        .slider-theme { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
-        body.light-theme .slider-theme { background-color: rgba(0,0,0,0.1); }
-        .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
-        input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
-        input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
-        
-        #admin-btn {
-            background: none; border: none; cursor: pointer; color: var(--text-muted);
-            transition: all 0.3s; display: flex; align-items: center; padding: 5px;
+        /* Feature tiles */
+        .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+        .tile {
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px;
+            border-radius: var(--r-card);
+            background: var(--ink);
+            box-shadow: var(--key-shadow);
+            text-decoration: none;
+            color: var(--mist);
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
         }
-        #admin-btn:hover { color: var(--primary-color); transform: scale(1.1); }
-        #admin-btn svg { width: 20px; height: 20px; }
+        .tile:hover { box-shadow: var(--key-shadow-hover); transform: translateY(-2px); }
+        .tile .t-name { font-size: 14px; font-weight: 500; color: var(--pure-white); }
+        .tile .t-desc { font-size: 12px; color: var(--smoke); margin-top: 2px; }
+
+        .block-head {
+            display: flex; align-items: baseline; justify-content: space-between;
+            gap: 12px; margin-bottom: 14px;
+        }
+        .block-head h2 { margin: 0; font-size: 16px; font-weight: 500; color: var(--pure-white); letter-spacing: 0.2px; }
+        .block-head a { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--smoke); text-decoration: none; }
+        .block-head a:hover { color: var(--mist); }
+
+        @media (max-width: 720px) {
+            .hero h1 { font-size: 36px; }
+            .profile-actions { width: 100%; }
+        }
     </style>
 </head>
-<body>
-    <div class="particles" id="particles"></div>
+<body data-page="index">
+    <main class="page">
+        <div class="container">
+            <section class="hero hero-atmosphere" id="hero"></section>
+            <div id="dashboard"></div>
+        </div>
+    </main>
 
-    <div class="container">
-        <div class="main-header-block">
-            <div class="top-right-controls">
-                <span id="theme-text"></span>
-                <label class="theme-switch">
-                    <input type="checkbox" id="theme-toggle-checkbox">
-                    <span class="slider-theme"></span>
-                </label>
-                <a href="admin.html" id="admin-btn" title="管理后台">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19.8298 12.1741C19.9363 11.6963 19.9363 11.1963 19.8298 10.7185L21.6569 9.28148C21.8617 9.1237 21.9213 8.84815 21.8024 8.62222L20.0445 5.37778C19.9256 5.15185 19.6582 5.06667 19.4445 5.17037L17.2223 6.0963C16.6371 5.65185 15.9927 5.2963 15.3038 5.03704L14.9334 2.62222C14.9067 2.41481 14.7334 2.25185 14.526 2.25185H10.4741C10.2667 2.25185 10.0934 2.41481 10.0667 2.62222L9.6963 5.03704C8.99824 5.30519 8.36223 5.65185 7.77788 6.0963L5.55565 5.17037C5.34195 5.06667 5.07454 5.15185 4.95565 5.37778L3.19778 8.62222C3.07889 8.84815 3.13843 9.1237 3.34324 9.28148L5.17048 10.7185C5.06399 11.1963 5.06399 11.6963 5.17048 12.1741L3.34324 13.6111C3.13843 13.7689 3.07889 14.0444 3.19778 14.2704L4.95565 17.5148C5.07454 17.7407 5.34195 17.8259 5.55565 17.7222L7.77788 16.7963C8.36223 17.2407 8.99824 17.587 9.6963 17.8552L10.0667 20.27C10.0934 20.4774 10.2667 20.6404 10.4741 20.6404H14.526C14.7334 20.6404 14.9067 20.4774 14.9334 20.27L15.3038 17.8552C15.9927 17.5959 16.6371 17.25 17.2223 16.7963L19.4445 17.7222C19.6582 17.8259 19.9256 17.7407 20.0445 17.5148L21.8024 14.2704C21.9213 14.0444 21.8617 13.7689 21.6569 13.6111L19.8298 12.1741ZM12.5 14.9404C10.8167 14.9404 9.44454 13.5681 9.44454 11.8848C9.44454 10.2015 10.8167 8.82926 12.5 8.82926C14.1834 8.82926 15.5556 10.2015 15.5556 11.8848C15.5556 13.5681 14.1834 14.9404 12.5 14.9404Z"></path></svg>
-                </a>
-            </div>
-            <div class="title-badge">VALORANT TOURNAMENT</div>
-            <h1>HWVCTS6</h1>
-            <p style="font-size: 16px; color: var(--text-muted); letter-spacing: 5px; font-weight: 300; margin-top: 0;">华 为 无 畏 契 约 锦 标 赛 · 第 六 赛 季 比 赛 中 心</p>
-            
-            <div class="controls-container" style="margin-top: 20px;">
-                <div class="filter-group" id="season-filter-buttons">
-                    <button class="active" data-season="s6">S6</button>
-                    <button data-season="s5">S5</button>
+    <!-- 编辑资料 -->
+    <div class="modal-backdrop" id="profile-modal">
+        <div class="modal-panel">
+            <button class="modal-close" id="pm-close" type="button">&times;</button>
+            <span class="eyebrow">Account</span>
+            <h3 class="modal-title" style="margin-top:8px;">编辑资料</h3>
+            <form id="profile-form">
+                <label class="form-label" for="pf-nickname">昵称</label>
+                <input class="input" id="pf-nickname" maxlength="20" placeholder="展示用昵称">
+                <label class="form-label" for="pf-game-id">无畏契约游戏 ID</label>
+                <input class="input" id="pf-game-id" maxlength="30" placeholder="例如 Player#CN1">
+                <label class="form-label" for="pf-bio">个人简介</label>
+                <textarea class="textarea" id="pf-bio" rows="3" maxlength="120" placeholder="常玩位置 / 段位 / 想组队的队友…"></textarea>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" type="button" id="pm-cancel">取消</button>
+                    <button class="btn btn-primary" type="submit">保存</button>
                 </div>
-            </div>
-            
-            <div class="controls-container">
-                <div class="control-group">
-                    <div class="filter-group" id="group-filter-buttons">
-                        <button class="active" data-group="传奇组">传奇组</button>
-                        <button data-group="中坚组">中坚组</button>
-                        <button data-group="挑战组">挑战组</button>
+            </form>
+            <div style="border-top:1px solid var(--border); margin-top:22px; padding-top:6px;">
+                <form id="pwd-form">
+                    <label class="form-label" for="pf-old-pwd">修改密码 · 原密码</label>
+                    <input class="input" id="pf-old-pwd" type="password" placeholder="原密码">
+                    <label class="form-label" for="pf-new-pwd">新密码</label>
+                    <input class="input" id="pf-new-pwd" type="password" placeholder="至少 4 位">
+                    <div class="modal-actions">
+                        <button class="btn btn-ghost" type="submit">修改密码</button>
                     </div>
-                </div>
-                <div class="control-group">
-                     <div class="filter-group" id="stage-filter-buttons">
-                        <button class="active" data-stage="all">所有赛段</button>
-                        <button data-stage="小组赛">小组赛</button>
-                        <button data-stage="淘汰赛">淘汰赛</button>
-                    </div>
-                </div>
-                <a href="home.html" class="nav-button">个 人 主 页</a>
-                <a href="events.html" class="nav-button">活 动 大 厅</a>
-                <a href="summary.html" class="nav-button">查 看 选 手 数 据</a>
-                <a href="schedule.html" class="nav-button" target="_blank">查 看 赛 程</a>
-                <a href="betting.html" class="nav-button">赛 事 竞 猜</a>
+                </form>
             </div>
         </div>
-
-        <main>
-            <section class="content-block">
-                <div class="content-block-header">
-                     <h2 id="standings-title">战队积分榜 - 传奇组</h2>
-                </div>
-                <div style="overflow-x: auto;">
-                    <table id="standings-table">
-                        <thead>
-                            <tr><th>排名</th><th>队伍</th><th>胜场</th><th>负场</th><th>净胜分</th></tr>
-                        </thead>
-                        <tbody id="standings-table-body"></tbody>
-                    </table>
-                </div>
-            </section>
-            <section class="content-block">
-                <div class="content-block-header">
-                    <h2 id="matches-title">比赛结果 - 传奇组</h2>
-                    <div class="header-controls">
-                        <div class="merge-stats-switch">
-                            <span>合并统计</span>
-                            <label class="switch">
-                                <input type="checkbox" id="merge-stats-checkbox">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="tooltip">
-                           <span class="tooltip-icon">?</span>
-                            <span class="tooltiptext">勾选后，点击比赛将自动合并相同日期、阶段和队伍间的多场比赛数据 (如BO3)，展示总战绩。</span>
-                        </div>
-                    </div>
-                </div>
-                <div id="matches-view"></div>
-            </section>
-        </main>
-    </div>
-
-    <div id="modal" class="modal-backdrop">
-        <div class="modal-content" id="modal-content-body"></div>
     </div>
 
     <script>
-        // 生成背景粒子效果
-        function createParticles() {
-            const container = document.getElementById('particles');
-            for (let i = 0; i < 50; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.animationDuration = (Math.random() * 8 + 4) + 's';
-                particle.style.animationDelay = Math.random() * 5 + 's';
-                particle.style.width = (Math.random() * 3 + 1) + 'px';
-                particle.style.height = particle.style.width;
-                container.appendChild(particle);
-            }
+    (function () {
+        'use strict';
+
+        var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回' };
+        var EV_STATUS  = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
+        var EV_BADGE   = { draft: '', registration: 'badge-coral', ongoing: 'badge-green', finished: '', cancelled: '' };
+
+        var hero = document.getElementById('hero');
+        var dash = document.getElementById('dashboard');
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
         }
-        createParticles();
+        function fmtDate(t) {
+            if (!t) return '待定';
+            var d = new Date(t);
+            if (isNaN(d)) return '待定';
+            return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
-            const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
-            const { createClient } = supabase;
-            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-            const matchesView = document.getElementById('matches-view');
-            const modal = document.getElementById('modal');
-            const modalContent = document.getElementById('modal-content-body');
-            const standingsTableBody = document.getElementById('standings-table-body');
-            const themeToggle = document.getElementById('theme-toggle-checkbox');
-            const themeText = document.getElementById('theme-text');
-            const groupFilterButtons = document.getElementById('group-filter-buttons');
-            const stageFilterButtons = document.getElementById('stage-filter-buttons');
-            const matchesTitle = document.getElementById('matches-title');
-            const standingsTitle = document.getElementById('standings-title');
-            const mergeStatsCheckbox = document.getElementById('merge-stats-checkbox');
-            const seasonFilterButtons = document.getElementById('season-filter-buttons');
-            
-            let allMatchesData = [];
-            let allPlayersData = [];
-            let idNameMap = {};
-            let currentSeason = 's6'; // 默认 S6 赛季
-
-            function setTheme(isLight) {
-                document.body.classList.toggle('light-theme', isLight);
-                themeToggle.checked = isLight;
-                themeText.textContent = isLight ? '切换为暗色模式' : '切换为亮色模式';
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-            }
-            const savedTheme = localStorage.getItem('theme');
-            setTheme((savedTheme === 'light') ? true : false); // 默认暗色模式更契合赛博朋克风格
-            themeToggle.addEventListener('change', (e) => setTheme(e.target.checked));
-
-            async function loadDataFromSupabase() {
-                matchesView.innerHTML = '<p style="color: var(--text-muted);">正在从 Supabase 加载数据...</p>';
-                try {
-                    const [{ data: matches, error: matchesError }, { data: players, error: playersError }] = await Promise.all([
-                        supabaseClient.from(currentSeason === 's5' ? 's5_matches' : 's6_matches').select('*'),
-                        supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, team, "group"')
-                    ]);
-
-                    if (matchesError || playersError) throw matchesError || playersError;
-
-                    allMatchesData = matches;
-                    allPlayersData = players;
-                    idNameMap = players.reduce((map, p) => { map[p.id] = p.name; return map; }, {});
-                    
-                    localStorage.setItem('valorantPlayerSummary', JSON.stringify(processAllPlayerData(matches)));
-                    localStorage.setItem('valorantIdNameMap', JSON.stringify(idNameMap));
-
-
-                    document.querySelector('#group-filter-buttons button.active')?.classList.remove('active');
-                    document.querySelector('#group-filter-buttons button[data-group="传奇组"]')?.classList.add('active');
-                    updateDisplay();
-                } catch (error) {
-                    matchesView.innerHTML = `<p style="color:#ff4655;">数据加载失败: ${error.message}</p>`;
-                }
-            }
-            loadDataFromSupabase();
-
-            // 赛季切换按钮事件处理
-            seasonFilterButtons.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
-                    seasonFilterButtons.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    currentSeason = e.target.dataset.season;
-                    loadDataFromSupabase(); // 重新加载数据
-                }
+        /* ---------- Guest ---------- */
+        function renderGuest() {
+            hero.innerHTML =
+                '<span class="eyebrow">Personal Home</span>' +
+                '<h1>你的赛事<span class="accent-name">指挥中心</span></h1>' +
+                '<p class="lead">一个账号贯穿全站：报名参赛、跟踪审核状态、管理个人资料、同步竞猜积分。登录后这里就是你的主页。</p>' +
+                '<div class="hero-actions">' +
+                '  <button class="btn btn-primary btn-lg" id="hero-login" type="button">登录 / 注册</button>' +
+                '  <a class="btn btn-ghost btn-lg" href="events.html">先看看活动</a>' +
+                '</div>' +
+                '<div class="hero-meta"><span>EVENTS</span><span class="pipe">|</span><span>MATCHES</span><span class="pipe">|</span><span>STATS</span><span class="pipe">|</span><span>BETTING</span></div>';
+            dash.innerHTML = '';
+            document.getElementById('hero-login').addEventListener('click', function () {
+                HWAuth.openModal({ stay: true }).then(render).catch(function () {});
             });
+        }
 
-            groupFilterButtons.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
-                    groupFilterButtons.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    updateDisplay();
-                }
-            });
-            stageFilterButtons.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
-                    stageFilterButtons.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    updateDisplay();
-                }
-            });
-
-            function updateDisplay() {
-                const activeGroup = groupFilterButtons.querySelector('.active').dataset.group;
-                const selectedStage = stageFilterButtons.querySelector('.active').dataset.stage;
-                matchesTitle.textContent = `比赛结果 - ${activeGroup}`;
-                standingsTitle.textContent = `战队积分榜 - ${activeGroup}`;
-                
-                const groupMatches = allMatchesData.filter(m => m.group === activeGroup);
-                
-                const filteredMatches = groupMatches.filter(match => 
-                    selectedStage === 'all' || 
-                    ((match.stage === '小组赛' ? '小组赛' : '淘汰赛') === selectedStage)
-                );
-
-                displayMatchCards(filteredMatches, groupMatches);
-                calculateAndDisplayStandings(groupMatches);
-            }
-            
-            function processAllPlayerData(matches) {
-                const playerData = {};
-                 matches.forEach(match => {
-                    const score = String(match['score']).split(/[/:：]/).map(Number);
-                    const totalRounds = (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1])) ? (score[0] + score[1]) : 0;
-                    ['team_a', 'team_b'].forEach(teamKey => {
-                        const teamName = match[teamKey];
-                        for (let p = 1; p <= 5; p++) {
-                            const playerId = match[`${teamKey}_player${p}_id`];
-                            const playerDataStr = match[`${teamKey}_player${p}_data`];
-                            const playerCh = match[`${teamKey}_player${p}_ch`];
-                            if (!playerId || !playerDataStr) continue;
-
-                            const stats = String(playerDataStr).split('/').map(Number);
-                            if (stats.length !== 4 || stats.some(isNaN)) continue;
-                            
-                            const uniquePlayerKey = `${playerId}::${match.group}`;
-                            if (!playerData[uniquePlayerKey]) {
-                                const registeredPlayer = allPlayersData.find(pl => pl.id === playerId);
-                                playerData[uniquePlayerKey] = {
-                                    id: playerId, group: match.group, 
-                                    team: registeredPlayer ? registeredPlayer.team : teamName,
-                                    total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, totalRounds: 0 },
-                                    by_character: {}
-                                };
-                            }
-                            
-                            const playerEntry = playerData[uniquePlayerKey];
-                            const p_stats = playerEntry.total_stats;
-                            p_stats.acs += stats[0]; 
-                            p_stats.kills += stats[1]; 
-                            p_stats.deaths += stats[2]; 
-                            p_stats.assists += stats[3];
-                            p_stats.matchCount++; 
-                            p_stats.totalRounds += totalRounds;
-
-                            if (playerCh) {
-                                const charName = String(playerCh).trim();
-                                if (!playerEntry.by_character[charName]) {
-                                    playerEntry.by_character[charName] = { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, totalRounds: 0 };
-                                }
-                                const charStats = playerEntry.by_character[charName];
-                                charStats.acs += stats[0]; 
-                                charStats.kills += stats[1]; 
-                                charStats.deaths += stats[2]; 
-                                charStats.assists += stats[3];
-                                charStats.matchCount++; 
-                                charStats.totalRounds += totalRounds;
-                            }
-                        }
-                    });
-                });
-                return playerData;
-            }
-
-            function displayMatchCards(matches, allGroupMatches) {
-                matchesView.innerHTML = matches.length === 0 ? '<p style="color: var(--text-muted);">当前筛选条件下没有比赛。</p>' : '';
-                matches.forEach(match => {
-                    // Find the original index in the unfiltered group matches to maintain a stable reference
-                    const originalIndex = allGroupMatches.findIndex(m => m.id === match.id);
-                    createMatchCard(match, originalIndex);
-                });
-            }
-
-            function calculateAndDisplayStandings(groupMatches) {
-                const activeGroup = groupFilterButtons.querySelector('.active').dataset.group;
-                const teamStandings = {};
-                
-                // Initialize all teams in the group from player_ids
-                const teamsInGroup = new Set(allPlayersData.filter(p => p.group === activeGroup && p.team).map(p => p.team));
-                teamsInGroup.forEach(teamName => {
-                    teamStandings[teamName] = { wins: 0, losses: 0, roundDiff: 0 };
-                });
-
-                groupMatches.forEach(match => {
-                    const [teamA, teamB] = [match.team_a, match.team_b];
-                    if (!match.score) return;
-                    const [scoreA, scoreB] = String(match.score).split(/[/:：]/).map(Number);
-                    if (isNaN(scoreA) || isNaN(scoreB)) return;
-
-                    // Ensure teams are initialized even if not in player_ids (e.g. older data)
-                    if (!teamStandings[teamA]) teamStandings[teamA] = { wins: 0, losses: 0, roundDiff: 0 };
-                    if (!teamStandings[teamB]) teamStandings[teamB] = { wins: 0, losses: 0, roundDiff: 0 };
-
-                    if (scoreA > scoreB) { 
-                        teamStandings[teamA].wins++; 
-                        teamStandings[teamB].losses++; 
-                    } else { 
-                        teamStandings[teamB].wins++; 
-                        teamStandings[teamA].losses++; 
+        /* ---------- Data ---------- */
+        function loadMyRegs(userId) {
+            return HWAuth.getClient().from('event_registrations')
+                .select('*, events(*)')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .then(function (res) {
+                    if (res.error) {
+                        if (HWAuth.isMissingTable(res.error)) return { rows: [], missing: true };
+                        throw res.error;
                     }
-                    teamStandings[teamA].roundDiff += (scoreA - scoreB);
-                    teamStandings[teamB].roundDiff += (scoreB - scoreA);
+                    return { rows: res.data || [], missing: false };
                 });
-                
-                const sortedTeams = Object.keys(teamStandings).sort((a, b) => 
-                    teamStandings[b].wins - teamStandings[a].wins || 
-                    teamStandings[b].roundDiff - teamStandings[a].roundDiff
-                );
+        }
 
-                standingsTableBody.innerHTML = sortedTeams.map((teamName, index) => {
-                    const team = teamStandings[teamName];
-                    return `<tr><td>${index + 1}</td><td class="team-name-cell" data-team="${teamName}">${teamName}</td><td>${team.wins}</td><td>${team.losses}</td><td>${team.roundDiff > 0 ? '+' : ''}${team.roundDiff}</td></tr>`;
-                }).join('');
-            }
+        function loadUpcoming() {
+            return HWAuth.getClient().from('events')
+                .select('*')
+                .in('status', ['registration', 'ongoing'])
+                .order('start_time', { ascending: true })
+                .limit(5)
+                .then(function (res) {
+                    if (res.error) {
+                        if (HWAuth.isMissingTable(res.error)) return [];
+                        throw res.error;
+                    }
+                    return res.data || [];
+                });
+        }
 
-            function createMatchCard(matchData, index) {
-                const card = document.createElement('div');
-                const stageType = (matchData.stage === '小组赛') ? '小组赛' : '淘汰赛';
-                card.className = `match-card stage-${stageType} ${matchData.stage === '决赛' ? 'stage-is-final' : ''}`;
-                card.dataset.stageName = matchData.stage;
-                card.dataset.matchIndex = index;
-                const score = String(matchData.score).replace(/[/：]/, ' : ');
-                card.innerHTML = `
-                    <div class="match-header">
-                        <div class="match-meta">
-                            <span class="map">${matchData.map}</span>
-                            <span class="date">${matchData.match_date}</span>
-                        </div>
-                        <div class="match-teams">
-                            <span class="team-name">${matchData.team_a}</span>
-                            <span class="score">${score}</span>
-                            <span class="team-name">${matchData.team_b}</span>
-                        </div>
-                    </div>
-                `;
-                matchesView.appendChild(card);
-            }
+        /** 与竞猜页同口径：100 - 投入 + 派彩 + 低保 */
+        function loadBalance(userId) {
+            var sb = HWAuth.getClient();
+            return Promise.all([
+                sb.from('s6_bet_bets').select('*'),
+                sb.from('s6_bet_welfare_claims').select('user_id'),
+                sb.from('s6_match_schedule').select('id, team_a, team_b, score_a, score_b')
+            ]).then(function (rs) {
+                if (rs.some(function (r) { return r.error; })) return null;
+                var bets = rs[0].data || [];
+                var welfare = (rs[1].data || []).filter(function (c) { return c.user_id === userId; }).length;
+                var matchMap = {};
+                (rs[2].data || []).forEach(function (m) { matchMap[m.id] = m; });
 
-            function showModalWithContent(htmlContent) {
-                modalContent.innerHTML = `<div class="modal-close" onclick="document.getElementById('modal').classList.remove('visible')" style="position: absolute; top: 20px; right: 25px; font-size: 28px; color: var(--text-muted); cursor: pointer; line-height: 1; transition: 0.3s; z-index: 10;">&times;</div>` + htmlContent;
-                modal.classList.add('visible');
-            }
-            
-            function showMatchDetails(matches) {
-                if (!Array.isArray(matches)) matches = [matches];
-                const mainMatch = matches[0];
-                const { team_a, team_b } = mainMatch;
+                var pools = {};
+                bets.forEach(function (b) {
+                    if (!pools[b.match_id]) pools[b.match_id] = { a: 0, b: 0 };
+                    var m = matchMap[b.match_id];
+                    if (!m) return;
+                    if (b.predicted_winner === m.team_a) pools[b.match_id].a += b.amount;
+                    else pools[b.match_id].b += b.amount;
+                });
 
-                const combinedPlayerData = {};
-
-                matches.forEach(match => {
-                    const isReversed = match.team_a !== team_a;
-                    ['team_a', 'team_b'].forEach((teamKey, teamIndex) => {
-                        const currentTeamKey = isReversed ? (teamIndex === 0 ? 'team_b' : 'team_a') : teamKey;
-                        const currentTeamName = match[currentTeamKey];
-                        for (let p = 1; p <= 5; p++) {
-                            const playerId = match[`${currentTeamKey}_player${p}_id`];
-                            const playerDataStr = match[`${currentTeamKey}_player${p}_data`];
-                            const playerCh = match[`${currentTeamKey}_player${p}_ch`];
-                            if (!playerId || !playerDataStr) continue;
-
-                            const stats = String(playerDataStr).split('/').map(Number);
-                            if (stats.length !== 4 || stats.some(isNaN)) continue;
-
-                            if (!combinedPlayerData[playerId]) {
-                                combinedPlayerData[playerId] = { id: playerId, name: idNameMap[playerId] || '', team: currentTeamName, characters: new Set(), acs: 0, k: 0, d: 0, a: 0, count: 0, acsCount: 0 };
-                            }
-                            const pData = combinedPlayerData[playerId];
-                            if (stats[0] > 0) {
-                                pData.acs += stats[0];
-                                pData.acsCount++;
-                            }
-                            pData.k += stats[1];
-                            pData.d += stats[2];
-                            pData.a += stats[3];
-                            if (playerCh) pData.characters.add(playerCh);
-                            pData.count++;
+                var staked = 0, winnings = 0;
+                bets.filter(function (b) { return b.user_id === userId; }).forEach(function (b) {
+                    staked += b.amount;
+                    var m = matchMap[b.match_id];
+                    if (m && m.score_a != null && m.score_b != null && m.score_a !== m.score_b) {
+                        var winner = m.score_a > m.score_b ? m.team_a : m.team_b;
+                        if (b.predicted_winner === winner) {
+                            var pool = pools[b.match_id];
+                            var winnerPool = winner === m.team_a ? 100 + pool.a : 100 + pool.b;
+                            var loserPool = winner === m.team_a ? 100 + pool.b : 100 + pool.a;
+                            winnings += b.amount + Math.ceil((b.amount / winnerPool) * loserPool);
                         }
-                    });
-                });
-                
-                const teamAPlayers = Object.values(combinedPlayerData).filter(p => p.team === team_a);
-                const teamBPlayers = Object.values(combinedPlayerData).filter(p => p.team === team_b);
-                
-                const finalTeamAPlayers = teamAPlayers.map(p => ({ ...p, acs: (p.acsCount > 0 ? p.acs / p.acsCount : 0).toFixed(0) })).sort((a, b) => b.acs - a.acs);
-                const finalTeamBPlayers = teamBPlayers.map(p => ({ ...p, acs: (p.acsCount > 0 ? p.acs / p.acsCount : 0).toFixed(0) })).sort((a, b) => b.acs - a.acs);
-
-                let rowsHTML = '';
-                const maxPlayers = Math.max(finalTeamAPlayers.length, finalTeamBPlayers.length);
-                const placeholder = { id: '-', name: '', characters: new Set(), acs: '-', k: '-', d: '-', a: '-', count: '-' };
-                for (let i = 0; i < maxPlayers; i++) {
-                    const pA = finalTeamAPlayers[i] || placeholder;
-                    const pB = finalTeamBPlayers[i] || placeholder;
-                    rowsHTML += `<tr>
-                        <td class="player-id-cell"><div class="player-id">${pA.id}</div><div class="player-name">${pA.name}</div></td>
-                        <td>${[...pA.characters].join(', ')}</td>
-                        <td class="player-acs">${pA.acs}</td><td>${pA.k}</td><td>${pA.d}</td><td>${pA.a}</td><td>${pA.count}</td>
-                        <td class="separator"></td>
-                        <td class="player-id-cell"><div class="player-id">${pB.id}</div><div class="player-name">${pB.name}</div></td>
-                        <td>${[...pB.characters].join(', ')}</td>
-                        <td class="player-acs">${pB.acs}</td><td>${pB.k}</td><td>${pB.d}</td><td>${pB.a}</td><td>${pB.count}</td>
-                    </tr>`;
-                }
-
-                const scoreHTML = matches.map(match => {
-                    const isReversed = match.team_a !== team_a;
-                    const scores = String(match.score).split(/[:/：]/).map(Number);
-                    const scoreA = isReversed ? scores[1] : scores[0];
-                    const scoreB = isReversed ? scores[0] : scores[1];
-                    const scoreAClass = scoreA >= 13 ? 'score-win' : 'score-loss';
-                    const scoreBClass = scoreB >= 13 ? 'score-win' : 'score-loss';
-                    return `<div class="score-line"><span class="${scoreAClass}">${scoreA}</span>:<span class="${scoreBClass}">${scoreB}</span><span class="score-map">${match.map}</span></div>`;
-                }).join('');
-
-                const modalHTML = `
-                    <div class="modal-header">比赛详情</div>
-                    <table class="player-comparison-table">
-                        <thead>
-                            <tr>
-                                <th colspan="7" class="team-name-header">${team_a}</th>
-                                <th class="score-details">${scoreHTML}</th>
-                                <th colspan="7" class="team-name-header">${team_b}</th>
-                            </tr>
-                            <tr class="stat-header">
-                                <th>ID/真名</th><th>角色</th><th>平均ACS</th><th>总K</th><th>总D</th><th>总A</th><th>图数</th>
-                                <th class="separator"></th>
-                                <th>ID/真名</th><th>角色</th><th>平均ACS</th><th>总K</th><th>总D</th><th>总A</th><th>图数</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rowsHTML}</tbody>
-                    </table>`;
-                showModalWithContent(modalHTML);
-            }
-            
-            function showTeamRoster(teamName, groupName) {
-                const officialRoster = allPlayersData
-                    .filter(p => p.team === teamName && p.group === groupName)
-                    .map(p => p.id);
-                
-                const playedPlayers = {};
-                const teamMatches = allMatchesData.filter(m => m.group === groupName && (m.team_a === teamName || m.team_b === teamName));
-
-                const series = {};
-                teamMatches.forEach(m => {
-                    const opponent = m.team_a === teamName ? m.team_b : m.team_a;
-                    const seriesKey = `${m.match_date}-${m.stage}-${opponent}`;
-                    if (!series[seriesKey]) series[seriesKey] = [];
-                    series[seriesKey].push(m);
-                });
-
-                Object.values(series).forEach(matchesInSeries => {
-                    const playersInSeries = new Set();
-                    matchesInSeries.forEach(match => {
-                        const teamKey = match.team_a === teamName ? 'team_a' : 'team_b';
-                        for(let i = 1; i <= 5; i++) {
-                            const playerId = match[`${teamKey}_player${i}_id`];
-                            if(playerId) playersInSeries.add(playerId);
-                        }
-                    });
-                    playersInSeries.forEach(playerId => {
-                        if (!playedPlayers[playerId]) playedPlayers[playerId] = { count: 0 };
-                        playedPlayers[playerId].count++;
-                    });
-                });
-
-                const finalRoster = officialRoster.map(id => ({
-                    id, name: idNameMap[id] || id, isSub: false
-                }));
-                
-                Object.keys(playedPlayers).forEach(playerId => {
-                    if (!officialRoster.includes(playerId)) {
-                        finalRoster.push({
-                            id: playerId,
-                            name: idNameMap[playerId] || playerId,
-                            isSub: true,
-                            subCount: playedPlayers[playerId].count
-                        });
                     }
                 });
+                return Math.round(100 - staked + winnings + welfare * 5);
+            }).catch(function () { return null; });
+        }
 
-                const rosterHTML = `
-                    <div class="modal-header">${teamName} <span style="font-size:14px; color:var(--text-muted); font-weight:normal;">(${groupName})</span></div>
-                    <ul class="roster-list">
-                        ${finalRoster.length > 0 ? finalRoster.map(player => `
-                            <li>
-                                <span style="font-weight:700; color:var(--text-color);">${player.name}</span> <span style="font-size:13px; color:var(--text-muted);">(${player.id})</span>
-                                ${player.isSub ? `<span class="sub-label">替补 ${player.subCount} 次</span>` : ''}
-                            </li>
-                        `).join('') : '<li style="color:var(--text-muted);">暂无该队伍成员信息</li>'}
-                    </ul>
-                `;
-                showModalWithContent(rosterHTML);
-            }
+        /* ---------- Dashboard ---------- */
+        function renderDashboard(user, data) {
+            var regs = data.myRegs;
+            var upcoming = data.upcoming;
+            var balance = data.balance;
 
-            matchesView.addEventListener('click', (e) => {
-                const clickedCard = e.target.closest('.match-card');
-                if (!clickedCard) return;
-                
-                const activeGroup = groupFilterButtons.querySelector('.active').dataset.group;
-                const groupMatches = allMatchesData.filter(m => m.group === activeGroup);
+            hero.innerHTML =
+                '<span class="eyebrow">Personal Home</span>' +
+                '<h1>你好，<span class="accent-name">' + esc(user.nickname || user.username) + '</span></h1>' +
+                '<p class="lead">管理你的报名与赛事参与，随时掌握审核状态与竞猜积分。</p>';
 
-                const matchIndex = parseInt(clickedCard.dataset.matchIndex, 10);
-                const clickedMatch = groupMatches[matchIndex];
-                if (!clickedMatch) return;
-
-                if (mergeStatsCheckbox.checked) {
-                    const { match_date, team_a, team_b, stage } = clickedMatch;
-                    
-                    const relatedMatches = groupMatches.filter(m =>
-                        m.match_date === match_date && m.stage === stage &&
-                        ((m.team_a === team_a && m.team_b === team_b) || (m.team_a === team_b && m.team_b === team_a))
-                    );
-
-                    if (relatedMatches.length > 0) {
-                        showMatchDetails(relatedMatches);
-                    } else {
-                        showMatchDetails([clickedMatch]);
-                    }
-                } else {
-                     showMatchDetails([clickedMatch]);
-                }
+            var active = regs.filter(function (r) { return r.status === 'pending' || r.status === 'approved'; });
+            var pending = regs.filter(function (r) { return r.status === 'pending'; });
+            var soon = regs.filter(function (r) {
+                return (r.status === 'approved' || r.status === 'pending') && r.events &&
+                    (r.events.status === 'registration' || r.events.status === 'ongoing');
             });
 
-            standingsTableBody.addEventListener('click', (e) => {
-                const clickedCell = e.target.closest('.team-name-cell');
-                if (!clickedCell) return;
-                const teamName = clickedCell.dataset.team;
-                const activeGroup = groupFilterButtons.querySelector('.active').dataset.group;
-                if(teamName) {
-                    showTeamRoster(teamName, activeGroup);
-                }
-            });
+            var statsHtml =
+                '<div class="stats-strip">' +
+                statCard(active.length, '有效报名', false) +
+                statCard(pending.length, '待审核', false) +
+                statCard(soon.length, '进行中 / 报名中', false) +
+                statCard(balance === null ? '—' : balance, '竞猜积分', true) +
+                '</div>';
 
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.classList.remove('visible');
-                }
+            var regsHtml = regs.length === 0
+                ? '<div class="empty-line">还没有报名任何活动<br><a href="events.html">去活动大厅看看 →</a></div>'
+                : '<div class="list">' + regs.slice(0, 6).map(function (r) {
+                    var ev = r.events || {};
+                    return '<a class="list-item" href="events.html#mine">' +
+                        '<span class="li-icon">' + esc(ev.cover_emoji || '📋') + '</span>' +
+                        '<span class="li-main">' +
+                        '  <span class="li-title">' + esc(ev.title || '（活动已删除）') + '</span>' +
+                        '  <span class="li-sub">' + esc(ev.season || '') + ' · ' + fmtDate(r.created_at) +
+                        (r.team_name ? ' · ' + esc(r.team_name) : '') + '</span>' +
+                        '</span>' +
+                        '<span class="li-end"><span class="badge ' + regBadge(r.status) + '">' + (REG_STATUS[r.status] || r.status) + '</span></span>' +
+                        '</a>';
+                }).join('') + '</div>';
+
+            var upcomingHtml = upcoming.length === 0
+                ? '<div class="empty-line">近期暂无进行中的活动</div>'
+                : '<div class="list">' + upcoming.map(function (ev) {
+                    return '<a class="list-item" href="events.html">' +
+                        '<span class="li-icon">' + esc(ev.cover_emoji || '🏆') + '</span>' +
+                        '<span class="li-main">' +
+                        '  <span class="li-title">' + esc(ev.title) + '</span>' +
+                        '  <span class="li-sub">' + fmtDate(ev.start_time) + (ev.venue ? ' · ' + esc(ev.venue) : '') + '</span>' +
+                        '</span>' +
+                        '<span class="li-end"><span class="badge ' + (EV_BADGE[ev.status] || '') + '">' + (EV_STATUS[ev.status] || ev.status) + '</span></span>' +
+                        '</a>';
+                }).join('') + '</div>';
+
+            var tiles = [
+                ['schedule.html', '🗓️', '赛程中心', '对阵表与赛程'],
+                ['draft.html', '🪪', '分队系统', '表格分队 / 随机抽取'],
+                ['admin.html', '🛠️', '管理后台', '录入比赛与赛程'],
+                ['game.html', '🎮', '剧情模式', '沉浸式训练赛故事']
+            ].map(function (t) {
+                return '<a class="tile" href="' + t[0] + '">' +
+                    '<span class="icon-circle">' + t[1] + '</span>' +
+                    '<span><span class="t-name">' + t[2] + '</span><br><span class="t-desc">' + t[3] + '</span></span>' +
+                    '</a>';
+            }).join('');
+
+            dash.innerHTML =
+                statsHtml +
+                '<div class="grid-2">' +
+                '  <section class="card">' +
+                '    <div class="block-head"><h2>我的报名</h2><a href="events.html#mine">全部 →</a></div>' +
+                     regsHtml +
+                '  </section>' +
+                '  <section class="card">' +
+                '    <div class="block-head"><h2>近期活动</h2><a href="events.html">活动大厅 →</a></div>' +
+                     upcomingHtml +
+                '  </section>' +
+                '</div>' +
+                '<section class="card mt-24">' +
+                '  <div class="block-head"><h2>个人资料</h2></div>' +
+                '  <div class="profile-card">' +
+                '    <div class="profile-avatar">' + esc((user.nickname || user.username || '?').charAt(0).toUpperCase()) + '</div>' +
+                '    <div class="profile-main">' +
+                '      <h3 class="profile-name">' + esc(user.nickname || user.username) + '<span class="profile-handle">@' + esc(user.username) + '</span></h3>' +
+                '      <div class="profile-chips">' +
+                '        <span class="chip mono">ID ' + user.id + '</span>' +
+                (user.game_id ? '<span class="chip">🎮 ' + esc(user.game_id) + '</span>' : '') +
+                '        <span class="chip">注册于 ' + fmtDate(user.created_at) + '</span>' +
+                '      </div>' +
+                (user.bio
+                    ? '<p class="profile-bio">' + esc(user.bio) + '</p>'
+                    : '<p class="profile-bio smoke">还没有简介，点右侧「编辑资料」补充吧。</p>') +
+                '    </div>' +
+                '    <div class="profile-actions">' +
+                '      <button class="btn btn-ghost" id="edit-profile" type="button">编辑资料</button>' +
+                '      <button class="btn btn-ghost" id="logout-btn" type="button">退出登录</button>' +
+                '    </div>' +
+                '  </div>' +
+                '</section>' +
+                '<section class="mt-32">' +
+                '  <div class="block-head"><h2>功能入口</h2></div>' +
+                '  <div class="tiles">' + tiles + '</div>' +
+                '</section>';
+
+            document.getElementById('edit-profile').addEventListener('click', openProfileModal);
+            document.getElementById('logout-btn').addEventListener('click', function () {
+                HWAuth.logout();
+                render();
             });
-            
-            // 为动态生成的关闭按钮绑定事件代理
-            document.addEventListener('click', (e) => {
-                if(e.target.classList.contains('modal-close') || e.target.closest('.modal-close')) {
-                    modal.classList.remove('visible');
-                }
-            });
+        }
+
+        function statCard(num, label, coral) {
+            return '<div class="stat-card"><div class="stat-num' + (coral ? ' coral' : '') + '">' + num + '</div>' +
+                '<div class="stat-label">' + label + '</div></div>';
+        }
+
+        function regBadge(status) {
+            if (status === 'pending') return 'badge-gold';
+            if (status === 'approved') return 'badge-green';
+            if (status === 'rejected' || status === 'cancelled') return 'badge-quiet';
+            return '';
+        }
+
+        /* ---------- Profile modal ---------- */
+        function openProfileModal() {
+            var u = HWAuth.getSession();
+            if (!u) return;
+            document.getElementById('pf-nickname').value = u.nickname || '';
+            document.getElementById('pf-game-id').value = u.game_id || '';
+            document.getElementById('pf-bio').value = u.bio || '';
+            document.getElementById('profile-modal').classList.add('visible');
+        }
+        function closeProfileModal() {
+            document.getElementById('profile-modal').classList.remove('visible');
+        }
+        document.getElementById('pm-close').addEventListener('click', closeProfileModal);
+        document.getElementById('pm-cancel').addEventListener('click', closeProfileModal);
+        document.getElementById('profile-modal').addEventListener('click', function (e) {
+            if (e.target.id === 'profile-modal') closeProfileModal();
         });
+
+        document.getElementById('profile-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            HWAuth.updateProfile({
+                nickname: document.getElementById('pf-nickname').value.trim(),
+                game_id: document.getElementById('pf-game-id').value.trim(),
+                bio: document.getElementById('pf-bio').value.trim()
+            }).then(function () {
+                closeProfileModal();
+                render();
+            }).catch(function (err) { alert(err.message); });
+        });
+
+        document.getElementById('pwd-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            HWAuth.changePassword(
+                document.getElementById('pf-old-pwd').value,
+                document.getElementById('pf-new-pwd').value
+            ).then(function () {
+                alert('密码修改成功');
+                document.getElementById('pf-old-pwd').value = '';
+                document.getElementById('pf-new-pwd').value = '';
+            }).catch(function (err) { alert(err.message); });
+        });
+
+        /* ---------- Render ---------- */
+        function render() {
+            if (typeof HWLayout !== 'undefined') HWLayout.renderAuth();
+            var user = HWAuth.getSession();
+            if (!user) { renderGuest(); return; }
+
+            hero.innerHTML = '<span class="eyebrow">Personal Home</span><h1>加载中…</h1>';
+            dash.innerHTML = '<div class="empty-state">正在读取你的数据…</div>';
+
+            Promise.all([
+                HWAuth.refresh().catch(function () { return user; }),
+                loadMyRegs(user.id),
+                loadUpcoming(),
+                loadBalance(user.id)
+            ]).then(function (rs) {
+                var fresh = rs[0] || user;
+                if (!fresh) { renderGuest(); return; }
+                if (rs[1].missing) {
+                    hero.innerHTML =
+                        '<span class="eyebrow">Setup Required</span>' +
+                        '<h1>数据库尚未升级</h1>' +
+                        '<p class="lead">个人主页依赖新表 <span class="mono" style="color:var(--mist)">site_users / events / event_registrations</span>。' +
+                        '请在 Supabase SQL Editor 执行 <span class="mono" style="color:var(--mist)">supabase/schema.sql</span> 后刷新本页。旧功能不受影响。</p>' +
+                        '<div class="hero-actions">' +
+                        '  <a class="btn btn-ghost btn-lg" href="DESIGN.md">升级说明</a>' +
+                        '  <button class="btn btn-primary btn-lg" id="reload-btn" type="button">已执行，刷新</button>' +
+                        '</div>';
+                    dash.innerHTML = '';
+                    document.getElementById('reload-btn').addEventListener('click', function () { location.reload(); });
+                    return;
+                }
+                renderDashboard(fresh, { myRegs: rs[1].rows, upcoming: rs[2], balance: rs[3] });
+            }).catch(function (err) {
+                console.error(err);
+                hero.innerHTML = '<span class="eyebrow">Error</span><h1>加载失败</h1>';
+                dash.innerHTML = '<div class="empty-state"><strong>' + esc(err.message || err) + '</strong><br>请刷新重试</div>';
+            });
+        }
+
+        HWAuth.init();
+        render();
+        document.addEventListener('hw:login', render);
+    })();
     </script>
 </body>
 </html>

@@ -417,7 +417,7 @@
       action.then(function (user) {
         close();
         if (!opts.stay && opts.redirect !== false) {
-          window.location.href = 'home.html';
+          window.location.href = 'index.html'; // 登录落地：个人主页
         } else {
           resolve(user);
         }
