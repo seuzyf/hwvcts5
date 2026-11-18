@@ -44,8 +44,9 @@
 
   /* ---------------- Navigation model ---------------- */
   var NAV = [
-    { id: 'index', href: 'index.html', label: '主页' },
-    { id: 'events', href: 'events.html', label: '活动' }
+    { id: 'index',  href: 'index.html',  label: '主页' },
+    { id: 'events', href: 'events.html', label: '活动' },
+    { id: 'admin',  href: 'admin.html',  label: '管理后台' }
   ];
 
   var FOOTER_LINKS = [
