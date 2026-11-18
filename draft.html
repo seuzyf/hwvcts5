@@ -307,7 +307,7 @@
         }
     </style>
 </head>
-<body data-page="draft">
+<body data-page="draft" data-crumb="events">
     <main class="page">
         <div class="container">
             <header class="page-header">
@@ -316,6 +316,8 @@
                 <p class="page-sub">两种模式：<strong style="color:var(--mist);">表格分队</strong> 导入选手库手动编队导出；<strong style="color:var(--mist);">随机抽取</strong> 从选手池抽卡招募并同步数据库。</p>
             </header>
 
+            <div id="event-bar" hidden></div>
+            <div id="draft-locked" hidden></div>
             <div class="draft-tabs">
                 <button class="draft-tab active" data-pane="import" type="button">表格分队</button>
                 <button class="draft-tab" data-pane="draw" type="button">随机抽取</button>
@@ -426,6 +428,50 @@
             </div>
         </div>
     </div>
+
+    <!-- ============================================================
+         Permission gate + event context — 分队系统仅限队长/管理员。
+         Sets window.__draftGate BEFORE the pane scripts run.
+         ============================================================ -->
+    <script>
+        window.__draftGate = (function () {
+            var qp = new URLSearchParams(location.search);
+            return HWLayout.resolveEvent().then(function (ev) {
+                var season = ev ? HWLayout.seasonKey(ev) : (qp.get('season') || 's6').toLowerCase();
+                return HWLayout.access(season).then(function (perms) {
+                    if (ev) HWLayout.eventBar({ event: ev, perms: perms });
+                    else HWLayout.eventBar({ event: null });
+
+                    var ok = perms.isAdmin || perms.isCaptain;
+                    if (!ok) {
+                        document.querySelectorAll('.page-header, .draft-tabs').forEach(function (el) { el.style.display = 'none'; });
+                        var ip = document.getElementById('import-pane'); if (ip) ip.hidden = true;
+                        var dp = document.getElementById('draw-pane'); if (dp) dp.hidden = true;
+                        var host = document.getElementById('draft-locked');
+                        if (host) {
+                            host.hidden = false;
+                            host.innerHTML = '<div class="locked-state">' +
+                                '<span class="lock-role">' + (typeof HWAuth !== 'undefined' && HWAuth.getSession() ? '权限不足' : '需要登录') + '</span>' +
+                                '<div class="lock-ic">🔒</div>' +
+                                '<h2>分队系统仅限队长与管理员</h2>' +
+                                '<p>' + ((typeof HWAuth !== 'undefined' && HWAuth.getSession())
+                                    ? '当前账号不是任何队伍的队长，也没有管理权限。队长身份由分队结果（对应赛季 player_stats 中角色=队长）自动识别。'
+                                    : '请登录队长或管理员账号后进入分队中心。') + '</p>' +
+                                '<div class="locked-actions">' +
+                                ((typeof HWAuth !== 'undefined' && HWAuth.getSession()) ? '' : '<button class="btn btn-primary" id="locked-login" type="button">登录 / 注册</button>') +
+                                '<a class="btn btn-ghost" href="events.html">返回活动大厅</a>' +
+                                '</div></div>';
+                            var lb = document.getElementById('locked-login');
+                            if (lb) lb.addEventListener('click', function () {
+                                HWAuth.openModal({ stay: true }).then(function () { location.reload(); }).catch(function () {});
+                            });
+                        }
+                    }
+                    return ok;
+                });
+            }).catch(function () { return false; });
+        })();
+    </script>
 
     <!-- ============================================================
          PANE 1 script — spreadsheet draft (global functions kept:
@@ -766,7 +812,8 @@
         const confirmMsg = document.getElementById('confirm-msg');
         let confirmResolve = null;
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', () => window.__draftGate.then(function (ok) {
+            if (!ok) return;
             groupFilterButtons.addEventListener('click', (e) => {
                 if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
                     groupFilterButtons.querySelector('.active').classList.remove('active');
@@ -789,7 +836,7 @@
             });
 
             loadData();
-        });
+        }));
 
         function createSeededRandom(seed) {
             return function () {
@@ -1241,7 +1288,7 @@
                     location.hash = t.dataset.pane === 'draw' ? 'draw' : '';
                 });
             });
-            if (location.hash === '#draw') activate('draw');
+            if (location.hash === '#draw') window.__draftGate.then(function (ok) { if (ok) activate('draw'); });
         })();
     </script>
 </body>

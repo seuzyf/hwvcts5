@@ -167,12 +167,12 @@
         #comment-form button:disabled { background-color: #333; cursor: not-allowed; box-shadow: none; color: #888; }
         .reply-form-container { margin-top: 15px; }
 
-        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; visibility: hidden; opacity: 0; transition: opacity 0.3s, visibility 0.3s; padding: 15px; box-sizing: border-box; }
+        /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; visibility: hidden; opacity: 0; transition: opacity 0.25s, visibility 0.25s; padding: 18px; box-sizing: border-box; }
         .modal-backdrop.visible { visibility: visible; opacity: 1; }
-        .modal-content { background-color: var(--card-bg-color); padding: 30px; border-radius: 6px; border: 1px solid var(--border-highlight); box-shadow: 0 10px 40px rgba(0,0,0,0.8); width: 100%; max-width: 450px; transform: scale(0.9); transition: transform 0.3s ease; position: relative; }
-        body.light-theme .modal-content { box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .modal-backdrop.visible .modal-content { transform: scale(1); }
-        .modal-header { font-size: 20px; font-weight: 900; color: var(--primary-color); margin-bottom: 25px; text-align: center; letter-spacing: 2px; }
+        .modal-content { position: relative; background: var(--ink); border: none; border-radius: var(--r-card-lg); padding: 28px; box-shadow: var(--panel-shadow); width: 100%; max-width: 450px; max-height: 88vh; overflow-y: auto; box-sizing: border-box; transform: none; }
+        .modal-header { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
+        [data-theme="light"] .modal-backdrop { background: rgba(16, 17, 19, 0.42); }
         
         .settings-switch { display: flex; justify-content: center; margin-bottom: 25px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px; }
         body.light-theme .settings-switch { background-color: rgba(255,255,255,0.5); }
@@ -183,12 +183,14 @@
         .settings-form { display: none; flex-direction: column; gap: 15px; }
         .settings-form.active { display: flex; }
         .settings-form .form-group { display: flex; flex-direction: column; }
-        .settings-form label { margin-bottom: 8px; font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; letter-spacing: 1px; }
-        .settings-form input { padding: 0 15px; height: var(--control-height); background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; font-family: 'Noto Sans SC'; outline: none; transition: border-color 0.3s; }
-        body.light-theme .settings-form input { background: #fff; }
-        .settings-form input:focus { border-color: var(--primary-color); }
-        .settings-form button { height: var(--control-height); border: none; border-radius: 4px; background-color: var(--primary-color); color: white; font-weight: 700; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
-        .settings-form button:hover { background: #9c9c9d; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+        .settings-form label { margin-bottom: 8px; font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; letter-spacing: 0.04em; }
+        .settings-form input { padding: 0 12px; height: 38px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--pure-white); border-radius: 8px; outline: none; transition: border-color 0.15s; font-size: 14px; box-sizing: border-box; width: 100%; }
+        .settings-form input:focus { border-color: var(--smoke); }
+        .settings-form button { height: 36px; border: none; border-radius: 8px; background: var(--mist); color: var(--iron); font-weight: 500; font-size: 13px; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; margin-top: 10px; }
+        .settings-form button:hover { background: var(--pure-white); color: var(--void-black); }
+        [data-theme="light"] .settings-form input { background: rgba(0,0,0,0.03); color: #101113; }
+        [data-theme="light"] .settings-form button { color: #f6f6f7; }
+        [data-theme="light"] .settings-form button:hover { background: #101113; color: #f6f6f7; }
 
         .tooltip { position: relative; display: inline-flex; justify-content: center; align-items: center; cursor: help; border: 1px solid var(--text-muted); border-radius: 50%; width: 16px; height: 16px; font-size: 11px; }
         .tooltip .tooltiptext { visibility: hidden; width: 260px; background-color: #151520; color: #fff; text-align: left; border-radius: 4px; border: 1px solid var(--border-color); padding: 10px; position: absolute; z-index: 10; bottom: 150%; left: 50%; margin-left: -130px; opacity: 0; transition: opacity 0.3s; font-size: 12px; line-height: 1.5; font-weight: normal; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
@@ -197,7 +199,7 @@
         body { padding-top: 80px; }
     </style>
 </head>
-<body data-page="player" data-crumb="数据">
+<body data-page="player" data-crumb="events">
     <div class="container">
         <div class="main-header-block">
             <div class="top-right-controls">
@@ -259,6 +261,7 @@
     <div id="settings-modal" class="modal-backdrop">
         <div class="modal-content">
             <div class="modal-close" onclick="document.getElementById('settings-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
+            <span class="modal-eyebrow">Settings</span>
             <h3 class="modal-header">个 人 设 置</h3>
             <div class="settings-switch">
                 <input type="radio" id="profile-tab" name="settings-tab" checked>

@@ -99,23 +99,29 @@
         hr { border-color: rgba(255,255,255,0.05); margin: 8px 0; }
         body.light-theme hr { border-color: rgba(0,0,0,0.05); }
 
-        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; padding: 15px; box-sizing: border-box; }
+        /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: opacity 0.25s, visibility 0.25s; padding: 18px; box-sizing: border-box; }
         .modal-backdrop.visible { opacity: 1; visibility: visible; }
-        .modal-content { background-color: var(--card-bg-color); padding: 30px; border-radius: 6px; border: 1px solid var(--border-highlight); box-shadow: 0 10px 40px rgba(0,0,0,0.8); width: 100%; max-width: 500px; transform: scale(0.9); transition: transform 0.3s ease; position: relative; }
-        body.light-theme .modal-content { box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .modal-header { font-size: 20px; font-weight: 900; color: var(--primary-color); margin-bottom: 25px; text-align: center; letter-spacing: 2px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
-        .modal-body { display: flex; flex-direction: column; gap: 15px; max-height: 60vh; overflow-y: auto; padding-right: 5px; }
-        .modal-body::-webkit-scrollbar { width: 4px; }
+        .modal-content { position: relative; width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; background: var(--ink); border: none; border-radius: var(--r-card-lg); padding: 28px; box-shadow: var(--panel-shadow); transform: none; }
+        .modal-content .modal-close { position: absolute; top: 14px; right: 16px; width: 30px; height: 30px; border: none; border-radius: 8px; background: transparent; color: var(--ash); font-size: 22px; line-height: 1; cursor: pointer; }
+        .modal-content .modal-close:hover { background: var(--graphite); color: var(--pure-white); }
+        .modal-header { margin: 0 0 4px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
+        .modal-eyebrow { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); margin-bottom: 8px; }
+        .modal-body { display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto; padding-right: 5px; margin-top: 16px; }
+        .modal-body::-webkit-scrollbar { width: 6px; }
         .modal-body::-webkit-scrollbar-track { background: transparent; }
-        .modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 2px; }
-        
-        .modal-body input { height: var(--control-height); padding: 0 15px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; font-size: 14px; font-family: 'Noto Sans SC'; outline: none; transition: border-color 0.3s; box-sizing: border-box; width: 100%; }
-        body.light-theme .modal-body input { background: #fff; }
-        .modal-body input:focus { border-color: var(--primary-color); }
-        
-        .modal-footer { display: flex; justify-content: flex-end; align-items: center; gap: 15px; margin-top: 25px; border-top: 1px solid var(--border-color); padding-top: 20px; }
-        .modal-footer .confirm-btn { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 4px; font-weight: 700; padding: 0 30px; cursor: pointer; border: 1px solid var(--win-color); color: var(--win-color); background: rgba(129, 199, 132, 0.1); transition: all 0.3s; letter-spacing: 2px; }
-        .modal-footer .confirm-btn:hover { background-color: var(--win-color); color: white; box-shadow: 0 0 15px rgba(129, 199, 132, 0.4); }
+        .modal-body::-webkit-scrollbar-thumb { background: var(--graphite); border-radius: 3px; }
+        .modal-body input, .modal-content input { height: 38px; padding: 0 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--pure-white); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.15s; box-sizing: border-box; width: 100%; }
+        .modal-body input:focus, .modal-content input:focus { border-color: var(--smoke); }
+        .modal-footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 22px; border-top: 1px solid var(--border); padding-top: 18px; }
+        .modal-footer .confirm-btn, .modal-content button:not(.modal-close) { height: 34px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 8px; padding: 0 16px; background: var(--mist); color: var(--iron); font-size: 13px; font-weight: 500; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .modal-footer .confirm-btn:hover, .modal-content button:not(.modal-close):hover { background: var(--pure-white); color: var(--void-black); }
+        [data-theme="light"] .modal-backdrop { background: rgba(16, 17, 19, 0.42); }
+        [data-theme="light"] .modal-body input, [data-theme="light"] .modal-content input { background: rgba(0, 0, 0, 0.03); color: #101113; }
+        [data-theme="light"] .modal-footer .confirm-btn,
+        [data-theme="light"] .modal-content button:not(.modal-close) { color: #f6f6f7; }
+        [data-theme="light"] .modal-footer .confirm-btn:hover,
+        [data-theme="light"] .modal-content button:not(.modal-close):hover { background: #101113; color: #f6f6f7; }
         
         .user-info { position: absolute; top: 25px; right: 25px; text-align: right; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
         #user-display { background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); padding: 10px 15px; border-radius: 6px; backdrop-filter: blur(5px); font-size: 13px; }
@@ -160,7 +166,7 @@
         body { padding-top: 80px; }
     </style>
 </head>
-<body data-page="betting">
+<body data-page="betting" data-crumb="events">
     <div class="container">
         <div class="main-header-block">
             <div class="user-info">
@@ -183,6 +189,7 @@
             </div>
         </div>
 
+        <div id="event-bar" hidden></div>
         <main>
             <div id="main-content"></div>
             <section id="leaderboard-section">
@@ -209,6 +216,7 @@
     <div id="login-modal" class="modal-backdrop">
         <div class="modal-content">
             <div class="modal-close" onclick="document.getElementById('login-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
+            <span class="modal-eyebrow">Account</span>
             <h3 class="modal-header">登 录 或 注 册</h3>
             <div class="modal-body" style="overflow: visible;">
                 <input type="text" id="username-input" placeholder="请输入您的用户名（建议使用真名）" required>
@@ -223,6 +231,7 @@
     <div id="bet-modal" class="modal-backdrop">
         <div class="modal-content">
             <div class="modal-close" onclick="document.getElementById('bet-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
+            <span class="modal-eyebrow">Prediction</span>
             <h3 class="modal-header" id="bet-modal-header"></h3>
             <div class="modal-body">
                 <div id="bet-controls-section">
@@ -249,6 +258,7 @@
     <div id="history-modal" class="modal-backdrop">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-close" onclick="document.getElementById('history-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
+            <span class="modal-eyebrow">History</span>
             <h3 class="modal-header" id="history-modal-header">预测记录</h3>
             <div class="modal-body">
                 <table class="history-table">
@@ -643,6 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const rosterHTML = `
             <div class="modal-close" onclick="document.getElementById('roster-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
+            <span class="modal-eyebrow">Roster</span>
             <div class="modal-header">${teamName} (${groupName}) 成员列表</div>
             <ul class="roster-list">
                 ${officialRoster.length > 0 ? officialRoster.map(player => `
@@ -882,7 +893,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 统一账号：初始化会话并探测账号表（升级前用旧表，升级后自动切新表）
     HWAuth.init();
-    HWAuth.detectAccountSource().catch(() => {}).finally(() => initializePage());
+    HWAuth.detectAccountSource().catch(() => {}).finally(() => {
+        // 活动上下文：先于首屏加载解析（赛季随之锁定），再初始化页面
+        HWLayout.resolveEvent().then(function (ev) {
+            if (ev) {
+                var key = HWLayout.seasonKey(ev);
+                currentSeason = key;
+                HWLayout.access(key).then(function (perms) {
+                    HWLayout.eventBar({ event: ev, perms: perms });
+                });
+            } else {
+                HWLayout.eventBar({ event: null });
+            }
+            return initializePage();
+        });
+    });
 });
 </script>
 </body>

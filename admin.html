@@ -108,11 +108,18 @@
         .delete-row-btn { background-color: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 12px; height: 32px; padding: 0 15px; }
         .delete-row-btn:hover { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
         
-        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; }
-        .modal-content { background-color: var(--card-bg-color); padding: 40px; border-radius: 6px; border: 1px solid var(--border-highlight); text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); width: 90%; max-width: 400px; }
-        body.light-theme .modal-content { box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .modal-content h2 { color: var(--primary-color); font-weight: 900; letter-spacing: 2px; margin-top: 0; margin-bottom: 25px; }
-        #password-input { font-size: 16px; text-align: center; margin-bottom: 25px; letter-spacing: 2px; }
+        /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 18px; box-sizing: border-box; }
+        .modal-content { position: relative; background: var(--ink); border: none; border-radius: var(--r-card-lg); padding: 28px; box-shadow: var(--panel-shadow); text-align: left; width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; box-sizing: border-box; }
+        .modal-content h2 { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; }
+        .modal-content input { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--pure-white); padding: 0 12px; margin: 10px 0 16px; box-sizing: border-box; outline: none; font-size: 14px; transition: border-color 0.15s; }
+        .modal-content input:focus { border-color: var(--smoke); }
+        .modal-content button:not(.modal-close) { background: var(--mist); color: var(--iron); border: none; height: 34px; padding: 0 16px; border-radius: 8px; font-weight: 500; font-size: 13px; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .modal-content button:not(.modal-close):hover { background: var(--pure-white); color: var(--void-black); }
+        [data-theme="light"] .modal-backdrop { background: rgba(16, 17, 19, 0.42); }
+        [data-theme="light"] .modal-content input { background: rgba(0,0,0,0.03); color: #101113; }
+        [data-theme="light"] .modal-content button:not(.modal-close) { color: #f6f6f7; }
+        [data-theme="light"] .modal-content button:not(.modal-close):hover { background: #101113; color: #f6f6f7; }
         
         .match-record { border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 25px; padding: 15px; position: relative; }
         body.light-theme .match-record { background: rgba(255,255,255,0.5); }
@@ -123,11 +130,12 @@
         body { padding-top: 80px; }
     </style>
 </head>
-<body data-page="admin">
+<body data-page="admin" data-crumb="events">
     <datalist id="teams-datalist"></datalist>
 
     <div id="password-modal" class="modal-backdrop">
         <div class="modal-content">
+            <span class="modal-eyebrow">Admin Gate</span>
             <h2>管理员验证</h2>
             <input type="password" id="password-input" autofocus placeholder="输入管理口令">
             <button id="password-submit">验 证 权 限</button>
@@ -136,6 +144,7 @@
 
     <div id="validation-modal" class="modal-backdrop" style="display:none;">
         <div class="modal-content" style="max-width: 500px;">
+            <span class="modal-eyebrow">Confirm</span>
             <h2>提 交 提 醒</h2>
             <div id="validation-warnings" class="warning-text"></div>
             <p style="color:var(--text-color); margin-bottom:20px; font-size: 15px; font-weight: 500;">是否确认继续提交并保存修改？</p>
@@ -173,6 +182,8 @@
                 </div>
             </div>
         </header>
+
+        <div id="event-bar" hidden></div>
 
         <div id="matches-tab" class="tab-content active">
             <div class="data-section">
@@ -294,12 +305,53 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isCorrect === true) {
                 passwordModal.style.display = 'none';
                 adminPanel.style.display = 'block';
+                // 口令正确 → 全站管理会话（15 分钟）+ 尝试把当前账号升级为 admin 角色
+                HWLayout.markAdmin(15);
+                HWLayout.promoteRole();
+                document.dispatchEvent(new CustomEvent('hw:admin'));
+                var pe = window.__pendingAdminEvent;
+                if (pe) {
+                    HWLayout.access(pe.key || 's6').then(function (perms) {
+                        HWLayout.eventBar({ event: pe.ev, perms: perms });
+                    });
+                }
                 initializeAdminPanel();
             } else { alert('口令错误！'); }
         } catch (error) { console.error('验证口令时出错:', error); alert('验证失败，请检查数据库连接。'); }
     }
     passwordSubmit.addEventListener('click', checkPassword);
     passwordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') checkPassword(); });
+
+    /* ── 活动上下文 + 权限分流 ───────────────────────────────────────
+       管理员（site_users.role=admin 或 15 分钟口令会话）免口令直入；
+       其余账号保留口令门。?event= 锁定赛季并在进入后渲染活动栏。 */
+    HWLayout.resolveEvent().then(function (ev) {
+        var seg = document.getElementById('season-filter-buttons');
+        var key = ev ? HWLayout.seasonKey(ev) : null;
+        if (ev) {
+            currentSeason = key;
+            if (seg) seg.querySelectorAll('button').forEach(function (b) {
+                b.classList.toggle('active', b.dataset.season === key);
+                b.disabled = true;
+                b.title = '赛季由所选活动决定';
+            });
+        } else {
+            HWLayout.eventBar({ event: null });
+        }
+
+        if (HWLayout.isAdminNow()) {
+            passwordModal.style.display = 'none';
+            adminPanel.style.display = 'block';
+            if (ev) {
+                HWLayout.access(key || 's6').then(function (perms) {
+                    HWLayout.eventBar({ event: ev, perms: perms });
+                });
+            }
+            initializeAdminPanel();
+        } else if (ev) {
+            window.__pendingAdminEvent = { ev: ev, key: key };
+        }
+    });
 
     async function initializeAdminPanel() {
         await loadInitialData();
