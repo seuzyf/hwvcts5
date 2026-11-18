@@ -315,7 +315,7 @@
             var upcomingHtml = upcoming.length === 0
                 ? '<div class="empty-line">近期暂无进行中的活动</div>'
                 : '<div class="list">' + upcoming.map(function (ev) {
-                    return '<a class="list-item" href="events.html">' +
+                    return '<a class="list-item" href="events.html?open=' + ev.id + '">' +
                         '<span class="li-icon">' + esc(ev.cover_emoji || '🏆') + '</span>' +
                         '<span class="li-main">' +
                         '  <span class="li-title">' + esc(ev.title) + '</span>' +
@@ -325,10 +325,11 @@
                         '</a>';
                 }).join('') + '</div>';
 
+            /* 功能入口：赛程/比赛/数据/竞猜/分队/管理全部绑定在活动下，
+               从活动大厅进入；剧情模式独立于赛事体系，保留直入口。 */
             var tiles = [
-                ['schedule.html', '🗓️', '赛程中心', '对阵表与赛程'],
-                ['draft.html', '🪪', '分队系统', '表格分队 / 随机抽取'],
-                ['admin.html', '🛠️', '管理后台', '录入比赛与赛程'],
+                ['events.html', '🗓️', '活动大厅', '报名参赛与审核'],
+                ['events.html#mine', '📋', '我的报名', '跟踪审核与参赛状态'],
                 ['game.html', '🎮', '剧情模式', '沉浸式训练赛故事']
             ].map(function (t) {
                 return '<a class="tile" href="' + t[0] + '">' +

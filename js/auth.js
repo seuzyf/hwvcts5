@@ -340,23 +340,32 @@
   ].join('');
 
   var MODAL_CSS = [
-    '.hw-auth-backdrop{position:fixed;inset:0;background:rgba(5,5,10,.82);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .25s;padding:20px}',
+    /* unified modal language — mirrors css/theme.css (vars with fallbacks so
+       the login dialog also works on pages without the design system) */
+    '.hw-auth-backdrop{position:fixed;inset:0;background:rgba(2,2,3,.78);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .25s;padding:20px}',
     '.hw-auth-backdrop.visible{opacity:1}',
-    '.hw-auth-card{position:relative;width:100%;max-width:400px;background:#151520;border:1px solid rgba(255,70,85,.35);border-radius:10px;padding:36px 32px 26px;box-shadow:0 25px 60px rgba(0,0,0,.6);font-family:"Noto Sans SC",sans-serif;color:#fff}',
-    '.hw-auth-close{position:absolute;top:10px;right:16px;background:none;border:none;color:rgba(255,255,255,.5);font-size:26px;cursor:pointer;line-height:1}',
-    '.hw-auth-close:hover{color:#ff4655}',
-    '.hw-auth-badge{display:inline-block;font-size:11px;letter-spacing:3px;color:#ff4655;border:1px solid rgba(255,70,85,.4);border-radius:14px;padding:3px 12px;margin-bottom:14px}',
-    '.hw-auth-card h3{margin:0 0 18px;font-size:22px;letter-spacing:6px;font-weight:900;text-align:center}',
-    '.hw-auth-tabs{display:flex;gap:8px;margin-bottom:16px}',
-    '.hw-auth-tabs button{flex:1;height:36px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.55);border-radius:6px;cursor:pointer;font-size:14px;letter-spacing:2px;transition:.25s;font-family:inherit}',
-    '.hw-auth-tabs button.active{border-color:#ff4655;color:#ff4655;background:rgba(255,70,85,.12)}',
-    '.hw-auth-card input{width:100%;height:42px;margin-bottom:12px;padding:0 14px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.14);border-radius:6px;color:#fff;font-size:14px;outline:none;box-sizing:border-box;font-family:inherit}',
-    '.hw-auth-card input:focus{border-color:#ff4655}',
-    '.hw-auth-error{min-height:18px;font-size:12px;color:#ff8a80;margin-bottom:6px;text-align:center}',
-    '.hw-auth-submit{width:100%;height:44px;background:rgba(255,70,85,.18);border:1px solid #ff4655;color:#ff4655;border-radius:6px;font-size:15px;letter-spacing:4px;cursor:pointer;transition:.25s;font-family:inherit;font-weight:700}',
-    '.hw-auth-submit:hover{background:#ff4655;color:#fff}',
+    '.hw-auth-card{position:relative;width:100%;max-width:420px;background:var(--ink,#07080a);border:none;border-radius:20px;padding:28px;box-shadow:var(--panel-shadow,0 25px 60px rgba(0,0,0,.6));font-family:var(--font-inter,"Inter","Noto Sans SC",sans-serif);color:var(--mist,#e6e6e6)}',
+    '.hw-auth-close{position:absolute;top:14px;right:16px;width:30px;height:30px;background:none;border:none;border-radius:8px;color:var(--ash,#9c9c9d);font-size:22px;cursor:pointer;line-height:1}',
+    '.hw-auth-close:hover{background:var(--graphite,#1b1c1e);color:var(--pure-white,#fff)}',
+    '.hw-auth-badge{display:block;font-family:var(--font-mono,monospace);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--smoke,#6a6b6c);margin-bottom:8px;text-align:left}',
+    '.hw-auth-card h3{margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid var(--border,#363739);font-size:18px;letter-spacing:.02em;font-weight:500;text-align:left;color:var(--pure-white,#fff)}',
+    '.hw-auth-tabs{display:flex;gap:6px;margin-bottom:16px;padding:3px;background:var(--obsidian,#111214);border:1px solid var(--border,#363739);border-radius:8px}',
+    '.hw-auth-tabs button{flex:1;height:30px;border:none;background:transparent;color:var(--ash,#9c9c9d);border-radius:6px;cursor:pointer;font-size:13px;letter-spacing:.02em;transition:.15s;font-family:inherit;font-weight:500}',
+    '.hw-auth-tabs button.active{background:var(--graphite,#1b1c1e);color:var(--pure-white,#fff);box-shadow:rgba(255,255,255,.06) 0 1px 0 0 inset}',
+    '.hw-auth-card input{width:100%;height:38px;margin-bottom:12px;padding:0 12px;background:rgba(255,255,255,.05);border:1px solid var(--border,#363739);border-radius:8px;color:var(--pure-white,#fff);font-size:14px;outline:none;box-sizing:border-box;font-family:inherit;transition:border-color .15s}',
+    '.hw-auth-card input:focus{border-color:var(--smoke,#6a6b6c)}',
+    '.hw-auth-error{min-height:18px;font-size:12px;color:#ff8f8f;margin-bottom:6px;text-align:left}',
+    '.hw-auth-submit{width:100%;height:38px;background:var(--mist,#e6e6e6);border:none;border-radius:8px;color:var(--iron,#454647);font-size:14px;letter-spacing:.02em;cursor:pointer;transition:background .15s,color .15s;font-family:inherit;font-weight:500}',
+    '.hw-auth-submit:hover{background:var(--pure-white,#fff);color:var(--void-black,#040506)}',
     '.hw-auth-submit:disabled{opacity:.5;cursor:wait}',
-    '.hw-auth-hint{margin:14px 0 0;font-size:12px;color:rgba(255,255,255,.4);text-align:center;line-height:1.6}'
+    '.hw-auth-hint{margin:14px 0 0;font-size:12px;color:var(--smoke,#6a6b6c);text-align:left;line-height:1.6}',
+    '[data-theme="light"] .hw-auth-backdrop{background:rgba(16,17,19,.42)}',
+    '[data-theme="light"] .hw-auth-card{background:#fff}',
+    '[data-theme="light"] .hw-auth-card input{background:rgba(0,0,0,.03);border-color:#dcdcde;color:#101113}',
+    '[data-theme="light"] .hw-auth-tabs{background:#f7f7f8;border-color:#dcdcde}',
+    '[data-theme="light"] .hw-auth-tabs button.active{background:#ececee;color:#101113;box-shadow:rgba(0,0,0,.06) 0 1px 0 0 inset}',
+    '[data-theme="light"] .hw-auth-submit{color:#f6f6f7}',
+    '[data-theme="light"] .hw-auth-submit:hover{background:#101113;color:#f6f6f7}'
   ].join('');
 
   function mountModal(opts, resolve, reject) {

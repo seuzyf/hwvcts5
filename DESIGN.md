@@ -7,53 +7,49 @@
 
 ## 1. 设计语言（css/theme.css）
 
-**Midnight command center · coral neon**
+**Midnight command center · coral neon — 深浅双主题**
 
 | 项 | 规格 |
 |---|---|
-| 画布 | `#040506` 深空黑（纯暗色，全站无主题切换） |
-| 层次 | 卡片 `#07080a`、内层 `#040506`、抬升 `#151619`；边框 `#363739` / key-ring `rgba(255,255,255,.25)` |
-| 文字 | 主文 `#e6e6e6`（Mist）、纯白 `#fff`、次级 `#9c9c9d`、弱化 `#5b5b5c`、占位 `#8a8b8d` |
-| 强调 | **coral `#ff6363` 克制使用**：logo 钻石、hero 氛围光、关键高亮、头像底色；大面积永远是无彩色 |
-| 主按钮 | **Mist 实底** `#e6e6e6` + 黑字（不是彩色按钮！）；次级 ghost、危险面透明红字 |
-| 阴影 | `key-shadow`（key-ring 上浮），传统黑色阴影基本不用 |
-| 字体 | Inter（正文/UI）+ JetBrains Mono（ID、数字、Eyebrow），Google Fonts CDN |
-| 圆角 | 小 8px / 卡片 16px / 胶囊 9999px；组件间 8px，模块间 16–32px，区块间 96px+ |
-| 组件 | `.btn/.btn-primary/.btn-ghost/.btn-danger`、`.card/.glass`、`.seg` 分段器、`.chip`、`.eyebrow`、`.modal`、`.banner`、`.field`、`.toast` |
+| 画布 | 深色 `#040506`（默认）／浅色 `#f3f3f4`，导航栏按钮一键切换（localStorage `hw_theme`，首屏同步引导无闪烁） |
+| 层次 | 深：卡片 `#07080a`、抬升 `#111214`、边框 `#363739`；浅：卡片 `#fff`、抬升 `#f7f7f8`、边框 `#dcdcde`；key-ring 深 `rgba(255,255,255,.25)` / 浅 `rgba(0,0,0,.14)` |
+| 文字 | 深：主文 `#e6e6e6`／纯白 `#fff`／次级 `#9c9c9d`；浅：主文 `#1b1c1e`／纯白位 `#101113`／次级 `#5e6065` |
+| 强调 | **coral**（深 `#ff6363` / 浅 `#e04545`）克制使用：logo 钻石、hero 氛围、关键高亮；大面积永远无彩色 |
+| 主按钮 | Mist 实底：深色 `#e6e6e6`+深字，浅色 `#1b1c1e`+浅字（自动随主题翻转） |
+| 阴影 | `key-shadow` / `panel-shadow`（弹窗上浮），深浅两套令牌 |
+| 字体 | Inter（正文）+ JetBrains Mono（ID/数字/Eyebrow），Google Fonts CDN |
+| 圆角 | 小 8px / 卡片 16px / 弹窗与大卡 20px / 胶囊 9999px |
+| 组件 | `.btn` 家族、`.card`、`.seg`、`.chip`、`.eyebrow`、`.modal-*`（含 `.modal-eyebrow` 统一弹窗题眉）、`.event-bar`、`.locked-state`、`.theme-toggle` |
 
-粒子背景、light/dark 主题切换、红黑渐变大标题——全部移除。
+**弹窗统一规范**：所有对话框（登录、下注、口令、设置、解说、比赛详情、确认…）同一套排版——
+mono Eyebrow 题眉 + 左对齐标题 + 分隔线 + 16px 内距输入 + Mist 按钮 + 20px 圆角 panel-shadow；
+不保留任何旧的居中大字/红边框/6px 直角风格。粒子、旧 light-theme class 切换全部废弃。
 
 ## 2. 共享壳（js/layout.js）
 
-每个页面只需：`css/theme.css` → `js/auth.js` → `js/layout.js` → 页面脚本，并标记
-`<body data-page="…">`（子页可加 `data-crumb="…"`）。壳自动渲染：
+每页：`css/theme.css` → `js/auth.js` → `js/layout.js` → 页面脚本，`<body data-page="…" data-crumb="…">`。
 
-- **L1 悬浮玻璃胶囊导航**（左上）：◆ HWVCTS 品牌钻 + 主页/活动/比赛/数据/竞猜
-  + 右侧鉴权 chip（未登录：登录/注册；已登录：● + 昵称 → index，下拉退出）；
-  当前页高亮；页面内部不再各自堆一排跳转链接。
-- **L2 极简页脚**：赛程中心 · 分队系统 · 管理后台 · 剧情模式。
-- 登录态由 `HWAuth` 事件驱动刷新（`hw:login` / `hw:logout` 也会触发）。
+- **一级导航只有两项：主页 / 活动**（比赛、数据、竞猜、赛程、分队、管理全部是**活动下级**，见 §3）；
+- **页脚只剩剧情模式**（管理后台/分队/赛程不再作为一级入口平铺在页面底部）；
+- 悬浮玻璃胶囊 + 品牌钻 + **浅/深色切换按钮** + 鉴权 chip（头像描 coral 环 = 管理员）；
+- 活动上下文 API：
+  - `HWLayout.resolveEvent()` — 解析 `?event=<id>` → events 行（无参数返回 null 并提示从活动大厅进入）；
+  - `HWLayout.access(seasonKey)` — 权限：`{isAdmin, isCaptain, captainTeams}`（见 §6）；
+  - `HWLayout.eventBar({event, perms})` — 渲染活动栏：← 活动 + 标题/赛季/状态 + 标签页
+    概况｜赛程｜比赛｜数据｜竞猜｜[分队]*｜[管理]*（*按权限显示），当前页高亮。
 
-## 3. 页面地图（Phase 2 终态）
+## 3. 页面地图（Phase 3 · 活动中心化）
 
-| 页面 | 职责 | 说明 |
+| 页面 | 层级 | 说明 |
 |---|---|---|
-| `index.html` | **个人主页** | 登录落地页。游客 hero（功能一览 + 登录 CTA）／登录后仪表盘（资料编辑、我的报名、积分、功能入口） |
-| `events.html` | 活动大厅 | 大厅/我的报名双 Tab、状态筛选、活动卡片、详情弹窗（报名/撤回/审核 通过·拒绝）、创建活动（口令门）、缺表升级提示 |
-| `matches.html` | 比赛中心 | 赛季/组别/阶段筛选、赛程卡、积分榜、数据弹窗、合并统计开关 |
-| `summary.html` | **数据中心**（合并 `compare.html`） | Tab① 数据汇总（排序/筛选/勾选 2–6 人）→ Tab② 多维对比（同组百分位雷达图 + 生涯详情表）；赛季随汇总页筛选 |
-| `schedule.html` | 赛程中心 | 组别/阶段筛选、瑞士轮+淘汰赛对阵、编辑/口令提交、随机生成对战、解说统计 |
-| `draft.html` | **分队系统**（合并 `s5draft.html`） | Tab① 表格分队（XLSX 导入→点选→导出）、Tab② 随机抽取（传奇/中坚/挑战池、三卡抽人、换候选人、提交/撤销）；`#draw` 直达抽取 |
-| `player.html` | 选手详情 | 雷达图、角色数据、荣誉、评分；从数据/赛程表点击进入 |
-| `betting.html` | 赛事预测 | 登录/注册、下注、排名、历史、低保；Phase 1 功能全保留 |
-| `admin.html` | 管理后台 | 赛果/赛程/成员荣誉三 Tab + 口令门 |
-| `game.html` | 剧情模式 | 未动（页脚入口） |
-| `home.html` | ↳ 重定向 `index.html` | 旧书签兼容 |
-| `compare.html` | ↳ 重定向 `summary.html#compare` | 旧书签/外链兼容 |
-| `s5draft.html` | ↳ 重定向 `draft.html#draw` | 旧书签/外链兼容 |
-
-跳转原则：**L1 导航管跨区漫游，L2 页脚管工具箱，页面内只留与内容相关的动作**；
-URL 锚点（`#compare` / `#draw` / `#mine`）保留深链能力。
+| `index.html` | 一级 · 个人主页 | 登录落地；近期活动深链 `events.html?open=<id>`；功能入口只有 活动大厅 / 我的报名 / 剧情模式 |
+| `events.html` | 一级 · 活动大厅 | 大厅/我的报名；详情内「活动空间」= 赛程/比赛/数据/竞猜入口 + 分队/管理（按权限）；`?open=<id>` 深链；缺表时提供旧版入口 |
+| `schedule / matches / summary / betting` | **二级 · 活动内** | 入口只在活动栏；`?event=` 绑定赛季（赛季选择器锁定）；无参数时显示「未绑定活动」提示条 |
+| `draft.html` 分队 | **二级 · 活动内 · 权限** | 队长/管理员可见标签页；直接打开时非授权者见锁定屏（`.locked-state`） |
+| `admin.html` 管理 | **二级 · 活动内 · 权限** | 管理员（role=admin 或口令会话）免口令直入；否则保留口令门；活动栏管理标签仅管理员可见 |
+| `player.html` | 二级 · 数据下钻 | 从数据表进入，crumb 归活动 |
+| `game.html` | 一级（独立于赛事） | 剧情模式，页脚唯一链接 |
+| `home / compare / s5draft` | ↳ 重定向桩 | `index` / `summary#compare` / `draft#draw` |
 
 ## 4. 数据模型
 
@@ -109,19 +105,22 @@ s6_betting_groups` + RPC `check_admin_password`。
 活动大厅 → 「＋创建活动」→ `check_admin_password` RPC 验证口令（15 分钟内免重验）→
 只写 `events` 表；可随时更新活动状态。
 
-## 6. 权限与安全（现状与升级路径）
+## 6. 权限模型与安全
 
-**现状（与站点既有模型一致）**：publishable/anon key + 宽松 RLS，管理动作靠
-`check_admin_password` RPC 前端把关（竞猜、赛程、后台、活动创建同一套做法）。
+**角色两级（界面随身份变化）**：
 
-**已做的改进**：
-- 密码不再明文存储：前端 SHA-256 入库，历史明文迁移时自动摘要；
-- 会话只存本地，密码不回传。
+| 身份 | 判定 | 界面差异 |
+|---|---|---|
+| **管理员 admin** | `site_users.role='admin'`（数据库）或浏览器口令会话（`hw_admin_until`，15 分钟，由任一 `check_admin_password` 验证成功写入，并**尽力回写 role='admin'** 持久化） | 活动栏出「管理」标签；活动空间出「管理 + 分队」；admin 页免口令直入；活动审核/创建；导航头像 coral 描环 |
+| **队长 captain** | 登录账号的 `game_id / 昵称 / 用户名` 命中对应赛季 `{season}_player_stats.role='队长'`（分队结果自动识别，S5/S6 互为回退） | 活动栏出「分队」标签；活动空间出「分队」；draft 页放行 |
+| **成员 member**（默认） | 登录普通账号 | 只读：无分队/管理入口；draft 直开显示锁定屏；admin 保留口令门 |
 
-**后续加固建议（可选，需要你操作 Supabase）**：
-1. 迁移到 **Supabase Auth**（邮箱登录），`site_users` 只留业务资料，`auth.uid()` 关联；
-2. RLS 收紧：`event_registrations` 写策略 `using (auth.uid() = user_id)`；
-3. 管理口令改服务端 RPC 校验后签发短期 token。
+口令验证入口统一：活动创建/审核、赛程提交、管理后台 —— 任一处验证成功即全站生效 15 分钟。
+
+**现状安全模型**（与站点既有模型一致）：publishable/anon key + 宽松 RLS，管理动作靠
+`check_admin_password` RPC 前端把关。已做改进：密码 SHA-256 存储（历史明文迁移时摘要）、
+会话只存本地。**后续加固建议（可选）**：迁移到 Supabase Auth；`event_registrations`
+写策略 `using (auth.uid() = user_id)`；管理口令改服务端短期 token。
 
 ## 7. 实施与验证
 

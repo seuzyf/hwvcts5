@@ -92,9 +92,10 @@
         }
     </style>
 </head>
-<body data-page="matches">
+<body data-page="matches" data-crumb="events">
     <main class="page">
         <div class="container">
+            <div id="event-bar" hidden></div>
             <header class="page-header flex-between">
                 <div>
                     <span class="eyebrow">Matches</span>
@@ -175,6 +176,27 @@
         var allPlayersData = [];
         var idNameMap = {};
         var currentSeason = 's6';
+        var boundEvent = null;
+
+        /* ── 活动上下文：赛季跟随所选活动锁定 ───────────────────────── */
+        function applyEventContext(ev) {
+            if (!ev) { HWLayout.eventBar({ event: null }); return; }
+            boundEvent = ev;
+            var key = HWLayout.seasonKey(ev);
+            if (key !== currentSeason) {
+                currentSeason = key;
+                seasonFilterButtons.querySelectorAll('button').forEach(function (b) {
+                    b.classList.toggle('active', b.dataset.season === key);
+                });
+            }
+            seasonFilterButtons.querySelectorAll('button').forEach(function (b) {
+                b.disabled = true;
+                b.title = '赛季由所选活动决定';
+            });
+            HWLayout.access(key).then(function (perms) {
+                HWLayout.eventBar({ event: ev, perms: perms });
+            });
+        }
 
         function loadDataFromSupabase() {
             matchesView.innerHTML = '<div class="empty-state">正在加载比赛数据…</div>';
@@ -561,7 +583,11 @@
             if (e.target === modal) modal.classList.remove('visible');
         });
 
-        loadDataFromSupabase();
+        /* 活动上下文先于首屏加载 */
+        HWLayout.resolveEvent().then(function (ev) {
+            applyEventContext(ev);
+            loadDataFromSupabase();
+        });
     });
     </script>
 </body>

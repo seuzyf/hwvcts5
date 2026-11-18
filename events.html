@@ -282,7 +282,31 @@
         }
         function isAdmin() {
             var t = parseInt(sessionStorage.getItem('hw_admin_verified_at') || '0', 10);
-            return t > 0 && (Date.now() - t) < ADMIN_TTL;
+            return (t > 0 && (Date.now() - t) < ADMIN_TTL) ||
+                   (typeof HWLayout !== 'undefined' && HWLayout.isAdminNow());
+        }
+
+        /* 活动空间入口（权限感知：分队=队长/管理员，管理=管理员） */
+        function renderWorkspace(ev) {
+            var host = document.getElementById('ev-workspace');
+            if (!host || typeof HWLayout === 'undefined') return;
+            HWLayout.access(HWLayout.seasonKey(ev)).then(function (perms) {
+                var entries = [
+                    ['schedule.html?event=' + ev.id, '🗓️', '赛程'],
+                    ['matches.html?event=' + ev.id, '🎮', '比赛'],
+                    ['summary.html?event=' + ev.id, '📊', '数据'],
+                    ['betting.html?event=' + ev.id, '🎯', '竞猜']
+                ];
+                if (perms.isCaptain || perms.isAdmin) entries.push(['draft.html?event=' + ev.id, '🪪', '分队']);
+                if (perms.isAdmin) entries.push(['admin.html?event=' + ev.id, '🛠️', '管理']);
+                host.innerHTML = entries.map(function (t) {
+                    return '<a class="tile" style="min-width:120px; padding:12px;" href="' + t[0] + '">' +
+                        '<span class="icon-circle" style="width:34px;height:34px;font-size:15px;">' + t[1] + '</span>' +
+                        '<span><span class="t-name">' + t[2] + '</span></span></a>';
+                }).join('') +
+                (perms.isAdmin ? '<span class="badge badge-coral" style="align-self:center;">ADMIN</span>'
+                 : perms.isCaptain ? '<span class="badge badge-blue" style="align-self:center;">CAPTAIN</span>' : '');
+            }).catch(function () { host.textContent = '加载失败'; });
         }
 
         /* ---------- data ---------- */
@@ -348,7 +372,13 @@
                 '<p class="muted" style="font-size:14px; max-width:540px; margin:0 auto 20px; line-height:1.8;">' +
                 '活动大厅依赖新表 <span class="mono" style="color:var(--mist)">events / event_registrations / site_users</span>。<br>' +
                 '请在 Supabase SQL Editor 整段执行 <span class="mono" style="color:var(--mist)">supabase/schema.sql</span> 后刷新。' +
-                '执行前比赛中心 / 赛程 / 竞猜等旧功能不受影响。</p>' +
+                '执行前可先使用旧版入口：</p>' +
+                '<div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">' +
+                '  <a class="btn btn-ghost" href="matches.html">比赛中心</a>' +
+                '  <a class="btn btn-ghost" href="summary.html">选手数据</a>' +
+                '  <a class="btn btn-ghost" href="betting.html">赛事预测</a>' +
+                '  <a class="btn btn-ghost" href="schedule.html">赛程中心</a>' +
+                '</div><br>' +
                 '<button class="btn btn-primary" id="reload-btn" type="button">已执行，刷新</button>' +
                 '</div>';
             document.getElementById('reload-btn').addEventListener('click', function () { location.reload(); });
@@ -553,6 +583,8 @@
                 '</div>' +
                 (ev.description ? '<div class="desc-block">' + esc(ev.description) + '</div>' : '') +
                 (ev.rules ? '<div class="section-label">赛制 / 规则</div><div class="desc-block">' + esc(ev.rules) + '</div>' : '') +
+                '<div class="section-label">活动空间（赛程 / 比赛 / 数据 / 竞猜 · 按权限显示分队与管理）</div>' +
+                '<div id="ev-workspace" class="tiles" style="margin-bottom:4px;">加载中…</div>' +
                 '<div class="section-label">报名名单（' + regs.length + '）</div>' + rosterHtml +
                 myRegHtml +
                 (registerHtml ? '<div style="margin-top:18px;">' + registerHtml + '</div>' : '') +
@@ -561,6 +593,7 @@
 
             document.getElementById('detail-modal').classList.add('visible');
             document.getElementById('detail-close').addEventListener('click', closeDetail);
+            renderWorkspace(ev);
 
             panel.querySelectorAll('[data-approve]').forEach(function (b) {
                 b.addEventListener('click', function () { setRegStatus(parseInt(b.dataset.approve, 10), 'approved', eventId); });
@@ -667,6 +700,10 @@
                     btn.disabled = false; btn.textContent = '验证';
                     if (res.error || res.data !== true) { alert('管理口令错误！'); return; }
                     sessionStorage.setItem('hw_admin_verified_at', String(Date.now()));
+                    // 口令正确 → 全站管理会话（15 分钟）+ 尝试把当前账号升级为 admin 角色
+                    HWLayout.markAdmin(15);
+                    HWLayout.promoteRole();
+                    document.dispatchEvent(new CustomEvent('hw:admin'));
                     document.getElementById('admin-modal').classList.remove('visible');
                     updateAdminUI();
                     if (pendingAdminAction) { var f = pendingAdminAction; pendingAdminAction = null; f(); }
@@ -756,7 +793,12 @@
         HWAuth.init();
         HWAuth.detectAccountSource().catch(function () {}).finally(function () {
             if (location.hash === '#mine') switchTab('mine');
-            refresh();
+            Promise.resolve(refresh()).then(function () {
+                // ?open=<id>：从活动空间「概况」深链进来时自动打开详情
+                var openId = null;
+                try { openId = new URLSearchParams(window.location.search).get('open'); } catch (e) {}
+                if (openId && /^\d+$/.test(openId)) openDetail(parseInt(openId, 10));
+            }).catch(function () {});
         });
     })();
     </script>

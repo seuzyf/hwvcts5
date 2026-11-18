@@ -73,9 +73,10 @@
         .selected-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
     </style>
 </head>
-<body data-page="summary">
+<body data-page="summary" data-crumb="events">
     <main class="page">
         <div class="container">
+            <div id="event-bar" hidden></div>
             <header class="page-header flex-between">
                 <div>
                     <span class="eyebrow">Stats</span>
@@ -193,6 +194,26 @@
             var currentSeason = urlParams.get('season') || 's6';
 
             function getTableName(baseName) { return currentSeason + '_' + baseName; }
+
+            /* ── 活动上下文：赛季跟随活动锁定，渲染活动栏 ───────────── */
+            function applyEventContext(ev) {
+                if (!ev) { HWLayout.eventBar({ event: null }); return Promise.resolve(null); }
+                var key = HWLayout.seasonKey(ev);
+                if (key !== currentSeason) {
+                    currentSeason = key;
+                    seasonFilterButtons.querySelectorAll('button').forEach(function (b) {
+                        b.classList.toggle('active', b.dataset.season === key);
+                    });
+                }
+                seasonFilterButtons.querySelectorAll('button').forEach(function (b) {
+                    b.disabled = true;
+                    b.title = '赛季由所选活动决定';
+                });
+                return HWLayout.access(key).then(function (perms) {
+                    HWLayout.eventBar({ event: ev, perms: perms });
+                    return perms;
+                });
+            }
 
             /* ================= Tab switching ================= */
             var tabBtns = document.querySelectorAll('.tab-btn');
@@ -766,8 +787,12 @@
             }
 
             /* ================= boot ================= */
-            loadAndProcessData();
-            if (location.hash === '#compare') switchTab('compare');
+            HWLayout.resolveEvent().then(function (ev) {
+                return applyEventContext(ev);
+            }).then(function () {
+                loadAndProcessData();
+                if (location.hash === '#compare') switchTab('compare');
+            });
         });
     </script>
 </body>
