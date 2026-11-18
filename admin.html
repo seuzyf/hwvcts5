@@ -128,9 +128,18 @@
         .warning-text { color: #9c9c9d; text-align: left; font-size: 14px; margin-bottom: 25px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.16); max-height: 200px; overflow-y: auto; line-height: 1.6; }
         body.light-theme .warning-text { background: rgba(255,255,255,0.8); }
         body { padding-top: 80px; }
+
+        /* 活动管理行（管理员枢纽） */
+        .adm-ev-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(0,0,0,0.15); margin-bottom: 10px; }
+        .adm-ev-main { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+        .adm-ev-title { color: var(--text-color); font-weight: 600; font-size: 14px; }
+        .adm-ev-sub { font-family: var(--font-mono, monospace); font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
+        #admin-tools-label { display: flex; align-items: baseline; gap: 10px; margin: 36px 0 4px; }
+        #admin-tools-label h2 { margin: 0; font-size: 18px; font-weight: 500; color: var(--text-color); }
+        #admin-tools-label span { font-family: var(--font-mono, monospace); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
     </style>
 </head>
-<body data-page="admin" data-crumb="events">
+<body data-page="admin">
     <datalist id="teams-datalist"></datalist>
 
     <div id="password-modal" class="modal-backdrop">
@@ -155,18 +164,128 @@
         </div>
     </div>
 
+    <!--═════════════════════════════════════════════════════════════
+         管理后台 · 双角色界面
+           游客 → 登录 CTA / 口令验证入口
+           成员 → 修改个人信息与密码（普通权限）
+           管理员 → 举办与管理活动 + 赛事数据工具（下方 admin-panel）
+         ═════════════════════════════════════════════════════════════ -->
+    <div id="manage-shell" class="container">
+        <header class="page-header">
+            <span class="eyebrow">Management</span>
+            <h1 class="page-title">管理后台</h1>
+            <p class="page-sub" id="manage-sub">加载中…</p>
+        </header>
+
+        <div id="event-bar" hidden></div>
+
+        <!-- 游客视图 -->
+        <section id="guest-view" class="card" hidden>
+            <div class="flex-between">
+                <div>
+                    <span class="eyebrow">Account</span>
+                    <h2 class="section-title" style="margin-top:8px;">登录后管理个人信息</h2>
+                    <p class="muted" style="font-size:14px; margin:0; max-width:520px;">普通成员可在此修改昵称、游戏 ID、简介与密码；管理员账号可举办与管理活动、维护赛果 / 赛程 / 成员数据。</p>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn btn-primary" id="guest-login" type="button">登录 / 注册</button>
+                    <button class="btn btn-ghost" id="guest-admin-pwd" type="button">管理员口令验证</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 成员视图：个人信息 -->
+        <section id="member-view" hidden>
+            <div class="grid-2">
+                <div class="card">
+                    <span class="eyebrow">Profile</span>
+                    <h2 class="section-title" style="margin-top:8px;">个人资料</h2>
+                    <label class="form-label" for="pv-nickname">昵称</label>
+                    <input class="input" id="pv-nickname" maxlength="24" placeholder="显示用昵称">
+                    <label class="form-label" for="pv-gameid">游戏内 ID</label>
+                    <input class="input" id="pv-gameid" maxlength="30" placeholder="对局中使用的 ID">
+                    <label class="form-label" for="pv-bio">个人简介</label>
+                    <textarea class="textarea" id="pv-bio" rows="3" maxlength="120" placeholder="一句话介绍自己"></textarea>
+                    <div class="modal-actions">
+                        <button class="btn btn-primary" id="pv-save" type="button">保存资料</button>
+                    </div>
+                    <p class="smoke" id="pv-status" style="font-size:12px; min-height:16px; margin:8px 0 0;"></p>
+                </div>
+                <div class="card">
+                    <span class="eyebrow">Security</span>
+                    <h2 class="section-title" style="margin-top:8px;">账号与安全</h2>
+                    <div class="filter-bar" id="pv-chips" style="margin-bottom:14px;"></div>
+                    <label class="form-label" for="pv-oldpwd">当前密码</label>
+                    <input class="input" id="pv-oldpwd" type="password" autocomplete="current-password">
+                    <label class="form-label" for="pv-newpwd">新密码（至少 4 位）</label>
+                    <input class="input" id="pv-newpwd" type="password" autocomplete="new-password">
+                    <div class="modal-actions">
+                        <button class="btn btn-danger-ghost" id="pv-logout" type="button">退出登录</button>
+                        <button class="btn btn-ghost" id="pw-change" type="button">修改密码</button>
+                    </div>
+                    <div class="notice" style="margin-top:16px;">
+                        本站管理员？<button class="btn btn-ghost btn-sm" id="member-admin-pwd" type="button" style="margin-left:8px;">口令验证进入管理模式</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-24">
+                <span class="eyebrow">Shortcuts</span>
+                <h2 class="section-title" style="margin-top:8px;">快捷入口</h2>
+                <div class="filter-bar" style="margin-bottom:0;">
+                    <a class="btn btn-ghost" href="events.html">活动大厅</a>
+                    <a class="btn btn-ghost" href="events.html#mine">我的报名</a>
+                    <a class="btn btn-ghost" href="index.html">个人主页</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 管理员视图：活动与赛事中枢 -->
+        <section id="admin-view" hidden>
+            <div class="card">
+                <div class="flex-between" style="margin-bottom:14px;">
+                    <div>
+                        <span class="eyebrow">Events</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">活动管理</h2>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <a class="btn btn-primary" href="events.html?create=1">＋ 创建活动</a>
+                        <a class="btn btn-ghost" href="events.html">活动大厅</a>
+                    </div>
+                </div>
+                <div id="adm-events-list"><div class="empty-state">正在加载活动…</div></div>
+            </div>
+            <div class="grid-4 mt-16">
+                <a class="card card-hover" href="draft.html" style="text-decoration:none; display:block;">
+                    <span class="eyebrow">Draft</span>
+                    <div style="font-size:15px; font-weight:500; color:var(--text-color); margin-top:8px;">分队系统</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">表格分队 / 随机抽取</div>
+                </a>
+                <a class="card card-hover" href="schedule.html" style="text-decoration:none; display:block;">
+                    <span class="eyebrow">Schedule</span>
+                    <div style="font-size:15px; font-weight:500; color:var(--text-color); margin-top:8px;">赛程中心</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">对阵编排与随机生成</div>
+                </a>
+                <a class="card card-hover" href="summary.html" style="text-decoration:none; display:block;">
+                    <span class="eyebrow">Stats</span>
+                    <div style="font-size:15px; font-weight:500; color:var(--text-color); margin-top:8px;">数据汇总</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">选手数据与多维对比</div>
+                </a>
+            </div>
+        </section>
+    </div>
+
     <div id="admin-panel" class="container" style="display: none;">
+        <div id="admin-tools-label">
+            <h2>赛事数据工具</h2>
+            <span>Match Ops</span>
+        </div>
         <header class="main-header-block">
-            <div class="title-badge">VALORANT TOURNAMENT</div>
-            <h1>管理后台</h1>
             <div class="controls-container">
                  <div class="filter-group" id="group-filter-buttons">
                     <button class="active" data-group="传奇组">传奇组</button>
                     <button data-group="中坚组">中坚组</button>
                     <button data-group="挑战组">挑战组</button>
                 </div>
-            </div>
-            <div class="controls-container">
             </div>
             <div class="controls-container">
                 <div class="filter-group" id="season-filter-buttons">
@@ -182,8 +301,6 @@
                 </div>
             </div>
         </header>
-
-        <div id="event-bar" hidden></div>
 
         <div id="matches-tab" class="tab-content active">
             <div class="data-section">
@@ -303,53 +420,196 @@ document.addEventListener('DOMContentLoaded', () => {
             const { data: isCorrect, error } = await supabaseClient.rpc('check_admin_password', { input_pwd: inputPassword });
             if (error) throw error;
             if (isCorrect === true) {
-                passwordModal.style.display = 'none';
-                adminPanel.style.display = 'block';
                 // 口令正确 → 全站管理会话（15 分钟）+ 尝试把当前账号升级为 admin 角色
                 HWLayout.markAdmin(15);
                 HWLayout.promoteRole();
                 document.dispatchEvent(new CustomEvent('hw:admin'));
-                var pe = window.__pendingAdminEvent;
-                if (pe) {
-                    HWLayout.access(pe.key || 's6').then(function (perms) {
-                        HWLayout.eventBar({ event: pe.ev, perms: perms });
-                    });
-                }
-                initializeAdminPanel();
+                enterAdminMode();
             } else { alert('口令错误！'); }
         } catch (error) { console.error('验证口令时出错:', error); alert('验证失败，请检查数据库连接。'); }
     }
     passwordSubmit.addEventListener('click', checkPassword);
     passwordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') checkPassword(); });
 
-    /* ── 活动上下文 + 权限分流 ───────────────────────────────────────
-       管理员（site_users.role=admin 或 15 分钟口令会话）免口令直入；
-       其余账号保留口令门。?event= 锁定赛季并在进入后渲染活动栏。 */
+    /* ── 双角色路由 + 活动上下文 ─────────────────────────────────────
+       游客 → 登录 CTA / 口令入口；成员 → 修改个人信息；
+       管理员 → 举办与管理活动 + 赛事数据工具（admin-panel）。
+       ?event= 锁定赛季并渲染活动栏；口令验证见 checkPassword → enterAdminMode。 */
+    var boundEvent = null;
+    var adminInited = false;
+    var EV_BADGE = { draft: 'badge-quiet', registration: 'badge-coral', ongoing: 'badge-green', finished: '', cancelled: 'badge-quiet' };
+    var EV_STATUS_ZH = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    var views = {
+        guest: document.getElementById('guest-view'),
+        member: document.getElementById('member-view'),
+        admin: document.getElementById('admin-view')
+    };
+
+    function showView(name) {
+        Object.keys(views).forEach(function (k) { if (views[k]) views[k].hidden = (k !== name); });
+        document.getElementById('manage-sub').textContent =
+            name === 'admin' ? '举办与管理活动，维护赛果、赛程与成员数据。'
+            : name === 'member' ? '修改你的个人信息与账号安全设置。'
+            : '登录以修改个人信息；管理员可在此举办与管理活动。';
+    }
+
+    function fillProfileView(u) {
+        document.getElementById('pv-nickname').value = u.nickname || '';
+        document.getElementById('pv-gameid').value = u.game_id || '';
+        document.getElementById('pv-bio').value = u.bio || '';
+        document.getElementById('pv-chips').innerHTML =
+            '<span class="chip mono">@' + esc(u.username) + '</span>' +
+            '<span class="chip mono">UID ' + esc(u.id) + '</span>' +
+            '<span class="chip">' + (u.role === 'admin' ? '管理员' : '成员') + '</span>' +
+            (u.created_at ? '<span class="chip">注册于 ' + esc(String(u.created_at).slice(0, 10)) + '</span>' : '');
+        document.getElementById('pv-status').textContent = '';
+        document.getElementById('pv-oldpwd').value = '';
+        document.getElementById('pv-newpwd').value = '';
+    }
+
+    /* 管理员：活动管理列表（状态可改、可跳详情） */
+    function renderAdmEvents() {
+        var host = document.getElementById('adm-events-list');
+        host.innerHTML = '<div class="empty-state">正在加载活动…</div>';
+        supabaseClient.from('events').select('*').order('created_at', { ascending: false })
+            .then(function (res) {
+                if (res.error) throw res.error;
+                var rows = res.data || [];
+                if (!rows.length) {
+                    host.innerHTML = '<div class="empty-state">还没有任何活动。<br><br><a class="btn btn-primary" href="events.html?create=1">创建第一个活动</a></div>';
+                    return;
+                }
+                host.innerHTML = rows.map(function (ev) {
+                    return '<div class="adm-ev-row">' +
+                        '<span class="icon-circle" style="width:36px;height:36px;font-size:16px;">' + esc(ev.cover_emoji || '🏆') + '</span>' +
+                        '<span class="adm-ev-main">' +
+                        '  <span class="adm-ev-title">' + esc(ev.title) + '</span>' +
+                        '  <span class="adm-ev-sub">' + esc(String(ev.season || 'S6').toUpperCase()) + ' · ' + esc(ev.event_type || 'tournament') +
+                             (ev.start_time ? ' · ' + esc(String(ev.start_time).slice(0, 10)) : '') + '</span>' +
+                        '</span>' +
+                        '<span class="badge ' + (EV_BADGE[ev.status] || '') + '" data-ev-badge="' + ev.id + '">' + (EV_STATUS_ZH[ev.status] || esc(ev.status)) + '</span>' +
+                        '<select class="select adm-ev-status" data-ev="' + ev.id + '" style="width:auto;height:32px;padding-top:0;padding-bottom:0;" aria-label="活动状态">' +
+                          ['draft', 'registration', 'ongoing', 'finished', 'cancelled'].map(function (s) {
+                              return '<option value="' + s + '"' + (s === ev.status ? ' selected' : '') + '>' + EV_STATUS_ZH[s] + '</option>';
+                          }).join('') +
+                        '</select>' +
+                        '<a class="btn btn-ghost btn-sm" href="events.html?open=' + ev.id + '">查看详情</a>' +
+                        '</div>';
+                }).join('');
+
+                host.querySelectorAll('.adm-ev-status').forEach(function (sel) {
+                    sel.addEventListener('change', function () {
+                        var id = Number(sel.dataset.ev);
+                        var st = sel.value;
+                        supabaseClient.from('events').update({ status: st }).eq('id', id).then(function (r) {
+                            if (r.error) { alert('状态更新失败：' + r.error.message); return; }
+                            var badge = host.querySelector('[data-ev-badge="' + id + '"]');
+                            if (badge) {
+                                badge.className = 'badge ' + (EV_BADGE[st] || '');
+                                badge.textContent = EV_STATUS_ZH[st] || st;
+                            }
+                        }).catch(function (e) { alert('状态更新失败：' + (e.message || e)); });
+                    });
+                });
+            })
+            .catch(function (e) {
+                host.innerHTML = '<div class="empty-state"><strong>活动加载失败</strong><br>' + esc(e.message || e) +
+                    '<br><br>若为「缺少 events 表」，请先执行 supabase/schema.sql。</div>';
+            });
+    }
+
+    function enterAdminMode() {
+        showView('admin');
+        passwordModal.style.display = 'none';
+        adminPanel.style.display = 'block';
+        renderAdmEvents();
+        if (!adminInited) { adminInited = true; initializeAdminPanel(); }
+    }
+
+    function route() {
+        var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+        if (!u) { showView('guest'); adminPanel.style.display = 'none'; return; }
+        if (HWLayout.isAdminNow()) { enterAdminMode(); return; }
+        showView('member');
+        adminPanel.style.display = 'none';
+        fillProfileView(u);
+    }
+
+    /* 成员/游客视图交互 */
+    function openPwdGate() { passwordModal.style.display = 'flex'; passwordInput.focus(); }
+    document.getElementById('guest-login').addEventListener('click', function () {
+        if (typeof HWAuth === 'undefined') return;
+        HWAuth.openModal({ stay: true }).then(function () { route(); }).catch(function () {});
+    });
+    document.getElementById('guest-admin-pwd').addEventListener('click', openPwdGate);
+    document.getElementById('member-admin-pwd').addEventListener('click', openPwdGate);
+
+    document.getElementById('pv-save').addEventListener('click', function () {
+        var btn = this, st = document.getElementById('pv-status');
+        if (typeof HWAuth === 'undefined') return;
+        btn.disabled = true; st.textContent = '保存中…';
+        HWAuth.updateProfile({
+            nickname: document.getElementById('pv-nickname').value.trim(),
+            game_id: document.getElementById('pv-gameid').value.trim(),
+            bio: document.getElementById('pv-bio').value.trim()
+        }).then(function (s) {
+            st.textContent = '已保存 ✓';
+            fillProfileView(s);
+            HWLayout.renderAuth();
+        }).catch(function (e) { st.textContent = e.message || '保存失败'; })
+          .finally(function () { btn.disabled = false; });
+    });
+
+    document.getElementById('pw-change').addEventListener('click', function () {
+        var st = document.getElementById('pv-status');
+        var oldPwd = document.getElementById('pv-oldpwd').value;
+        var newPwd = document.getElementById('pv-newpwd').value;
+        if (!oldPwd || !newPwd) { st.textContent = '请填写当前密码与新密码'; return; }
+        HWAuth.changePassword(oldPwd, newPwd).then(function () {
+            st.textContent = '密码已修改 ✓';
+            document.getElementById('pv-oldpwd').value = '';
+            document.getElementById('pv-newpwd').value = '';
+        }).catch(function (e) { st.textContent = e.message || '修改失败'; });
+    });
+
+    document.getElementById('pv-logout').addEventListener('click', function () {
+        if (typeof HWAuth !== 'undefined') HWAuth.logout();
+        route();
+    });
+
+    passwordModal.style.display = 'none'; // 默认关闭口令门，按需打开
+
     HWLayout.resolveEvent().then(function (ev) {
+        boundEvent = ev;
+        if (typeof HWAuth !== 'undefined') { try { HWAuth.init(); } catch (e) { /* offline */ } }
+
         var seg = document.getElementById('season-filter-buttons');
-        var key = ev ? HWLayout.seasonKey(ev) : null;
         if (ev) {
+            var key = HWLayout.seasonKey(ev);
             currentSeason = key;
             if (seg) seg.querySelectorAll('button').forEach(function (b) {
                 b.classList.toggle('active', b.dataset.season === key);
                 b.disabled = true;
                 b.title = '赛季由所选活动决定';
             });
-        } else {
-            HWLayout.eventBar({ event: null });
         }
 
-        if (HWLayout.isAdminNow()) {
-            passwordModal.style.display = 'none';
-            adminPanel.style.display = 'block';
-            if (ev) {
-                HWLayout.access(key || 's6').then(function (perms) {
-                    HWLayout.eventBar({ event: ev, perms: perms });
-                });
-            }
-            initializeAdminPanel();
-        } else if (ev) {
-            window.__pendingAdminEvent = { ev: ev, key: key };
+        route();
+
+        if (ev) {
+            HWLayout.access(HWLayout.seasonKey(ev)).then(function (perms) {
+                HWLayout.eventBar({ event: ev, perms: perms });
+            });
+        }
+        if (typeof HWAuth !== 'undefined' && HWAuth.on) {
+            HWAuth.on(function (e) { if (e === 'login' || e === 'logout') route(); });
         }
     });
 

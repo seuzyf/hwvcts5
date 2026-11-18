@@ -794,10 +794,16 @@
         HWAuth.detectAccountSource().catch(function () {}).finally(function () {
             if (location.hash === '#mine') switchTab('mine');
             Promise.resolve(refresh()).then(function () {
-                // ?open=<id>：从活动空间「概况」深链进来时自动打开详情
-                var openId = null;
-                try { openId = new URLSearchParams(window.location.search).get('open'); } catch (e) {}
+                // ?open=<id>：从活动空间/管理枢纽深链进来时自动打开详情
+                // ?create=1：管理后台「＋创建活动」直达创建表单（仅管理员）
+                var qp = null;
+                try { qp = new URLSearchParams(window.location.search); } catch (e) {}
+                if (!qp) return;
+                var openId = qp.get('open');
                 if (openId && /^\d+$/.test(openId)) openDetail(parseInt(openId, 10));
+                if (qp.get('create') === '1' && isAdmin()) {
+                    document.getElementById('create-modal').classList.add('visible');
+                }
             }).catch(function () {});
         });
     })();
