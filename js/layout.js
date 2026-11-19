@@ -11,7 +11,7 @@
  *
  * Event context API (used by matches/summary/betting/schedule/draft/admin):
  *   HWLayout.resolveEvent()            → Promise<event|null>   (?event=<id>)
- *   HWLayout.access(seasonKey)         → Promise<{isAdmin,isCaptain,captainTeams}>
+ *   HWLayout.access(seasonKey, ev?)     → Promise<{isAdmin,isCaptain,captainTeams,isEventCaptain}>
  *   HWLayout.eventBar({event, perms})  → renders #event-bar host
  *
  * Permission model:
@@ -173,55 +173,75 @@
   var accessCache = {};
   /**
    * @param seasonKey 's6' | 's5'
-   * @returns Promise<{isAdmin, isCaptain, captainTeams}>
+   * @param ev 可选活动行；提供时额外解析该活动的 event_captains 绑定 → isEventCaptain
+   * @returns Promise<{isAdmin, isCaptain, captainTeams, isEventCaptain}>
    */
-  /* 权限（缓存，换季/管理员切换时失效）
-     = 活动级队长（玩家本人） | 管理员
-     传入第二参 ev 时：合并该活动的 event_captains 绑定（isEventCaptain） */
   function access(seasonKey, ev) {
-    seasonKey = (seasonKey === 's5' || seasonKey === 's6') ? seasonKey : 's6';
-    var admin = isAdmin();
+    seasonKey = (seasonKey || 's6').toLowerCase();
+    if (seasonKey !== 's5' && seasonKey !== 's6') seasonKey = 's6';
+    var u = typeof HWAuth !== 'undefined' ? HWAuth.getSession() : null;
+    var admin = isAdminNow();
     var evId = ev && ev.id ? String(ev.id) : '';
-    var cacheKey = seasonKey + '|' + evId + '|' + (auth.user() ? auth.user().username : 'guest') + '|' + (admin ? 'a' : '');
+    var userKey = u ? String(u.id) : 'anon';
+    var cacheKey = seasonKey + '|' + evId + '|' + userKey + '|' + (admin ? 'a' : '');
     if (accessCache[cacheKey]) return Promise.resolve(accessCache[cacheKey]);
 
-    var user = auth.user();
-    var sb = auth.client();
-    if (!user) return Promise.resolve({ isAdmin: false, isCaptain: false, captainTeams: [], isEventCaptain: false });
+    var base = { isAdmin: admin, isCaptain: false, captainTeams: [], isEventCaptain: admin };
+    if (!u) { accessCache[cacheKey] = base; return Promise.resolve(base); }
 
-    var key = seasonKey + '_player_stats';
-    return sb.from(key).select('role').eq('user_id', user.id).eq('role', '队长')
-      .then(function (r) {
-        var data = (r && r.data) || [];
-        var captainTeams = data.map(function (row) { return row.team; });
-        if (data.length === 0) { // 兼容旧库（无该季表 / 跨季兼任）
-          var alt = (key === 's6_player_stats') ? 's5_player_stats' : 's6_player_stats';
-          return sb.from(alt).select('role').eq('user_id', user.id).eq('role', '队长')
-            .then(function (r2) { return ((r2 && r2.data) || []).map(function (row) { return row.team; }); })
-            .catch(function () { return []; });
-        }
-        return captainTeams;
-      })
-      .catch(function () { return []; })
-      .then(function (captainTeams) {
-        var result = { isAdmin: admin, isCaptain: captainTeams.length > 0, captainTeams: captainTeams, isEventCaptain: false };
-        if (!evId) { accessCache[cacheKey] = result; return result; }
-        if (admin) { result.isEventCaptain = true; accessCache[cacheKey] = result; return result; }
-        if (!sb) { accessCache[cacheKey] = result; return result; }
-        // 活动队长绑定：本人 game_id / 昵称 / 用户名 命中即放行（只限本活动）
-        return sb.from('event_captains').select('player_name, game_id').eq('event_id', ev.id)
-          .then(function (r) {
-            var rows = (r && r.data) || [];
-            result.isEventCaptain = rows.some(function (c) {
-              return (user.game_id && c.game_id && String(c.game_id) === String(user.game_id)) ||
-                     (user.nickname && c.player_name === user.nickname) ||
-                     (user.username && c.player_name === user.username);
-            });
-            accessCache[cacheKey] = result;
-            return result;
-          })
-          .catch(function () { accessCache[cacheKey] = result; return result; });
-      });
+    var sb = supa();
+    if (!sb) { accessCache[cacheKey] = base; return Promise.resolve(base); }
+
+    /* 赛季队长：按 game_id / 昵称 / 用户名 匹配 {season}_player_stats（role='队长'） */
+    function checkTable(table) {
+      return sb.from(table).select('player_name, game_id, team, role')
+        .eq('role', '队长')
+        .then(function (res) {
+          if (res.error || !res.data) return null;
+          return res.data.filter(function (p) {
+            return (u.game_id && p.game_id && String(p.game_id) === String(u.game_id)) ||
+                   (u.nickname && p.player_name === u.nickname) ||
+                   (u.username && p.player_name === u.username);
+          });
+        }).catch(function () { return null; });
+    }
+
+    /* 活动队长：event_captains 行与本人匹配（仅限传入的该活动；管理员直通） */
+    function attachEventCaptain(result) {
+      if (!evId) { accessCache[cacheKey] = result; return Promise.resolve(result); }
+      if (admin) { result.isEventCaptain = true; accessCache[cacheKey] = result; return Promise.resolve(result); }
+      return sb.from('event_captains').select('player_name, game_id').eq('event_id', ev.id)
+        .then(function (res) {
+          var rows = (res && res.data) || [];
+          result.isEventCaptain = rows.some(function (c) {
+            return (u.game_id && c.game_id && String(c.game_id) === String(u.game_id)) ||
+                   (u.nickname && c.player_name === u.nickname) ||
+                   (u.username && c.player_name === u.username);
+          });
+          accessCache[cacheKey] = result;
+          return result;
+        })
+        .catch(function () { accessCache[cacheKey] = result; return result; });
+    }
+
+    return checkTable(seasonKey + '_player_stats').then(function (hits) {
+      if (hits && hits.length) return hits;
+      // 兼容：另一赛季兼任队长不锁死
+      var other = seasonKey === 's6' ? 's5_player_stats' : 's6_player_stats';
+      return checkTable(other);
+    }).then(function (hits) {
+      var result = {
+        isAdmin: admin,
+        isCaptain: !!(hits && hits.length),
+        captainTeams: (hits || []).map(function (p) { return p.team; }).filter(Boolean),
+        isEventCaptain: admin
+      };
+      return attachEventCaptain(result);
+    }).catch(function () {
+      var fallback = { isAdmin: admin, isCaptain: false, captainTeams: [], isEventCaptain: admin };
+      accessCache[cacheKey] = fallback;
+      return fallback;
+    });
   }
 
   /* ---------------- Event context ---------------- */

@@ -339,7 +339,8 @@
         function renderWorkspace(ev) {
             var host = document.getElementById('ev-workspace');
             if (!host || typeof HWLayout === 'undefined') return;
-            HWLayout.access(HWLayout.seasonKey(ev), ev).then(function (perms) {
+            function paint(perms) {
+                perms = perms || {};
                 var entries = [
                     ['schedule.html?event=' + ev.id, '🗓️', '赛程'],
                     ['matches.html?event=' + ev.id, '🎮', '比赛'],
@@ -354,8 +355,11 @@
                         '<span class="t-name">' + t[2] + '</span></a>';
                 }).join('') +
                 (perms.isAdmin ? '<span class="badge badge-coral">ADMIN</span>'
-                 : perms.isCaptain ? '<span class="badge badge-blue">CAPTAIN</span>' : '');
-            }).catch(function () { host.textContent = '加载失败'; });
+                 : (perms.isCaptain || perms.isEventCaptain) ? '<span class="badge badge-blue">CAPTAIN</span>' : '');
+            }
+            paint({}); // 先渲染基础四块：权限查询慢/失败也绝不卡「加载中」
+            HWLayout.access(HWLayout.seasonKey(ev), ev).then(paint)
+                .catch(function () { /* 基础块已在，保持即可 */ });
         }
 
         /* ---------- data ---------- */
