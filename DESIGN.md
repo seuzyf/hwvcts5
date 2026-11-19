@@ -152,6 +152,14 @@ s6_betting_groups` + RPC `check_admin_password`。
     内联 opacity/visibility 以兼容各页局部 backdrop CSS），「完整详情」才深链 `?open=`。
   - 字号整体 +1px（10–14 → 11–15），body 17px / weight 500 / line-height 1.6，
     nav-link / btn / ev-tab 字重 600。
+  - **样式合规巡检（第二轮）**：S5/S6 赛季滑块全站清除（matches/admin/player/summary
+    最后四处，`currentSeason` 与 `?season=` 链接参数保留）；admin/betting/schedule/player
+    的 legacy `:root` 变量改为 theme token 别名（深浅色自动跟随主题）；旧组件
+    （title-badge / nav-button / main-header-block / filter-group / 局部 modal CSS /
+    粒子与主题切换死代码）全部移除，控件统一 theme `.btn/.seg/.input/.modal-panel`；
+    旧红 `#e53935/229,57,53` → theme coral；player 补 page-header；game（剧情模式）
+    保持沉浸式独立视觉并加「返回网站」入口；schema 种子 S5 行 14 列对齐修复
+    （`BO5 两场，赛后复盘` + `BO5`）。测试 34 项全过。
 - **待你操作**：若尚未执行，请把 `supabase/schema.sql` 在 Supabase SQL Editor 跑一次
   （活动功能依赖 `events` / `event_registrations` / `site_users`；
   **本轮新增** `events.cover_image` 列 + `event-covers` 存储桶 —— 重跑 schema.sql 即幂等补齐）。

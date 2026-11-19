@@ -103,10 +103,6 @@
                     <p class="page-sub">华为无畏契约锦标赛 · 积分榜与比赛结果</p>
                 </div>
                 <div class="filter-bar" style="margin:0;">
-                    <div class="seg" id="season-filter-buttons">
-                        <button class="active" data-season="s6" type="button">S6</button>
-                        <button data-season="s5" type="button">S5</button>
-                    </div>
                     <div class="seg" id="group-filter-buttons">
                         <button class="active" data-group="传奇组" type="button">传奇组</button>
                         <button data-group="中坚组" type="button">中坚组</button>
@@ -170,7 +166,6 @@
         var matchesTitle = document.getElementById('matches-title');
         var standingsTitle = document.getElementById('standings-title');
         var mergeStatsCheckbox = document.getElementById('merge-stats-checkbox');
-        var seasonFilterButtons = document.getElementById('season-filter-buttons');
 
         var allMatchesData = [];
         var allPlayersData = [];
@@ -183,16 +178,7 @@
             if (!ev) { HWLayout.eventBar({ event: null }); return; }
             boundEvent = ev;
             var key = HWLayout.seasonKey(ev);
-            if (key !== currentSeason) {
-                currentSeason = key;
-                seasonFilterButtons.querySelectorAll('button').forEach(function (b) {
-                    b.classList.toggle('active', b.dataset.season === key);
-                });
-            }
-            seasonFilterButtons.querySelectorAll('button').forEach(function (b) {
-                b.disabled = true;
-                b.title = '赛季由所选活动决定';
-            });
+            currentSeason = key;
             HWLayout.access(key).then(function (perms) {
                 HWLayout.eventBar({ event: ev, perms: perms });
             });
@@ -226,14 +212,6 @@
             });
         }
 
-        seasonFilterButtons.addEventListener('click', function (e) {
-            if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
-                seasonFilterButtons.querySelector('.active').classList.remove('active');
-                e.target.classList.add('active');
-                currentSeason = e.target.dataset.season;
-                loadDataFromSupabase();
-            }
-        });
         groupFilterButtons.addEventListener('click', function (e) {
             if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
                 groupFilterButtons.querySelector('.active').classList.remove('active');

@@ -11,52 +11,23 @@
     <script src="js/layout.js"></script>
     <style>
         :root {
-            --primary-color: #e6e6e6;
-            --bg-color: #040506;
-            --bg-gradient-mid: #07080a;
-            --text-color: #fff;
-            --card-bg-color: rgba(7,8,10,0.88);
+            /* legacy aliases → theme tokens（深浅色随 theme.css 自动翻转） */
+            --primary-color: var(--coral-pulse);
+            --bg-color: var(--void-black);
+            --bg-gradient-mid: var(--obsidian);
+            --text-color: var(--mist);
+            --card-bg-color: var(--ink);
             --header-bg-color: transparent;
-            --border-color: rgba(255,255,255,0.12);
-            --border-highlight: rgba(255,255,255,0.28);
-            --shadow-color: rgba(0,0,0,0.5);
-            --control-height: 42px;
-            --win-color: #81c784;
-            --loss-color: #9c9c9d;
-            --text-muted: rgba(255, 255, 255, 0.5);
+            --border-color: var(--border);
+            --border-highlight: var(--smoke);
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --control-height: 34px;
+            --win-color: var(--success-green);
+            --loss-color: var(--ash);
+            --text-muted: var(--smoke);
         }
-        [data-theme="light"] {
-            --primary-color: #e53935;
-            --bg-color: #f4f5f7;
-            --bg-gradient-mid: #e9ecef;
-            --text-color: #1c1e21;
-            --card-bg-color: rgba(255, 255, 255, 0.9);
-            --header-bg-color: transparent;
-            --border-color: rgba(229, 57, 53, 0.3);
-            --border-highlight: rgba(229, 57, 53, 0.6);
-            --shadow-color: rgba(229, 57, 53, 0.15);
-            --win-color: #4CAF50;
-            --loss-color: #F44336;
-            --text-muted: rgba(0, 0, 0, 0.5);
-        }
-        body {
-            font-family: 'Inter', 'Noto Sans SC', sans-serif;
-            background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
-            color: var(--text-color); margin: 0; padding: 20px 0; line-height: 1.6; min-height: 100vh; position: relative;
-        }
-
-        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255,255,255,0.32); border-radius: 50%; animation: float linear infinite; }
-        [data-theme="light"] .particle { background: rgba(229, 57, 53, 0.4); }
-        @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
 
         .container { width: 90%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
-        
-        
-        .nav-button { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; padding: 0 25px; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; transition: all 0.3s; background: rgba(255,255,255,0.06); backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer; }
-        [data-theme="light"] .nav-button { background: rgba(229, 57, 53, 0.05); }
-        .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
-        [data-theme="light"] .nav-button:hover { color: var(--primary-color); }
 
         #main-content { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; }
         
@@ -92,29 +63,18 @@
         hr { border-color: rgba(255,255,255,0.05); margin: 8px 0; }
         [data-theme="light"] hr { border-color: rgba(0,0,0,0.05); }
 
-        /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: opacity 0.25s, visibility 0.25s; padding: 18px; box-sizing: border-box; }
-        .modal-backdrop.visible { opacity: 1; visibility: visible; }
-        .modal-content { position: relative; width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; background: var(--ink); border: none; border-radius: var(--r-card-lg); padding: 28px; box-shadow: var(--panel-shadow); transform: none; }
-        .modal-content .modal-close { position: absolute; top: 14px; right: 16px; width: 30px; height: 30px; border: none; border-radius: 8px; background: transparent; color: var(--ash); font-size: 22px; line-height: 1; cursor: pointer; }
-        .modal-content .modal-close:hover { background: var(--graphite); color: var(--pure-white); }
+        /* modal 容器由 theme.css 单一提供（.modal-backdrop/.modal-panel/.modal-close） */
         .modal-header { margin: 0 0 4px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
-        .modal-eyebrow { display: block; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); margin-bottom: 8px; }
         .modal-body { display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto; padding-right: 5px; margin-top: 16px; }
         .modal-body::-webkit-scrollbar { width: 6px; }
         .modal-body::-webkit-scrollbar-track { background: transparent; }
         .modal-body::-webkit-scrollbar-thumb { background: var(--graphite); border-radius: 3px; }
-        .modal-body input, .modal-content input { height: 38px; padding: 0 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--pure-white); border-radius: 8px; font-size: 15px; outline: none; transition: border-color 0.15s; box-sizing: border-box; width: 100%; }
-        .modal-body input:focus, .modal-content input:focus { border-color: var(--smoke); }
+        .modal-panel input { height: 38px; padding: 0 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--pure-white); border-radius: 8px; font-size: 15px; outline: none; transition: border-color 0.15s; box-sizing: border-box; width: 100%; }
+        .modal-panel input:focus { border-color: var(--smoke); }
         .modal-footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 22px; border-top: 1px solid var(--border); padding-top: 18px; }
-        .modal-footer .confirm-btn, .modal-content button:not(.modal-close) { height: 34px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 8px; padding: 0 16px; background: var(--mist); color: var(--iron); font-size: 14px; font-weight: 500; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
-        .modal-footer .confirm-btn:hover, .modal-content button:not(.modal-close):hover { background: var(--pure-white); color: var(--void-black); }
-        [data-theme="light"] .modal-backdrop { background: rgba(16, 17, 19, 0.42); }
-        [data-theme="light"] .modal-body input, [data-theme="light"] .modal-content input { background: rgba(0, 0, 0, 0.03); color: #101113; }
-        [data-theme="light"] .modal-footer .confirm-btn,
-        [data-theme="light"] .modal-content button:not(.modal-close) { color: #f6f6f7; }
-        [data-theme="light"] .modal-footer .confirm-btn:hover,
-        [data-theme="light"] .modal-content button:not(.modal-close):hover { background: #101113; color: #f6f6f7; }
+        .modal-footer .confirm-btn, .modal-panel button:not(.modal-close):not(.btn) { height: 34px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 8px; padding: 0 16px; background: var(--mist); color: var(--iron); font-size: 14px; font-weight: 500; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .modal-footer .confirm-btn:hover, .modal-panel button:not(.modal-close):not(.btn):hover { background: var(--pure-white); color: var(--void-black); }
+        [data-theme="light"] .modal-panel input { background: rgba(0, 0, 0, 0.03); color: #101113; }
         
         .user-info { position: static; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
         #user-display { background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); padding: 10px 15px; border-radius: 6px; backdrop-filter: blur(5px); font-size: 14px; }
@@ -147,15 +107,6 @@
         #leaderboard-section { display: none; background: var(--card-bg-color); backdrop-filter: blur(10px); border-radius: 8px; padding: 30px; border: 1px solid var(--border-color); width: 100%; box-shadow: 0 10px 40px var(--shadow-color); position: relative; }
         #leaderboard-section::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
         
-        .theme-switch-wrapper { position: absolute; top: 25px; left: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
-        #theme-text { font-size: 13px; color: var(--text-muted); letter-spacing: 1px; }
-        .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
-        .theme-switch input { display:none; }
-        .slider-theme { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
-        [data-theme="light"] .slider-theme { background-color: rgba(0,0,0,0.1); }
-        .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
-        input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
-        input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
         body { padding-top: 80px; }
     
         /* ── light adjustments (data-theme) ── */
@@ -213,7 +164,7 @@
     </div>
 
     <div id="login-modal" class="modal-backdrop">
-        <div class="modal-content">
+        <div class="modal-panel" style="max-width:460px;">
             <div class="modal-close" onclick="document.getElementById('login-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
             <span class="modal-eyebrow">Account</span>
             <h3 class="modal-header">登 录 或 注 册</h3>
@@ -228,7 +179,7 @@
     </div>
 
     <div id="bet-modal" class="modal-backdrop">
-        <div class="modal-content">
+        <div class="modal-panel" style="max-width:460px;">
             <div class="modal-close" onclick="document.getElementById('bet-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
             <span class="modal-eyebrow">Prediction</span>
             <h3 class="modal-header" id="bet-modal-header"></h3>
@@ -236,8 +187,8 @@
                 <div id="bet-controls-section">
                     <p style="text-align: center; color: var(--text-muted); font-size: 14px; letter-spacing: 1px;">请选择您要支持的队伍:</p>
                     <div style="display: flex; gap: 15px; justify-content: center; margin: 15px 0;">
-                        <button id="bet-team-a-btn" class="nav-button"></button>
-                        <button id="bet-team-b-btn" class="nav-button"></button>
+                        <button id="bet-team-a-btn" class="btn btn-primary" style="flex:1;"></button>
+                        <button id="bet-team-b-btn" class="btn btn-primary" style="flex:1;"></button>
                     </div>
                      <input type="number" id="bet-amount-input" placeholder="请输入支持分数 (最小为1)">
                 </div>
@@ -255,7 +206,7 @@
     </div>
 
     <div id="history-modal" class="modal-backdrop">
-        <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-panel" style="max-width: 800px;">
             <div class="modal-close" onclick="document.getElementById('history-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
             <span class="modal-eyebrow">History</span>
             <h3 class="modal-header" id="history-modal-header">预测记录</h3>
@@ -278,7 +229,7 @@
     </div>
     
     <div id="roster-modal" class="modal-backdrop">
-         <div class="modal-content" id="roster-modal-content"></div>
+         <div class="modal-panel" id="roster-modal-content"></div>
     </div>
 
 <script>

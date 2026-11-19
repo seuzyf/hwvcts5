@@ -84,10 +84,6 @@
                     <p class="page-sub">选手生涯数据汇总与多维对比</p>
                 </div>
                 <div class="filter-bar" style="margin:0;">
-                    <div class="seg" id="season-filter-buttons">
-                        <button class="active" data-season="s6" type="button">S6</button>
-                        <button data-season="s5" type="button">S5</button>
-                    </div>
                     <div class="seg" id="group-filter-buttons">
                         <button class="active" data-group="all" type="button">所有组</button>
                         <button data-group="传奇组" type="button">传奇组</button>
@@ -176,7 +172,6 @@
             var SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
             var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            var seasonFilterButtons = document.getElementById('season-filter-buttons');
             var groupFilterButtons = document.getElementById('group-filter-buttons');
             var teamFilter = document.getElementById('team-filter');
             var tableHead = document.querySelector('#stats-table thead');
@@ -199,16 +194,7 @@
             function applyEventContext(ev) {
                 if (!ev) { HWLayout.eventBar({ event: null }); return Promise.resolve(null); }
                 var key = HWLayout.seasonKey(ev);
-                if (key !== currentSeason) {
-                    currentSeason = key;
-                    seasonFilterButtons.querySelectorAll('button').forEach(function (b) {
-                        b.classList.toggle('active', b.dataset.season === key);
-                    });
-                }
-                seasonFilterButtons.querySelectorAll('button').forEach(function (b) {
-                    b.disabled = true;
-                    b.title = '赛季由所选活动决定';
-                });
+                currentSeason = key;
                 return HWLayout.access(key).then(function (perms) {
                     HWLayout.eventBar({ event: ev, perms: perms });
                     return perms;
@@ -514,15 +500,6 @@
                     if (currentSort.key === key) currentSort.order = currentSort.order === 'desc' ? 'asc' : 'desc';
                     else { currentSort.key = key; currentSort.order = 'desc'; }
                     filterAndDisplayData();
-                }
-            });
-
-            seasonFilterButtons.addEventListener('click', function (e) {
-                if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
-                    seasonFilterButtons.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    currentSeason = e.target.getAttribute('data-season');
-                    loadAndProcessData();
                 }
             });
 
