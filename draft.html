@@ -438,7 +438,7 @@
             var qp = new URLSearchParams(location.search);
             return HWLayout.resolveEvent().then(function (ev) {
                 var season = ev ? HWLayout.seasonKey(ev) : (qp.get('season') || 's6').toLowerCase();
-                return HWLayout.access(season).then(function (perms) {
+                return HWLayout.access(season, ev).then(function (perms) {
                     if (ev) HWLayout.eventBar({ event: ev, perms: perms });
                     else HWLayout.eventBar({ event: null });
 

@@ -339,7 +339,7 @@
         function renderWorkspace(ev) {
             var host = document.getElementById('ev-workspace');
             if (!host || typeof HWLayout === 'undefined') return;
-            HWLayout.access(HWLayout.seasonKey(ev)).then(function (perms) {
+            HWLayout.access(HWLayout.seasonKey(ev), ev).then(function (perms) {
                 var entries = [
                     ['schedule.html?event=' + ev.id, '🗓️', '赛程'],
                     ['matches.html?event=' + ev.id, '🎮', '比赛'],
@@ -347,7 +347,7 @@
                     ['betting.html?event=' + ev.id, '🎯', '竞猜']
                 ];
                 if (perms.isCaptain || perms.isAdmin) entries.push(['draft.html?event=' + ev.id, '🪪', '分队']);
-                if (perms.isAdmin) entries.push(['admin.html?event=' + ev.id, '🛠️', '管理']);
+                if (perms.isAdmin || perms.isEventCaptain) entries.push(['manage.html?event=' + ev.id, '🛠️', '管理']);
                 host.innerHTML = entries.map(function (t) {
                     return '<a class="tile" href="' + t[0] + '">' +
                         '<span class="icon-circle" style="width:34px;height:34px;font-size:15px;">' + t[1] + '</span>' +
@@ -621,6 +621,16 @@
                   '  <button class="btn btn-ghost" id="adm-cover-btn" type="button">更换封面图</button>' +
                   (ev.cover_image ? '  <button class="btn btn-ghost" id="adm-cover-clear" type="button">移除封面</button>' : '') +
                   '  <input type="file" id="adm-cover-file" accept="image/*" style="display:none;">' +
+                  '</div>' +
+                  '<div class="admin-row" style="display:block; margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:14px;">' +
+                  '  <span class="form-label">活动队长（数据台权限）</span>' +
+                  '  <p class="muted" style="font-size:13px; margin:4px 0 10px;">队长登录后可在本活动页签进入「管理 · 数据台」录入赛程赛果；与本活动绑定，换活动需重新设置。</p>' +
+                  '  <div id="captains-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"><span class="muted">加载中…</span></div>' +
+                  '  <div class="admin-row">' +
+                  '    <select class="select" id="captain-player" style="flex:1; min-width:200px;"><option value="">选择选手（本活动赛季花名册）</option></select>' +
+                  '    <button class="btn btn-ghost" id="captain-add" type="button">设为队长</button>' +
+                  '    <a class="btn btn-ghost" id="captain-open-manage" href="#" style="display:none;">打开数据台 →</a>' +
+                  '  </div>' +
                   '</div>'
                 : '';
 
@@ -684,6 +694,57 @@
                         refresh();
                     });
             });
+
+            /* 管理员：活动队长设置（→ 该活动数据台权限） */
+            var capList = document.getElementById('captains-list');
+            if (capList) {
+                var capIdTable = HWLayout.seasonKey(ev) + '_player_ids';
+                var capRefresh = function () {
+                    HWAuth.getClient().from('event_captains').select('*').eq('event_id', ev.id).order('created_at')
+                        .then(function (res) {
+                            var rows = (res && res.data) || [];
+                            var openBtn = document.getElementById('captain-open-manage');
+                            if (openBtn) { openBtn.style.display = rows.length ? 'inline-flex' : 'none'; openBtn.setAttribute('href', 'manage.html?event=' + ev.id); }
+                            capList.innerHTML = rows.length ? rows.map(function (c) {
+                                return '<span class="badge badge-blue" style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px;">' +
+                                    esc(c.player_name) +
+                                    '<button type="button" data-cap="' + c.id + '" aria-label="移除队长" style="border:none;background:transparent;color:inherit;cursor:pointer;font-size:14px;line-height:1;">×</button></span>';
+                            }).join('') : '<span class="muted">尚未设置队长。</span>';
+                            Array.prototype.forEach.call(capList.querySelectorAll('button[data-cap]'), function (b) {
+                                b.addEventListener('click', function () {
+                                    if (!confirm('移除该活动队长？')) return;
+                                    HWAuth.getClient().from('event_captains').delete().eq('id', b.dataset.cap)
+                                        .then(function (r) { if (r && r.error) { alert(r.error.message); return; } capRefresh(); });
+                                });
+                            });
+                        }).catch(function () { capList.innerHTML = '<span class="muted">队长列表加载失败</span>'; });
+                };
+                var capSel = document.getElementById('captain-player');
+                HWAuth.getClient().from(capIdTable).select('name').order('name')
+                    .then(function (res) {
+                        var names = ((res && res.data) || []).map(function (x) { return x.name; }).filter(Boolean);
+                        capSel.innerHTML = '<option value="">选择选手（本活动赛季花名册）</option>' +
+                            names.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+                    }).catch(function () {});
+                var capAdd = document.getElementById('captain-add');
+                if (capAdd) capAdd.addEventListener('click', function () {
+                    var name = capSel.value;
+                    if (!name) { alert('请先从花名册选择选手。'); return; }
+                    HWAuth.getClient().from(capIdTable).select('id').eq('name', name).maybeSingle()
+                        .then(function (r) {
+                            var gid = (r && r.data && r.data.id) ? String(r.data.id) : '';
+                            return HWAuth.getClient().from('event_captains').insert([{
+                                event_id: ev.id, player_name: name, game_id: gid, added_by: 'admin'
+                            }]);
+                        })
+                        .then(function (r2) {
+                            if (r2 && r2.error) { alert('设置失败: ' + r2.error.message); return; }
+                            capSel.value = ''; capRefresh();
+                        })
+                        .catch(function (e) { alert('设置失败: ' + (e && e.message ? e.message : e)); });
+                });
+                capRefresh();
+            }
 
             /* 管理员：更换 / 移除封面图（Storage: event-covers） */
             var admCoverBtn = document.getElementById('adm-cover-btn');
