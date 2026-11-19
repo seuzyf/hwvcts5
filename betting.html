@@ -51,14 +51,7 @@
         @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
 
         .container { width: 90%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
-        .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
-        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
-        [data-theme="light"] .title-badge { background: rgba(229, 57, 53, 0.1); }
-        .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #9c9c9d, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255,255,255,0.16)); }
-        [data-theme="light"] .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
         
-        .disclaimer { font-size: 13px; color: var(--text-muted); margin: 0 0 20px 0; letter-spacing: 1px; }
-        .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
         
         .nav-button { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; padding: 0 25px; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; transition: all 0.3s; background: rgba(255,255,255,0.06); backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer; }
         [data-theme="light"] .nav-button { background: rgba(229, 57, 53, 0.05); }
@@ -72,7 +65,7 @@
 
         .group-header { font-size: 24px; color: var(--primary-color); text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--border-highlight); display: flex; justify-content: center; align-items: center; gap: 15px; font-weight: 900; letter-spacing: 2px; }
 
-        .lock-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--text-muted); color: var(--text-muted); cursor: pointer; border-radius: 4px; padding: 4px 10px; font-size: 11px; transition: all 0.3s; font-family: 'Noto Sans SC'; font-weight: 700; }
+        .lock-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--text-muted); color: var(--text-muted); cursor: pointer; border-radius: 4px; padding: 4px 10px; font-size: 12px; transition: all 0.3s; font-family: 'Noto Sans SC'; font-weight: 700; }
         .lock-btn:hover { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
         .lock-btn.locked { background-color: rgba(255,138,128,0.1); border-color: var(--loss-color); color: var(--loss-color); }
         .lock-btn.locked:hover { background-color: var(--loss-color); color: white; }
@@ -91,7 +84,7 @@
         .team-name-container { display: flex; align-items: center; gap: 10px; }
         .team-name { font-size: 15px; font-weight: 700; letter-spacing: 1px; }
         
-        .roster-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 50%; width: 22px; height: 22px; display: inline-flex; justify-content: center; align-items: center; font-size: 12px; cursor: pointer; transition: all 0.2s; line-height: 1; font-weight: bold; }
+        .roster-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 50%; width: 22px; height: 22px; display: inline-flex; justify-content: center; align-items: center; font-size: 13px; cursor: pointer; transition: all 0.2s; line-height: 1; font-weight: bold; }
         .roster-btn:hover { background-color: var(--primary-color); border-color: var(--primary-color); color: white; transform: scale(1.1); }
         
         .team-odds { font-weight: 900; font-size: 16px; color: var(--text-muted); }
@@ -106,15 +99,15 @@
         .modal-content .modal-close { position: absolute; top: 14px; right: 16px; width: 30px; height: 30px; border: none; border-radius: 8px; background: transparent; color: var(--ash); font-size: 22px; line-height: 1; cursor: pointer; }
         .modal-content .modal-close:hover { background: var(--graphite); color: var(--pure-white); }
         .modal-header { margin: 0 0 4px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
-        .modal-eyebrow { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); margin-bottom: 8px; }
+        .modal-eyebrow { display: block; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke); margin-bottom: 8px; }
         .modal-body { display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto; padding-right: 5px; margin-top: 16px; }
         .modal-body::-webkit-scrollbar { width: 6px; }
         .modal-body::-webkit-scrollbar-track { background: transparent; }
         .modal-body::-webkit-scrollbar-thumb { background: var(--graphite); border-radius: 3px; }
-        .modal-body input, .modal-content input { height: 38px; padding: 0 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--pure-white); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.15s; box-sizing: border-box; width: 100%; }
+        .modal-body input, .modal-content input { height: 38px; padding: 0 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--pure-white); border-radius: 8px; font-size: 15px; outline: none; transition: border-color 0.15s; box-sizing: border-box; width: 100%; }
         .modal-body input:focus, .modal-content input:focus { border-color: var(--smoke); }
         .modal-footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 22px; border-top: 1px solid var(--border); padding-top: 18px; }
-        .modal-footer .confirm-btn, .modal-content button:not(.modal-close) { height: 34px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 8px; padding: 0 16px; background: var(--mist); color: var(--iron); font-size: 13px; font-weight: 500; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .modal-footer .confirm-btn, .modal-content button:not(.modal-close) { height: 34px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 8px; padding: 0 16px; background: var(--mist); color: var(--iron); font-size: 14px; font-weight: 500; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
         .modal-footer .confirm-btn:hover, .modal-content button:not(.modal-close):hover { background: var(--pure-white); color: var(--void-black); }
         [data-theme="light"] .modal-backdrop { background: rgba(16, 17, 19, 0.42); }
         [data-theme="light"] .modal-body input, [data-theme="light"] .modal-content input { background: rgba(0, 0, 0, 0.03); color: #101113; }
@@ -123,14 +116,14 @@
         [data-theme="light"] .modal-footer .confirm-btn:hover,
         [data-theme="light"] .modal-content button:not(.modal-close):hover { background: #101113; color: #f6f6f7; }
         
-        .user-info { position: absolute; top: 25px; right: 25px; text-align: right; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-        #user-display { background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); padding: 10px 15px; border-radius: 6px; backdrop-filter: blur(5px); font-size: 13px; }
+        .user-info { position: static; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+        #user-display { background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); padding: 10px 15px; border-radius: 6px; backdrop-filter: blur(5px); font-size: 14px; }
         [data-theme="light"] #user-display { background: rgba(255,255,255,0.5); }
         #user-display span { font-weight: 700; color: var(--primary-color); }
-        #welfare-btn { border-color: var(--win-color); color: var(--win-color); background: rgba(129, 199, 132, 0.1); width: 100%; justify-content: center; }
+        #welfare-btn { border-color: var(--win-color); color: var(--win-color); background: rgba(129, 199, 132, 0.1); width: auto; justify-content: center; }
         #welfare-btn:hover { background: var(--win-color); color: #fff; box-shadow: 0 0 15px rgba(129, 199, 132, 0.4); }
 
-        .history-table, .leaderboard-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+        .history-table, .leaderboard-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
         .history-table th, .leaderboard-table th { padding: 12px 8px; border-bottom: 1px solid var(--border-highlight); text-align: center; color: var(--text-muted); font-weight: 700; }
         .history-table td, .leaderboard-table td { padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; white-space: nowrap; }
         [data-theme="light"] .history-table td, [data-theme="light"] .leaderboard-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
@@ -138,24 +131,24 @@
         .leaderboard-table .username-cell { cursor: pointer; color: var(--primary-color); font-weight: 900; transition: color 0.2s; letter-spacing: 1px; }
         .leaderboard-table .username-cell:hover { text-decoration: underline; text-shadow: 0 0 8px rgba(255,255,255,0.28); }
 
-        .roster-list { list-style: none; padding: 0; font-size: 14px; }
+        .roster-list { list-style: none; padding: 0; font-size: 15px; }
         .roster-list li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 500; }
         [data-theme="light"] .roster-list li { border-bottom: 1px solid rgba(0,0,0,0.05); }
         .roster-list li:last-child { border-bottom: none; }
 
         #existing-bets-section { margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 20px; }
-        #existing-bets-section h4 { margin-top: 0; text-align: center; color: var(--text-muted); font-size: 13px; letter-spacing: 1px; }
-        .bet-record { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; padding: 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 8px; font-size: 13px; }
+        #existing-bets-section h4 { margin-top: 0; text-align: center; color: var(--text-muted); font-size: 14px; letter-spacing: 1px; }
+        .bet-record { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; padding: 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 8px; font-size: 14px; }
         [data-theme="light"] .bet-record { background-color: rgba(255,255,255,0.5); }
         .bet-record span:first-child { font-weight: 900; color: var(--primary-color); letter-spacing: 1px; }
-        .bet-record .cancel-bet-btn { background: rgba(255,138,128,0.1); color: var(--loss-color); border: 1px solid var(--loss-color); border-radius: 4px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .bet-record .cancel-bet-btn { background: rgba(255,138,128,0.1); color: var(--loss-color); border: 1px solid var(--loss-color); border-radius: 4px; padding: 4px 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
         .bet-record .cancel-bet-btn:hover { background-color: var(--loss-color); color: white; box-shadow: 0 0 10px rgba(255,138,128,0.4); }
 
         #leaderboard-section { display: none; background: var(--card-bg-color); backdrop-filter: blur(10px); border-radius: 8px; padding: 30px; border: 1px solid var(--border-color); width: 100%; box-shadow: 0 10px 40px var(--shadow-color); position: relative; }
         #leaderboard-section::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
         
         .theme-switch-wrapper { position: absolute; top: 25px; left: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
-        #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
+        #theme-text { font-size: 13px; color: var(--text-muted); letter-spacing: 1px; }
         .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
         .theme-switch input { display:none; }
         .slider-theme { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
@@ -173,26 +166,27 @@
 </head>
 <body data-page="betting" data-crumb="events">
     <div class="container">
-        <div class="main-header-block">
+        <header class="page-header" style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:28px;">
+            <div>
+                <span class="eyebrow">Betting</span>
+                <h1 id="main-title" class="page-title">赛事预测</h1>
+                <p class="page-sub" style="margin:0;">本功能仅供娱乐，预测分数无任何实际价值</p>
+            </div>
             <div class="user-info">
                 <div id="user-display" style="display: none;">
                     <div style="margin-bottom: 5px;">
                         <span id="username-display"></span> | 剩余分数: <span id="user-balance"></span>
-                        <button id="logout-btn" class="nav-button" style="height: 24px; padding: 0 10px; margin-left: 6px; font-size: 11px;">登 出</button>
+                        <button id="logout-btn" class="btn btn-ghost btn-sm" style="height: 26px; margin-left: 6px;">登 出</button>
                     </div>
-                    <button id="welfare-btn" class="nav-button" style="display:none; height: 28px; font-size: 12px;">领 取 低 保 (+5分)</button>
+                    <button id="welfare-btn" class="btn btn-ghost btn-sm" style="display:none;">领 取 低 保 (+5分)</button>
                 </div>
-                <button id="login-btn" class="nav-button">登 录 / 注 册</button>
-                <button id="history-btn" class="nav-button" style="margin-top: 10px; display:none;">我 的 预 测 记 录</button>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+                    <button id="login-btn" class="btn btn-ghost">登 录 / 注 册</button>
+                    <button id="history-btn" class="btn btn-ghost" style="display:none;">我 的 预 测 记 录</button>
+                    <button id="toggle-view-btn" class="btn btn-ghost">查 看 预 测 排 名</button>
+                </div>
             </div>
-            
-            <div class="title-badge">VALORANT TOURNAMENT</div>
-            <h1 id="main-title">赛事预测</h1>
-            <p class="disclaimer">本功能仅供娱乐，预测分数无任何实际价值</p>
-            <div class="controls-container">
-                 <button id="toggle-view-btn" class="nav-button">查 看 预 测 排 名</button>
-            </div>
-        </div>
+        </header>
 
         <div id="event-bar" hidden></div>
         <main>
@@ -240,7 +234,7 @@
             <h3 class="modal-header" id="bet-modal-header"></h3>
             <div class="modal-body">
                 <div id="bet-controls-section">
-                    <p style="text-align: center; color: var(--text-muted); font-size: 13px; letter-spacing: 1px;">请选择您要支持的队伍:</p>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 14px; letter-spacing: 1px;">请选择您要支持的队伍:</p>
                     <div style="display: flex; gap: 15px; justify-content: center; margin: 15px 0;">
                         <button id="bet-team-a-btn" class="nav-button"></button>
                         <button id="bet-team-b-btn" class="nav-button"></button>
@@ -254,7 +248,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                 <div style="margin-right: auto; font-size: 13px; color: var(--text-muted);">您的剩余分数: <span id="modal-user-balance" style="color:var(--primary-color); font-weight:700; font-size:16px;"></span></div>
+                 <div style="margin-right: auto; font-size: 14px; color: var(--text-muted);">您的剩余分数: <span id="modal-user-balance" style="color:var(--primary-color); font-weight:700; font-size:16px;"></span></div>
                 <button id="bet-confirm-btn" class="confirm-btn">确 认 预 测</button>
             </div>
         </div>
@@ -381,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             userDisplay.style.display = 'none';
-            loginBtn.style.display = 'block';
+            loginBtn.style.display = 'inline-flex';
             historyBtn.style.display = 'none';
         }
     }
@@ -663,7 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <ul class="roster-list">
                 ${officialRoster.length > 0 ? officialRoster.map(player => `
                     <li>
-                        <span style="color:var(--text-color); font-weight:700;">${player.name}</span> <span style="font-size:12px; color:var(--text-muted);">(${player.id})</span>
+                        <span style="color:var(--text-color); font-weight:700;">${player.name}</span> <span style="font-size: 13px; color:var(--text-muted);">(${player.id})</span>
                     </li>
                 `).join('') : '<li><span style="color:var(--text-muted);">暂无该队伍成员信息</span></li>'}
             </ul>

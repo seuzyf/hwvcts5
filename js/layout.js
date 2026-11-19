@@ -275,6 +275,7 @@
       if (t.need === 'admin') return perms.isAdmin;
       return true;
     }).map(function (t) {
+      if (t.page === 'events') return '<a class="ev-tab" href="#" data-ev-ov="1">概况</a>';
       var active = document.body.dataset.page === t.page ? ' active' : '';
       var href = t.href.replace('{id}', id);
       return '<a class="ev-tab' + active + '" href="' + href + '">' + t.label + '</a>';
@@ -293,6 +294,74 @@
       '  </span>' +
       '  <div class="ev-tabs">' + tabs + '</div>' +
       '</div>';
+
+    var ovTab = host.querySelector('[data-ev-ov]');
+    if (ovTab) ovTab.addEventListener('click', function (e) { e.preventDefault(); openEventOverview(ev); });
+  }
+
+  /* 概况浮层：当前页内展示活动概览（不再跳回活动大厅） */
+  function openEventOverview(ev) {
+    var old = document.getElementById('ev-overview');
+    if (old) old.remove();
+
+    function fmt(t) {
+      if (!t) return '';
+      var d = new Date(t);
+      if (isNaN(d.getTime())) return esc(String(t));
+      return esc(d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
+    }
+    function cell(k, v) {
+      if (!v) return '';
+      return '<div style="background:var(--obsidian);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">' +
+        '<div style="font-family:var(--font-mono);font-size: 12px;letter-spacing:.06em;text-transform:uppercase;color:var(--smoke);">' + k + '</div>' +
+        '<div style="margin-top:4px;font-size: 15px;color:var(--mist);">' + v + '</div></div>';
+    }
+
+    var typeZh = { tournament: '锦标赛', scrim: '训练赛', showmatch: '表演赛', activity: '活动' }[ev.event_type] || ev.event_type || '';
+    var statusZh = EV_STATUS_ZH[ev.status] || ev.status || '';
+    var cover = ev.cover_image
+      ? '<div style="margin:-28px -28px 16px;overflow:hidden;border-radius:var(--r-card-lg) var(--r-card-lg) 0 0;">' +
+        '<img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:170px;object-fit:cover;display:block;"></div>'
+      : '';
+
+    var m = document.createElement('div');
+    m.id = 'ev-overview';
+    m.className = 'modal-backdrop';
+    m.style.display = 'flex';
+    m.style.opacity = '1';
+    m.style.visibility = 'visible';
+    m.innerHTML =
+      '<div class="modal-panel" style="position:relative;">' +
+      cover +
+      '<button class="modal-close" data-ov-close type="button">&times;</button>' +
+      '<span class="modal-eyebrow">Overview</span>' +
+      '<h2 style="margin:8px 0 6px;font-size:20px;font-weight:600;color:var(--pure-white);">' + esc(ev.title) + '</h2>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">' +
+        (typeZh ? '<span class="badge badge-quiet">' + esc(typeZh) + '</span>' : '') +
+        (statusZh ? '<span class="badge badge-coral">' + esc(statusZh) + '</span>' : '') +
+        (ev.season ? '<span class="badge badge-quiet">' + esc(String(ev.season).toUpperCase()) + '</span>' : '') +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+        cell('开始时间', fmt(ev.start_time)) +
+        cell('报名截止', fmt(ev.reg_deadline)) +
+        cell('形式', esc(ev.format || '')) +
+        cell('地点 / 房间', esc(ev.venue || '')) +
+      '</div>' +
+      (ev.description ? '<p style="font-size: 15px;line-height:1.75;color:var(--ash);margin:14px 0 0;">' + esc(ev.description) + '</p>' : '') +
+      (ev.rules
+        ? '<div style="font-family:var(--font-mono);font-size: 12px;letter-spacing:.06em;text-transform:uppercase;color:var(--smoke);margin:16px 0 6px;">赛制 / 规则</div>' +
+          '<div style="font-size: 15px;line-height:1.7;color:var(--mist);">' + esc(ev.rules) + '</div>'
+        : '') +
+      '<div class="modal-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">' +
+        '<a class="btn btn-ghost" href="events.html?open=' + ev.id + '">完整详情</a>' +
+        '<button class="btn btn-primary" data-ov-close type="button">知道了</button>' +
+      '</div>' +
+      '</div>';
+
+    document.body.appendChild(m);
+    m.addEventListener('click', function (e) {
+      if (e.target === m || (e.target.closest && e.target.closest('[data-ov-close]'))) m.remove();
+    });
   }
 
   /* ---------------- Auth chip ---------------- */

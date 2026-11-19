@@ -63,8 +63,9 @@ body {
   background: var(--void-black);
   color: var(--mist);
   font-family: var(--font-inter);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -134,7 +135,7 @@ button, input, select, textarea { font-family: inherit; }
 
 .brand-name {
   color: var(--pure-white);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.06em;
 }
@@ -154,8 +155,8 @@ button, input, select, textarea { font-family: inherit; }
   padding: 6px 12px;
   border-radius: var(--r-btn);
   color: var(--ash);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
   transition: color 0.15s ease, background 0.15s ease;
@@ -189,7 +190,7 @@ button, input, select, textarea { font-family: inherit; }
   border-radius: var(--r-circle);
   background: var(--ember-hush);
   color: var(--coral-pulse);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -198,7 +199,7 @@ button, input, select, textarea { font-family: inherit; }
 
 .nav-username {
   color: var(--mist);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   max-width: 120px;
   overflow: hidden;
@@ -218,8 +219,8 @@ button, input, select, textarea { font-family: inherit; }
   border: 1px solid transparent;
   background: transparent;
   color: var(--ash);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer;
   text-decoration: none;
@@ -250,8 +251,8 @@ button, input, select, textarea { font-family: inherit; }
 .btn-danger-ghost { border-color: rgba(255, 99, 99, 0.35); color: #ff8f8f; background: transparent; }
 .btn-danger-ghost:hover { background: rgba(255, 99, 99, 0.08); border-color: rgba(255, 99, 99, 0.6); }
 
-.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
-.btn-lg { height: 42px; padding: 0 22px; font-size: 14px; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 13px; }
+.btn-lg { height: 42px; padding: 0 22px; font-size: 15px; }
 
 /* ---------- Cards — the "key" treatment ---------- */
 .card {
@@ -281,7 +282,7 @@ button, input, select, textarea { font-family: inherit; }
 /* ---------- Typography helpers ---------- */
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -331,7 +332,7 @@ button, input, select, textarea { font-family: inherit; }
   background: var(--graphite);
   color: var(--pure-white);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.03em;
   line-height: 1.4;
@@ -353,7 +354,7 @@ button, input, select, textarea { font-family: inherit; }
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
   color: var(--ash);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* ---------- Segmented filter control ---------- */
@@ -374,7 +375,7 @@ button, input, select, textarea { font-family: inherit; }
   border-radius: 6px;
   background: transparent;
   color: var(--ash);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -405,7 +406,7 @@ button, input, select, textarea { font-family: inherit; }
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.05);
   color: var(--pure-white);
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
@@ -432,7 +433,7 @@ button, input, select, textarea { font-family: inherit; }
   display: block;
   margin: 14px 0 6px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -448,14 +449,14 @@ button, input, select, textarea { font-family: inherit; }
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .data-table th {
   padding: 10px 14px;
   text-align: left;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -517,7 +518,7 @@ button, input, select, textarea { font-family: inherit; }
 .modal-eyebrow {
   display: block;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -562,7 +563,7 @@ button, input, select, textarea { font-family: inherit; }
 .stat-label {
   margin-top: 4px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--smoke);
@@ -587,7 +588,7 @@ button, input, select, textarea { font-family: inherit; }
   padding: 48px 24px;
   text-align: center;
   color: var(--smoke);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.7;
 }
 
@@ -620,7 +621,7 @@ button, input, select, textarea { font-family: inherit; }
 
 .footer-links a {
   color: var(--ash);
-  font-size: 13px;
+  font-size: 14px;
   text-decoration: none;
   transition: color 0.15s ease;
 }
@@ -628,7 +629,7 @@ button, input, select, textarea { font-family: inherit; }
 
 .footer-meta {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--smoke);
   display: flex;
   flex-wrap: wrap;
@@ -688,7 +689,7 @@ button, input, select, textarea { font-family: inherit; }
   background: var(--obsidian);
   border: 1px solid var(--border);
   color: var(--ash);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .notice strong { color: var(--pure-white); font-weight: 500; }
@@ -827,7 +828,7 @@ button, input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 6px;
   color: var(--ash);
-  font-size: 13px;
+  font-size: 14px;
   text-decoration: none;
   padding: 4px 8px;
   border-radius: var(--r-btn);
@@ -837,7 +838,7 @@ button, input, select, textarea { font-family: inherit; }
 
 .event-bar .ev-identity { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .event-bar .ev-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--pure-white);
   white-space: nowrap;
@@ -847,7 +848,7 @@ button, input, select, textarea { font-family: inherit; }
 }
 .event-bar .ev-sub {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--smoke);
@@ -856,6 +857,7 @@ button, input, select, textarea { font-family: inherit; }
 
 .event-bar .ev-tabs {
   margin-left: auto;
+  padding-left: 14px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -866,8 +868,8 @@ button, input, select, textarea { font-family: inherit; }
   padding: 6px 12px;
   border-radius: var(--r-btn);
   color: var(--ash);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
   transition: color 0.15s ease, background 0.15s ease;
@@ -881,7 +883,7 @@ button, input, select, textarea { font-family: inherit; }
 [data-theme="light"] .ev-tab.active { box-shadow: rgba(0, 0, 0, 0.06) 0px 1px 0px 0px inset; }
 
 .event-bar.notice { border-style: dashed; box-shadow: none; }
-.event-bar .ev-note { font-size: 13px; color: var(--ash); }
+.event-bar .ev-note { font-size: 14px; color: var(--ash); }
 .event-bar .ev-note a { color: var(--pure-white); }
 
 /* ---------- Permission-locked screen ---------- */
@@ -907,7 +909,7 @@ button, input, select, textarea { font-family: inherit; }
   font-size: 24px;
 }
 .locked-state h2 { margin: 0 0 8px; font-size: 20px; font-weight: 500; color: var(--pure-white); }
-.locked-state p { margin: 0 auto 22px; max-width: 340px; font-size: 14px; line-height: 1.7; color: var(--ash); }
+.locked-state p { margin: 0 auto 22px; max-width: 340px; font-size: 15px; line-height: 1.7; color: var(--ash); }
 .locked-state .locked-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .locked-state .lock-role {
   display: inline-block;
@@ -917,7 +919,7 @@ button, input, select, textarea { font-family: inherit; }
   background: var(--ember-hush);
   color: var(--coral-pulse);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
