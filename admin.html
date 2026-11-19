@@ -24,7 +24,7 @@
             --control-height: 42px;
             --text-muted: rgba(255, 255, 255, 0.5);
         }
-        body.light-theme {
+        [data-theme="light"] {
             --primary-color: #e53935;
             --bg-color: #f4f5f7;
             --bg-gradient-mid: #e9ecef;
@@ -45,26 +45,26 @@
 
         .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
         .particle { position: absolute; width: 2px; height: 2px; background: rgba(255,255,255,0.32); border-radius: 50%; animation: float linear infinite; }
-        body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
+        [data-theme="light"] .particle { background: rgba(229, 57, 53, 0.4); }
         @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
 
         .container { width: 95%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10;}
         
         .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
         .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
-        body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
+        [data-theme="light"] .title-badge { background: rgba(229, 57, 53, 0.1); }
         .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #9c9c9d, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255,255,255,0.16)); }
-        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
+        [data-theme="light"] .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
         
         .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
         .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; }
         .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 14px; font-weight: 500; height: 100%; transition: all 0.3s; }
         .filter-group button:hover { opacity: 1; color: var(--primary-color); }
         .filter-group button.active { background-color: rgba(255,255,255,0.08); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
-        body.light-theme .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
+        [data-theme="light"] .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
         
         .nav-button { height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 14px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; }
-        body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
+        [data-theme="light"] .nav-button { background: rgba(229, 57, 53, 0.05); }
         .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
 
         .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
@@ -72,7 +72,7 @@
         .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
         .theme-switch input { display:none; }
         .slider { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
-        body.light-theme .slider { background-color: rgba(0,0,0,0.1); }
+        [data-theme="light"] .slider { background-color: rgba(0,0,0,0.1); }
         .slider:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
         input:checked + .slider { background-color: var(--primary-color); border-color: var(--primary-color); }
         input:checked + .slider:before { transform: translateX(18px); background-color: #fff; }
@@ -87,12 +87,12 @@
 
         table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
         th, td { padding: 12px 5px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
-        body.light-theme th, body.light-theme td { border-bottom: 1px solid rgba(0,0,0,0.05); }
+        [data-theme="light"] th, [data-theme="light"] td { border-bottom: 1px solid rgba(0,0,0,0.05); }
         thead th { background-color: transparent; color: var(--text-muted); font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--border-highlight); }
         tbody tr:hover { background-color: rgba(255,255,255,0.05); }
         
         input, select { height: var(--control-height); padding: 0 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; box-sizing: border-box; font-family: 'Noto Sans SC'; font-size: 14px; outline: none; transition: border-color 0.3s; width: 100%; min-width: 60px; }
-        body.light-theme input, body.light-theme select { background: #fff; }
+        [data-theme="light"] input, [data-theme="light"] select { background: #fff; }
         input:focus, select:focus { border-color: var(--primary-color); }
         input[readonly] { background-color: rgba(0,0,0,0.5); opacity: 0.6; cursor: not-allowed; }
         
@@ -122,11 +122,11 @@
         [data-theme="light"] .modal-content button:not(.modal-close):hover { background: #101113; color: #f6f6f7; }
         
         .match-record { border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 25px; padding: 15px; position: relative; }
-        body.light-theme .match-record { background: rgba(255,255,255,0.5); }
+        [data-theme="light"] .match-record { background: rgba(255,255,255,0.5); }
         .match-record::after { content:''; position:absolute; left:-1px; top:0; width:4px; height:100%; background:var(--primary-color); border-radius: 6px 0 0 6px; }
 
         .warning-text { color: #9c9c9d; text-align: left; font-size: 14px; margin-bottom: 25px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.16); max-height: 200px; overflow-y: auto; line-height: 1.6; }
-        body.light-theme .warning-text { background: rgba(255,255,255,0.8); }
+        [data-theme="light"] .warning-text { background: rgba(255,255,255,0.8); }
         body { padding-top: 80px; }
 
         /* 活动管理行（管理员枢纽） */
@@ -137,6 +137,15 @@
         #admin-tools-label { display: flex; align-items: baseline; gap: 10px; margin: 36px 0 4px; }
         #admin-tools-label h2 { margin: 0; font-size: 18px; font-weight: 500; color: var(--text-color); }
         #admin-tools-label span { font-family: var(--font-mono, monospace); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+    
+        /* ── light adjustments (data-theme) ── */
+        [data-theme="light"] tbody tr:hover { background-color: rgba(0, 0, 0, 0.04); }
+        [data-theme="light"] input[readonly] { background-color: rgba(0, 0, 0, 0.06); }
+        [data-theme="light"] .add-row-btn { background: rgba(0, 0, 0, 0.05); }
+        [data-theme="light"] .delete-row-btn { background-color: rgba(0, 0, 0, 0.06); color: var(--text-muted); }
+        [data-theme="light"] .adm-ev-row { background: rgba(0, 0, 0, 0.03); }
+        [data-theme="light"] button:hover,
+        [data-theme="light"] .nav-button:hover { box-shadow: none; }
     </style>
 </head>
 <body data-page="admin">
@@ -372,8 +381,8 @@
 <script>
 
 document.addEventListener('DOMContentLoaded', () => {
-    const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
+    const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 

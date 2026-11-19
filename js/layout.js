@@ -145,8 +145,8 @@
     if (typeof supabase === 'undefined' || !supabase.createClient) return null;
     if (!supa._c) {
       supa._c = supabase.createClient(
-        'https://jvmwfjvedijeapnegmqd.supabase.co',
-        'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r'
+        'https://odjmanvkhwiirswscrht.supabase.co',
+        'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO'
       );
     }
     return supa._c;

@@ -25,7 +25,7 @@
             --loser-color: #9c9c9d;
             --text-muted: rgba(255, 255, 255, 0.5);
         }
-        body.light-theme {
+        [data-theme="light"] {
             --primary-color: #e53935;
             --bg-color: #f4f5f7;
             --bg-gradient-mid: #e9ecef;
@@ -47,24 +47,24 @@
         }
         .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
         .particle { position: absolute; width: 2px; height: 2px; background: rgba(255,255,255,0.32); border-radius: 50%; animation: float linear infinite; }
-        body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
+        [data-theme="light"] .particle { background: rgba(229, 57, 53, 0.4); }
         @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
         .container { width: 90%; max-width: 1400px; margin: 0 auto; position: relative; z-index: 10;}
         .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
         .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
-        body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
+        [data-theme="light"] .title-badge { background: rgba(229, 57, 53, 0.1); }
         .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #9c9c9d, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255,255,255,0.16)); }
-        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
+        [data-theme="light"] .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
         .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
         .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; }
         .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 14px; font-weight: 500; height: 100%; transition: all 0.3s ease; }
         .filter-group button:hover { opacity: 1; color: var(--primary-color); }
         .filter-group button.active { background-color: rgba(255,255,255,0.08); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
-        body.light-theme .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
+        [data-theme="light"] .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
         .nav-button { height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 14px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer; }
-        body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
+        [data-theme="light"] .nav-button { background: rgba(229, 57, 53, 0.05); }
         .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
-        body.light-theme .nav-button:hover { color: var(--primary-color); }
+        [data-theme="light"] .nav-button:hover { color: var(--primary-color); }
         .submit-button { border-color: var(--winner-color); color: var(--winner-color); background: rgba(129, 199, 132, 0.1); }
         .submit-button:hover { background-color: rgba(129, 199, 132, 0.3); border-color: var(--winner-color); color: var(--text-color); box-shadow: 0 5px 15px rgba(129, 199, 132, 0.3); }
         .content-block { background-color: var(--card-bg-color); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; box-shadow: 0 10px 40px var(--shadow-color); position: relative; }
@@ -79,7 +79,7 @@
         .round { display: flex; flex-direction: column; gap: 20px; justify-content: center; flex-shrink: 0; width: 220px; }
         .round-title { text-align: center; color: var(--primary-color); font-weight: 900; font-size: 14px; margin-bottom: 10px; letter-spacing: 1px; background: rgba(255,255,255,0.07); padding: 5px; border-radius: 4px; border: 1px solid var(--border-color); }
         .match-card, .result-card { background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.3s; cursor: pointer; }
-        body.light-theme .match-card, body.light-theme .result-card { background-color: rgba(255,255,255,0.5); }
+        [data-theme="light"] .match-card, [data-theme="light"] .result-card { background-color: rgba(255,255,255,0.5); }
         .match-card:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 8px 20px rgba(255,255,255,0.12); }
         .team { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
         .team-name { font-size: 14px; font-weight: 700; letter-spacing: 1px; }
@@ -88,21 +88,21 @@
         .team.winner .team-score { color: var(--winner-color); }
         .team.loser .team-name, .team.loser .team-score { opacity: 0.4; }
         hr { border-color: rgba(255,255,255,0.05); margin: 8px 0; }
-        body.light-theme hr { border-color: rgba(0,0,0,0.05); }
+        [data-theme="light"] hr { border-color: rgba(0,0,0,0.05); }
         .result-card { border-width: 1px; text-align: center; font-weight: 900; display: flex; align-items: center; justify-content: center; min-height: 50px; font-size: 16px; letter-spacing: 1px; cursor: default; }
         .promoted { border-color: var(--winner-color); color: var(--winner-color); background: rgba(129, 199, 132, 0.05); }
         .champion { border-color: #ffd700; color: #ffd700; font-size: 20px; background: rgba(255, 215, 0, 0.1); box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
         .eliminated { border-color: var(--loser-color); color: var(--loser-color); opacity: 0.6; background: rgba(255,255,255,0.05); }
         .match-date { font-size: 11px; text-align: center; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 1px; }
         .commentator-info { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.15); letter-spacing: 1px; }
-        body.light-theme .commentator-info { border-top-color: rgba(0,0,0,0.15); }
+        [data-theme="light"] .commentator-info { border-top-color: rgba(0,0,0,0.15); }
         .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
         
         .season-filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; margin-right: 15px; }
         .season-filter-group button { padding: 0 15px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 13px; font-weight: 600; height: 100%; transition: all 0.3s ease; letter-spacing: 1px; }
         .season-filter-group button:hover { opacity: 1; color: var(--primary-color); }
         .season-filter-group button.active { background-color: rgba(255,255,255,0.08); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
-        body.light-theme .season-filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
+        [data-theme="light"] .season-filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
         /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 18px; box-sizing: border-box; }
         .modal-content { position: relative; background: var(--ink); border: none; border-radius: var(--r-card-lg); padding: 28px !important; box-shadow: var(--panel-shadow); text-align: left; width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; }
@@ -116,14 +116,14 @@
         [data-theme="light"] .modal-content button:not(.modal-close) { color: #f6f6f7; }
         [data-theme="light"] .modal-content button:not(.modal-close):hover { background: #101113; color: #f6f6f7; }
         .caster-stat-item { margin-bottom: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--border-color); text-align: left; }
-        body.light-theme .caster-stat-item { background: rgba(255,255,255,0.6); }
+        [data-theme="light"] .caster-stat-item { background: rgba(255,255,255,0.6); }
         .caster-stat-header { display: flex; justify-content: space-between; align-items: center; color: var(--primary-color); margin: 0 0 10px 0; font-size: 16px; font-weight: 700; }
         .caster-stat-list { margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 13px; line-height: 1.8; }
         .stats-table { width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 15px; font-size: 13px; }
         .stats-table th { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; color: var(--primary-color); font-weight: 700; }
-        body.light-theme .stats-table th { border-bottom-color: rgba(0,0,0,0.1); }
+        [data-theme="light"] .stats-table th { border-bottom-color: rgba(0,0,0,0.1); }
         .stats-table td { padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.05); }
-        body.light-theme .stats-table td { border-bottom-color: rgba(0,0,0,0.05); }
+        [data-theme="light"] .stats-table td { border-bottom-color: rgba(0,0,0,0.05); }
         .stats-table a { color: var(--text-color); text-decoration: none; font-weight: bold; transition: color 0.2s; }
         .stats-table a:hover { color: var(--primary-color); text-decoration: underline; }
         input#seed-input { background: transparent; outline: none; }
@@ -137,6 +137,10 @@
             max-width: 400px; white-space: pre-line;
         }
         body { padding-top: 80px; }
+    
+        /* ── light adjustments (data-theme) ── */
+        [data-theme="light"] .match-card,
+        [data-theme="light"] .result-card { background-color: rgba(255, 255, 255, 0.72); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
     </style>
 </head>
 <body data-page="schedule" data-crumb="events">
@@ -248,8 +252,8 @@
 <script>
 
     document.addEventListener('DOMContentLoaded', () => {
-        const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
+        const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
         const { createClient } = supabase;
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
