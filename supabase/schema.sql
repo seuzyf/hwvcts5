@@ -198,6 +198,7 @@ from (values
      12, '训练房间（私密）', '🎯'),
     ('EVT-S5-01', 'S5 赛季总决赛（回顾）', 'tournament', 'S5', 'finished',
      '第五赛季总决赛，已完赛。数据可在比赛中心查看。',
+     'BO5 两场，赛后复盘',
      'BO5',
      now() - interval '30 days', now() - interval '30 days', now() - interval '35 days',
      8, '已结束', '📜')

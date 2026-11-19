@@ -11,72 +11,24 @@
     <script src="js/layout.js"></script>
     <style>
         :root {
-            --primary-color: #e6e6e6;
-            --bg-color: #040506;
-            --bg-gradient-mid: #07080a;
-            --text-color: #fff;
-            --card-bg-color: rgba(7,8,10,0.88);
+            /* legacy aliases → theme tokens（深浅色随 theme.css 自动翻转） */
+            --primary-color: var(--coral-pulse);
+            --bg-color: var(--void-black);
+            --bg-gradient-mid: var(--obsidian);
+            --text-color: var(--mist);
+            --card-bg-color: var(--ink);
             --header-bg-color: transparent;
-            --border-color: rgba(255,255,255,0.12);
-            --border-highlight: rgba(255,255,255,0.28);
-            --success-color: #81c784;
-            --shadow-color: rgba(0,0,0,0.5);
-            --control-height: 42px;
-            --text-muted: rgba(255, 255, 255, 0.5);
+            --border-color: var(--border);
+            --border-highlight: var(--smoke);
+            --success-color: var(--success-green);
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --control-height: 34px;
+            --text-muted: var(--smoke);
         }
-        [data-theme="light"] {
-            --primary-color: #e53935;
-            --bg-color: #f4f5f7;
-            --bg-gradient-mid: #e9ecef;
-            --text-color: #1c1e21;
-            --card-bg-color: rgba(255, 255, 255, 0.9);
-            --header-bg-color: transparent;
-            --border-color: rgba(229, 57, 53, 0.3);
-            --border-highlight: rgba(229, 57, 53, 0.6);
-            --success-color: #4CAF50;
-            --shadow-color: rgba(229, 57, 53, 0.15);
-            --text-muted: rgba(0, 0, 0, 0.5);
-        }
-        body {
-            font-family: 'Inter', 'Noto Sans SC', sans-serif;
-            background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
-            color: var(--text-color); margin: 0; padding: 20px 0; min-height: 100vh; position: relative;
-        }
-
-        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255,255,255,0.32); border-radius: 50%; animation: float linear infinite; }
-        [data-theme="light"] .particle { background: rgba(229, 57, 53, 0.4); }
-        @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
 
         .container { width: 95%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10;}
-        
-        .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
-        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 15px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
-        [data-theme="light"] .title-badge { background: rgba(229, 57, 53, 0.1); }
-        .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #9c9c9d, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255,255,255,0.16)); }
-        [data-theme="light"] .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
-        
-        .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
-        .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; }
-        .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 15px; font-weight: 500; height: 100%; transition: all 0.3s; }
-        .filter-group button:hover { opacity: 1; color: var(--primary-color); }
-        .filter-group button.active { background-color: rgba(255,255,255,0.08); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
-        [data-theme="light"] .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
-        
-        .nav-button { height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 15px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; }
-        [data-theme="light"] .nav-button { background: rgba(229, 57, 53, 0.05); }
-        .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
 
-        .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
-        #theme-text { font-size: 13px; color: var(--text-muted); letter-spacing: 1px; }
-        .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
-        .theme-switch input { display:none; }
-        .slider { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
-        [data-theme="light"] .slider { background-color: rgba(0,0,0,0.1); }
-        .slider:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--primary-color); border-color: var(--primary-color); }
-        input:checked + .slider:before { transform: translateX(18px); background-color: #fff; }
-
+        .controls-container { display: flex; justify-content: flex-start; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -91,35 +43,25 @@
         thead th { background-color: transparent; color: var(--text-muted); font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--border-highlight); }
         tbody tr:hover { background-color: rgba(255,255,255,0.05); }
         
-        input, select { height: var(--control-height); padding: 0 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; box-sizing: border-box; font-family: 'Noto Sans SC'; font-size: 15px; outline: none; transition: border-color 0.3s; width: 100%; min-width: 60px; }
+        input, select { height: var(--control-height); padding: 0 10px; background-color: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-color); border-radius: var(--r-input, 8px); box-sizing: border-box; font-family: 'Noto Sans SC'; font-size: 15px; outline: none; transition: border-color 0.3s; width: 100%; min-width: 60px; }
         [data-theme="light"] input, [data-theme="light"] select { background: #fff; }
         input:focus, select:focus { border-color: var(--primary-color); }
         input[readonly] { background-color: rgba(0,0,0,0.5); opacity: 0.6; cursor: not-allowed; }
-        
+
         td.actions { text-align: center; }
-        
-        button { height: var(--control-height); padding: 0 25px; border: none; border-radius: 4px; background-color: var(--primary-color); color: white; cursor: pointer; font-weight: 700; transition: all 0.3s; letter-spacing: 1px; }
-        button:hover { background-color: #9c9c9d; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
-        button.success { background-color: rgba(129, 199, 132, 0.1); border: 1px solid var(--success-color); color: var(--success-color); }
-        button.success:hover { background-color: var(--success-color); color: white; box-shadow: 0 0 15px rgba(129, 199, 132, 0.4); }
-        
+
+        button { height: var(--control-height); padding: 0 16px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--graphite); color: var(--mist); cursor: pointer; font-weight: 600; transition: all 0.15s; letter-spacing: 0.02em; font-size: 14px; }
+        button:hover { background-color: var(--slate); color: var(--pure-white); box-shadow: none; }
+        button.success { background-color: rgba(89, 212, 153, 0.1); border: 1px solid var(--success-color); color: var(--success-color); }
+        button.success:hover { background-color: var(--success-color); color: white; box-shadow: none; }
+
         .add-row-btn { margin-bottom: 20px; border: 1px solid var(--border-highlight); background: rgba(255,255,255,0.07); color: var(--primary-color); }
         .add-row-btn:hover { background: var(--primary-color); color: white; }
         .delete-row-btn { background-color: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 13px; height: 32px; padding: 0 15px; }
         .delete-row-btn:hover { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
-        
-        /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 18px; box-sizing: border-box; }
-        .modal-content { position: relative; background: var(--ink); border: none; border-radius: var(--r-card-lg); padding: 28px; box-shadow: var(--panel-shadow); text-align: left; width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; box-sizing: border-box; }
-        .modal-content h2 { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; }
-        .modal-content input { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--pure-white); padding: 0 12px; margin: 10px 0 16px; box-sizing: border-box; outline: none; font-size: 15px; transition: border-color 0.15s; }
-        .modal-content input:focus { border-color: var(--smoke); }
-        .modal-content button:not(.modal-close) { background: var(--mist); color: var(--iron); border: none; height: 34px; padding: 0 16px; border-radius: 8px; font-weight: 500; font-size: 14px; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
-        .modal-content button:not(.modal-close):hover { background: var(--pure-white); color: var(--void-black); }
-        [data-theme="light"] .modal-backdrop { background: rgba(16, 17, 19, 0.42); }
-        [data-theme="light"] .modal-content input { background: rgba(0,0,0,0.03); color: #101113; }
-        [data-theme="light"] .modal-content button:not(.modal-close) { color: #f6f6f7; }
-        [data-theme="light"] .modal-content button:not(.modal-close):hover { background: #101113; color: #f6f6f7; }
+
+        /* modal 容器由 theme.css 单一提供（.modal-backdrop/.modal-panel） */
+        .modal-panel h2 { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
         
         .match-record { border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 25px; padding: 15px; position: relative; }
         [data-theme="light"] .match-record { background: rgba(255,255,255,0.5); }
@@ -144,31 +86,30 @@
         [data-theme="light"] .add-row-btn { background: rgba(0, 0, 0, 0.05); }
         [data-theme="light"] .delete-row-btn { background-color: rgba(0, 0, 0, 0.06); color: var(--text-muted); }
         [data-theme="light"] .adm-ev-row { background: rgba(0, 0, 0, 0.03); }
-        [data-theme="light"] button:hover,
-        [data-theme="light"] .nav-button:hover { box-shadow: none; }
+        [data-theme="light"] button:hover { box-shadow: none; }
     </style>
 </head>
 <body data-page="admin">
     <datalist id="teams-datalist"></datalist>
 
     <div id="password-modal" class="modal-backdrop">
-        <div class="modal-content">
+        <div class="modal-panel" style="max-width:440px;">
             <span class="modal-eyebrow">Admin Gate</span>
             <h2>管理员验证</h2>
-            <input type="password" id="password-input" autofocus placeholder="输入管理口令">
-            <button id="password-submit">验 证 权 限</button>
+            <input class="input" type="password" id="password-input" autofocus placeholder="输入管理口令" style="margin:10px 0 16px;">
+            <button class="btn btn-primary" id="password-submit" style="width:100%;">验 证 权 限</button>
         </div>
     </div>
 
     <div id="validation-modal" class="modal-backdrop" style="display:none;">
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-panel" style="max-width: 500px;">
             <span class="modal-eyebrow">Confirm</span>
             <h2>提 交 提 醒</h2>
             <div id="validation-warnings" class="warning-text"></div>
             <p style="color:var(--text-color); margin-bottom:20px; font-size: 15px; font-weight: 500;">是否确认继续提交并保存修改？</p>
             <div style="display:flex; justify-content:center; gap: 20px;">
-                <button id="validation-confirm-btn" class="success">确 认 提 交</button>
-                <button id="validation-cancel-btn" style="background:rgba(255,255,255,0.1); color:var(--text-muted);">返 回 修 改</button>
+                <button class="btn btn-primary" id="validation-confirm-btn">确 认 提 交</button>
+                <button class="btn btn-ghost" id="validation-cancel-btn">返 回 修 改</button>
             </div>
         </div>
     </div>
@@ -288,28 +229,18 @@
             <h2>赛事数据工具</h2>
             <span>Match Ops</span>
         </div>
-        <header class="main-header-block">
-            <div class="controls-container">
-                 <div class="filter-group" id="group-filter-buttons">
-                    <button class="active" data-group="传奇组">传奇组</button>
-                    <button data-group="中坚组">中坚组</button>
-                    <button data-group="挑战组">挑战组</button>
-                </div>
+        <div class="filter-bar" style="flex-wrap:wrap; gap:10px; margin-top:14px; margin-bottom:4px;">
+            <div class="seg" id="group-filter-buttons">
+                <button class="active" data-group="传奇组" type="button">传奇组</button>
+                <button data-group="中坚组" type="button">中坚组</button>
+                <button data-group="挑战组" type="button">挑战组</button>
             </div>
-            <div class="controls-container">
-                <div class="filter-group" id="season-filter-buttons">
-                    <button class="active" data-season="s6">S6</button>
-                    <button data-season="s5">S5</button>
-                </div>
+            <div class="seg" id="tab-filters">
+                <button class="active" data-tab="matches-tab" type="button">赛 果 管 理</button>
+                <button data-tab="schedule-tab" type="button">赛 程 管 理</button>
+                <button data-tab="ids-tab" type="button">成 员 / 荣 誉 维 护</button>
             </div>
-            <div class="controls-container">
-                <div class="filter-group" id="tab-filters">
-                    <button class="active" data-tab="matches-tab">赛 果 管 理</button>
-                    <button data-tab="schedule-tab">赛 程 管 理</button>
-                    <button data-tab="ids-tab">成 员 / 荣 誉 维 护</button>
-                </div>
-            </div>
-        </header>
+        </div>
 
         <div id="matches-tab" class="tab-content active">
             <div class="data-section">
@@ -602,15 +533,9 @@ document.addEventListener('DOMContentLoaded', () => {
         boundEvent = ev;
         if (typeof HWAuth !== 'undefined') { try { HWAuth.init(); } catch (e) { /* offline */ } }
 
-        var seg = document.getElementById('season-filter-buttons');
         if (ev) {
             var key = HWLayout.seasonKey(ev);
             currentSeason = key;
-            if (seg) seg.querySelectorAll('button').forEach(function (b) {
-                b.classList.toggle('active', b.dataset.season === key);
-                b.disabled = true;
-                b.title = '赛季由所选活动决定';
-            });
         }
 
         route();

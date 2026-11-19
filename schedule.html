@@ -11,52 +11,22 @@
     <script src="js/layout.js"></script>
     <style>
         :root {
-            --primary-color: #e6e6e6;
-            --bg-color: #040506;
-            --bg-gradient-mid: #07080a;
-            --text-color: #fff;
-            --card-bg-color: rgba(7,8,10,0.88);
+            /* legacy aliases → theme tokens（深浅色随 theme.css 自动翻转） */
+            --primary-color: var(--coral-pulse);
+            --bg-color: var(--void-black);
+            --bg-gradient-mid: var(--obsidian);
+            --text-color: var(--mist);
+            --card-bg-color: var(--ink);
             --header-bg-color: transparent;
-            --border-color: rgba(255,255,255,0.12);
-            --border-highlight: rgba(255,255,255,0.28);
-            --shadow-color: rgba(0,0,0,0.5);
-            --control-height: 42px;
-            --winner-color: #81c784;
-            --loser-color: #9c9c9d;
-            --text-muted: rgba(255, 255, 255, 0.5);
+            --border-color: var(--border);
+            --border-highlight: var(--smoke);
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --control-height: 34px;
+            --winner-color: var(--success-green);
+            --loser-color: var(--ash);
+            --text-muted: var(--smoke);
         }
-        [data-theme="light"] {
-            --primary-color: #e53935;
-            --bg-color: #f4f5f7;
-            --bg-gradient-mid: #e9ecef;
-            --text-color: #1c1e21;
-            --card-bg-color: rgba(255, 255, 255, 0.9);
-            --header-bg-color: transparent;
-            --border-color: rgba(229, 57, 53, 0.3);
-            --border-highlight: rgba(229, 57, 53, 0.6);
-            --shadow-color: rgba(229, 57, 53, 0.15);
-            --winner-color: #4CAF50;
-            --loser-color: #F44336;
-            --text-muted: rgba(0, 0, 0, 0.5);
-        }
-        body {
-            font-family: 'Inter', 'Noto Sans SC', sans-serif;
-            background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-gradient-mid) 50%, var(--bg-color) 100%);
-            color: var(--text-color); margin: 0; padding: 20px 0; line-height: 1.6;
-            transition: background 0.3s, color 0.3s; min-height: 100vh; position: relative;
-        }
-        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-        .particle { position: absolute; width: 2px; height: 2px; background: rgba(255,255,255,0.32); border-radius: 50%; animation: float linear infinite; }
-        [data-theme="light"] .particle { background: rgba(229, 57, 53, 0.4); }
-        @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
         .container { width: 90%; max-width: 1400px; margin: 0 auto; position: relative; z-index: 10;}
-        .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
-        .nav-button { height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 15px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer; }
-        [data-theme="light"] .nav-button { background: rgba(229, 57, 53, 0.05); }
-        .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
-        [data-theme="light"] .nav-button:hover { color: var(--primary-color); }
-        .submit-button { border-color: var(--winner-color); color: var(--winner-color); background: rgba(129, 199, 132, 0.1); }
-        .submit-button:hover { background-color: rgba(129, 199, 132, 0.3); border-color: var(--winner-color); color: var(--text-color); box-shadow: 0 5px 15px rgba(129, 199, 132, 0.3); }
         .content-block { background-color: var(--card-bg-color); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; box-shadow: 0 10px 40px var(--shadow-color); position: relative; }
         .content-block::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
         .content-block h2 { font-size: 24px; font-weight: 900; color: var(--primary-color); letter-spacing: 2px; margin-top: 0; border-bottom: 1px solid var(--border-highlight); padding-bottom: 15px; }
@@ -87,18 +57,9 @@
         .commentator-info { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.15); letter-spacing: 1px; }
         [data-theme="light"] .commentator-info { border-top-color: rgba(0,0,0,0.15); }
         
-        /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 18px; box-sizing: border-box; }
-        .modal-content { position: relative; background: var(--ink); border: none; border-radius: var(--r-card-lg); padding: 28px !important; box-shadow: var(--panel-shadow); text-align: left; width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; }
-        .modal-content h2 { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
-        .modal-content input { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--pure-white); padding: 0 12px; margin: 10px 0 16px; box-sizing: border-box; outline: none; transition: border-color 0.15s; font-size: 15px; }
-        .modal-content input:focus { border-color: var(--smoke); }
-        .modal-content button:not(.modal-close) { background: var(--mist); color: var(--iron); border: none; height: 34px; padding: 0 16px; border-radius: 8px; font-weight: 500; font-size: 14px; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
-        .modal-content button:not(.modal-close):hover { background: var(--pure-white); color: var(--void-black); }
-        [data-theme="light"] .modal-backdrop { background: rgba(16, 17, 19, 0.42); }
-        [data-theme="light"] .modal-content input { background: rgba(0,0,0,0.03); color: #101113; }
-        [data-theme="light"] .modal-content button:not(.modal-close) { color: #f6f6f7; }
-        [data-theme="light"] .modal-content button:not(.modal-close):hover { background: #101113; color: #f6f6f7; }
+        /* modal 容器由 theme.css 单一提供（.modal-backdrop/.modal-panel） */
+        .modal-panel h2 { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
+        .modal-panel input.input { margin: 10px 0 16px; }
         .caster-stat-item { margin-bottom: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--border-color); text-align: left; }
         [data-theme="light"] .caster-stat-item { background: rgba(255,255,255,0.6); }
         .caster-stat-header { display: flex; justify-content: space-between; align-items: center; color: var(--primary-color); margin: 0 0 10px 0; font-size: 16px; font-weight: 700; }
@@ -132,25 +93,25 @@
     <div id="auto-submit-banner"></div>
 
     <div id="password-modal" class="modal-backdrop" style="display: none; z-index: 1050;">
-        <div class="modal-content">
+        <div class="modal-panel" style="max-width:440px;">
             <span class="modal-eyebrow">Admin Gate</span>
             <h2>管理员验证</h2>
-            <input type="password" id="password-input-modal" placeholder="请输入管理口令">
-            <button id="password-submit-modal">确 认 权 限</button>
+            <input class="input" type="password" id="password-input-modal" placeholder="请输入管理口令">
+            <button class="btn btn-primary" id="password-submit-modal" style="width:100%;">确 认 权 限</button>
         </div>
     </div>
 
     <div id="caster-modal" class="modal-backdrop" style="display: none;">
-        <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-panel" style="max-width: 600px;">
             <span class="modal-eyebrow">Caster Stats</span>
             <h2>解说统计数据</h2>
             <div id="caster-stats-container" style="margin-top: 20px;"></div>
-            <button id="close-caster-modal" style="margin-top: 25px;">关 闭 统 计</button>
+            <button class="btn btn-ghost" id="close-caster-modal" style="margin-top: 25px;">关 闭 统 计</button>
         </div>
     </div>
 
     <div id="match-detail-modal" class="modal-backdrop" style="display: none;">
-        <div class="modal-content" style="max-width: 850px; padding: 40px;">
+        <div class="modal-panel" style="max-width: 850px;">
             <span class="modal-eyebrow">Match Detail</span>
             <h2 id="modal-match-title" style="margin-bottom: 25px;">比赛详情</h2>
             <div style="display: flex; gap: 20px; text-align: left;">
@@ -169,16 +130,16 @@
                 <div style="display: flex; gap: 20px;">
                     <div style="flex: 1;">
                         <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px;">解说席 (多人用逗号或空间分隔)</label>
-                        <input type="text" id="modal-input-commentators" placeholder="例如: 解说A, 解说B" style="margin: 0; padding: 10px;">
+                        <input class="input" type="text" id="modal-input-commentators" placeholder="例如: 解说A, 解说B" style="margin: 0;">
                     </div>
                     <div style="flex: 1;">
                         <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px;">视频回放链接</label>
-                        <input type="text" id="modal-input-link" placeholder="输入外部跳转链接" style="margin: 0; padding: 10px;">
+                        <input class="input" type="text" id="modal-input-link" placeholder="输入外部跳转链接" style="margin: 0;">
                     </div>
                 </div>
                 <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px;">
-                    <button id="modal-close-btn" style="background: transparent; color: var(--text-color); border: 1px solid var(--text-muted); padding: 10px 20px;">取 消</button>
-                    <button id="modal-save-btn" class="submit-button" style="padding: 10px 25px;">保 存 更 新</button>
+                    <button class="btn btn-ghost" id="modal-close-btn">取 消</button>
+                    <button class="btn btn-primary" id="modal-save-btn">保 存 更 新</button>
                 </div>
             </div>
         </div>
