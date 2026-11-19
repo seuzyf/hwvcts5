@@ -10,93 +10,89 @@
     <script src="js/auth.js"></script>
     <script src="js/layout.js"></script>
 <style>
-        :root {
-            /* legacy aliases → theme tokens（深浅色随 theme.css 自动翻转） */
-            --primary-color: var(--coral-pulse);
-            --bg-color: var(--void-black);
-            --bg-gradient-mid: var(--obsidian);
-            --text-color: var(--mist);
-            --card-bg-color: var(--ink);
-            --header-bg-color: transparent;
-            --border-color: var(--border);
-            --border-highlight: var(--smoke);
-            --success-color: var(--success-green);
-            --shadow-color: rgba(0, 0, 0, 0.5);
-            --control-height: 34px;
-            --text-muted: var(--smoke);
-        }
 
-        .container { width: 95%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10;}
-
-        .controls-container { display: flex; justify-content: flex-start; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .data-section { background-color: var(--card-bg-color); backdrop-filter: blur(10px); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 10px 40px var(--shadow-color); margin-top: 30px; position: relative; }
-        .data-section::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
-        .data-section h3 { margin-top: 0; color: var(--primary-color); border-bottom: 1px solid var(--border-highlight); padding-bottom: 15px; font-weight: 900; letter-spacing: 2px; font-size: 20px; }
-
-        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 15px; }
-        th, td { padding: 12px 5px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
-        [data-theme="light"] th, [data-theme="light"] td { border-bottom: 1px solid rgba(0,0,0,0.05); }
-        thead th { background-color: transparent; color: var(--text-muted); font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--border-highlight); }
-        tbody tr:hover { background-color: rgba(255,255,255,0.05); }
-        
-        input, select { height: var(--control-height); padding: 0 10px; background-color: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-color); border-radius: var(--r-input, 8px); box-sizing: border-box; font-family: 'Noto Sans SC'; font-size: 15px; outline: none; transition: border-color 0.3s; width: 100%; min-width: 60px; }
-        [data-theme="light"] input, [data-theme="light"] select { background: #fff; }
-        input:focus, select:focus { border-color: var(--primary-color); }
-        input[readonly] { background-color: rgba(0,0,0,0.5); opacity: 0.6; cursor: not-allowed; }
-
-        td.actions { text-align: center; }
-
-        button { height: var(--control-height); padding: 0 16px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--graphite); color: var(--mist); cursor: pointer; font-weight: 600; transition: all 0.15s; letter-spacing: 0.02em; font-size: 14px; }
-        button:hover { background-color: var(--slate); color: var(--pure-white); box-shadow: none; }
-        button.success { background-color: rgba(89, 212, 153, 0.1); border: 1px solid var(--success-color); color: var(--success-color); }
-        button.success:hover { background-color: var(--success-color); color: white; box-shadow: none; }
-
-        .add-row-btn { margin-bottom: 20px; border: 1px solid var(--border-highlight); background: rgba(255,255,255,0.07); color: var(--primary-color); }
-        .add-row-btn:hover { background: var(--primary-color); color: white; }
-        .delete-row-btn { background-color: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 13px; height: 32px; padding: 0 15px; }
-        .delete-row-btn:hover { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
-
-        /* modal 容器由 theme.css 单一提供（.modal-backdrop/.modal-panel） */
-        .modal-panel h2 { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
-        
-        .match-record { border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 25px; padding: 15px; position: relative; }
-        [data-theme="light"] .match-record { background: rgba(255,255,255,0.5); }
-        .match-record::after { content:''; position:absolute; left:-1px; top:0; width:4px; height:100%; background:var(--primary-color); border-radius: 6px 0 0 6px; }
-
-        .warning-text { color: #9c9c9d; text-align: left; font-size: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.16); max-height: 200px; overflow-y: auto; line-height: 1.6; }
-        [data-theme="light"] .warning-text { background: rgba(255,255,255,0.8); }
+        /* ═════════ 数据台 · 重构版（纯 theme 组件语言 · 无 legacy 别名 · 无旧装饰条） ═════════ */
         body { padding-top: 80px; }
 
-        /* 活动管理行（管理员枢纽） */
-        .adm-ev-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(0,0,0,0.15); margin-bottom: 10px; }
-        .adm-ev-main { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
-        .adm-ev-title { color: var(--text-color); font-weight: 600; font-size: 15px; }
-        .adm-ev-sub { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em; }
-        #admin-tools-label { display: flex; align-items: baseline; gap: 10px; margin: 36px 0 4px; }
-        #admin-tools-label h2 { margin: 0; font-size: 18px; font-weight: 500; color: var(--text-color); }
-        #admin-tools-label span { font-family: var(--font-mono, monospace); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
-    
-        /* ── light adjustments (data-theme) ── */
-        [data-theme="light"] tbody tr:hover { background-color: rgba(0, 0, 0, 0.04); }
-        [data-theme="light"] input[readonly] { background-color: rgba(0, 0, 0, 0.06); }
-        [data-theme="light"] .add-row-btn { background: rgba(0, 0, 0, 0.05); }
-        [data-theme="light"] .delete-row-btn { background-color: rgba(0, 0, 0, 0.06); color: var(--text-muted); }
-        [data-theme="light"] .adm-ev-row { background: rgba(0, 0, 0, 0.03); }
-        [data-theme="light"] button:hover { box-shadow: none; }
-    
-    /* ================= 数据台（manage）专用 ================= */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.35s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+        .data-section {
+            background: var(--ink); border: 1px solid var(--border);
+            border-radius: var(--r-card); padding: 24px; margin-top: 20px; box-sizing: border-box;
+        }
+        .data-section h3 {
+            margin: 0 0 6px; font-size: 16px; font-weight: 600;
+            color: var(--pure-white); letter-spacing: 0;
+        }
+        .admin-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .admin-row label { font-size: 13px; color: var(--smoke); font-weight: 500; }
+
+        .warning-text {
+            text-align: left; font-size: 14px; color: var(--ash); margin: 10px 0 18px;
+            background: var(--obsidian); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px; max-height: 200px;
+            overflow-y: auto; line-height: 1.7; box-sizing: border-box;
+        }
+
+        /* tab 内动态表单控件（模板生成的裸 input/select 也获得统一外观） */
+        .tab-content input:not([type="checkbox"]):not([type="radio"]),
+        .tab-content select,
+        .tab-content textarea {
+            height: 36px; padding: 0 10px; background: var(--obsidian);
+            border: 1px solid var(--border); color: var(--mist);
+            border-radius: var(--r-input); font-family: inherit; font-size: 14px;
+            outline: none; box-sizing: border-box; transition: border-color 0.15s;
+        }
+        .tab-content textarea { height: auto; padding: 8px 10px; resize: vertical; }
+        .tab-content input:focus, .tab-content select:focus, .tab-content textarea:focus { border-color: var(--smoke); }
+        .tab-content .input, .tab-content .select, .tab-content .textarea { background: var(--obsidian); }
+        .team-selector, .player-id-input, .player-name-input { min-width: 90px; }
+
+        /* 表格（成员维护 / 动态行） */
+        .tab-content table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+        .tab-content th, .tab-content td {
+            padding: 9px 6px; text-align: left; border-bottom: 1px solid var(--border);
+        }
+        .tab-content thead th {
+            font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--smoke); font-weight: 500; white-space: nowrap;
+        }
+        .tab-content tbody tr:last-child td { border-bottom: none; }
+        .tab-content tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+        /* 模板按钮 */
+        .add-row-btn {
+            height: 34px; padding: 0 16px; border-radius: var(--r-btn);
+            border: 1px dashed var(--border); background: transparent; color: var(--coral-pulse);
+            font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.15s;
+            margin-bottom: 16px; font-family: inherit;
+        }
+        .add-row-btn:hover { border-color: var(--coral-pulse); background: var(--ember-hush); }
+        .delete-row-btn {
+            height: 30px; padding: 0 12px; border-radius: var(--r-btn);
+            border: 1px solid var(--border); background: transparent; color: var(--smoke);
+            font-size: 12px; cursor: pointer; transition: 0.15s; font-family: inherit;
+        }
+        .delete-row-btn:hover { border-color: rgba(255, 99, 99, 0.5); color: #ff8f8f; background: rgba(255, 99, 99, 0.08); }
+        button.success {
+            height: 36px; padding: 0 18px; border-radius: var(--r-btn);
+            border: 1px solid rgba(89, 212, 153, 0.5); background: rgba(89, 212, 153, 0.1);
+            color: var(--success-green); font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: 0.15s; font-family: inherit;
+        }
+        button.success:hover { background: var(--success-green); color: #fff; }
+
+/* ================= 数据台（manage）专用 ================= */
     .manage-gate { max-width: 720px; margin: 60px auto; }
     .manage-gate a { color: var(--coral-pulse); font-weight: 700; }
-    .page-sub { color: var(--text-color); font-weight: 600; margin-top: 8px; font-size: 15px; opacity: 0.8; }
-    .merge-hint { color: var(--text-color); opacity: 0.7; font-size: 14px; margin-bottom: 16px; }
+    .page-sub { color: var(--mist); font-weight: 600; margin-top: 8px; font-size: 15px; opacity: 0.8; }
+    .merge-hint { color: var(--mist); opacity: 0.7; font-size: 14px; margin-bottom: 16px; }
     #merge-fixtures { display: flex; flex-direction: column; gap: 10px; }
     .mf-fixture { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
-        background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-        padding: 13px 16px; color: var(--text-color); cursor: pointer; transition: 0.16s; font-family: inherit; }
+        background: var(--obsidian); border: 1px solid var(--border); border-radius: 12px;
+        padding: 13px 16px; color: var(--mist); cursor: pointer; transition: 0.16s; font-family: inherit; }
     .mf-fixture:hover { border-color: rgba(255,255,255,0.3); transform: translateX(3px); }
     .mf-fid { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; opacity: 0.6; min-width: 118px; }
     .mf-teams { flex: 1; font-size: 15px; font-weight: 600; }
@@ -105,11 +101,11 @@
     .mf-map-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
     .mf-map-row select { flex: 1.4; }
     .mf-map-row input { width: 76px; text-align: center; }
-    .mf-map-del { border: none; background: rgba(255,255,255,0.08); color: var(--text-color);
+    .mf-map-del { border: none; background: var(--graphite); color: var(--mist);
         width: 36px; height: 40px; border-radius: 9px; cursor: pointer; font-size: 15px; }
-    .mf-map-del:hover { background: rgba(224,69,69,0.3); }
+    .mf-map-del:hover { background: rgba(255,99,99,0.3); }
     .mf-big { display: flex; align-items: center; gap: 16px; margin-top: 18px; padding: 14px 18px;
-        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+        background: var(--graphite); border: 1px solid var(--border); border-radius: 12px;
         font-weight: 700; flex-wrap: wrap; }
     .mf-big .score { font-size: 26px; color: var(--coral-pulse); font-variant-numeric: tabular-nums; }
     .mf-big input { width: 66px; text-align: center; }
@@ -117,18 +113,14 @@
     .mf-teams-new.show { display: flex; }
     .mf-teams-new select { flex: 1; }
     .empty-hint { opacity: 0.6; font-size: 14px; padding: 16px 0; }
-    [data-theme="light"] .mf-fixture { background: #fff; border-color: rgba(0,0,0,0.1); }
-    [data-theme="light"] .mf-big { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
-    [data-theme="light"] .mf-map-del { background: rgba(0,0,0,0.06); }
 
     /* toast 反馈 */
     #toast { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(16px);
-        background: rgba(20,22,28,0.94); color: var(--pure-white, #fff);
-        border: 1px solid rgba(255,255,255,0.14); padding: 11px 18px; border-radius: 12px;
+        background: var(--ink); color: var(--pure-white);
+        border: 1px solid var(--border); padding: 11px 18px; border-radius: 12px;
         font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none; transition: 0.22s;
         z-index: 999; max-width: 80vw; box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    [data-theme="light"] #toast { background: rgba(255,255,255,0.97); color: var(--void-black); border-color: rgba(0,0,0,0.12); }
 </style>
 </head>
 <body data-page="manage">
@@ -142,7 +134,7 @@
             <span class="modal-eyebrow">Confirm</span>
             <h2>提 交 提 醒</h2>
             <div id="validation-warnings" class="warning-text"></div>
-            <p style="color:var(--text-color); margin-bottom:20px; font-size: 15px; font-weight: 500;">是否确认继续提交并保存修改？</p>
+            <p style="color:var(--mist); margin-bottom:20px; font-size: 15px; font-weight: 500;">是否确认继续提交并保存修改？</p>
             <div style="display:flex; justify-content:center; gap: 20px;">
                 <button class="btn btn-primary" id="validation-confirm-btn">确 认 提 交</button>
                 <button class="btn btn-ghost" id="validation-cancel-btn">返 回 修 改</button>
@@ -830,10 +822,10 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
 
     function loadIdsData(groupName) {
         const tableBody = document.getElementById('ids-table-body');
-        tableBody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted); text-align:center;">正在加载...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="6" style="color:var(--smoke); text-align:center;">正在加载...</td></tr>';
         const filteredData = allPlayersData.filter(p => p.group === groupName);
         tableBody.innerHTML = '';
-        if (filteredData.length === 0) { tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">该组别下没有选手数据。</td></tr>`; } 
+        if (filteredData.length === 0) { tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--smoke);">该组别下没有选手数据。</td></tr>`; } 
         else { filteredData.forEach(player => tableBody.appendChild(rowTemplates['ids-table-body'](false, player))); }
     }
     
@@ -1128,7 +1120,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         boundEvent = ev;
         if (typeof HWAuth !== 'undefined') { try { HWAuth.init(); } catch (e) { /* offline */ } }
         if (!ev) {
-            gateMsg('<h3>未绑定活动</h3><p style="margin-top:12px; color:var(--text-color);">请先从 <a href="events.html">活动大厅</a> 进入某个活动，再打开该活动的数据台。</p>');
+            gateMsg('<h3>未绑定活动</h3><p style="margin-top:12px; color:var(--mist);">请先从 <a href="events.html">活动大厅</a> 进入某个活动，再打开该活动的数据台。</p>');
             return;
         }
         currentSeason = HWLayout.seasonKey(ev);
@@ -1139,7 +1131,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             HWLayout.eventBar({ event: ev, perms: perms });
             var allowed = perms.isAdmin || perms.isEventCaptain;
             if (!allowed) {
-                gateMsg('<h3>无访问权限</h3><p style="margin-top:12px; color:var(--text-color);">数据台仅对本活动的 <b>管理员</b> 与 <b>活动队长</b> 开放。如需权限，请联系管理员在活动详情页授予。</p>');
+                gateMsg('<h3>无访问权限</h3><p style="margin-top:12px; color:var(--mist);">数据台仅对本活动的 <b>管理员</b> 与 <b>活动队长</b> 开放。如需权限，请联系管理员在活动详情页授予。</p>');
                 return;
             }
             startManageConsole();
