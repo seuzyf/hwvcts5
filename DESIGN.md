@@ -176,6 +176,12 @@ s6_betting_groups` + RPC `check_admin_password`。
     （管理员||活动队长可见，CAPTAIN 徽章同判）；全站 8 处 `access()` 调用点传 `ev`；
     events 工作台「管理」tile 同条件指向数据台。
   - 测试重建为零依赖版 `.scratch/test.js`：**58 项全过**（语法/样式合规/Phase 6 拆分与接线）。
+  - **热修（2026-11-19）**：PR#10 的 access() 重写误引未定义符号 `auth.user()/auth.client()/isAdmin()`
+    （真实来源为 `HWAuth.getSession()/supa()/isAdminNow()`）且错查 player_stats 不存在的 `user_id` 列
+    → access() 同步 ReferenceError → 活动空间等所有权限渲染卡「加载中」。已按原逻辑重写
+    （赛季队长 game_id/昵称匹配 + event_captains 扩展），manage 补缺失的 showToast 实现，
+    工作台改为「先渲染基础四块再升级权限」。测试增至 **71 项**（新增 vm 运行时冒烟 8 场 +
+    未定义符号静态哨兵）。
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
   （幂等）：`events.cover_image` + `event-covers` 桶若已建过则跳过；
   **本轮新增** `event_captains` 表（队长绑定 → 数据台权限）必须建表后功能才可用。

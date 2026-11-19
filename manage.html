@@ -120,6 +120,15 @@
     [data-theme="light"] .mf-fixture { background: #fff; border-color: rgba(0,0,0,0.1); }
     [data-theme="light"] .mf-big { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
     [data-theme="light"] .mf-map-del { background: rgba(0,0,0,0.06); }
+
+    /* toast 反馈 */
+    #toast { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(16px);
+        background: rgba(20,22,28,0.94); color: var(--pure-white, #fff);
+        border: 1px solid rgba(255,255,255,0.14); padding: 11px 18px; border-radius: 12px;
+        font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none; transition: 0.22s;
+        z-index: 999; max-width: 80vw; box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    [data-theme="light"] #toast { background: rgba(255,255,255,0.97); color: var(--void-black); border-color: rgba(0,0,0,0.12); }
 </style>
 </head>
 <body data-page="manage">
@@ -1101,6 +1110,17 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             console.error('合并保存失败:', e);
             alert('保存失败：' + (e && e.message ? e.message : e));
         }
+    }
+
+    /* ---------- toast ---------- */
+    var _toastTimer = null;
+    function showToast(msg) {
+        var el = document.getElementById('toast');
+        if (!el) { alert(msg); return; }
+        el.textContent = msg;
+        el.classList.add('show');
+        if (_toastTimer) clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(function () { el.classList.remove('show'); }, 3200);
     }
 
     /* ---------- 启动：活动绑定 + 权限门禁 ---------- */
