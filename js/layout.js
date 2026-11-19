@@ -67,6 +67,8 @@
   var SUN_SVG = '<svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
   var MOON_SVG = '<svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
 
+  var BELL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -92,11 +94,15 @@
       '</a>' +
       '<div class="nav-links">' + linksHtml + '</div>' +
       '<div class="nav-auth">' +
+      '  <button class="theme-toggle" id="nav-bell" type="button" aria-label="通知" title="通知">' +
+            BELL_SVG + '<span class="bell-badge" id="nav-bell-badge" hidden>0</span>' +
+      '  </button>' +
       '  <button class="theme-toggle" id="nav-theme-btn" type="button" aria-label="切换浅色/深色模式" title="浅色 / 深色模式">' +
             SUN_SVG + MOON_SVG +
       '  </button>' +
       '  <span id="nav-auth"></span>' +
-      '</div>';
+      '</div>' +
+      '<div class="bell-panel" id="nav-bell-panel" hidden></div>';
     document.body.appendChild(nav);
 
     var themeBtn = document.getElementById('nav-theme-btn');
@@ -105,6 +111,145 @@
         setTheme(getTheme() === 'light' ? 'dark' : 'light');
       });
     }
+
+    var bellBtn = document.getElementById('nav-bell');
+    if (bellBtn) {
+      bellBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var panel = document.getElementById('nav-bell-panel');
+        if (!panel) return;
+        if (panel.hidden) openBell(); else panel.hidden = true;
+      });
+    }
+    document.addEventListener('click', function (e) {
+      var panel = document.getElementById('nav-bell-panel');
+      if (!panel || panel.hidden) return;
+      if (panel.contains(e.target) || (bellBtn && bellBtn.contains(e.target))) return;
+      panel.hidden = true;
+    });
+  }
+
+  /* ---------------- 通知中心（右上角铃铛） ---------------- */
+  function toast(msg, type) {
+    var host = document.getElementById('hw-toasts');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'hw-toasts';
+      document.body.appendChild(host);
+    }
+    if (!type) {
+      var s = String(msg == null ? '' : msg);
+      if (/失败|错误|请先|请输入|请填写|请选择|无法|不能|为空|未通过|已满|中止|报错|不可|不存在|口令|最多|只能|暂无/.test(s)) type = 'err';
+      else if (/成功|已保存|已同步|已生成|已通过|已提交|已撤回|已设置|已更新|🎉|✅|✓/.test(s)) type = 'ok';
+      else type = 'info';
+    }
+    var t = document.createElement('div');
+    t.className = 'hw-toast' + (type === 'err' ? ' err' : type === 'ok' ? '' : ' info');
+    t.textContent = String(msg == null ? '' : msg);
+    host.appendChild(t);
+    setTimeout(function () {
+      t.classList.add('out');
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 320);
+    }, 3000);
+  }
+
+  /** 给某位用户写站内通知（右上角铃铛） */
+  function notifyUser(userId, title, body, link) {
+    if (!userId) return Promise.resolve(null);
+    var sb = supa();
+    if (!sb) return Promise.resolve(null);
+    return sb.from('notifications').insert([{
+      user_id: userId, title: String(title || ''), body: String(body || ''), link: String(link || '')
+    }]).then(function (r) { refreshBell(); return r; }).catch(function () { return null; });
+  }
+
+  /** 给全体管理员写站内通知 */
+  function notifyAdmins(title, body, link) {
+    var sb = supa();
+    if (!sb) return Promise.resolve(null);
+    return sb.from('site_users').select('id').eq('role', 'admin')
+      .then(function (res) {
+        var ids = ((res && !res.error && res.data) || []).map(function (x) { return x.id; });
+        if (!ids.length) return null;
+        return sb.from('notifications').insert(ids.map(function (id) {
+          return { user_id: id, title: String(title || ''), body: String(body || ''), link: String(link || '') };
+        }));
+      }).then(function (r) { refreshBell(); return r; }).catch(function () { return null; });
+  }
+
+  function refreshBell() {
+    var badge = document.getElementById('nav-bell-badge');
+    if (!badge) return;
+    var user = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+    if (!user) { badge.hidden = true; badge.textContent = '0'; return; }
+    var sb = supa();
+    if (!sb) return;
+    sb.from('notifications').select('id').eq('user_id', user.id).eq('read', false)
+      .then(function (res) {
+        var rows = (res && !res.error && res.data) || [];
+        var n = rows.length;
+        badge.hidden = n === 0;
+        badge.textContent = n > 99 ? '99+' : String(n);
+      }).catch(function () {});
+  }
+
+  function bellTime(iso) {
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  function renderBellList(rows) {
+    var list = document.getElementById('bell-list');
+    if (!list) return;
+    if (!rows.length) { list.innerHTML = '<div class="bell-empty">暂无通知</div>'; return; }
+    list.innerHTML = rows.map(function (n) {
+      var tag = n.link ? 'a' : 'div';
+      var hrefAttr = n.link ? ' href="' + esc(n.link) + '"' : '';
+      return '<' + tag + ' class="bell-item' + (n.read ? '' : ' unread') + '" data-id="' + n.id + '"' + hrefAttr + '>' +
+        '<div class="t">' + esc(n.title) + '</div>' +
+        (n.body ? '<div class="b">' + esc(n.body) + '</div>' : '') +
+        '<div class="time">' + bellTime(n.created_at) + '</div>' +
+        '</' + tag + '>';
+    }).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('.bell-item'), function (el) {
+      el.addEventListener('click', function () {
+        var sb = supa();
+        if (sb) sb.from('notifications').update({ read: true }).eq('id', el.dataset.id)
+          .then(function () { refreshBell(); }).catch(function () {});
+      });
+    });
+  }
+
+  function openBell() {
+    var panel = document.getElementById('nav-bell-panel');
+    if (!panel) return;
+    panel.hidden = false;
+    var user = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+    if (!user) { panel.innerHTML = '<div class="bell-empty">登录后接收通知</div>'; return; }
+    panel.innerHTML =
+      '<div class="bell-head"><span>通知</span>' +
+      '<button class="bell-read-all" id="bell-read-all" type="button">全部已读</button></div>' +
+      '<div class="bell-list" id="bell-list"><div class="bell-empty">加载中…</div></div>';
+    var sb = supa();
+    if (!sb) return;
+    sb.from('notifications').select('*').eq('user_id', user.id)
+      .order('created_at', { ascending: false }).limit(30)
+      .then(function (res) {
+        var rows = (res && !res.error && res.data) || [];
+        renderBellList(rows);
+        var all = document.getElementById('bell-read-all');
+        if (all) all.addEventListener('click', function (e) {
+          e.stopPropagation();
+          sb.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false)
+            .then(function () { refreshBell(); openBell(); }).catch(function () {});
+        });
+      }).catch(function () {
+        var list = document.getElementById('bell-list');
+        if (list) list.innerHTML = '<div class="bell-empty">加载失败</div>';
+      });
   }
 
   function buildFooter() {
@@ -421,6 +566,7 @@
         });
       }
     }
+    refreshBell();
   }
 
   /* ---------------- boot ---------------- */
@@ -457,6 +603,10 @@
     promoteRole: promoteRole,
     resolveEvent: resolveEvent,
     seasonKey: seasonKey,
-    eventBar: eventBar
+    eventBar: eventBar,
+    toast: toast,
+    notifyUser: notifyUser,
+    notifyAdmins: notifyAdmins,
+    refreshBell: refreshBell
   };
 })();

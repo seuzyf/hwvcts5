@@ -241,6 +241,29 @@ drop policy if exists event_captains_write on public.event_captains;
 create policy event_captains_write on public.event_captains for all using (true) with check (true);
 
 -- ---------------------------------------------------------------------
+-- 8. 报名「新建队伍」标记 + 站内通知（右上角铃铛）
+--    新建队伍的报名 → 管理员审批通过 → 自动绑定本活动队长
+-- ---------------------------------------------------------------------
+alter table public.event_registrations add column if not exists new_team boolean not null default false;
+
+create table if not exists public.notifications (
+    id          bigint generated always as identity primary key,
+    user_id     bigint not null references public.site_users(id) on delete cascade,
+    title       text not null,
+    body        text default '',
+    link        text default '',
+    read        boolean not null default false,
+    created_at  timestamptz not null default now()
+);
+create index if not exists notifications_user_idx on public.notifications (user_id, read, created_at desc);
+
+alter table public.notifications enable row level security;
+drop policy if exists notifications_select on public.notifications;
+create policy notifications_select on public.notifications for select using (true);
+drop policy if exists notifications_write on public.notifications;
+create policy notifications_write on public.notifications for all using (true) with check (true);
+
+-- ---------------------------------------------------------------------
 -- 完成 ✓
 -- 执行后刷新网站即可：登录 → 个人主页 → 活动大厅报名
 -- ---------------------------------------------------------------------

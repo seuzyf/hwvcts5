@@ -933,3 +933,122 @@ button, input, select, textarea { font-family: inherit; }
   .event-bar .ev-tabs { margin-left: 0; width: 100%; }
   .event-bar .ev-title { max-width: 200px; }
 }
+
+
+/* ---------- 通知中心（右上角铃铛） ---------- */
+#nav-bell { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+#nav-bell svg { width: 17px; height: 17px; }
+
+.bell-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--coral-pulse);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 15px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.bell-panel {
+  position: fixed;
+  top: calc(var(--nav-h) + 10px);
+  right: 16px;
+  width: 350px;
+  max-width: calc(100vw - 32px);
+  max-height: 62vh;
+  overflow-y: auto;
+  background: var(--obsidian);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  z-index: 160;
+  padding: 12px;
+}
+
+.bell-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--smoke);
+  padding: 2px 4px 10px;
+}
+
+.bell-read-all {
+  background: none;
+  border: none;
+  color: var(--info-blue);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+.bell-read-all:hover { text-decoration: underline; }
+
+.bell-item {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.12s ease;
+}
+.bell-item:hover { background: rgba(255, 255, 255, 0.05); }
+.bell-item.unread { border-left: 2px solid var(--coral-pulse); }
+.bell-item .t { font-size: 14px; font-weight: 600; color: var(--mist); }
+.bell-item .b { font-size: 13px; color: var(--ash); margin-top: 3px; line-height: 1.45; }
+.bell-item .time { font-family: var(--font-mono); font-size: 11px; color: var(--slate); margin-top: 5px; }
+
+.bell-empty {
+  color: var(--ash);
+  font-size: 14px;
+  padding: 18px 8px;
+  text-align: center;
+}
+
+/* ---------- 轻提示 toast（各页交互反馈） ---------- */
+#hw-toasts {
+  position: fixed;
+  top: calc(var(--nav-h) + 12px);
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 200;
+  pointer-events: none;
+}
+
+.hw-toast {
+  background: var(--obsidian);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--success-green);
+  color: var(--mist);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 340px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  animation: hw-toast-in 0.2s ease;
+}
+.hw-toast.err { border-left-color: var(--coral-pulse); }
+.hw-toast.info { border-left-color: var(--info-blue); }
+.hw-toast.out { opacity: 0; transform: translateX(10px); transition: opacity 0.3s ease, transform 0.3s ease; }
+
+@keyframes hw-toast-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+[data-theme="light"] .bell-panel { box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18); }
+[data-theme="light"] .bell-item:hover { background: rgba(0, 0, 0, 0.04); }
+[data-theme="light"] .hw-toast { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14); }

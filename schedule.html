@@ -175,7 +175,6 @@
         <header class="page-header">
             <span class="eyebrow">Schedule</span>
             <h1 class="page-title">赛程中心</h1>
-            <p class="page-sub">组别与阶段随所选活动的赛季锁定 —— 点击卡片可编辑比分、时间与房间链接。</p>
         </header>
 
         <div class="filter-bar" style="flex-wrap: wrap; gap: 10px; margin-bottom: 26px;">
@@ -255,7 +254,7 @@
         // ── 密码验证 ─────────────────────────────────────────────────────────────
         async function verifyPassword() {
             const inputPassword = passwordInputModal.value;
-            if (!inputPassword) { alert('请输入口令！'); return; }
+            if (!inputPassword) { HWLayout.toast('请输入口令！'); return; }
             try {
                 const { data: isCorrect, error } = await supabaseClient.rpc('check_admin_password', { input_pwd: inputPassword });
                 if (error) throw error;
@@ -268,8 +267,8 @@
                     HWLayout.promoteRole();
                     document.dispatchEvent(new CustomEvent('hw:admin'));
                     if (pendingAuthAction) { pendingAuthAction(); pendingAuthAction = null; }
-                } else { alert('口令错误！'); }
-            } catch (error) { console.error('验证口令时出错:', error); alert('验证失败，请检查数据库连接。'); }
+                } else { HWLayout.toast('口令错误！'); }
+            } catch (error) { console.error('验证口令时出错:', error); HWLayout.toast('验证失败，请检查数据库连接。'); }
         }
 
         function requireAdminAuth(actionCallback) {
@@ -983,7 +982,7 @@
                         const s4 = sorted2_1[0];
 
                         if (!s1 || !s2 || !s3 || !s4) {
-                            alert('2-1队排名第一尚未确定，无法生成第一轮对阵。');
+                            HWLayout.toast('2-1队排名第一尚未确定，无法生成第一轮对阵。');
                             return;
                         }
 
@@ -1097,21 +1096,21 @@
             pendingIdsToDelete  = idsToDelete;
 
             if (pendingDataToUpsert.length > 0 || pendingIdsToDelete.length > 0) {
-                alert(`✅ 已生成新对阵！\n${operationMessage}\n\n请点击「提交赛程」保存到数据库。`);
+                HWLayout.toast(`✅ 已生成新对阵！\n${operationMessage}\n\n请点击「提交赛程」保存到数据库。`);
                 const tempGroupData = { ...allMatchesData[groupName] };
                 pendingIdsToDelete.forEach(id => delete tempGroupData[id]);
                 pendingDataToUpsert.forEach(m => { tempGroupData[m.match_id] = { ...tempGroupData[m.match_id], ...m }; });
                 renderBrackets(groupName, { ...allMatchesData, [groupName]: tempGroupData });
                 submitChangesBtn.style.display = 'inline-flex';
             } else {
-                alert(operationMessage);
+                HWLayout.toast(operationMessage);
             }
         }
 
         // ── 提交更改 ─────────────────────────────────────────────────────────────
         submitChangesBtn.addEventListener('click', async () => {
             if (!isPasswordVerified) { passwordModal.style.display = 'flex'; passwordInputModal.focus(); return; }
-            if (pendingDataToUpsert.length === 0 && pendingIdsToDelete.length === 0) { alert('没有待提交的更改。'); return; }
+            if (pendingDataToUpsert.length === 0 && pendingIdsToDelete.length === 0) { HWLayout.toast('没有待提交的更改。'); return; }
             const groupName = groupFilters.querySelector('.active').dataset.group;
             submitChangesBtn.disabled = true; submitChangesBtn.textContent = '提交中...';
             try {
@@ -1131,12 +1130,12 @@
                                             .upsert(pendingDataToUpsert, { onConflict: 'group,match_id' });
                     if (error) throw error;
                 }
-                alert('赛程已成功更新到数据库！');
+                HWLayout.toast('赛程已成功更新到数据库！');
                 pendingDataToUpsert = []; pendingIdsToDelete = [];
                 submitChangesBtn.style.display = 'none';
                 await loadData();
             } catch (error) {
-                alert('提交失败: \n\n' + error.message);
+                HWLayout.toast('提交失败: \n\n' + error.message);
             } finally {
                 submitChangesBtn.disabled = false; submitChangesBtn.textContent = '提 交 赛 程';
             }
@@ -1193,11 +1192,11 @@
                 try {
                     const { error } = await supabaseClient.from('s6_match_schedule').update({ commentators: newCommentators, link: newLink }).eq('match_id', matchId).eq('group', group);
                     if (error) throw error;
-                    alert('更新成功！');
+                    HWLayout.toast('更新成功！');
                     matchDetailModal.style.display = 'none';
                     await loadData();
                 } catch (err) {
-                    alert('更新失败: ' + err.message);
+                    HWLayout.toast('更新失败: ' + err.message);
                 } finally {
                     modalSaveBtn.disabled = false; modalSaveBtn.textContent = '保 存 更 新';
                 }

@@ -215,10 +215,25 @@ s6_betting_groups` + RPC `check_admin_password`。
   - 选手行点击 → **个人主页 `player.html`**（既有早期版本能力雷达图：
     ACS/每回合击杀/助攻/存活率/KDA 百分位 + 生涯平均 + 角色数据 + 评论）。
   - 测试 141 项 + E2E 4 场（events×2、manage 含活动栏 7 页签、players 数据中心）全过。
+- **Phase 8（报名组队 + 审批队长 + 站内通知）**：
+  - 创建活动**不再选择队伍**（cf-teams 整块移除；`events.teams` 创建时留空）。
+  - 报名表单改为 **加入已有队伍**（下拉：本活动已通过报名的战队 ∪ 活动登记队伍）
+    / **新建队伍**（输入队名 → `new_team=true`）；字段缺列时自动回退保证报名可用。
+  - 管理员在活动详情审核报名；**新建队伍的报名通过 → 自动写 `event_captains`**
+    （该活动队长，解锁分队/管理页签与数据台队长范围）并把队伍追加进 `events.teams` 展示。
+  - **右上角通知中心**：layout 导航新增铃铛 + 未读角标 + 面板（全部已读/点击已读/跳转）；
+    新通知：报名提交（给本人+全体管理员）、审核通过/拒绝（给本人，新队伍通过附带队长文案）。
+    `HWLayout.notifyUser / notifyAdmins / toast` 供各页调用。
+  - **全站交互反馈**：events/admin/draft/betting/schedule/summary/index 的 `alert()`
+    全部改为 `HWLayout.toast()`（自动按文案判定 ok/err/info，右上角 3s 消失）。
+  - **文案清理**：删除各页介绍中的需求/用法描述（活动大厅副标题、创建表单架构提示、
+    数据中心副标题、赛程/分队用法说明、首页功能罗列等）。
+  - 新表 `notifications` + `event_registrations.new_team`（见 schema.sql 第 8 节）。
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
   （幂等）：已建过的 cover/event_captains 若在则跳过；
-  **Phase 7 新增** `events.teams` / `events.group_count` 两列 —— 不建则创建活动的
-  参赛队伍与分组数量无法保存（赛制存既有 `format` 列，无需迁移）。
+  **Phase 7 新增** `events.teams` / `events.group_count` 两列（赛制存既有 `format` 列）；
+  **Phase 8 新增** `notifications` 表 + `event_registrations.new_team` 列 ——
+  不建则站内通知与「新建队伍审批→自动队长」不生效（报名本身有回退不受阻）。
 
 ## 8. 功能保留清单
 
