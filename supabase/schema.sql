@@ -219,6 +219,25 @@ create policy "event_covers_all" on storage.objects for all
     with check (bucket_id = 'event-covers');
 
 -- ---------------------------------------------------------------------
+-- 7. 活动队长（与活动绑定 →该活动「数据台」的权限）
+--    管理员在活动详情「管理」区设置；队长登录后可见 管理 页签
+-- ---------------------------------------------------------------------
+create table if not exists public.event_captains (
+    id          bigint generated always as identity primary key,
+    event_id    bigint not null references public.events(id) on delete cascade,
+    player_name text not null,                 -- 选手真名（花名册主键）
+    game_id     text default '',               -- 冗余存一份，便于登录匹配
+    added_by    text default 'admin',
+    created_at  timestamptz not null default now(),
+    unique (event_id, player_name)
+);
+
+drop policy if exists event_captains_select on public.event_captains;
+create policy event_captains_select on public.event_captains for select using (true);
+drop policy if exists event_captains_write on public.event_captains;
+create policy event_captains_write on public.event_captains for all using (true) with check (true);
+
+-- ---------------------------------------------------------------------
 -- 完成 ✓
 -- 执行后刷新网站即可：登录 → 个人主页 → 活动大厅报名
 -- ---------------------------------------------------------------------

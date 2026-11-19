@@ -195,7 +195,7 @@
                 if (!ev) { HWLayout.eventBar({ event: null }); return Promise.resolve(null); }
                 var key = HWLayout.seasonKey(ev);
                 currentSeason = key;
-                return HWLayout.access(key).then(function (perms) {
+                return HWLayout.access(key, ev).then(function (perms) {
                     HWLayout.eventBar({ event: ev, perms: perms });
                     return perms;
                 });

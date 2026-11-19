@@ -160,9 +160,25 @@ s6_betting_groups` + RPC `check_admin_password`。
     旧红 `#e53935/229,57,53` → theme coral；player 补 page-header；game（剧情模式）
     保持沉浸式独立视觉并加「返回网站」入口；schema 种子 S5 行 14 列对齐修复
     （`BO5 两场，赛后复盘` + `BO5`）。测试 34 项全过。
-- **待你操作**：若尚未执行，请把 `supabase/schema.sql` 在 Supabase SQL Editor 跑一次
-  （活动功能依赖 `events` / `event_registrations` / `site_users`；
-  **本轮新增** `events.cover_image` 列 + `event-covers` 存储桶 —— 重跑 schema.sql 即幂等补齐）。
+- **Phase 6（管理后台拆分 + 队长绑定活动 + 赛果赛程合并录入）**：
+  - **admin.html 瘦身**（1206 → ~427 行）：只保留活动发布/状态/封面 + 账号中枢 +
+    活动队长设置入口；`#admin-panel`（赛果/赛程/成员 tabs）、tools JS、校验弹窗、
+    队伍 datalist 全部移出，活动行新增「数据台」直达按钮。
+  - **manage.html（赛事数据台，新建）**：`?event={id}` 绑定活动；权限 = 管理员 OR
+    **该活动的**队长（新表 `event_captains(event_id, player_name, game_id, …)`，
+    RLS `for all using(true)`，活动详情页「管理」区设置/移除）；分组切换 + 三 tab：
+    **合并录入 / 赛果明细 / 成员维护**（校验弹窗与 datalist 随迁）；无权限显示门禁文案。
+  - **合并录入**：选对阵（或新建）→ 逐图录比分 → **大比分 = 图胜计数自动识别**
+    （无图时可手动）→ 一次保存同时写 `s{N}_match_schedule`（大比分/时间/回放）与
+    `s{N}_matches`（逐图行，已有图更新不重复插）；逐图选手数据仍在「赛果明细」编辑。
+  - **接线**：`layout.js access(seasonKey, ev)` 合并 event_captains（game_id/昵称/用户名
+    命中，缓存键含 ev.id）；EV_TABS 管理 → `manage.html?event={id}` `need:'manage'`
+    （管理员||活动队长可见，CAPTAIN 徽章同判）；全站 8 处 `access()` 调用点传 `ev`；
+    events 工作台「管理」tile 同条件指向数据台。
+  - 测试重建为零依赖版 `.scratch/test.js`：**58 项全过**（语法/样式合规/Phase 6 拆分与接线）。
+- **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
+  （幂等）：`events.cover_image` + `event-covers` 桶若已建过则跳过；
+  **本轮新增** `event_captains` 表（队长绑定 → 数据台权限）必须建表后功能才可用。
 
 ## 8. 功能保留清单
 
@@ -176,6 +192,7 @@ s6_betting_groups` + RPC `check_admin_password`。
 | 赛程中心：编辑/随机生成/解说统计/口令提交 | ✅ 保留（schedule.html 换壳） |
 | 分队：XLSX 表格分队 + 随机抽取 | ✅ 保留并合并进 draft.html 双 Tab（`#draw` 深链） |
 | 选手详情页（雷达/角色/荣誉/评分） | ✅ 保留（player.html 换壳） |
-| 管理后台三 Tab + 口令门 | ✅ 保留（admin.html 换双角色中枢：成员个人信息 / 管理员活动管理） |
+| 管理后台 | ✅ Phase 6 拆分：admin.html = 活动发布/状态/封面/队长设置（口令门保留）；赛果赛程成员工具迁至 **manage.html 数据台**（活动绑定，管理员||活动队长） |
+| 赛果/赛程/成员工具 + 合并录入 | ✅ 数据台三 tab：合并录入（大比分自动识别）/ 赛果明细 / 成员维护 |
 | 剧情模式 game.html | ✅ 原样 |
 | 旧地址 home/compare/s5draft | ↳ 重定向到新页面 |

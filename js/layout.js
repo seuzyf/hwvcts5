@@ -60,7 +60,7 @@
     { page: 'summary',  href: 'summary.html?event={id}',  label: '数据' },
     { page: 'betting',  href: 'betting.html?event={id}',  label: '竞猜' },
     { page: 'draft',    href: 'draft.html?event={id}',    label: '分队', need: 'staff' },
-    { page: 'admin',    href: 'admin.html?event={id}',    label: '管理', need: 'admin' }
+    { page: 'manage',   href: 'manage.html?event={id}',   label: '管理', need: 'manage' }
   ];
 
   var SUN_SVG = '<svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
@@ -175,47 +175,53 @@
    * @param seasonKey 's6' | 's5'
    * @returns Promise<{isAdmin, isCaptain, captainTeams}>
    */
-  function access(seasonKey) {
-    seasonKey = (seasonKey || 's6').toLowerCase();
-    var u = typeof HWAuth !== 'undefined' ? HWAuth.getSession() : null;
-    var admin = isAdminNow();
-    var userKey = u ? String(u.id) : 'anon';
-    var cacheKey = seasonKey + '|' + userKey + '|' + (admin ? 'a' : '');
+  /* 权限（缓存，换季/管理员切换时失效）
+     = 活动级队长（玩家本人） | 管理员
+     传入第二参 ev 时：合并该活动的 event_captains 绑定（isEventCaptain） */
+  function access(seasonKey, ev) {
+    seasonKey = (seasonKey === 's5' || seasonKey === 's6') ? seasonKey : 's6';
+    var admin = isAdmin();
+    var evId = ev && ev.id ? String(ev.id) : '';
+    var cacheKey = seasonKey + '|' + evId + '|' + (auth.user() ? auth.user().username : 'guest') + '|' + (admin ? 'a' : '');
     if (accessCache[cacheKey]) return Promise.resolve(accessCache[cacheKey]);
 
-    var base = { isAdmin: admin, isCaptain: false, captainTeams: [] };
-    if (!u) { accessCache[cacheKey] = base; return Promise.resolve(base); }
+    var user = auth.user();
+    var sb = auth.client();
+    if (!user) return Promise.resolve({ isAdmin: false, isCaptain: false, captainTeams: [], isEventCaptain: false });
 
-    var sb = supa();
-    if (!sb) { accessCache[cacheKey] = base; return Promise.resolve(base); }
-
-    function checkTable(table) {
-      return sb.from(table).select('player_name, game_id, team, role')
-        .eq('role', '队长')
-        .then(function (res) {
-          if (res.error || !res.data) return null;
-          return res.data.filter(function (p) {
-            return (u.game_id && p.game_id && String(p.game_id) === String(u.game_id)) ||
-                   (u.nickname && p.player_name === u.nickname) ||
-                   (u.username && p.player_name === u.username);
-          });
-        }).catch(function () { return null; });
-    }
-
-    return checkTable(seasonKey + '_player_stats').then(function (hits) {
-      if (hits && hits.length) return hits;
-      // fallback: try the other known season so S5 captains aren't locked out
-      var other = seasonKey === 's6' ? 's5_player_stats' : 's6_player_stats';
-      return checkTable(other);
-    }).then(function (hits) {
-      var result = {
-        isAdmin: admin,
-        isCaptain: !!(hits && hits.length),
-        captainTeams: (hits || []).map(function (p) { return p.team; }).filter(Boolean)
-      };
-      accessCache[cacheKey] = result;
-      return result;
-    }).catch(function () { return base; });
+    var key = seasonKey + '_player_stats';
+    return sb.from(key).select('role').eq('user_id', user.id).eq('role', '队长')
+      .then(function (r) {
+        var data = (r && r.data) || [];
+        var captainTeams = data.map(function (row) { return row.team; });
+        if (data.length === 0) { // 兼容旧库（无该季表 / 跨季兼任）
+          var alt = (key === 's6_player_stats') ? 's5_player_stats' : 's6_player_stats';
+          return sb.from(alt).select('role').eq('user_id', user.id).eq('role', '队长')
+            .then(function (r2) { return ((r2 && r2.data) || []).map(function (row) { return row.team; }); })
+            .catch(function () { return []; });
+        }
+        return captainTeams;
+      })
+      .catch(function () { return []; })
+      .then(function (captainTeams) {
+        var result = { isAdmin: admin, isCaptain: captainTeams.length > 0, captainTeams: captainTeams, isEventCaptain: false };
+        if (!evId) { accessCache[cacheKey] = result; return result; }
+        if (admin) { result.isEventCaptain = true; accessCache[cacheKey] = result; return result; }
+        if (!sb) { accessCache[cacheKey] = result; return result; }
+        // 活动队长绑定：本人 game_id / 昵称 / 用户名 命中即放行（只限本活动）
+        return sb.from('event_captains').select('player_name, game_id').eq('event_id', ev.id)
+          .then(function (r) {
+            var rows = (r && r.data) || [];
+            result.isEventCaptain = rows.some(function (c) {
+              return (user.game_id && c.game_id && String(c.game_id) === String(user.game_id)) ||
+                     (user.nickname && c.player_name === user.nickname) ||
+                     (user.username && c.player_name === user.username);
+            });
+            accessCache[cacheKey] = result;
+            return result;
+          })
+          .catch(function () { accessCache[cacheKey] = result; return result; });
+      });
   }
 
   /* ---------------- Event context ---------------- */
@@ -272,6 +278,7 @@
     var id = ev.id;
     var tabs = EV_TABS.filter(function (t) {
       if (t.need === 'staff') return perms.isCaptain || perms.isAdmin;
+      if (t.need === 'manage') return perms.isAdmin || perms.isEventCaptain;
       if (t.need === 'admin') return perms.isAdmin;
       return true;
     }).map(function (t) {
@@ -282,7 +289,7 @@
     }).join('');
 
     var badge = perms.isAdmin ? '<span class="badge badge-coral">ADMIN</span>'
-              : perms.isCaptain ? '<span class="badge badge-blue">CAPTAIN</span>' : '';
+              : (perms.isCaptain || perms.isEventCaptain) ? '<span class="badge badge-blue">CAPTAIN</span>' : '';
 
     host.innerHTML =
       '<div class="event-bar">' +

@@ -90,7 +90,6 @@
     </style>
 </head>
 <body data-page="admin">
-    <datalist id="teams-datalist"></datalist>
 
     <div id="password-modal" class="modal-backdrop">
         <div class="modal-panel" style="max-width:440px;">
@@ -101,24 +100,12 @@
         </div>
     </div>
 
-    <div id="validation-modal" class="modal-backdrop" style="display:none;">
-        <div class="modal-panel" style="max-width: 500px;">
-            <span class="modal-eyebrow">Confirm</span>
-            <h2>提 交 提 醒</h2>
-            <div id="validation-warnings" class="warning-text"></div>
-            <p style="color:var(--text-color); margin-bottom:20px; font-size: 15px; font-weight: 500;">是否确认继续提交并保存修改？</p>
-            <div style="display:flex; justify-content:center; gap: 20px;">
-                <button class="btn btn-primary" id="validation-confirm-btn">确 认 提 交</button>
-                <button class="btn btn-ghost" id="validation-cancel-btn">返 回 修 改</button>
-            </div>
-        </div>
-    </div>
-
+    
     <!--═════════════════════════════════════════════════════════════
          管理后台 · 双角色界面
            游客 → 登录 CTA / 口令验证入口
            成员 → 修改个人信息与密码（普通权限）
-           管理员 → 举办与管理活动 + 赛事数据工具（下方 admin-panel）
+           管理员 → 举办与管理活动、设置活动队长（赛事数据台在活动详情进入）
          ═════════════════════════════════════════════════════════════ -->
     <div id="manage-shell" class="container">
         <header class="page-header">
@@ -135,7 +122,7 @@
                 <div>
                     <span class="eyebrow">Account</span>
                     <h2 class="section-title" style="margin-top:8px;">登录后管理个人信息</h2>
-                    <p class="muted" style="font-size: 15px; margin:0; max-width:520px;">普通成员可在此修改昵称、游戏 ID、简介与密码；管理员账号可举办与管理活动、维护赛果 / 赛程 / 成员数据。</p>
+                    <p class="muted" style="font-size: 15px; margin:0; max-width:520px;">普通成员可在此修改昵称、游戏 ID、简介与密码；管理员账号可举办与管理活动、设置活动队长。</p>
                 </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <button class="btn btn-primary" id="guest-login" type="button">登录 / 注册</button>
@@ -224,91 +211,7 @@
         </section>
     </div>
 
-    <div id="admin-panel" class="container" style="display: none;">
-        <div id="admin-tools-label">
-            <h2>赛事数据工具</h2>
-            <span>Match Ops</span>
-        </div>
-        <div class="filter-bar" style="flex-wrap:wrap; gap:10px; margin-top:14px; margin-bottom:4px;">
-            <div class="seg" id="group-filter-buttons">
-                <button class="active" data-group="传奇组" type="button">传奇组</button>
-                <button data-group="中坚组" type="button">中坚组</button>
-                <button data-group="挑战组" type="button">挑战组</button>
-            </div>
-            <div class="seg" id="tab-filters">
-                <button class="active" data-tab="matches-tab" type="button">赛 果 管 理</button>
-                <button data-tab="schedule-tab" type="button">赛 程 管 理</button>
-                <button data-tab="ids-tab" type="button">成 员 / 荣 誉 维 护</button>
-            </div>
-        </div>
-
-        <div id="matches-tab" class="tab-content active">
-            <div class="data-section">
-                <h3>新 增 赛 果</h3>
-                <button class="add-row-btn" data-table="matches-table-body">+ 新增对局记录 (默认3局)</button>
-                <div id="matches-form-container"></div>
-                <button class="success" style="margin-top: 15px;" id="submit-matches">提 交 新 赛 果</button>
-            </div>
-            
-            <div class="data-section">
-                <h3>修 改 赛 果</h3>
-                <select id="edit-match-selector" style="margin-bottom: 20px;"></select>
-                <div id="edit-match-form-container"></div>
-                <button class="success" style="margin-top: 15px; display: none;" id="update-match">更 新 此 赛 果</button>
-            </div>
-        </div>
-
-        <div id="schedule-tab" class="tab-content">
-            <div class="data-section">
-                <h3>更 新 赛 程 比 分</h3>
-                <select id="match-selector" style="margin-bottom: 20px;"></select>
-                <div id="schedule-update-form" style="display: none;">
-                     <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr><th>队伍A</th><th>A队得分</th><th>B队得分</th><th>队伍B</th><th>比赛时间</th><th>回放链接</th></tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><select id="schedule-team-a" disabled></select></td>
-                                    <td><input type="number" id="schedule-score-a" placeholder="得分"></td>
-                                    <td><input type="number" id="schedule-score-b" placeholder="得分"></td>
-                                    <td><select id="schedule-team-b" disabled></select></td>
-                                    <td><input type="datetime-local" id="schedule-date"></td>
-                                    <td><input type="text" id="schedule-link" placeholder="https://..."></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <button class="success" style="margin-top: 20px;" id="submit-schedule">保 存 赛 程</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="ids-tab" class="tab-content">
-             <div class="data-section">
-                <h3>选 手 信 息 维 护</h3>
-                <button class="add-row-btn" data-table="ids-table-body">+ 新增选手记录</button>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>选手真名 (主键)</th>
-                                <th>选手 ID</th>
-                                <th>所属队伍</th>
-                                <th>头像链接</th>
-                                <th>选手荣誉 (用"、"分割)</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ids-table-body"></tbody>
-                    </table>
-                </div>
-                <button class="success" style="margin-top: 20px;" id="update-ids">同 步 选 手 数 据</button>
-            </div>
-        </div>
-    </div>
-
+    
 <script>
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -318,40 +221,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const passwordModal = document.getElementById('password-modal');
-    const adminPanel = document.getElementById('admin-panel');
     const passwordInput = document.getElementById('password-input');
     const passwordSubmit = document.getElementById('password-submit');
 
-    let allPlayersData = [];
-    let groupData = { '传奇组': { teams: new Set(), rosters: {} }, '中坚组': { teams: new Set(), rosters: {} }, '挑战组': { teams: new Set(), rosters: {} } };
-    let currentScheduleData = [];
-    let currentMatchesForEdit = [];
     let currentSeason = 's6'; // 默认 S6 赛季
 
-    const matchIdToName = {
-        'S1-1': '0-0组-第1场', 'S1-2': '0-0组-第2场', 'S1-3': '0-0组-第3场', 'S1-4': '0-0组-第4场',
-        'S2-1W': '1-0组-第1场', 'S2-2W': '1-0组-第2场', 'S2-1L': '0-1组-第1场', 'S2-2L': '0-1组-第2场',
-        'S3-1M': '1-1组-第1场', 'S3-2M': '1-1组-第2场', 'S3-PROMO-A': '2-0晋级赛-A', 'S3-PROMO-B': '2-0晋级赛-B',
-        'S3-ELIM-A': '0-2淘汰赛-A', 'S3-ELIM-B': '0-2淘汰赛-B', 'S5-PROMO-A': '2-1晋级赛-A', 'S5-PROMO-B': '2-1晋级赛-B',
-        'S5-ELIM-A': '1-2淘汰赛-A', 'S5-ELIM-B': '1-2淘汰赛-B', 'S1-5': '0-0组-第5场', 'S1-6': '0-0组-第6场',
-        'S2-3W': '1-0组-第3场', 'S2-3L': '0-1组-第3场', 'S3-3M': '1-1组-第3场',
-        'S3-PROMO-1': '2-0晋级赛-第1场', 'S3-PROMO-2': '2-0晋级赛-第2场', 'S3-PROMO-3': '2-0晋级赛-第3场',
-        'S3-ELIM-1': '0-2淘汰赛-第1场', 'S3-ELIM-2': '0-2淘汰赛-第2场', 'S3-ELIM-3': '0-2淘汰赛-第3场',
-        'S4-PROMO-1': '2-1晋级赛-第1场', 'S4-PROMO-2': '2-1晋级赛-第2场', 'S4-PROMO-3': '2-1晋级赛-第3场',
-        'S4-ELIM-1': '1-2淘汰赛-第1场', 'S4-ELIM-2': '1-2淘汰赛-第2场', 'S4-ELIM-3': '1-2淘汰赛-第3场',
-        'P-WB1-1': '胜者组-第一轮-第1场', 'P-WB1-2': '胜者组-第一轮-第2场', 'P-WBF': '胜者组-决赛',
-        'P-LB1': '败者组-第一轮', 'P-LB1-1': '败者组-第一轮-第1场', 'P-LB1-2': '败者组-第一轮-第2场',
-        'P-LB2': '败者组-第二轮', 'P-LBF': '败者组-决赛', 'P-GF': '总决赛',
-        
-        // 传奇组单循环赛制映射追加
-        'RR-1-1': '循环赛-第1轮-第1场', 'RR-1-2': '循环赛-第1轮-第2场', 'RR-1-3': '循环赛-第1轮-第3场',
-        'RR-2-1': '循环赛-第2轮-第1场', 'RR-2-2': '循环赛-第2轮-第2场', 'RR-2-3': '循环赛-第2轮-第3场',
-        'RR-3-1': '循环赛-第3轮-第1场', 'RR-3-2': '循环赛-第3轮-第2场', 'RR-3-3': '循环赛-第3轮-第3场',
-        'RR-4-1': '循环赛-第4轮-第1场', 'RR-4-2': '循环赛-第4轮-第2场', 'RR-4-3': '循环赛-第4轮-第3场',
-        'RR-5-1': '循环赛-第5轮-第1场', 'RR-5-2': '循环赛-第5轮-第2场', 'RR-5-3': '循环赛-第5轮-第3场',
-        'RR-6-1': '循环赛-第6轮-第1场', 'RR-6-2': '循环赛-第6轮-第2场', 'RR-6-3': '循环赛-第6轮-第3场',
-        'RR-7-1': '循环赛-第7轮-第1场', 'RR-7-2': '循环赛-第7轮-第2场', 'RR-7-3': '循环赛-第7轮-第3场'
-    };
 
     async function checkPassword() {
         const inputPassword = passwordInput.value;
@@ -373,10 +247,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* ── 双角色路由 + 活动上下文 ─────────────────────────────────────
        游客 → 登录 CTA / 口令入口；成员 → 修改个人信息；
-       管理员 → 举办与管理活动 + 赛事数据工具（admin-panel）。
+       管理员 → 举办与管理活动、设置活动队长。
        ?event= 锁定赛季并渲染活动栏；口令验证见 checkPassword → enterAdminMode。 */
     var boundEvent = null;
-    var adminInited = false;
     var EV_BADGE = { draft: 'badge-quiet', registration: 'badge-coral', ongoing: 'badge-green', finished: '', cancelled: 'badge-quiet' };
     var EV_STATUS_ZH = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
 
@@ -395,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showView(name) {
         Object.keys(views).forEach(function (k) { if (views[k]) views[k].hidden = (k !== name); });
         document.getElementById('manage-sub').textContent =
-            name === 'admin' ? '举办与管理活动，维护赛果、赛程与成员数据。'
+            name === 'admin' ? '举办与管理活动、设置活动队长。'
             : name === 'member' ? '修改你的个人信息与账号安全设置。'
             : '登录以修改个人信息；管理员可在此举办与管理活动。';
     }
@@ -444,6 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
                           }).join('') +
                         '</select>' +
                         '<a class="btn btn-ghost btn-sm" href="events.html?open=' + ev.id + '">查看详情</a>' +
+                        '<a class="btn btn-ghost btn-sm" href="manage.html?event=' + ev.id + '">数据台</a>' +
                         '</div>';
                 }).join('');
 
@@ -471,17 +345,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function enterAdminMode() {
         showView('admin');
         passwordModal.style.display = 'none';
-        adminPanel.style.display = 'block';
         renderAdmEvents();
-        if (!adminInited) { adminInited = true; initializeAdminPanel(); }
     }
 
     function route() {
         var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
-        if (!u) { showView('guest'); adminPanel.style.display = 'none'; return; }
+        if (!u) { showView('guest'); return; }
         if (HWLayout.isAdminNow()) { enterAdminMode(); return; }
         showView('member');
-        adminPanel.style.display = 'none';
         fillProfileView(u);
     }
 
@@ -541,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
         route();
 
         if (ev) {
-            HWLayout.access(HWLayout.seasonKey(ev)).then(function (perms) {
+            HWLayout.access(HWLayout.seasonKey(ev), ev).then(function (perms) {
                 HWLayout.eventBar({ event: ev, perms: perms });
             });
         }
@@ -550,581 +421,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function initializeAdminPanel() {
-        await loadInitialData();
-        setupTabs(); setupDynamicRows(); setupGroupFilters();
-        
-        const currentGroup = getCurrentGroup();
-        loadIdsData(currentGroup);
-        await loadScheduleForGroup(currentGroup);
-        await loadMatchesForEditing(currentGroup);
-
-        document.getElementById('submit-matches').addEventListener('click', submitMatches);
-        document.getElementById('update-match').addEventListener('click', updateMatch);
-        document.getElementById('match-selector').addEventListener('change', loadSelectedMatch);
-        document.getElementById('edit-match-selector').addEventListener('change', displayMatchForEditing);
-        document.getElementById('submit-schedule').addEventListener('click', submitSchedule);
-        document.getElementById('update-ids').addEventListener('click', updateIds);
-    }
-    
-    async function loadInitialData() {
-        const tableName = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
-        const { data, error } = await supabaseClient.from(tableName).select('id, name, team, "group", image, honor');
-        if (error) { console.error('无法加载选手数据:', error); return; }
-        
-        allPlayersData = data;
-        groupData = { '传奇组': { teams: new Set(), rosters: {} }, '中坚组': { teams: new Set(), rosters: {} }, '挑战组': { teams: new Set(), rosters: {} } };
-
-        data.forEach(player => {
-            const playerGroup = player.group;
-            if (groupData[playerGroup]) {
-                if (player.team) {
-                    groupData[playerGroup].teams.add(player.team);
-                    if (!groupData[playerGroup].rosters[player.team]) groupData[playerGroup].rosters[player.team] = [];
-                    groupData[playerGroup].rosters[player.team].push({ id: player.id, name: player.name });
-                }
-            }
-        });
-        updateTeamDatalist();
-    }
-
-    async function loadScheduleForGroup(groupName) {
-        const { data, error } = await supabaseClient.from('s6_match_schedule').select('*').eq('group', groupName).order('id');
-        if (error) { console.error(`加载 ${groupName}赛程失败:`, error); currentScheduleData = []; } 
-        else { currentScheduleData = data.filter(m => m.team_a && m.team_a !== 'TBD'); }
-        populateMatchSelector(); document.getElementById('schedule-update-form').style.display = 'none';
-    }
-
-    function populateMatchSelector() {
-        const selector = document.getElementById('match-selector');
-        selector.innerHTML = '<option value="">-- 请选择一场比赛 --</option>';
-        if (currentScheduleData.length > 0) {
-            currentScheduleData.forEach(match => {
-                const option = document.createElement('option');
-                option.value = match.id; 
-                option.textContent = `${matchIdToName[match.match_id] || match.match_id}: ${match.team_a} vs ${match.team_b}`;
-                selector.appendChild(option);
-            });
-        }
-    }
-
-    function getTeamOptionsHTML(teamName) { return `<option value="${teamName}" selected>${teamName}</option>`; }
-
-    function loadSelectedMatch() {
-        const selector = document.getElementById('match-selector');
-        const matchId = selector.value;
-        const form = document.getElementById('schedule-update-form');
-        if (!matchId) { form.style.display = 'none'; return; }
-
-        const matchData = currentScheduleData.find(m => m.id == matchId);
-        if (matchData) {
-            document.getElementById('schedule-team-a').innerHTML = getTeamOptionsHTML(matchData.team_a);
-            document.getElementById('schedule-team-b').innerHTML = getTeamOptionsHTML(matchData.team_b);
-            
-            document.getElementById('schedule-score-a').value = matchData.score_a ?? '';
-            document.getElementById('schedule-score-b').value = matchData.score_b ?? '';
-            const dateValue = matchData.match_date ? new Date(new Date(matchData.match_date).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : '';
-            document.getElementById('schedule-date').value = dateValue;
-            document.getElementById('schedule-link').value = matchData.link || '';
-            form.style.display = 'block';
-        }
-    }
-
-    function updateTeamDatalist() {
-        const currentGroup = getCurrentGroup();
-        const teams = groupData[currentGroup] ? [...groupData[currentGroup].teams].sort() : [];
-        const teamDatalistHTML = teams.map(t => `<option value="${t}"></option>`).join('');
-        document.getElementById('teams-datalist').innerHTML = teamDatalistHTML;
-    }
-
-    function getCurrentGroup() { return document.querySelector('#group-filter-buttons button.active').dataset.group; }
-    
-    function getTeamSelectOptionsHTMLForCurrentGroup(selectedTeam = '') {
-        const currentGroup = getCurrentGroup();
-        const teams = groupData[currentGroup] ? [...groupData[currentGroup].teams].sort() : [];
-        return '<option value="">选择队伍</option>' + teams.map(t => `<option value="${t}" ${t === selectedTeam ? 'selected' : ''}>${t}</option>`).join('');
-    }
-
-    function setupGroupFilters() {
-        const groupFilterButtons = document.getElementById('group-filter-buttons');
-        groupFilterButtons.addEventListener('click', async (e) => {
-            if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
-                groupFilterButtons.querySelector('.active').classList.remove('active'); e.target.classList.add('active');
-                const newGroup = e.target.dataset.group;
-                updateTeamDatalist(); loadIdsData(newGroup);
-                document.getElementById('matches-form-container').innerHTML = ''; document.getElementById('edit-match-form-container').innerHTML = ''; document.getElementById('update-match').style.display = 'none';
-                await loadScheduleForGroup(newGroup); await loadMatchesForEditing(newGroup);
-            }
-        });
-    }
-
-    function setupTabs() {
-        const tabFilters = document.getElementById('tab-filters');
-        const tabContents = document.querySelectorAll('.tab-content');
-        tabFilters.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
-                tabFilters.querySelector('.active').classList.remove('active'); e.target.classList.add('active');
-                const tabId = e.target.dataset.tab;
-                tabContents.forEach(content => { content.classList.toggle('active', content.id === tabId); });
-            }
-        });
-    }
-
-    const stageOptions = `<option value="小组赛">小组赛</option><option value="淘汰赛">淘汰赛</option><option value="决赛">决赛</option>`;
-    const characterOptions = ['幻棱','钛狐','维斯','暮蝶','零','禁灭','迷核','K/O','壹决','不死鸟','捷风','蝰蛇','雷兹','炼狱','猎枭','奇乐','芮娜','铁臂','贤者','幽影','尚勃勒','斯凯','霓虹','夜露','海神','星礈','盖可','钢锁','黑梦'].map(c => `<option value="${c}">${c}</option>`).join('');
-    const mapOptions = ['源工重镇', '隐世修所', '霓虹町', '亚海悬城', '幽邃地库', '森寒冬港', '微风岛屿', '莲华古城', '日落之城', '深海明珠','裂变峡谷', '盐海矿镇', '天枢云阙'].map(m => `<option value="${m}">${m}</option>`).join('');
-    
-    const rowTemplates = {
-        'matches-table-body': (isEditMode = false, data = {}) => {
-            const recordDiv = document.createElement('div'); recordDiv.className = 'match-record';
-            let commonInputs = `
-                <div style="overflow-x:auto;"><table style="width:100%; margin-bottom:15px;">
-                    <tr>
-                        <td><strong>赛段:</strong> <select data-col="stage">${stageOptions}</select></td>
-                        <td><strong>日期:</strong> <input type="date" data-col="match_date"></td>
-                        <td><strong>地图:</strong> <select data-col="map">${mapOptions}</select></td>
-                        <td><strong>比分:</strong> <input type="text" data-col="score" placeholder="eg: 13:9"></td>
-                    </tr>
-                </table></div>`;
-            let teamA_Inputs = createTeamTable('A', isEditMode ? data.team_a : '');
-            let teamB_Inputs = createTeamTable('B', isEditMode ? data.team_b : '');
-            
-            recordDiv.innerHTML = commonInputs + teamA_Inputs + teamB_Inputs;
-
-            if (!isEditMode) {
-                const deleteBtn = document.createElement('button'); deleteBtn.textContent = '删 除 该 记 录'; deleteBtn.className = 'delete-row-btn'; deleteBtn.onclick = () => recordDiv.remove();
-                const deleteContainer = document.createElement('div'); deleteContainer.style.textAlign = 'right'; deleteContainer.style.marginTop = '10px'; deleteContainer.appendChild(deleteBtn);
-                recordDiv.appendChild(deleteContainer);
-            }
-            if (isEditMode) {
-                recordDiv.querySelector('[data-col="stage"]').value = data.stage || '小组赛';
-                recordDiv.querySelector('[data-col="match_date"]').value = data.match_date || '';
-                recordDiv.querySelector('[data-col="map"]').value = data.map || '源工重镇';
-                recordDiv.querySelector('[data-col="score"]').value = data.score || '';
-
-                ['a', 'b'].forEach(teamLabel => {
-                    updateDatalists(recordDiv.querySelector(`table:has([data-col="team_${teamLabel}"])`), teamLabel, data[`team_${teamLabel}`]);
-                    for (let i = 1; i <= 5; i++) {
-                        const prefix = `team_${teamLabel}_player${i}`;
-                        const pId = data[`${prefix}_id`] || '';
-                        recordDiv.querySelector(`[data-col="${prefix}_id"]`).value = pId;
-                        
-                        // 从数据匹配姓名
-                        const pName = allPlayersData.find(p => p.id === pId)?.name || '';
-                        recordDiv.querySelector(`[data-col="${prefix}_name"]`).value = pName;
-
-                        recordDiv.querySelector(`[data-col="${prefix}_ch"]`).value = data[`${prefix}_ch`] || '幻棱';
-                        const statsData = data[`${prefix}_data`];
-                        if(statsData) {
-                            const [acs, k, d, a] = String(statsData).split('/');
-                            recordDiv.querySelector(`[data-col="${prefix}_acs"]`).value = acs || '';
-                            recordDiv.querySelector(`[data-col="${prefix}_k"]`).value = k || '';
-                            recordDiv.querySelector(`[data-col="${prefix}_d"]`).value = d || '';
-                            recordDiv.querySelector(`[data-col="${prefix}_a"]`).value = a || '';
-                        }
-                    }
-                });
-            }
-            return recordDiv;
-        },
-        'ids-table-body': (isNew = true, data = { id: '', name: '', team: '', image: '', honor: '' }) => {
-            const tr = document.createElement('tr'); tr.dataset.isNew = isNew;
-            tr.innerHTML = `
-                <td><input type="text" data-col="name" value="${data.name || ''}" ${!isNew ? 'readonly' : ''}></td>
-                <td><input type="text" data-col="id" value="${data.id || ''}"></td>
-                <td><input type="text" data-col="team" value="${data.team || ''}" list="teams-datalist"></td>
-                <td><input type="text" data-col="image" value="${data.image || ''}"></td>
-                <td><input type="text" data-col="honor" value="${data.honor || ''}"></td>
-                <td class="actions"><button class="delete-row-btn" onclick="handleDeleteId(this)">删 除</button></td>`;
-            return tr;
-        }
-    };
-    
-    function createTeamTable(teamLabel, selectedTeam) {
-        const teamKey = `team_${teamLabel.toLowerCase()}`; 
-        const uid = Math.random().toString(36).substring(2, 9);
-        const nameDatalistId = `team-${teamLabel.toLowerCase()}-names-${uid}`;
-        const idDatalistId = `team-${teamLabel.toLowerCase()}-ids-${uid}`;
-        
-        return `<div style="overflow-x:auto;"><table style="width:100%; margin-bottom: 15px;">
-            <thead><tr><th>队伍 ${teamLabel}</th><th>选手姓名</th><th>选手 ID</th><th>角色</th><th>ACS</th><th>K</th><th>D</th><th>A</th></tr></thead>
-            <tbody><tr><td rowspan="5" style="vertical-align: middle;"><select data-col="${teamKey}" class="team-selector">${getTeamSelectOptionsHTMLForCurrentGroup(selectedTeam)}</select></td>
-                    ${Array(5).fill(0).map((_, i) => `
-                        ${i > 0 ? '<tr>' : ''}
-                        <td><input type="text" data-col="${teamKey}_player${i+1}_name" placeholder="姓名/选择" list="${nameDatalistId}" class="player-name-input"></td>
-                        <td><input type="text" data-col="${teamKey}_player${i+1}_id" placeholder="ID/选择" list="${idDatalistId}" class="player-id-input"></td>
-                        <td><select data-col="${teamKey}_player${i+1}_ch">${characterOptions}</select></td>
-                        <td><input type="number" data-col="${teamKey}_player${i+1}_acs" placeholder="ACS"></td>
-                        <td><input type="number" data-col="${teamKey}_player${i+1}_k" placeholder="K"></td>
-                        <td><input type="number" data-col="${teamKey}_player${i+1}_d" placeholder="D"></td>
-                        <td><input type="number" data-col="${teamKey}_player${i+1}_a" placeholder="A"></td>
-                        ${i > 0 ? '</tr>' : ''}`).join('')}
-                </tr></tbody></table>
-                <datalist id="${nameDatalistId}"></datalist>
-                <datalist id="${idDatalistId}"></datalist>
-            </div>`;
-    }
-    
-    // 更新指定表格内的 datalists
-    function updateDatalists(table, teamLabel, selectedTeam) {
-        if(!table) return;
-        const currentGroup = getCurrentGroup();
-        const roster = groupData[currentGroup]?.rosters[selectedTeam] || [];
-        
-        const firstInput = table.querySelector(`input[data-col="team_${teamLabel.toLowerCase()}_player1_name"]`);
-        if (!firstInput) return;
-        
-        const nameListId = firstInput.getAttribute('list');
-        const idListId = table.querySelector(`input[data-col="team_${teamLabel.toLowerCase()}_player1_id"]`).getAttribute('list');
-        
-        const nameDatalist = document.getElementById(nameListId);
-        const idDatalist = document.getElementById(idListId);
-        
-        if (nameDatalist) nameDatalist.innerHTML = roster.map(p => `<option value="${p.name}"></option>`).join('');
-        if (idDatalist) idDatalist.innerHTML = roster.map(p => `<option value="${p.id}"></option>`).join('');
-    }
-
-    function handleTeamChange(e) {
-        if (e.target.classList.contains('team-selector')) {
-            const selectedTeam = e.target.value; 
-            const teamLabel = e.target.dataset.col === 'team_a' ? 'a' : 'b';
-            const table = e.target.closest('table');
-            
-            updateDatalists(table, teamLabel, selectedTeam);
-            
-            const currentGroup = getCurrentGroup();
-            const roster = groupData[currentGroup]?.rosters[selectedTeam] || [];
-            for(let i = 1; i <= 5; i++) {
-                const nameInput = table.querySelector(`input[data-col="team_${teamLabel}_player${i}_name"]`);
-                const idInput = table.querySelector(`input[data-col="team_${teamLabel}_player${i}_id"]`);
-                if(nameInput) nameInput.value = roster[i-1] ? roster[i-1].name : '';
-                if(idInput) idInput.value = roster[i-1] ? roster[i-1].id : '';
-            }
-        }
-    }
-    document.getElementById('matches-form-container').addEventListener('change', handleTeamChange);
-    document.getElementById('edit-match-form-container').addEventListener('change', handleTeamChange);
-
-    // 监听输入，实现姓名和ID的联动带入
-    function handlePlayerInputLinkage(e) {
-        if (e.target.classList.contains('player-name-input')) {
-            const name = e.target.value.trim();
-            const tr = e.target.closest('tr');
-            const idInput = tr.querySelector('.player-id-input');
-            if (name === '') {
-                idInput.value = '';
-            } else {
-                const player = allPlayersData.find(p => p.name === name);
-                if (player && player.id) {
-                    idInput.value = player.id;
-                }
-            }
-        } else if (e.target.classList.contains('player-id-input')) {
-            const id = e.target.value.trim();
-            const tr = e.target.closest('tr');
-            const nameInput = tr.querySelector('.player-name-input');
-            if (id !== '') {
-                const player = allPlayersData.find(p => p.id === id);
-                if (player && player.name) {
-                    nameInput.value = player.name;
-                }
-            }
-        }
-    }
-    document.getElementById('matches-form-container').addEventListener('input', handlePlayerInputLinkage);
-    document.getElementById('edit-match-form-container').addEventListener('input', handlePlayerInputLinkage);
-
-    function setupDynamicRows() {
-        document.querySelectorAll('.add-row-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tableId = btn.dataset.table; let container;
-                if (tableId === 'matches-table-body') {
-                    container = document.getElementById('matches-form-container'); 
-                    // 点击后默认生成3局空表格
-                    for(let i = 0; i < 3; i++) {
-                        container.appendChild(rowTemplates['matches-table-body']());
-                    }
-                } else {
-                    container = document.getElementById(tableId); container.appendChild(rowTemplates[tableId]());
-                }
-            });
-        });
-    }
-
-    // 提取表单内所有原生数据（包含name用于校验）
-    function getRawMatchDataFromContainer(containerId) {
-        const container = document.getElementById(containerId);
-        const rows = container.querySelectorAll('.match-record');
-        const data = []; const selectedGroup = getCurrentGroup();
-
-        rows.forEach(row => {
-            const rowData = {}; rowData.group = selectedGroup;
-            row.querySelectorAll('input, select').forEach(input => {
-                if (input.dataset.col) {
-                    let value = input.value.trim();
-                    if (value !== '' && value !== null) {
-                         if (input.type === 'number' && value !== '') value = parseFloat(value);
-                         rowData[input.dataset.col] = value;
-                    }
-                }
-            });
-            if (Object.keys(rowData).length > 1) data.push(rowData);
-        });
-        return data;
-    }
-
-    // 获取当前赛季的表名
-    function getSeasonTableName(baseName) {
-        return currentSeason === 's5' ? `s5_${baseName}` : `s6_${baseName}`;
-    }
-
-    async function validateMatchData(dataArray, isEdit = false) {
-        let warnings = [];
-        let playerUpdatesMap = new Map();
-        const matchesTable = getSeasonTableName('matches');
-        const playerIdsTable = getSeasonTableName('player_ids');
-
-        for (const row of dataArray) {
-            // 基础校验
-            if (!row.score) warnings.push(`[${row.team_a || '未知'} vs ${row.team_b || '未知'}] 未填写比分。`);
-            if (!row.match_date) warnings.push(`[${row.team_a || '未知'} vs ${row.team_b || '未知'}] 未填写比赛日期/时间。`);
-
-            // 判断同地图同时刻的比赛撞车
-            if (!isEdit && row.team_a && row.team_b && row.match_date && row.map) {
-                const { data: existing } = await supabaseClient.from(matchesTable).select('id')
-                    .eq('team_a', row.team_a)
-                    .eq('team_b', row.team_b)
-                    .eq('match_date', row.match_date)
-                    .eq('map', row.map);
-                if (existing && existing.length > 0) {
-                    warnings.push(`[${row.team_a} vs ${row.team_b}] 同一时间同一地图已存在相同的对局记录！`);
-                }
-            }
-
-            // 队伍数据级校验
-            ['a', 'b'].forEach(teamLabel => {
-                const chars = new Set();
-                const currentTeamName = row[`team_${teamLabel}`] || `队伍${teamLabel.toUpperCase()}`;
-                
-                for (let i = 1; i <= 5; i++) {
-                    const prefix = `team_${teamLabel}_player${i}`;
-                    const acs = row[`${prefix}_acs`];
-                    const ch = row[`${prefix}_ch`];
-                    const id = row[`${prefix}_id`];
-                    const name = row[`${prefix}_name`];
-
-                    if (id || name) {
-                        // 校验ACS为0或未填
-                        if (acs === 0 || acs === '' || acs === null || acs === undefined) {
-                            warnings.push(`[${currentTeamName}] 选手 ${name || id} 的 ACS 为 0 或未填写。`);
-                        }
-                        
-                        // 校验重复英雄
-                        if (ch) {
-                            if (chars.has(ch)) {
-                                warnings.push(`[${currentTeamName}] 出现了重复的英雄: ${ch}。`);
-                            }
-                            chars.add(ch);
-                        }
-
-                        // 判断是否手动更新了选手ID
-                        if (name && id) {
-                            const playerEntry = allPlayersData.find(p => p.name === name);
-                            if (playerEntry && playerEntry.id !== id) {
-                                playerUpdatesMap.set(name, id);
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        return { 
-            warnings, 
-            playerUpdates: Array.from(playerUpdatesMap, ([name, newId]) => ({ name, newId })) 
-        };
-    }
-
-    function formatMatchDataForDB(rawData) {
-        return rawData.map(row => {
-            const newRow = { ...row };
-            ['a', 'b'].forEach(teamLabel => {
-                for (let i = 1; i <= 5; i++) {
-                    const prefix = `team_${teamLabel}_player${i}`;
-                    const acs = newRow[`${prefix}_acs`]; const k = newRow[`${prefix}_k`]; const d = newRow[`${prefix}_d`]; const a = newRow[`${prefix}_a`];
-                    if (newRow[`${prefix}_id`]) { newRow[`${prefix}_data`] = `${acs || 0}/${k || 0}/${d || 0}/${a || 0}`; }
-                    
-                    delete newRow[`${prefix}_acs`]; delete newRow[`${prefix}_k`]; delete newRow[`${prefix}_d`]; delete newRow[`${prefix}_a`];
-                    delete newRow[`${prefix}_name`];
-                }
-            });
-            return newRow;
-        });
-    }
-
-    function triggerConfirmationDialog(warnings, proceedCallback) {
-        if (warnings.length === 0) {
-            proceedCallback();
-            return;
-        }
-        const modal = document.getElementById('validation-modal');
-        const warningDiv = document.getElementById('validation-warnings');
-        warningDiv.innerHTML = warnings.map(w => `• ${w}`).join('<br>');
-        
-        const confirmBtn = document.getElementById('validation-confirm-btn');
-        const cancelBtn = document.getElementById('validation-cancel-btn');
-        
-        const onConfirm = () => { modal.style.display = 'none'; proceedCallback(); cleanUp(); };
-        const onCancel = () => { modal.style.display = 'none'; cleanUp(); };
-        
-        const cleanUp = () => {
-            confirmBtn.removeEventListener('click', onConfirm);
-            cancelBtn.removeEventListener('click', onCancel);
-        };
-
-        confirmBtn.addEventListener('click', onConfirm);
-        cancelBtn.addEventListener('click', onCancel);
-        
-        modal.style.display = 'flex';
-    }
-
-    async function submitMatches() {
-        const rawData = getRawMatchDataFromContainer('matches-form-container');
-        if (rawData.length === 0) return alert('没有要提交的数据。');
-        for (const row of rawData) { if (!row.group || !row.stage || !row.team_a || !row.team_b) return alert('请确保每条记录的赛段和队伍名都已填写！'); }
-        
-        const { warnings, playerUpdates } = await validateMatchData(rawData, false);
-        
-        triggerConfirmationDialog(warnings, async () => {
-            if (playerUpdates.length > 0) {
-                for (const update of playerUpdates) {
-                    await supabaseClient.from(getSeasonTableName('player_ids')).update({ id: update.newId }).eq('name', update.name);
-                    const p = allPlayersData.find(player => player.name === update.name);
-                    if (p) p.id = update.newId; 
-                }
-            }
-
-            const dbData = formatMatchDataForDB(rawData);
-            const { error } = await supabaseClient.from(getSeasonTableName('matches')).insert(dbData);
-            if (error) { alert('提交赛果失败: ' + error.message); console.error(error); }
-            else { alert('赛果提交成功！'); document.getElementById('matches-form-container').innerHTML = ''; await loadMatchesForEditing(getCurrentGroup()); }
-        });
-    }
-    
-    async function updateMatch() {
-        const matchId = document.getElementById('edit-match-selector').value;
-        if (!matchId) return alert('未选择任何比赛进行更新。');
-        const rawData = getRawMatchDataFromContainer('edit-match-form-container');
-        if (rawData.length === 0) return alert('没有要更新的数据。');
-        
-        const { warnings, playerUpdates } = await validateMatchData(rawData, true);
-
-        triggerConfirmationDialog(warnings, async () => {
-            if (playerUpdates.length > 0) {
-                for (const update of playerUpdates) {
-                    await supabaseClient.from(getSeasonTableName('player_ids')).update({ id: update.newId }).eq('name', update.name);
-                    const p = allPlayersData.find(player => player.name === update.name);
-                    if (p) p.id = update.newId;
-                }
-            }
-
-            const dbData = formatMatchDataForDB(rawData);
-            const matchData = dbData[0];
-            const { error } = await supabaseClient.from(getSeasonTableName('matches')).update(matchData).eq('id', matchId);
-            if (error) { alert('更新赛果失败: ' + error.message); console.error(error); } 
-            else { alert('赛果更新成功！'); document.getElementById('edit-match-form-container').innerHTML = ''; document.getElementById('update-match').style.display = 'none'; await loadMatchesForEditing(getCurrentGroup()); }
-        });
-    }
-    
-    async function loadMatchesForEditing(groupName) {
-        const selector = document.getElementById('edit-match-selector');
-        selector.innerHTML = '<option value="">-- 请选择一场比赛进行修改 --</option>';
-        const { data, error } = await supabaseClient.from(getSeasonTableName('matches')).select('*').eq('group', groupName).order('match_date', { ascending: false });
-        if (error) { console.error('加载可编辑比赛列表失败:', error); currentMatchesForEdit = []; } 
-        else {
-            currentMatchesForEdit = data;
-            data.forEach(match => {
-                const option = document.createElement('option'); option.value = match.id;
-                option.textContent = `[${match.match_date}] ${match.team_a} vs ${match.team_b} (${match.map})`;
-                selector.appendChild(option);
-            });
-        }
-    }
-
-    function displayMatchForEditing() {
-        const selector = document.getElementById('edit-match-selector');
-        const matchId = selector.value; const container = document.getElementById('edit-match-form-container'); const updateBtn = document.getElementById('update-match');
-        if (!matchId) { container.innerHTML = ''; updateBtn.style.display = 'none'; return; }
-        const matchData = currentMatchesForEdit.find(m => m.id == matchId);
-        if (matchData) { container.innerHTML = ''; const editForm = rowTemplates['matches-table-body'](true, matchData); container.appendChild(editForm); updateBtn.style.display = 'inline-block'; }
-    }
-    
-    async function submitSchedule() {
-        const matchIdString = document.getElementById('match-selector').value;
-        if (!matchIdString) return alert('请先选择一场比赛。');
-        const matchId = parseInt(matchIdString, 10);
-        const scoreA = document.getElementById('schedule-score-a').value; const scoreB = document.getElementById('schedule-score-b').value; const scheduleDate = document.getElementById('schedule-date').value;
-        const dataToUpdate = {
-            score_a: scoreA === '' ? null : parseInt(scoreA, 10), score_b: scoreB === '' ? null : parseInt(scoreB, 10),
-            match_date: scheduleDate ? new Date(scheduleDate).toISOString() : null, link: document.getElementById('schedule-link').value.trim()
-        };
-        const { data, error } = await supabaseClient.from('s6_match_schedule').update(dataToUpdate).eq('id', matchId).select();
-        if (error) { alert('错误：更新赛程失败！\n' + error.message); console.error(error); } 
-        else if (data && data.length > 0) { alert('赛程比分已成功写入数据库！'); await loadScheduleForGroup(getCurrentGroup()); } 
-        else { alert('更新失败：未找到匹配的比赛记录。请检查数据库的行级安全(RLS)策略是否允许本次更新操作。'); }
-    }
-
-    function loadIdsData(groupName) {
-        const tableBody = document.getElementById('ids-table-body');
-        tableBody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted); text-align:center;">正在加载...</td></tr>';
-        const filteredData = allPlayersData.filter(p => p.group === groupName);
-        tableBody.innerHTML = '';
-        if (filteredData.length === 0) { tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">该组别下没有选手数据。</td></tr>`; } 
-        else { filteredData.forEach(player => tableBody.appendChild(rowTemplates['ids-table-body'](false, player))); }
-    }
-    
-    function getIdsTableData() {
-        const rows = document.querySelectorAll(`#ids-table-body tr`);
-        const data = []; const selectedGroup = getCurrentGroup();
-        rows.forEach(row => {
-            if (row.querySelector('td[colspan="6"]')) return;
-            const rowData = {}; rowData.isNew = row.dataset.isNew === 'true'; rowData.group = selectedGroup;
-            row.querySelectorAll('input, select').forEach(input => {
-                if (input.dataset.col) { let value = input.value.trim(); if (value !== '' && value !== null) rowData[input.dataset.col] = value; }
-            });
-            if (Object.keys(rowData).length > 1) data.push(rowData);
-        });
-        return data;
-    }
-
-    async function updateIds() {
-        const dataToUpsert = getIdsTableData();
-        if (dataToUpsert.length === 0) return alert('没有要更新或添加的数据。');
-        const existingNames = new Set(allPlayersData.map(p => p.name));
-        for (const row of dataToUpsert) {
-            if (row.isNew) {
-                if (!row.name) return alert('新增选手的真名不能为空！');
-                if (existingNames.has(row.name)) return alert(`提交失败：选手真名 "${row.name}" 已存在，不允许添加同名选手。`);
-            }
-        }
-        const dbData = dataToUpsert.map(row => { const { isNew, ...dbRow } = row; return dbRow; });
-        const { error } = await supabaseClient.from(getSeasonTableName('player_ids')).upsert(dbData, { onConflict: 'name' });
-        if (error) { alert('更新失败: ' + error.message); console.error(error); } 
-        else { alert('选手数据更新成功！'); await loadInitialData(); loadIdsData(getCurrentGroup()); }
-    }
-    
-    async function handleDeleteId(deleteBtn) {
-        const tr = deleteBtn.closest('tr');
-        const playerName = tr.querySelector('input[data-col="name"]').value;
-        const isNewRow = tr.dataset.isNew === 'true';
-        if (isNewRow || !playerName) { tr.remove(); return; }
-        if (confirm(`您确定要从数据库中永久删除选手 "${playerName}" 吗？此操作不可撤销。`)) {
-            const { error } = await supabaseClient.from(getSeasonTableName('player_ids')).delete().eq('name', playerName);
-            if (error) { alert(`删除失败: ${error.message}`); } 
-            else { alert(`选手 "${playerName}" 已成功删除。`); tr.remove(); allPlayersData = allPlayersData.filter(p => p.name !== playerName); }
-        }
-    }
-    window.handleDeleteId = handleDeleteId;
 });
 </script>
 </body>

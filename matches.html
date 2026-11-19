@@ -179,7 +179,7 @@
             boundEvent = ev;
             var key = HWLayout.seasonKey(ev);
             currentSeason = key;
-            HWLayout.access(key).then(function (perms) {
+            HWLayout.access(key, ev).then(function (perms) {
                 HWLayout.eventBar({ event: ev, perms: perms });
             });
         }
