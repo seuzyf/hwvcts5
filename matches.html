@@ -12,7 +12,7 @@
     <script src="js/auth.js"></script>
     <script src="js/layout.js"></script>
     <style>
-        .switch-wrap { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ash); }
+        .switch-wrap { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ash); }
         .switch { position: relative; display: inline-block; width: 36px; height: 20px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .switch .slider {
@@ -39,13 +39,13 @@
         }
         .match-card:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.04); }
         .match-card .m-meta {
-            font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+            font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em;
             text-transform: uppercase; color: var(--smoke); width: 150px; flex-shrink: 0;
         }
         .match-card .m-meta .map { color: var(--ash); display: block; }
         .match-card .m-teams {
             flex: 1; display: flex; align-items: center; justify-content: center; gap: 14px;
-            font-size: 14px; font-weight: 500; color: var(--pure-white);
+            font-size: 15px; font-weight: 500; color: var(--pure-white);
         }
         .match-card .m-score {
             font-family: var(--font-mono); font-size: 15px; color: var(--pure-white);
@@ -55,38 +55,38 @@
         .match-card .m-tag { flex-shrink: 0; }
 
         /* Match detail modal table */
-        .cmp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .cmp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .cmp-table th {
-            font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+            font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
             color: var(--smoke); padding: 7px 6px; border-bottom: 1px solid var(--border);
             text-align: center; font-weight: 500;
         }
-        .cmp-table th.team-head { color: var(--pure-white); font-size: 12px; text-transform: none; letter-spacing: 0.02em; }
+        .cmp-table th.team-head { color: var(--pure-white); font-size: 13px; text-transform: none; letter-spacing: 0.02em; }
         .cmp-table td {
             padding: 8px 6px; text-align: center; color: var(--ash);
             border-bottom: 1px solid rgba(54, 55, 57, 0.4);
         }
         .cmp-table td.pid { text-align: left; }
-        .cmp-table .pid-id { font-family: var(--font-mono); font-size: 12px; color: var(--pure-white); }
-        .cmp-table .pid-name { font-size: 11px; color: var(--smoke); }
+        .cmp-table .pid-id { font-family: var(--font-mono); font-size: 13px; color: var(--pure-white); }
+        .cmp-table .pid-name { font-size: 12px; color: var(--smoke); }
         .cmp-table td.sep { width: 14px; background: linear-gradient(90deg, transparent, var(--border), transparent); border: none; }
         .cmp-table .acs { font-family: var(--font-mono); color: var(--pure-white); }
-        .score-line { font-family: var(--font-mono); font-size: 13px; color: var(--mist); display: inline-flex; gap: 6px; align-items: center; margin-left: 14px; }
+        .score-line { font-family: var(--font-mono); font-size: 14px; color: var(--mist); display: inline-flex; gap: 6px; align-items: center; margin-left: 14px; }
         .score-line .win { color: var(--success-green); }
         .score-line .loss { color: #ff8f8f; }
-        .score-line .smap { color: var(--smoke); font-size: 10px; text-transform: uppercase; }
+        .score-line .smap { color: var(--smoke); font-size: 11px; text-transform: uppercase; }
 
         .roster-list { list-style: none; margin: 0; padding: 0; }
         .roster-list li {
             display: flex; align-items: center; gap: 10px;
             padding: 10px 4px; border-bottom: 1px solid rgba(54, 55, 57, 0.5);
-            font-size: 14px;
+            font-size: 15px;
         }
         .roster-list li:last-child { border-bottom: none; }
         .roster-list .r-name { font-weight: 500; color: var(--pure-white); }
-        .roster-list .r-id { font-family: var(--font-mono); font-size: 12px; color: var(--smoke); }
+        .roster-list .r-id { font-family: var(--font-mono); font-size: 13px; color: var(--smoke); }
         .sub-label {
-            margin-left: auto; font-family: var(--font-mono); font-size: 10px;
+            margin-left: auto; font-family: var(--font-mono); font-size: 11px;
             padding: 2px 8px; border-radius: var(--r-badge);
             background: var(--graphite); color: var(--ash);
         }
@@ -538,7 +538,7 @@
             var rosterHTML =
                 '<span class="eyebrow">Roster</span>' +
                 '<h3 class="modal-title" style="margin:8px 0 16px;">' + esc(teamName) +
-                ' <span class="smoke" style="font-size:13px; font-weight:400;">(' + esc(groupName) + ')</span></h3>' +
+                ' <span class="smoke" style="font-size: 14px; font-weight:400;">(' + esc(groupName) + ')</span></h3>' +
                 '<ul class="roster-list">' +
                 (finalRoster.length > 0 ? finalRoster.map(function (player) {
                     return '<li><span class="r-name">' + esc(player.name) + '</span>' +

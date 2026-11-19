@@ -86,13 +86,17 @@ create table if not exists public.events (
     reg_deadline  timestamptz,                   -- 报名截止
     max_slots     integer,                       -- 名额上限（空 = 不限）
     venue         text default '',               -- 线上房间号 / 平台说明
-    cover_emoji   text default '🏆',             -- 卡片封面图标
+    cover_emoji   text default '🏆',             -- 卡片封面图标（无图时回退）
+    cover_image   text default '',               -- 封面图 URL（Storage: event-covers，管理员上传）
     created_by    text default 'admin',
     created_at    timestamptz not null default now(),
     updated_at    timestamptz not null default now()
 );
 
 comment on table public.events is '赛事/活动数据（与报名信息完全分离）';
+
+-- 幂等补列：已有项目重跑本文件时自动加上封面图列
+alter table public.events add column if not exists cover_image text default '';
 
 -- ---------------------------------------------------------------------
 -- 3. 报名信息表（只存“谁报了什么”，赛事详情一律回查 events）
@@ -200,6 +204,18 @@ from (values
 ) as v(code, title, event_type, season, status, description, rules, format,
        start_time, end_time, reg_deadline, max_slots, venue, cover_emoji)
 where not exists (select 1 from public.events e where e.title = v.title);
+
+-- ---------------------------------------------------------------------
+-- 6. 活动封面图存储桶（公开读；站点既有宽松模型，管理员在活动页上传）
+-- ---------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('event-covers', 'event-covers', true)
+on conflict (id) do nothing;
+
+drop policy if exists "event_covers_all" on storage.objects;
+create policy "event_covers_all" on storage.objects for all
+    using (bucket_id = 'event-covers')
+    with check (bucket_id = 'event-covers');
 
 -- ---------------------------------------------------------------------
 -- 完成 ✓

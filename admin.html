@@ -51,24 +51,24 @@
         .container { width: 95%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10;}
         
         .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
-        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
+        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 15px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
         [data-theme="light"] .title-badge { background: rgba(229, 57, 53, 0.1); }
         .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #9c9c9d, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255,255,255,0.16)); }
         [data-theme="light"] .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
         
         .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
         .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; }
-        .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 14px; font-weight: 500; height: 100%; transition: all 0.3s; }
+        .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 15px; font-weight: 500; height: 100%; transition: all 0.3s; }
         .filter-group button:hover { opacity: 1; color: var(--primary-color); }
         .filter-group button.active { background-color: rgba(255,255,255,0.08); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
         [data-theme="light"] .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
         
-        .nav-button { height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 14px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; }
+        .nav-button { height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 15px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; }
         [data-theme="light"] .nav-button { background: rgba(229, 57, 53, 0.05); }
         .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
 
         .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
-        #theme-text { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
+        #theme-text { font-size: 13px; color: var(--text-muted); letter-spacing: 1px; }
         .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
         .theme-switch input { display:none; }
         .slider { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
@@ -85,13 +85,13 @@
         .data-section::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
         .data-section h3 { margin-top: 0; color: var(--primary-color); border-bottom: 1px solid var(--border-highlight); padding-bottom: 15px; font-weight: 900; letter-spacing: 2px; font-size: 20px; }
 
-        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 15px; }
         th, td { padding: 12px 5px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
         [data-theme="light"] th, [data-theme="light"] td { border-bottom: 1px solid rgba(0,0,0,0.05); }
         thead th { background-color: transparent; color: var(--text-muted); font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--border-highlight); }
         tbody tr:hover { background-color: rgba(255,255,255,0.05); }
         
-        input, select { height: var(--control-height); padding: 0 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; box-sizing: border-box; font-family: 'Noto Sans SC'; font-size: 14px; outline: none; transition: border-color 0.3s; width: 100%; min-width: 60px; }
+        input, select { height: var(--control-height); padding: 0 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; box-sizing: border-box; font-family: 'Noto Sans SC'; font-size: 15px; outline: none; transition: border-color 0.3s; width: 100%; min-width: 60px; }
         [data-theme="light"] input, [data-theme="light"] select { background: #fff; }
         input:focus, select:focus { border-color: var(--primary-color); }
         input[readonly] { background-color: rgba(0,0,0,0.5); opacity: 0.6; cursor: not-allowed; }
@@ -105,16 +105,16 @@
         
         .add-row-btn { margin-bottom: 20px; border: 1px solid var(--border-highlight); background: rgba(255,255,255,0.07); color: var(--primary-color); }
         .add-row-btn:hover { background: var(--primary-color); color: white; }
-        .delete-row-btn { background-color: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 12px; height: 32px; padding: 0 15px; }
+        .delete-row-btn { background-color: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 13px; height: 32px; padding: 0 15px; }
         .delete-row-btn:hover { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
         
         /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 18px; box-sizing: border-box; }
         .modal-content { position: relative; background: var(--ink); border: none; border-radius: var(--r-card-lg); padding: 28px; box-shadow: var(--panel-shadow); text-align: left; width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; box-sizing: border-box; }
         .modal-content h2 { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; }
-        .modal-content input { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--pure-white); padding: 0 12px; margin: 10px 0 16px; box-sizing: border-box; outline: none; font-size: 14px; transition: border-color 0.15s; }
+        .modal-content input { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--pure-white); padding: 0 12px; margin: 10px 0 16px; box-sizing: border-box; outline: none; font-size: 15px; transition: border-color 0.15s; }
         .modal-content input:focus { border-color: var(--smoke); }
-        .modal-content button:not(.modal-close) { background: var(--mist); color: var(--iron); border: none; height: 34px; padding: 0 16px; border-radius: 8px; font-weight: 500; font-size: 13px; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .modal-content button:not(.modal-close) { background: var(--mist); color: var(--iron); border: none; height: 34px; padding: 0 16px; border-radius: 8px; font-weight: 500; font-size: 14px; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
         .modal-content button:not(.modal-close):hover { background: var(--pure-white); color: var(--void-black); }
         [data-theme="light"] .modal-backdrop { background: rgba(16, 17, 19, 0.42); }
         [data-theme="light"] .modal-content input { background: rgba(0,0,0,0.03); color: #101113; }
@@ -125,18 +125,18 @@
         [data-theme="light"] .match-record { background: rgba(255,255,255,0.5); }
         .match-record::after { content:''; position:absolute; left:-1px; top:0; width:4px; height:100%; background:var(--primary-color); border-radius: 6px 0 0 6px; }
 
-        .warning-text { color: #9c9c9d; text-align: left; font-size: 14px; margin-bottom: 25px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.16); max-height: 200px; overflow-y: auto; line-height: 1.6; }
+        .warning-text { color: #9c9c9d; text-align: left; font-size: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.16); max-height: 200px; overflow-y: auto; line-height: 1.6; }
         [data-theme="light"] .warning-text { background: rgba(255,255,255,0.8); }
         body { padding-top: 80px; }
 
         /* 活动管理行（管理员枢纽） */
         .adm-ev-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(0,0,0,0.15); margin-bottom: 10px; }
         .adm-ev-main { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
-        .adm-ev-title { color: var(--text-color); font-weight: 600; font-size: 14px; }
-        .adm-ev-sub { font-family: var(--font-mono, monospace); font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
+        .adm-ev-title { color: var(--text-color); font-weight: 600; font-size: 15px; }
+        .adm-ev-sub { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em; }
         #admin-tools-label { display: flex; align-items: baseline; gap: 10px; margin: 36px 0 4px; }
         #admin-tools-label h2 { margin: 0; font-size: 18px; font-weight: 500; color: var(--text-color); }
-        #admin-tools-label span { font-family: var(--font-mono, monospace); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+        #admin-tools-label span { font-family: var(--font-mono, monospace); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
     
         /* ── light adjustments (data-theme) ── */
         [data-theme="light"] tbody tr:hover { background-color: rgba(0, 0, 0, 0.04); }
@@ -194,7 +194,7 @@
                 <div>
                     <span class="eyebrow">Account</span>
                     <h2 class="section-title" style="margin-top:8px;">登录后管理个人信息</h2>
-                    <p class="muted" style="font-size:14px; margin:0; max-width:520px;">普通成员可在此修改昵称、游戏 ID、简介与密码；管理员账号可举办与管理活动、维护赛果 / 赛程 / 成员数据。</p>
+                    <p class="muted" style="font-size: 15px; margin:0; max-width:520px;">普通成员可在此修改昵称、游戏 ID、简介与密码；管理员账号可举办与管理活动、维护赛果 / 赛程 / 成员数据。</p>
                 </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <button class="btn btn-primary" id="guest-login" type="button">登录 / 注册</button>
@@ -218,7 +218,7 @@
                     <div class="modal-actions">
                         <button class="btn btn-primary" id="pv-save" type="button">保存资料</button>
                     </div>
-                    <p class="smoke" id="pv-status" style="font-size:12px; min-height:16px; margin:8px 0 0;"></p>
+                    <p class="smoke" id="pv-status" style="font-size: 13px; min-height:16px; margin:8px 0 0;"></p>
                 </div>
                 <div class="card">
                     <span class="eyebrow">Security</span>
@@ -267,17 +267,17 @@
                 <a class="card card-hover" href="draft.html" style="text-decoration:none; display:block;">
                     <span class="eyebrow">Draft</span>
                     <div style="font-size:15px; font-weight:500; color:var(--text-color); margin-top:8px;">分队系统</div>
-                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">表格分队 / 随机抽取</div>
+                    <div style="font-size: 13px; color:var(--text-muted); margin-top:2px;">表格分队 / 随机抽取</div>
                 </a>
                 <a class="card card-hover" href="schedule.html" style="text-decoration:none; display:block;">
                     <span class="eyebrow">Schedule</span>
                     <div style="font-size:15px; font-weight:500; color:var(--text-color); margin-top:8px;">赛程中心</div>
-                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">对阵编排与随机生成</div>
+                    <div style="font-size: 13px; color:var(--text-muted); margin-top:2px;">对阵编排与随机生成</div>
                 </a>
                 <a class="card card-hover" href="summary.html" style="text-decoration:none; display:block;">
                     <span class="eyebrow">Stats</span>
                     <div style="font-size:15px; font-weight:500; color:var(--text-color); margin-top:8px;">数据汇总</div>
-                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">选手数据与多维对比</div>
+                    <div style="font-size: 13px; color:var(--text-muted); margin-top:2px;">选手数据与多维对比</div>
                 </a>
             </div>
         </section>
@@ -496,8 +496,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 host.innerHTML = rows.map(function (ev) {
+                    var thumb = ev.cover_image
+                        ? '<span class="icon-circle" style="width:36px;height:36px;font-size:16px;padding:0;overflow:hidden;"><img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></span>'
+                        : '<span class="icon-circle" style="width:36px;height:36px;font-size:16px;">' + esc(ev.cover_emoji || '🏆') + '</span>';
                     return '<div class="adm-ev-row">' +
-                        '<span class="icon-circle" style="width:36px;height:36px;font-size:16px;">' + esc(ev.cover_emoji || '🏆') + '</span>' +
+                        thumb +
                         '<span class="adm-ev-main">' +
                         '  <span class="adm-ev-title">' + esc(ev.title) + '</span>' +
                         '  <span class="adm-ev-sub">' + esc(String(ev.season || 'S6').toUpperCase()) + ' · ' + esc(ev.event_type || 'tournament') +

@@ -20,7 +20,7 @@
             border-bottom: 2px solid transparent;
             margin-bottom: -1px;
             color: var(--ash);
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 500;
             cursor: pointer;
             transition: color 0.15s ease, border-color 0.15s ease;
@@ -30,38 +30,79 @@
         .tab-badge {
             display: inline-block; min-width: 17px; padding: 0 5px; margin-left: 6px;
             border-radius: 9px; background: var(--graphite); color: var(--mist);
-            font-family: var(--font-mono); font-size: 10px; line-height: 17px; text-align: center;
+            font-family: var(--font-mono); font-size: 11px; line-height: 17px; text-align: center;
         }
 
-        .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; }
+        /* 小红书式错位信息流（CSS columns 瀑布流 + 混合比例封面） */
+        .events-grid { column-count: 3; column-gap: 16px; }
+        @media (max-width: 1080px) { .events-grid { column-count: 2; } }
+        @media (max-width: 620px) { .events-grid { column-count: 1; } }
 
         .event-card {
-            display: flex; flex-direction: column; gap: 10px;
-            padding: 22px;
+            display: inline-block; width: 100%;
+            break-inside: avoid; -webkit-column-break-inside: avoid;
+            margin: 0 0 16px;
             background: var(--ink);
             border-radius: var(--r-card);
             box-shadow: var(--key-shadow);
             cursor: pointer;
+            overflow: hidden;
             transition: box-shadow 0.2s ease, transform 0.2s ease;
         }
         .event-card:hover { box-shadow: var(--key-shadow-hover); transform: translateY(-3px); }
-        .ev-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-        .ev-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-        .ev-title { margin: 0; font-size: 17px; font-weight: 500; color: var(--pure-white); letter-spacing: 0.2px; }
+
+        .ev-cover { position: relative; width: 100%; overflow: hidden; }
+        .ev-cover.r34 { aspect-ratio: 3 / 4; }
+        .ev-cover.r11 { aspect-ratio: 1 / 1; }
+        .ev-cover.r43 { aspect-ratio: 4 / 3; }
+        .ev-cover img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.35s ease; }
+        .event-card:hover .ev-cover img { transform: scale(1.05); }
+        .ev-cover .ev-emoji-fb {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 56px;
+            background:
+                radial-gradient(120% 90% at 20% 0%, rgba(255, 99, 99, 0.16), transparent 55%),
+                linear-gradient(150deg, var(--graphite), var(--obsidian));
+        }
+        .ev-cover .ev-cover-tags {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; gap: 6px; flex-wrap: wrap; z-index: 1;
+        }
+        .ev-cover .ev-cover-tags .badge { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+        .ev-body { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 16px; }
+        .ev-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--pure-white); letter-spacing: 0.2px; line-height: 1.4; }
         .ev-desc {
-            font-size: 13px; color: var(--ash); line-height: 1.55; flex: 1; margin: 0;
+            font-size: 14px; color: var(--ash); line-height: 1.6; margin: 0;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
-        .ev-meta { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--smoke); }
+        .ev-meta { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--smoke); }
         .ev-foot {
             display: flex; align-items: center; gap: 14px;
-            padding-top: 12px; border-top: 1px solid rgba(54, 55, 57, 0.6);
+            padding-top: 10px; border-top: 1px solid rgba(54, 55, 57, 0.6);
         }
         .slot-bar { flex: 1; }
-        .slot-text { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em; color: var(--smoke); margin-bottom: 5px; text-transform: uppercase; }
+        .slot-text { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--smoke); margin-bottom: 5px; text-transform: uppercase; }
         .slot-track { height: 4px; background: var(--obsidian); border-radius: 2px; overflow: hidden; }
         .slot-fill { height: 100%; background: var(--mist); border-radius: 2px; transition: width 0.4s ease; }
         .slot-fill.full { background: var(--coral-pulse); }
+
+        /* 详情弹窗封面横幅 */
+        .detail-cover { margin: -28px -28px 16px; overflow: hidden; border-radius: var(--r-card-lg) var(--r-card-lg) 0 0; }
+        .detail-cover img { width: 100%; height: 190px; object-fit: cover; display: block; }
+
+        /* 活动空间 tiles（工作区：图标 + 文字 + 权限徽章留白） */
+        #ev-workspace { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+        #ev-workspace .tile {
+            display: flex; align-items: center; gap: 10px;
+            min-width: 130px; padding: 10px 14px;
+            background: var(--ink); border-radius: var(--r-card); box-shadow: var(--key-shadow);
+            text-decoration: none; color: var(--mist);
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        #ev-workspace .tile:hover { transform: translateY(-2px); box-shadow: var(--key-shadow-hover); }
+        #ev-workspace .t-name { font-size: 15px; font-weight: 600; color: var(--pure-white); }
+        #ev-workspace .badge { align-self: center; margin-left: 4px; }
 
         /* Mine list */
         .mine-list { display: flex; flex-direction: column; gap: 10px; }
@@ -74,16 +115,16 @@
         }
         .mine-info { flex: 1; min-width: 200px; }
         .mine-info .t { font-size: 15px; font-weight: 500; color: var(--pure-white); }
-        .mine-info .s { font-size: 12px; color: var(--smoke); margin-top: 3px; }
+        .mine-info .s { font-size: 13px; color: var(--smoke); margin-top: 3px; }
         .mine-ops { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
         /* Detail modal bits */
         .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 16px 0; }
         .meta-cell { background: var(--obsidian); border: 1px solid var(--border); border-radius: var(--r-btn); padding: 9px 11px; }
-        .meta-cell .k { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--smoke); }
-        .meta-cell .v { font-size: 13px; font-weight: 500; color: var(--mist); margin-top: 3px; }
+        .meta-cell .k { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--smoke); }
+        .meta-cell .v { font-size: 14px; font-weight: 500; color: var(--mist); margin-top: 3px; }
         .desc-block {
-            font-size: 13px; color: var(--ash); white-space: pre-line; line-height: 1.7;
+            font-size: 14px; color: var(--ash); white-space: pre-line; line-height: 1.7;
             background: var(--obsidian); border: 1px solid var(--border);
             border-radius: var(--r-btn); padding: 13px 15px;
         }
@@ -91,13 +132,13 @@
         .roster-list li {
             display: flex; align-items: center; gap: 10px;
             padding: 9px 4px; border-bottom: 1px solid rgba(54, 55, 57, 0.5);
-            font-size: 13px;
+            font-size: 14px;
         }
         .roster-list li:last-child { border-bottom: none; }
         .roster-list .team { font-weight: 500; color: var(--pure-white); flex: 1; }
-        .roster-list .who { color: var(--smoke); font-size: 12px; }
+        .roster-list .who { color: var(--smoke); font-size: 13px; }
         .mini-btn {
-            font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+            font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em;
             padding: 4px 9px; border-radius: var(--r-badge);
             border: 1px solid var(--border); background: transparent;
             color: var(--ash); cursor: pointer;
@@ -112,14 +153,14 @@
             background: rgba(255, 215, 0, 0.05);
             border: 1px solid rgba(255, 215, 0, 0.25);
             border-radius: var(--r-btn);
-            font-size: 13px; color: var(--ash);
+            font-size: 14px; color: var(--ash);
         }
         .section-label {
-            font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+            font-family: var(--font-mono); font-size: 12px; font-weight: 500;
             letter-spacing: 0.06em; text-transform: uppercase; color: var(--smoke);
             margin: 20px 0 8px;
         }
-        .modal-note { font-family: var(--font-mono); font-size: 10px; color: var(--smoke); text-align: center; margin-top: 16px; letter-spacing: 0.03em; }
+        .modal-note { font-family: var(--font-mono); font-size: 11px; color: var(--smoke); text-align: center; margin-top: 16px; letter-spacing: 0.03em; }
         .admin-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .admin-row .select { width: auto; flex: 1; min-width: 150px; }
     </style>
@@ -230,6 +271,14 @@
                         <textarea class="textarea" id="cf-rules" rows="3" maxlength="400" placeholder="BO3 单败、迟到判负……"></textarea>
                     </div>
                 </div>
+                <div class="form-row">
+                    <div class="full">
+                        <label class="form-label" for="cf-cover">封面图片（选填 · 用作卡片封面）</label>
+                        <input class="input" id="cf-cover" type="file" accept="image/*" style="height:auto; padding:9px 12px;">
+                        <img id="cf-cover-preview" alt="" style="display:none; width:100%; max-height:150px; object-fit:cover; border-radius:10px; margin-top:8px;">
+                        <div style="font-size: 13px; color:var(--smoke); margin-top:6px;">jpg / png / webp，≤ 2MB；不上传则卡片显示封面图标（emoji）</div>
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button class="btn btn-ghost" type="button" data-close="create-modal">取消</button>
                     <button class="btn btn-primary" id="cf-submit" type="submit">创建</button>
@@ -300,12 +349,12 @@
                 if (perms.isCaptain || perms.isAdmin) entries.push(['draft.html?event=' + ev.id, '🪪', '分队']);
                 if (perms.isAdmin) entries.push(['admin.html?event=' + ev.id, '🛠️', '管理']);
                 host.innerHTML = entries.map(function (t) {
-                    return '<a class="tile" style="min-width:120px; padding:12px;" href="' + t[0] + '">' +
+                    return '<a class="tile" href="' + t[0] + '">' +
                         '<span class="icon-circle" style="width:34px;height:34px;font-size:15px;">' + t[1] + '</span>' +
-                        '<span><span class="t-name">' + t[2] + '</span></span></a>';
+                        '<span class="t-name">' + t[2] + '</span></a>';
                 }).join('') +
-                (perms.isAdmin ? '<span class="badge badge-coral" style="align-self:center;">ADMIN</span>'
-                 : perms.isCaptain ? '<span class="badge badge-blue" style="align-self:center;">CAPTAIN</span>' : '');
+                (perms.isAdmin ? '<span class="badge badge-coral">ADMIN</span>'
+                 : perms.isCaptain ? '<span class="badge badge-blue">CAPTAIN</span>' : '');
             }).catch(function () { host.textContent = '加载失败'; });
         }
 
@@ -369,7 +418,7 @@
                 '<div class="card" style="text-align:center; padding:48px 24px;">' +
                 '<span class="eyebrow">Setup Required</span>' +
                 '<h2 style="font-weight:400; color:var(--pure-white); margin:12px 0 10px;">数据库尚未升级</h2>' +
-                '<p class="muted" style="font-size:14px; max-width:540px; margin:0 auto 20px; line-height:1.8;">' +
+                '<p class="muted" style="font-size: 15px; max-width:540px; margin:0 auto 20px; line-height:1.8;">' +
                 '活动大厅依赖新表 <span class="mono" style="color:var(--mist)">events / event_registrations / site_users</span>。<br>' +
                 '请在 Supabase SQL Editor 整段执行 <span class="mono" style="color:var(--mist)">supabase/schema.sql</span> 后刷新。' +
                 '执行前可先使用旧版入口：</p>' +
@@ -408,28 +457,34 @@
                         : '<span class="badge badge-gold">已提交报名</span>';
                 }
 
+                var ratio = ['r34', 'r11', 'r43'][(ev.id || 0) % 3];
+                var coverInner = ev.cover_image
+                    ? '<img src="' + esc(ev.cover_image) + '" alt="" loading="lazy">'
+                    : '<span class="ev-emoji-fb">' + esc(ev.cover_emoji || '🏆') + '</span>';
+                var tags =
+                    '<span class="badge badge-quiet">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + '</span>' +
+                    '<span class="badge ' + (EV_BADGE[ev.status] || '') + '">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
+                    mineBadge;
+
                 return '<article class="event-card" data-id="' + ev.id + '" tabindex="0">' +
-                    '<div class="ev-top">' +
-                    '  <span class="icon-circle">' + esc(ev.cover_emoji || '🏆') + '</span>' +
-                    '  <div class="ev-badges">' +
-                    '    <span class="badge badge-quiet">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + '</span>' +
-                    '    <span class="badge ' + (EV_BADGE[ev.status] || '') + '">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
-                         mineBadge +
-                    '  </div>' +
+                    '<div class="ev-cover ' + ratio + '">' + coverInner +
+                    '  <div class="ev-cover-tags">' + tags + '</div>' +
                     '</div>' +
-                    '<h3 class="ev-title">' + esc(ev.title) + '</h3>' +
-                    '<p class="ev-desc">' + esc(ev.description || '暂无简介') + '</p>' +
-                    '<div class="ev-meta">' +
-                    '  <span>' + fmtTime(ev.start_time) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
+                    '<div class="ev-body">' +
+                    '  <h3 class="ev-title">' + esc(ev.title) + '</h3>' +
+                    '  <p class="ev-desc">' + esc(ev.description || '暂无简介') + '</p>' +
+                    '  <div class="ev-meta">' +
+                    '    <span>' + fmtTime(ev.start_time) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
                     (ev.reg_deadline ? '<span>报名截止 ' + fmtTime(ev.reg_deadline) + '</span>' : '') +
                     (ev.venue ? '<span>' + esc(ev.venue) + '</span>' : '') +
-                    '</div>' +
-                    '<div class="ev-foot">' +
-                    '  <div class="slot-bar">' +
-                    '    <div class="slot-text">' + (slots ? (full ? '名额已满' : regs.length + ' / ' + slots + ' 已报名') : regs.length + ' 已报名 · 不限') + '</div>' +
-                    '    <div class="slot-track"><div class="slot-fill' + (full ? ' full' : '') + '" style="width:' + (slots ? pct : Math.min(100, regs.length * 8)) + '%"></div></div>' +
                     '  </div>' +
-                    '  <span class="btn btn-ghost btn-sm" style="pointer-events:none;">详情</span>' +
+                    '  <div class="ev-foot">' +
+                    '    <div class="slot-bar">' +
+                    '      <div class="slot-text">' + (slots ? (full ? '名额已满' : regs.length + ' / ' + slots + ' 已报名') : regs.length + ' 已报名 · 不限') + '</div>' +
+                    '      <div class="slot-track"><div class="slot-fill' + (full ? ' full' : '') + '" style="width:' + (slots ? pct : Math.min(100, regs.length * 8)) + '%"></div></div>' +
+                    '    </div>' +
+                    '    <span class="btn btn-ghost btn-sm" style="pointer-events:none;">详情</span>' +
+                    '  </div>' +
                     '</div>' +
                 '</article>';
             }).join('') + '</div>';
@@ -563,13 +618,20 @@
                        }).join('') +
                   '  </select>' +
                   '  <button class="btn btn-ghost" id="adm-save-status" type="button">更新活动状态</button>' +
+                  '  <button class="btn btn-ghost" id="adm-cover-btn" type="button">更换封面图</button>' +
+                  (ev.cover_image ? '  <button class="btn btn-ghost" id="adm-cover-clear" type="button">移除封面</button>' : '') +
+                  '  <input type="file" id="adm-cover-file" accept="image/*" style="display:none;">' +
                   '</div>'
                 : '';
 
+            var coverBanner = ev.cover_image
+                ? '<div class="detail-cover"><img src="' + esc(ev.cover_image) + '" alt=""></div>'
+                : '';
             panel.innerHTML =
                 '<button class="modal-close" id="detail-close" type="button">&times;</button>' +
+                coverBanner +
                 '<div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:6px;">' +
-                '  <span class="icon-circle" style="width:52px;height:52px;font-size:24px;">' + esc(ev.cover_emoji || '🏆') + '</span>' +
+                (ev.cover_image ? '' : '  <span class="icon-circle" style="width:52px;height:52px;font-size:24px;">' + esc(ev.cover_emoji || '🏆') + '</span>') +
                 '  <div><span class="eyebrow">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
                 '  <h3 class="modal-title" style="font-size:20px; margin-top:4px;">' + esc(ev.title) + '</h3></div>' +
                 '  <span class="badge ' + (EV_BADGE[ev.status] || '') + '" style="margin-left:auto;">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
@@ -619,6 +681,34 @@
                     .then(function (res) {
                         if (res.error) { alert('更新失败: ' + res.error.message); return; }
                         closeDetail();
+                        refresh();
+                    });
+            });
+
+            /* 管理员：更换 / 移除封面图（Storage: event-covers） */
+            var admCoverBtn = document.getElementById('adm-cover-btn');
+            if (admCoverBtn) {
+                var admCoverFile = document.getElementById('adm-cover-file');
+                admCoverBtn.addEventListener('click', function () { admCoverFile.click(); });
+                admCoverFile.addEventListener('change', function () {
+                    var f = admCoverFile.files && admCoverFile.files[0];
+                    if (!f) return;
+                    if (!validateCover(f)) { admCoverFile.value = ''; return; }
+                    uploadCover(f).then(function (url) {
+                        return HWAuth.getClient().from('events').update({ cover_image: url }).eq('id', ev.id);
+                    }).then(function (res) {
+                        if (res.error) { alert('更新失败: ' + res.error.message); return; }
+                        openDetail(ev.id);
+                        refresh();
+                    }).catch(function (e) { alert('封面上传失败: ' + (e.message || e)); });
+                });
+            }
+            var admCoverClear = document.getElementById('adm-cover-clear');
+            if (admCoverClear) admCoverClear.addEventListener('click', function () {
+                HWAuth.getClient().from('events').update({ cover_image: '' }).eq('id', ev.id)
+                    .then(function (res) {
+                        if (res.error) { alert('更新失败: ' + res.error.message); return; }
+                        openDetail(ev.id);
                         refresh();
                     });
             });
@@ -714,7 +804,41 @@
         });
 
         createBtn.addEventListener('click', function () {
-            requestAdminThen(function () { document.getElementById('create-modal').classList.add('visible'); });
+            requestAdminThen(function () {
+                document.getElementById('create-modal').classList.add('visible');
+                resetCoverField();
+            });
+        });
+
+        /* ---------- 封面图上传（Storage: event-covers，公开读） ---------- */
+        function validateCover(f) {
+            if (!f.type || f.type.indexOf('image/') !== 0) { alert('请选择图片文件（jpg / png / webp…）'); return false; }
+            if (f.size > 2 * 1024 * 1024) { alert('封面图片需 ≤ 2MB'); return false; }
+            return true;
+        }
+        function uploadCover(f) {
+            var sb = HWAuth.getClient();
+            var safe = String(Date.now()) + '-' + String(f.name || 'cover').replace(/[^a-zA-Z0-9._-]/g, '').slice(-40);
+            return sb.storage.from('event-covers').upload('covers/' + safe, f, { contentType: f.type, upsert: false })
+                .then(function (r) {
+                    if (r.error) throw new Error(r.error.message);
+                    return sb.storage.from('event-covers').getPublicUrl(r.data.path).data.publicUrl;
+                });
+        }
+        function resetCoverField() {
+            var fi = document.getElementById('cf-cover');
+            var pv = document.getElementById('cf-cover-preview');
+            if (fi) fi.value = '';
+            if (pv) { pv.removeAttribute('src'); pv.style.display = 'none'; }
+        }
+        document.getElementById('cf-cover').addEventListener('change', function (e) {
+            var f = e.target.files && e.target.files[0];
+            var pv = document.getElementById('cf-cover-preview');
+            if (!f) { resetCoverField(); return; }
+            if (!validateCover(f)) { resetCoverField(); return; }
+            var rd = new FileReader();
+            rd.onload = function () { pv.src = rd.result; pv.style.display = 'block'; };
+            rd.readAsDataURL(f);
         });
 
         document.getElementById('create-form').addEventListener('submit', function (e) {
@@ -735,19 +859,37 @@
                 venue: document.getElementById('cf-venue').value.trim(),
                 description: document.getElementById('cf-desc').value.trim(),
                 rules: document.getElementById('cf-rules').value.trim(),
-                created_by: 'admin'
+                created_by: 'admin',
+                cover_image: ''
             };
             var btn = document.getElementById('cf-submit');
-            btn.disabled = true; btn.textContent = '创建中…';
-            HWAuth.getClient().from('events').insert([row]).then(function (res) {
-                btn.disabled = false; btn.textContent = '创建';
-                if (res.error) { alert('创建失败: ' + res.error.message); return; }
-                document.getElementById('create-modal').classList.remove('visible');
-                document.getElementById('create-form').reset();
-                document.getElementById('cf-season').value = 'S6';
-                document.getElementById('cf-emoji').value = '🏆';
-                refresh();
-            });
+            var coverInput = document.getElementById('cf-cover');
+            var coverFile = coverInput && coverInput.files ? coverInput.files[0] : null;
+            if (coverFile && !validateCover(coverFile)) return;
+            btn.disabled = true;
+            btn.textContent = coverFile ? '上传封面…' : '创建中…';
+            var insertRow = function () {
+                btn.textContent = '创建中…';
+                return HWAuth.getClient().from('events').insert([row]).then(function (res) {
+                    btn.disabled = false; btn.textContent = '创建';
+                    if (res.error) { alert('创建失败: ' + res.error.message); return; }
+                    document.getElementById('create-modal').classList.remove('visible');
+                    document.getElementById('create-form').reset();
+                    document.getElementById('cf-season').value = 'S6';
+                    document.getElementById('cf-emoji').value = '🏆';
+                    resetCoverField();
+                    refresh();
+                });
+            };
+            if (coverFile) {
+                uploadCover(coverFile).then(function (url) {
+                    row.cover_image = url;
+                    return insertRow();
+                }).catch(function (e) {
+                    btn.disabled = false; btn.textContent = '创建';
+                    alert('封面上传失败: ' + (e.message || e));
+                });
+            } else insertRow();
         });
 
         /* ---------- tabs / filters ---------- */
@@ -803,6 +945,7 @@
                 if (openId && /^\d+$/.test(openId)) openDetail(parseInt(openId, 10));
                 if (qp.get('create') === '1' && isAdmin()) {
                     document.getElementById('create-modal').classList.add('visible');
+                    resetCoverField();
                 }
             }).catch(function () {});
         });

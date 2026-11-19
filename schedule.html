@@ -50,18 +50,8 @@
         [data-theme="light"] .particle { background: rgba(229, 57, 53, 0.4); }
         @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
         .container { width: 90%; max-width: 1400px; margin: 0 auto; position: relative; z-index: 10;}
-        .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
-        .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
-        [data-theme="light"] .title-badge { background: rgba(229, 57, 53, 0.1); }
-        .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #9c9c9d, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255,255,255,0.16)); }
-        [data-theme="light"] .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
         .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
-        .filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; }
-        .filter-group button { padding: 0 20px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 14px; font-weight: 500; height: 100%; transition: all 0.3s ease; }
-        .filter-group button:hover { opacity: 1; color: var(--primary-color); }
-        .filter-group button.active { background-color: rgba(255,255,255,0.08); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
-        [data-theme="light"] .filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
-        .nav-button { height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 14px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer; }
+        .nav-button { height: var(--control-height); padding: 0 25px; display: inline-flex; align-items: center; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 15px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer; }
         [data-theme="light"] .nav-button { background: rgba(229, 57, 53, 0.05); }
         .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
         [data-theme="light"] .nav-button:hover { color: var(--primary-color); }
@@ -77,12 +67,12 @@
         .bracket-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 4px; }
         .bracket { display: flex; justify-content: center; gap: 40px; min-width: max-content; padding: 10px; position: relative; }
         .round { display: flex; flex-direction: column; gap: 20px; justify-content: center; flex-shrink: 0; width: 220px; }
-        .round-title { text-align: center; color: var(--primary-color); font-weight: 900; font-size: 14px; margin-bottom: 10px; letter-spacing: 1px; background: rgba(255,255,255,0.07); padding: 5px; border-radius: 4px; border: 1px solid var(--border-color); }
+        .round-title { text-align: center; color: var(--primary-color); font-weight: 900; font-size: 15px; margin-bottom: 10px; letter-spacing: 1px; background: rgba(255,255,255,0.07); padding: 5px; border-radius: 4px; border: 1px solid var(--border-color); }
         .match-card, .result-card { background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.3s; cursor: pointer; }
         [data-theme="light"] .match-card, [data-theme="light"] .result-card { background-color: rgba(255,255,255,0.5); }
         .match-card:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 8px 20px rgba(255,255,255,0.12); }
         .team { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
-        .team-name { font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+        .team-name { font-size: 15px; font-weight: 700; letter-spacing: 1px; }
         .team-score { font-weight: 900; font-size: 16px; color: var(--text-muted); }
         .team.winner .team-name { color: var(--winner-color); }
         .team.winner .team-score { color: var(--winner-color); }
@@ -93,23 +83,17 @@
         .promoted { border-color: var(--winner-color); color: var(--winner-color); background: rgba(129, 199, 132, 0.05); }
         .champion { border-color: #ffd700; color: #ffd700; font-size: 20px; background: rgba(255, 215, 0, 0.1); box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
         .eliminated { border-color: var(--loser-color); color: var(--loser-color); opacity: 0.6; background: rgba(255,255,255,0.05); }
-        .match-date { font-size: 11px; text-align: center; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 1px; }
-        .commentator-info { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.15); letter-spacing: 1px; }
+        .match-date { font-size: 12px; text-align: center; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 1px; }
+        .commentator-info { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.15); letter-spacing: 1px; }
         [data-theme="light"] .commentator-info { border-top-color: rgba(0,0,0,0.15); }
-        .theme-switch-wrapper { position: absolute; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; z-index: 20; }
         
-        .season-filter-group { background-color: var(--card-bg-color); padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; display: inline-flex; height: var(--control-height); align-items: center; margin-right: 15px; }
-        .season-filter-group button { padding: 0 15px; border: none; background-color: transparent; color: var(--text-color); opacity: 0.6; cursor: pointer; border-radius: 4px; font-size: 13px; font-weight: 600; height: 100%; transition: all 0.3s ease; letter-spacing: 1px; }
-        .season-filter-group button:hover { opacity: 1; color: var(--primary-color); }
-        .season-filter-group button.active { background-color: rgba(255,255,255,0.08); color: var(--primary-color); opacity: 1; border: 1px solid var(--border-color); }
-        [data-theme="light"] .season-filter-group button.active { background-color: rgba(229, 57, 53, 0.1); }
         /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 18px; box-sizing: border-box; }
         .modal-content { position: relative; background: var(--ink); border: none; border-radius: var(--r-card-lg); padding: 28px !important; box-shadow: var(--panel-shadow); text-align: left; width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; }
         .modal-content h2 { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
-        .modal-content input { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--pure-white); padding: 0 12px; margin: 10px 0 16px; box-sizing: border-box; outline: none; transition: border-color 0.15s; font-size: 14px; }
+        .modal-content input { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--pure-white); padding: 0 12px; margin: 10px 0 16px; box-sizing: border-box; outline: none; transition: border-color 0.15s; font-size: 15px; }
         .modal-content input:focus { border-color: var(--smoke); }
-        .modal-content button:not(.modal-close) { background: var(--mist); color: var(--iron); border: none; height: 34px; padding: 0 16px; border-radius: 8px; font-weight: 500; font-size: 13px; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .modal-content button:not(.modal-close) { background: var(--mist); color: var(--iron); border: none; height: 34px; padding: 0 16px; border-radius: 8px; font-weight: 500; font-size: 14px; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
         .modal-content button:not(.modal-close):hover { background: var(--pure-white); color: var(--void-black); }
         [data-theme="light"] .modal-backdrop { background: rgba(16, 17, 19, 0.42); }
         [data-theme="light"] .modal-content input { background: rgba(0,0,0,0.03); color: #101113; }
@@ -118,8 +102,8 @@
         .caster-stat-item { margin-bottom: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--border-color); text-align: left; }
         [data-theme="light"] .caster-stat-item { background: rgba(255,255,255,0.6); }
         .caster-stat-header { display: flex; justify-content: space-between; align-items: center; color: var(--primary-color); margin: 0 0 10px 0; font-size: 16px; font-weight: 700; }
-        .caster-stat-list { margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 13px; line-height: 1.8; }
-        .stats-table { width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 15px; font-size: 13px; }
+        .caster-stat-list { margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 14px; line-height: 1.8; }
+        .stats-table { width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 15px; font-size: 14px; }
         .stats-table th { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; color: var(--primary-color); font-weight: 700; }
         [data-theme="light"] .stats-table th { border-bottom-color: rgba(0,0,0,0.1); }
         .stats-table td { padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.05); }
@@ -132,7 +116,7 @@
             position: fixed; bottom: 20px; right: 20px; z-index: 2000;
             background: rgba(129, 199, 132, 0.15); border: 1px solid var(--winner-color);
             color: var(--winner-color); padding: 10px 20px; border-radius: 6px;
-            font-size: 13px; font-weight: 700; letter-spacing: 1px;
+            font-size: 14px; font-weight: 700; letter-spacing: 1px;
             backdrop-filter: blur(8px); display: none; transition: opacity 0.5s;
             max-width: 400px; white-space: pre-line;
         }
@@ -184,11 +168,11 @@
                 <h3 style="font-size: 16px; margin: 0 0 15px 0; color: var(--primary-color);">✍️ 更新比赛信息</h3>
                 <div style="display: flex; gap: 20px;">
                     <div style="flex: 1;">
-                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 5px;">解说席 (多人用逗号或空间分隔)</label>
+                        <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px;">解说席 (多人用逗号或空间分隔)</label>
                         <input type="text" id="modal-input-commentators" placeholder="例如: 解说A, 解说B" style="margin: 0; padding: 10px;">
                     </div>
                     <div style="flex: 1;">
-                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 5px;">视频回放链接</label>
+                        <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px;">视频回放链接</label>
                         <input type="text" id="modal-input-link" placeholder="输入外部跳转链接" style="margin: 0; padding: 10px;">
                     </div>
                 </div>
@@ -201,34 +185,27 @@
     </div>
 
     <div class="container">
-        <div class="main-header-block">
-            <div class="theme-switch-wrapper">
-                <div class="season-filter-group" id="season-filter-buttons">
-                    <button class="active" data-season="s6">S6</button>
-                    <button data-season="s5">S5</button>
-                </div>
+        <header class="page-header">
+            <span class="eyebrow">Schedule</span>
+            <h1 class="page-title">赛程中心</h1>
+            <p class="page-sub">组别与阶段随所选活动的赛季锁定 —— 点击卡片可编辑比分、时间与房间链接。</p>
+        </header>
+
+        <div class="filter-bar" style="flex-wrap: wrap; gap: 10px; margin-bottom: 26px;">
+            <div class="seg" id="group-filters">
+                <button class="active" data-group="传奇组" type="button">传奇组</button>
+                <button data-group="中坚组" type="button">中坚组</button>
+                <button data-group="挑战组" type="button">挑战组</button>
             </div>
-            <div class="title-badge">VALORANT TOURNAMENT</div>
-            <h1>HWVCTS6 赛程中心</h1>
-            <div class="controls-container">
-                <button id="caster-stats-btn" class="nav-button" style="background: rgba(129, 199, 132, 0.08); color: #81c784; border-color: rgba(129, 199, 132, 0.3);">解 说 统 计</button>
+            <div class="seg" id="stage-filters">
+                <button class="active" data-stage="swiss" type="button">小组赛</button>
+                <button data-stage="playoff" type="button">淘汰赛</button>
             </div>
-            <div class="controls-container" style="margin-top: 20px;">
-                <div class="filter-group" id="group-filters">
-                    <button class="active" data-group="传奇组">传奇组</button>
-                    <button data-group="中坚组">中坚组</button>
-                    <button data-group="挑战组">挑战组</button>
-                </div>
-                <div class="filter-group" id="stage-filters">
-                    <button class="active" data-stage="swiss">小组赛</button>
-                    <button data-stage="playoff">淘汰赛</button>
-                </div>
-                <div class="filter-group">
-                    <input type="text" id="seed-input" placeholder="输入随机种子" style="height: calc(var(--control-height) - 12px); border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-color); padding: 0 10px; margin-right: 5px;">
-                    <button id="random-draw-btn">随机生成对战</button>
-                </div>
-                <button id="submit-changes-btn" class="nav-button submit-button" style="display: none;">提 交 赛 程</button>
-            </div>
+            <input class="input" id="seed-input" placeholder="随机种子" style="width: 140px;">
+            <button class="btn btn-ghost" id="random-draw-btn" type="button">随机生成对战</button>
+            <div style="flex: 1"></div>
+            <button id="caster-stats-btn" class="btn btn-ghost" type="button">解说统计</button>
+            <button id="submit-changes-btn" class="btn btn-primary" type="button" style="display: none;">提交赛程</button>
         </div>
 
         <div id="event-bar" hidden></div>
@@ -259,7 +236,6 @@
 
         const groupFilters    = document.getElementById('group-filters');
         const stageFilters    = document.getElementById('stage-filters');
-        const seasonFilterButtons = document.getElementById('season-filter-buttons');
         const swissSection    = document.getElementById('swiss-stage-section');
         const playoffSection  = document.getElementById('playoff-stage-section');
         const randomDrawBtn   = document.getElementById('random-draw-btn');
@@ -1285,26 +1261,13 @@
             playoffSection.style.display = stage === 'playoff' ? 'block' : 'none';
         });
 
-        seasonFilterButtons.addEventListener('click', e => {
-            if (e.target.tagName !== 'BUTTON' || e.target.classList.contains('active')) return;
-            seasonFilterButtons.querySelector('.active').classList.remove('active');
-            e.target.classList.add('active');
-            currentSeason = e.target.dataset.season;
-            loadData(); 
-        });
-
-        /* 活动上下文：赛季随活动锁定，渲染活动栏后再加载 */
+        /* 活动上下文：赛季随活动锁定（无赛季滑块，S5/S6 由活动决定），渲染活动栏后再加载 */
         HWLayout.resolveEvent().then(function (ev) {
             if (!ev) {
                 HWLayout.eventBar({ event: null });
             } else {
                 var key = HWLayout.seasonKey(ev);
                 currentSeason = key;
-                seasonFilterButtons.querySelectorAll('button').forEach(function (b) {
-                    b.classList.toggle('active', b.dataset.season === key);
-                    b.disabled = true;
-                    b.title = '赛季由所选活动决定';
-                });
                 HWLayout.access(key).then(function (perms) {
                     HWLayout.eventBar({ event: ev, perms: perms });
                 });

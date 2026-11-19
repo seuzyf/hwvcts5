@@ -133,13 +133,28 @@ s6_betting_groups` + RPC `check_admin_password`。
   测试账号：`tester/test1234`（成员+队长）、`testadmin/admin1234`（管理员）；竞猜锁定口令 `admin1234`。
 - **Phase 2 验证**（提交前必须全过）：
   ```bash
-  cd .scratch && node test.js     # 13 项：壳/双 Tab 合并/重定向/换壳四页/脚本语法…
+  node .scratch/test.js           # 31 项：壳/导航/事件栏/赛季锁/页面功能/设计·密钥·SQL/本轮新特性…
   ```
   - 全部内联脚本 `node --check` 通过；
   - `python3 -m http.server 8000` 起本地后逐页 curl 200；
   - 被换壳页面不再包含 `theme-toggle` / `createParticles` / 旧红色 `#ff4655`。
+- **Phase 5（本轮 · 视觉与信息流）**：
+  - 活动大厅改小红书式错位信息流：CSS columns 瀑布流（3/2/1 列断点）+ 封面比例
+    3:4 / 1:1 / 4:3 按 `id % 3` 轮换；徽章浮在封面左上，无图回退渐变 + emoji。
+  - 封面图管线：`events.cover_image` 列 + Storage 公开桶 `event-covers` + 策略
+    `event_covers_all`（schema.sql 幂等）；创建表单 `cf-cover` 上传（≤2MB，预览），
+    管理员详情内「更换封面图 / 移除封面」；卡片 / 详情横幅 / 活动栏 / 管理列表均 `<img>`
+    显示并回退 emoji。
+  - schedule / betting 旧页头（title-badge + h1 + 旧工具条）统一为 theme `.page-header`；
+    **解说统计** 移入工具条、betting 用户信息（登录/余额/历史/低保）全部保留；
+    schedule 赛季滑块（S5/S6）删除 —— 赛季由所选活动决定（`currentSeason = key`）。
+  - 概况 tab 不再跳回活动大厅：`openEventOverview()` 当前页浮层（theme modal，
+    内联 opacity/visibility 以兼容各页局部 backdrop CSS），「完整详情」才深链 `?open=`。
+  - 字号整体 +1px（10–14 → 11–15），body 17px / weight 500 / line-height 1.6，
+    nav-link / btn / ev-tab 字重 600。
 - **待你操作**：若尚未执行，请把 `supabase/schema.sql` 在 Supabase SQL Editor 跑一次
-  （活动功能依赖 `events` / `event_registrations` / `site_users`）。
+  （活动功能依赖 `events` / `event_registrations` / `site_users`；
+  **本轮新增** `events.cover_image` 列 + `event-covers` 存储桶 —— 重跑 schema.sql 即幂等补齐）。
 
 ## 8. 功能保留清单
 
