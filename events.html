@@ -163,7 +163,24 @@
         .modal-note { font-family: var(--font-mono); font-size: 11px; color: var(--smoke); text-align: center; margin-top: 16px; letter-spacing: 0.03em; }
         .admin-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .admin-row .select { width: auto; flex: 1; min-width: 150px; }
-    </style>
+    
+        /* 创建活动 · 参赛队伍勾选 */
+        .team-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .team-chips label { cursor: pointer; position: relative; }
+        .team-chips input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .team-chips span {
+            display: inline-flex; align-items: center; padding: 6px 13px;
+            border: 1px solid var(--border); border-radius: 999px;
+            font-size: 13px; color: var(--ash); background: var(--obsidian); transition: 0.15s;
+        }
+        .team-chips label:hover span { border-color: var(--smoke); color: var(--pure-white); }
+        .team-chips input:checked + span {
+            border-color: var(--coral-pulse); color: var(--coral-pulse);
+            background: var(--ember-hush); font-weight: 600;
+        }
+        .team-chips input:focus-visible + span { outline: 2px solid var(--info-blue); outline-offset: 2px; }
+        .team-chips .empty-hint { font-size: 13px; color: var(--smoke); }
+</style>
 </head>
 <body data-page="events">
     <main class="page">
@@ -251,8 +268,28 @@
                         <input class="input" id="cf-deadline" type="datetime-local">
                     </div>
                     <div>
-                        <label class="form-label" for="cf-format">形式（BO1/BO3…）</label>
-                        <input class="input" id="cf-format" maxlength="20" placeholder="BO3">
+                        <label class="form-label" for="cf-format">赛制</label>
+                        <select class="select" id="cf-format">
+                            <option value="单循环 · BO1">单循环 · BO1</option>
+                            <option value="单循环 · BO3" selected>单循环 · BO3</option>
+                            <option value="单循环 · BO5">单循环 · BO5</option>
+                            <option value="双败淘汰 · BO3">双败淘汰 · BO3</option>
+                            <option value="单败淘汰 · BO1">单败淘汰 · BO1</option>
+                            <option value="单败淘汰 · BO3">单败淘汰 · BO3</option>
+                            <option value="单败淘汰 · BO5">单败淘汰 · BO5</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="cf-groups">分组数量</label>
+                        <select class="select" id="cf-groups">
+                            <option value="1">1 组（不分组）</option>
+                            <option value="2">2 组</option>
+                            <option value="3" selected>3 组（传奇 / 中坚 / 挑战）</option>
+                        </select>
+                    </div>
+                    <div class="full">
+                        <label class="form-label">参赛队伍（按所选赛季花名册勾选，可多选）</label>
+                        <div id="cf-teams" class="team-chips"><span class="empty-hint">花名册加载中…</span></div>
                     </div>
                     <div>
                         <label class="form-label" for="cf-emoji">封面图标</label>
@@ -653,7 +690,9 @@
                 '<div class="meta-grid">' +
                 '  <div class="meta-cell"><div class="k">开始时间</div><div class="v">' + fmtTime(ev.start_time) + '</div></div>' +
                 '  <div class="meta-cell"><div class="k">报名截止</div><div class="v">' + (ev.reg_deadline ? fmtTime(ev.reg_deadline) : '不限') + '</div></div>' +
-                '  <div class="meta-cell"><div class="k">形式</div><div class="v">' + esc(ev.format || '—') + '</div></div>' +
+                '  <div class="meta-cell"><div class="k">赛制</div><div class="v">' + esc(ev.format || '—') + '</div></div>' +
+                '  <div class="meta-cell"><div class="k">分组</div><div class="v">' + ((ev.group_count || 1) + ' 组') + '</div></div>' +
+                (ev.teams ? '<div class="meta-cell" style="grid-column:1/-1;"><div class="k">参赛队伍</div><div class="v">' + esc(ev.teams) + '</div></div>' : '') +
                 '  <div class="meta-cell"><div class="k">名额</div><div class="v">' + (slots ? regs.length + ' / ' + slots : regs.length + '（不限）') + '</div></div>' +
                 (ev.venue ? '<div class="meta-cell" style="grid-column:1/-1;"><div class="k">地点 / 房间</div><div class="v">' + esc(ev.venue) + '</div></div>' : '') +
                 '</div>' +
@@ -872,6 +911,7 @@
             requestAdminThen(function () {
                 document.getElementById('create-modal').classList.add('visible');
                 resetCoverField();
+                loadCreateTeams();
             });
         });
 
@@ -906,6 +946,33 @@
             rd.readAsDataURL(f);
         });
 
+        /* 参赛队伍：按赛季花名册加载队伍清单（创建活动时勾选） */
+        function loadCreateTeams() {
+            var host = document.getElementById('cf-teams');
+            if (!host) return;
+            var season = (document.getElementById('cf-season').value || 'S6').trim().toLowerCase();
+            if (season !== 's5' && season !== 's6') season = 's6';
+            var prev = {};
+            Array.prototype.forEach.call(host.querySelectorAll('input:checked'), function (i) { prev[i.value] = 1; });
+            host.innerHTML = '<span class="empty-hint">花名册加载中…</span>';
+            HWAuth.getClient().from(season + '_player_ids').select('team')
+                .then(function (res) {
+                    var teams = Array.from(new Set(
+                        ((res && res.data) || []).map(function (x) { return (x.team || '').trim(); }).filter(Boolean)
+                    )).sort(function (a, b) { return a.localeCompare(b, 'zh'); });
+                    if (!teams.length) {
+                        host.innerHTML = '<span class="empty-hint">该赛季花名册暂无队伍 — 请先在分队 / 导入页维护队伍。</span>';
+                        return;
+                    }
+                    host.innerHTML = teams.map(function (t) {
+                        return '<label><input type="checkbox" value="' + esc(t) + '"' + (prev[t] ? ' checked' : '') +
+                               '><span>' + esc(t) + '</span></label>';
+                    }).join('');
+                })
+                .catch(function () { host.innerHTML = '<span class="empty-hint">花名册加载失败。</span>'; });
+        }
+        document.getElementById('cf-season').addEventListener('change', loadCreateTeams);
+
         document.getElementById('create-form').addEventListener('submit', function (e) {
             e.preventDefault();
             var title = document.getElementById('cf-title').value.trim();
@@ -920,6 +987,11 @@
                 end_time: document.getElementById('cf-end').value ? new Date(document.getElementById('cf-end').value).toISOString() : null,
                 reg_deadline: document.getElementById('cf-deadline').value ? new Date(document.getElementById('cf-deadline').value).toISOString() : null,
                 format: document.getElementById('cf-format').value.trim(),
+                group_count: parseInt(document.getElementById('cf-groups').value, 10) || 1,
+                teams: Array.prototype.map.call(
+                    document.querySelectorAll('#cf-teams input:checked'),
+                    function (i) { return i.value; }
+                ).join(','),
                 cover_emoji: document.getElementById('cf-emoji').value.trim() || '🏆',
                 venue: document.getElementById('cf-venue').value.trim(),
                 description: document.getElementById('cf-desc').value.trim(),
@@ -1011,6 +1083,7 @@
                 if (qp.get('create') === '1' && isAdmin()) {
                     document.getElementById('create-modal').classList.add('visible');
                     resetCoverField();
+                    loadCreateTeams();
                 }
             }).catch(function () {});
         });

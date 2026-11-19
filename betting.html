@@ -9,227 +9,248 @@
     <script src="js/auth.js"></script>
     <link rel="stylesheet" href="css/theme.css">
     <script src="js/layout.js"></script>
-    <style>
-        :root {
-            /* legacy aliases → theme tokens（深浅色随 theme.css 自动翻转） */
-            --primary-color: var(--coral-pulse);
-            --bg-color: var(--void-black);
-            --bg-gradient-mid: var(--obsidian);
-            --text-color: var(--mist);
-            --card-bg-color: var(--ink);
-            --header-bg-color: transparent;
-            --border-color: var(--border);
-            --border-highlight: var(--smoke);
-            --shadow-color: rgba(0, 0, 0, 0.5);
-            --control-height: 34px;
-            --win-color: var(--success-green);
-            --loss-color: var(--ash);
-            --text-muted: var(--smoke);
+        <style>
+        /* ═════════ 竞猜 · 重构版（纯 theme 组件语言 · 无 legacy 别名 · 无旧装饰条） ═════════ */
+        body { padding-top: 80px; }
+
+        /* 头部右侧：账户芯片 + 操作 */
+        .bet-user { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+        #user-display {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end;
+            background: var(--ink); border: 1px solid var(--border); border-radius: var(--r-btn);
+            padding: 8px 14px; font-size: 14px; color: var(--ash);
+        }
+        #user-display #username-display { color: var(--pure-white); font-weight: 600; }
+        #user-display .bal { font-family: var(--font-mono); font-weight: 700; color: var(--coral-pulse); }
+        #user-display .sep { color: var(--iron); }
+        .bet-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+        #welfare-btn { border-color: rgba(89, 212, 153, 0.5); color: var(--success-green); }
+        #welfare-btn:hover { background: rgba(89, 212, 153, 0.12); border-color: var(--success-green); color: var(--success-green); }
+
+        /* 分组区（JS 注入 group-section） */
+        #main-content { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+        .group-section {
+            flex: 1 1 340px; box-sizing: border-box;
+            background: var(--ink); border: 1px solid var(--border);
+            border-radius: var(--r-card); padding: 20px;
+        }
+        .group-header {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+            font-size: 16px; font-weight: 500; color: var(--pure-white); letter-spacing: 0;
+        }
+        .lock-btn {
+            height: 28px; padding: 0 12px; border-radius: var(--r-btn);
+            background: transparent; border: 1px solid var(--border); color: var(--ash);
+            font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.15s;
+            font-family: inherit; letter-spacing: 0;
+        }
+        .lock-btn:hover { border-color: var(--smoke); color: var(--pure-white); }
+        .lock-btn.locked { border-color: rgba(255, 99, 99, 0.45); color: #ff8f8f; background: rgba(255, 99, 99, 0.06); }
+        .lock-btn.locked:hover { background: rgba(255, 99, 99, 0.12); }
+
+        .betting-matches-grid { display: flex; flex-direction: column; gap: 10px; }
+        .betting-card {
+            background: var(--obsidian); border: 1px solid transparent; border-radius: 12px;
+            padding: 12px 14px; transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+        .betting-card.bettable { cursor: pointer; border-color: var(--border); }
+        .betting-card.bettable:hover { border-color: var(--smoke); background: var(--graphite); transform: translateY(-1px); }
+        .betting-card.not-bettable { opacity: 0.5; }
+        .betting-card.group-locked { opacity: 0.38; cursor: not-allowed; }
+        .team { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; }
+        .team-name-container { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .team-name { font-size: 15px; font-weight: 600; color: var(--pure-white); }
+        .team-odds { font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; color: var(--smoke); }
+        .team-odds.high-odds { color: var(--success-green); font-weight: 700; }
+        .betting-card hr, hr { border: none; border-top: 1px solid var(--border); margin: 6px 0; opacity: 0.6; }
+        .roster-btn {
+            width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
+            background: transparent; color: var(--smoke); font-size: 12px; line-height: 1;
+            cursor: pointer; transition: 0.15s; padding: 0; font-weight: 700;
+        }
+        .roster-btn:hover { border-color: var(--coral-pulse); color: var(--coral-pulse); }
+
+        /* 排名榜（卡片 + 数据表语言） */
+        #leaderboard-section { display: none; }
+        .lb-scroll { max-height: 60vh; overflow-y: auto; }
+        .leaderboard-table, .history-table { width: 100%; border-collapse: collapse; }
+        .leaderboard-table th, .history-table th {
+            font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--smoke); font-weight: 500; text-align: left; padding: 10px 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .leaderboard-table td, .history-table td {
+            padding: 11px 8px; font-size: 14px; text-align: left; color: var(--ash);
+            border-bottom: 1px solid var(--border); white-space: nowrap;
+        }
+        .leaderboard-table tr:last-child td, .history-table tr:last-child td { border-bottom: none; }
+        .leaderboard-table td:first-child, .history-table td:first-child {
+            font-family: var(--font-mono); color: var(--smoke); font-variant-numeric: tabular-nums;
+        }
+        .leaderboard-table .username-cell { cursor: pointer; color: var(--pure-white); font-weight: 600; }
+        .leaderboard-table .username-cell:hover { color: var(--coral-pulse); }
+
+        /* 我的预测记录（弹窗内） */
+        .bet-record {
+            display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+            background: var(--obsidian); border: 1px solid var(--border); border-radius: 10px;
+            padding: 10px 12px; margin-bottom: 8px; font-size: 14px; color: var(--ash);
+        }
+        .bet-record > span:first-child { color: var(--pure-white); font-weight: 600; }
+        .bet-record .cancel-bet-btn {
+            height: 28px; border-radius: var(--r-btn); border: 1px solid rgba(255, 99, 99, 0.4);
+            background: transparent; color: #ff8f8f; font-size: 12px; padding: 0 12px;
+            cursor: pointer; transition: 0.15s; font-family: inherit;
+        }
+        .bet-record .cancel-bet-btn:hover { background: rgba(255, 99, 99, 0.1); }
+        #existing-bets-section { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px; }
+        #existing-bets-section h4 {
+            margin: 0 0 10px; font-family: var(--font-mono); font-size: 11px;
+            text-transform: uppercase; letter-spacing: 0.08em; color: var(--smoke); text-align: center;
         }
 
-        .container { width: 90%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
+        /* 弹窗内部（容器/关闭钮由 theme.css 单源提供） */
+        .modal-header {
+            margin: 6px 0 4px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+            color: var(--pure-white); font-size: 17px; font-weight: 500; text-align: left;
+        }
+        .modal-body { display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto; margin-top: 16px; }
+        .modal-footer {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px;
+        }
+        .modal-footer.center { justify-content: center; }
+        .modal-footer .my-bal { font-size: 14px; color: var(--smoke); }
+        .modal-footer .my-bal b {
+            font-family: var(--font-mono); color: var(--coral-pulse); font-size: 16px; margin-left: 4px;
+        }
+        .bet-hint { text-align: center; color: var(--smoke); font-size: 14px; margin: 0 0 14px; }
+        #bet-team-a-btn, #bet-team-b-btn { flex: 1; }
+        .modal-panel .input { width: 100%; box-sizing: border-box; }
 
-        #main-content { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; }
-        
-        .group-section { flex: 1; background: var(--card-bg-color); backdrop-filter: blur(10px); border-radius: 8px; padding: 30px; border: 1px solid var(--border-color); min-width: 320px; box-shadow: 0 10px 40px var(--shadow-color); position: relative; }
-        .group-section::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
-
-        .group-header { font-size: 24px; color: var(--primary-color); text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--border-highlight); display: flex; justify-content: center; align-items: center; gap: 15px; font-weight: 900; letter-spacing: 2px; }
-
-        .lock-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--text-muted); color: var(--text-muted); cursor: pointer; border-radius: 4px; padding: 4px 10px; font-size: 12px; transition: all 0.3s; font-family: 'Noto Sans SC'; font-weight: 700; }
-        .lock-btn:hover { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
-        .lock-btn.locked { background-color: rgba(255,138,128,0.1); border-color: var(--loss-color); color: var(--loss-color); }
-        .lock-btn.locked:hover { background-color: var(--loss-color); color: white; }
-
-        .betting-matches-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
-
-        .betting-card { background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        [data-theme="light"] .betting-card { background-color: rgba(255,255,255,0.5); }
-        
-        .betting-card.bettable { border-left: 4px solid var(--win-color); cursor: pointer; transition: all 0.3s; }
-        .betting-card.not-bettable { border-left: 4px solid var(--border-color); opacity: 0.6; }
-        .betting-card.group-locked { border-left: 4px solid var(--loss-color); opacity: 0.4; cursor: not-allowed; }
-        .betting-card.bettable:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(129, 199, 132, 0.2); border-color: var(--win-color); }
-        
-        .team { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
-        .team-name-container { display: flex; align-items: center; gap: 10px; }
-        .team-name { font-size: 15px; font-weight: 700; letter-spacing: 1px; }
-        
-        .roster-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 50%; width: 22px; height: 22px; display: inline-flex; justify-content: center; align-items: center; font-size: 13px; cursor: pointer; transition: all 0.2s; line-height: 1; font-weight: bold; }
-        .roster-btn:hover { background-color: var(--primary-color); border-color: var(--primary-color); color: white; transform: scale(1.1); }
-        
-        .team-odds { font-weight: 900; font-size: 16px; color: var(--text-muted); }
-        .team-odds.high-odds { color: var(--win-color); }
-        hr { border-color: rgba(255,255,255,0.05); margin: 8px 0; }
-        [data-theme="light"] hr { border-color: rgba(0,0,0,0.05); }
-
-        /* modal 容器由 theme.css 单一提供（.modal-backdrop/.modal-panel/.modal-close） */
-        .modal-header { margin: 0 0 4px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
-        .modal-body { display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto; padding-right: 5px; margin-top: 16px; }
-        .modal-body::-webkit-scrollbar { width: 6px; }
-        .modal-body::-webkit-scrollbar-track { background: transparent; }
-        .modal-body::-webkit-scrollbar-thumb { background: var(--graphite); border-radius: 3px; }
-        .modal-panel input { height: 38px; padding: 0 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--pure-white); border-radius: 8px; font-size: 15px; outline: none; transition: border-color 0.15s; box-sizing: border-box; width: 100%; }
-        .modal-panel input:focus { border-color: var(--smoke); }
-        .modal-footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 22px; border-top: 1px solid var(--border); padding-top: 18px; }
-        .modal-footer .confirm-btn, .modal-panel button:not(.modal-close):not(.btn) { height: 34px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 8px; padding: 0 16px; background: var(--mist); color: var(--iron); font-size: 14px; font-weight: 500; letter-spacing: 0.01em; cursor: pointer; transition: background 0.15s, color 0.15s; }
-        .modal-footer .confirm-btn:hover, .modal-panel button:not(.modal-close):not(.btn):hover { background: var(--pure-white); color: var(--void-black); }
-        [data-theme="light"] .modal-panel input { background: rgba(0, 0, 0, 0.03); color: #101113; }
-        
-        .user-info { position: static; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-        #user-display { background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); padding: 10px 15px; border-radius: 6px; backdrop-filter: blur(5px); font-size: 14px; }
-        [data-theme="light"] #user-display { background: rgba(255,255,255,0.5); }
-        #user-display span { font-weight: 700; color: var(--primary-color); }
-        #welfare-btn { border-color: var(--win-color); color: var(--win-color); background: rgba(129, 199, 132, 0.1); width: auto; justify-content: center; }
-        #welfare-btn:hover { background: var(--win-color); color: #fff; box-shadow: 0 0 15px rgba(129, 199, 132, 0.4); }
-
-        .history-table, .leaderboard-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
-        .history-table th, .leaderboard-table th { padding: 12px 8px; border-bottom: 1px solid var(--border-highlight); text-align: center; color: var(--text-muted); font-weight: 700; }
-        .history-table td, .leaderboard-table td { padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; white-space: nowrap; }
-        [data-theme="light"] .history-table td, [data-theme="light"] .leaderboard-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
-        .leaderboard-table tbody tr:hover { background: rgba(255,255,255,0.05); }
-        .leaderboard-table .username-cell { cursor: pointer; color: var(--primary-color); font-weight: 900; transition: color 0.2s; letter-spacing: 1px; }
-        .leaderboard-table .username-cell:hover { text-decoration: underline; text-shadow: 0 0 8px rgba(255,255,255,0.28); }
-
-        .roster-list { list-style: none; padding: 0; font-size: 15px; }
-        .roster-list li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 500; }
-        [data-theme="light"] .roster-list li { border-bottom: 1px solid rgba(0,0,0,0.05); }
+        /* 队伍名单弹窗 */
+        .roster-list { list-style: none; margin: 14px 0 0; padding: 0; }
+        .roster-list li {
+            display: flex; align-items: baseline; gap: 8px; padding: 10px 2px;
+            border-bottom: 1px solid var(--border); font-size: 15px;
+        }
         .roster-list li:last-child { border-bottom: none; }
-
-        #existing-bets-section { margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 20px; }
-        #existing-bets-section h4 { margin-top: 0; text-align: center; color: var(--text-muted); font-size: 14px; letter-spacing: 1px; }
-        .bet-record { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; padding: 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 8px; font-size: 14px; }
-        [data-theme="light"] .bet-record { background-color: rgba(255,255,255,0.5); }
-        .bet-record span:first-child { font-weight: 900; color: var(--primary-color); letter-spacing: 1px; }
-        .bet-record .cancel-bet-btn { background: rgba(255,138,128,0.1); color: var(--loss-color); border: 1px solid var(--loss-color); border-radius: 4px; padding: 4px 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-        .bet-record .cancel-bet-btn:hover { background-color: var(--loss-color); color: white; box-shadow: 0 0 10px rgba(255,138,128,0.4); }
-
-        #leaderboard-section { display: none; background: var(--card-bg-color); backdrop-filter: blur(10px); border-radius: 8px; padding: 30px; border: 1px solid var(--border-color); width: 100%; box-shadow: 0 10px 40px var(--shadow-color); position: relative; }
-        #leaderboard-section::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
-        
-        body { padding-top: 80px; }
-    
-        /* ── light adjustments (data-theme) ── */
-        [data-theme="light"] .betting-card { background-color: rgba(255, 255, 255, 0.72); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
-        [data-theme="light"] #user-display { background: rgba(255, 255, 255, 0.72); }
-        [data-theme="light"] .leaderboard-table tbody tr:hover { background: rgba(0, 0, 0, 0.04); }
+        .roster-list .r-name { color: var(--pure-white); font-weight: 600; }
+        .roster-list .r-id { font-family: var(--font-mono); font-size: 13px; color: var(--smoke); }
     </style>
 </head>
 <body data-page="betting" data-crumb="events">
-    <div class="container">
-        <header class="page-header" style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:28px;">
-            <div>
-                <span class="eyebrow">Betting</span>
-                <h1 id="main-title" class="page-title">赛事预测</h1>
-                <p class="page-sub" style="margin:0;">本功能仅供娱乐，预测分数无任何实际价值</p>
-            </div>
-            <div class="user-info">
-                <div id="user-display" style="display: none;">
-                    <div style="margin-bottom: 5px;">
-                        <span id="username-display"></span> | 剩余分数: <span id="user-balance"></span>
-                        <button id="logout-btn" class="btn btn-ghost btn-sm" style="height: 26px; margin-left: 6px;">登 出</button>
-                    </div>
-                    <button id="welfare-btn" class="btn btn-ghost btn-sm" style="display:none;">领 取 低 保 (+5分)</button>
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-                    <button id="login-btn" class="btn btn-ghost">登 录 / 注 册</button>
-                    <button id="history-btn" class="btn btn-ghost" style="display:none;">我 的 预 测 记 录</button>
-                    <button id="toggle-view-btn" class="btn btn-ghost">查 看 预 测 排 名</button>
-                </div>
-            </div>
-        </header>
+    <main class="page">
+        <div class="container">
+            <div id="event-bar" hidden></div>
 
-        <div id="event-bar" hidden></div>
-        <main>
+            <header class="page-header flex-between">
+                <div>
+                    <span class="eyebrow">Betting</span>
+                    <h1 id="main-title" class="page-title">赛事预测</h1>
+                    <p class="page-sub" style="margin:0;">本功能仅供娱乐，预测分数无任何实际价值</p>
+                </div>
+                <div class="bet-user">
+                    <div id="user-display" style="display:none;">
+                        <span id="username-display"></span>
+                        <span class="sep">|</span>
+                        余额 <span class="bal" id="user-balance"></span>
+                        <button id="logout-btn" class="btn btn-ghost btn-sm" type="button">登出</button>
+                        <button id="welfare-btn" class="btn btn-ghost btn-sm" type="button" style="display:none;">低保 +5 分</button>
+                    </div>
+                    <div class="bet-actions">
+                        <button id="login-btn" class="btn btn-ghost" type="button">登录 / 注册</button>
+                        <button id="history-btn" class="btn btn-ghost" type="button" style="display:none;">我的预测记录</button>
+                        <button id="toggle-view-btn" class="btn btn-ghost" type="button">预测排名</button>
+                    </div>
+                </div>
+            </header>
+
             <div id="main-content"></div>
-            <section id="leaderboard-section">
-                <h2 class="group-header">预 测 积 分 排 名</h2>
-                <div style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+
+            <section id="leaderboard-section" class="card" style="display:none;">
+                <div class="flex-between" style="margin-bottom:10px;">
+                    <h2 style="margin:0; font-size:16px; font-weight:500; color:var(--pure-white);">预测积分排名</h2>
+                    <span class="eyebrow">Leaderboard</span>
+                </div>
+                <div class="lb-scroll table-wrap">
                     <table class="leaderboard-table">
                         <thead>
                             <tr>
-                                <th>排名</th>
-                                <th>ID</th>
-                                <th>当前分数</th>
-                                <th>预测次数</th>
-                                <th>正确率</th>
-                                <th>低保次数</th>
+                                <th>排名</th><th>ID</th><th>当前分数</th><th>预测次数</th><th>正确率</th><th>低保次数</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-table-body"></tbody>
                     </table>
                 </div>
             </section>
-        </main>
-    </div>
+        </div>
+    </main>
 
     <div id="login-modal" class="modal-backdrop">
-        <div class="modal-panel" style="max-width:460px;">
-            <div class="modal-close" onclick="document.getElementById('login-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
+        <div class="modal-panel" style="max-width:440px;">
+            <button class="modal-close" type="button" aria-label="关闭" onclick="document.getElementById('login-modal').classList.remove('visible')">&times;</button>
             <span class="modal-eyebrow">Account</span>
-            <h3 class="modal-header">登 录 或 注 册</h3>
-            <div class="modal-body" style="overflow: visible;">
-                <input type="text" id="username-input" placeholder="请输入您的用户名（建议使用真名）" required>
-                <input type="password" id="password-input" placeholder="请输入您的密码" required>
+            <h3 class="modal-header">登录或注册</h3>
+            <div class="modal-body" style="overflow:visible;">
+                <input class="input" type="text" id="username-input" placeholder="请输入您的用户名（建议使用真名）" required>
+                <input class="input" type="password" id="password-input" placeholder="请输入您的密码" required>
             </div>
-            <div class="modal-footer" style="justify-content: center;">
-                <button id="login-confirm-btn" class="confirm-btn">确 认</button>
+            <div class="modal-footer center">
+                <button id="login-confirm-btn" class="btn btn-primary" type="button">确认</button>
             </div>
         </div>
     </div>
 
     <div id="bet-modal" class="modal-backdrop">
-        <div class="modal-panel" style="max-width:460px;">
-            <div class="modal-close" onclick="document.getElementById('bet-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
+        <div class="modal-panel" style="max-width:480px;">
+            <button class="modal-close" type="button" aria-label="关闭" onclick="document.getElementById('bet-modal').classList.remove('visible')">&times;</button>
             <span class="modal-eyebrow">Prediction</span>
             <h3 class="modal-header" id="bet-modal-header"></h3>
             <div class="modal-body">
                 <div id="bet-controls-section">
-                    <p style="text-align: center; color: var(--text-muted); font-size: 14px; letter-spacing: 1px;">请选择您要支持的队伍:</p>
-                    <div style="display: flex; gap: 15px; justify-content: center; margin: 15px 0;">
-                        <button id="bet-team-a-btn" class="btn btn-primary" style="flex:1;"></button>
-                        <button id="bet-team-b-btn" class="btn btn-primary" style="flex:1;"></button>
+                    <p class="bet-hint">请选择您要支持的队伍</p>
+                    <div style="display:flex; gap:12px; margin-bottom:14px;">
+                        <button id="bet-team-a-btn" class="btn btn-primary" type="button"></button>
+                        <button id="bet-team-b-btn" class="btn btn-primary" type="button"></button>
                     </div>
-                     <input type="number" id="bet-amount-input" placeholder="请输入支持分数 (最小为1)">
+                    <input class="input" type="number" id="bet-amount-input" min="1" placeholder="支持分数（最小 1）">
                 </div>
-
                 <div id="existing-bets-section">
                     <h4>本场所有预测记录</h4>
                     <div id="existing-bets-list"></div>
                 </div>
             </div>
             <div class="modal-footer">
-                 <div style="margin-right: auto; font-size: 14px; color: var(--text-muted);">您的剩余分数: <span id="modal-user-balance" style="color:var(--primary-color); font-weight:700; font-size:16px;"></span></div>
-                <button id="bet-confirm-btn" class="confirm-btn">确 认 预 测</button>
+                <div class="my-bal">剩余分数<b id="modal-user-balance"></b></div>
+                <button id="bet-confirm-btn" class="btn btn-primary" type="button">确认预测</button>
             </div>
         </div>
     </div>
 
     <div id="history-modal" class="modal-backdrop">
-        <div class="modal-panel" style="max-width: 800px;">
-            <div class="modal-close" onclick="document.getElementById('history-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
+        <div class="modal-panel" style="max-width:840px;">
+            <button class="modal-close" type="button" aria-label="关闭" onclick="document.getElementById('history-modal').classList.remove('visible')">&times;</button>
             <span class="modal-eyebrow">History</span>
             <h3 class="modal-header" id="history-modal-header">预测记录</h3>
             <div class="modal-body">
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th>比赛</th>
-                            <th>支持队伍</th>
-                            <th>支持分数</th>
-                            <th>结算回报指数</th>
-                            <th>状态</th>
-                            <th>分数结算</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-table-body"></tbody>
-                </table>
+                <div class="table-wrap">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>比赛</th><th>支持队伍</th><th>支持分数</th><th>结算回报指数</th><th>状态</th><th>分数结算</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
-    
+
     <div id="roster-modal" class="modal-backdrop">
-         <div class="modal-panel" id="roster-modal-content"></div>
+        <div class="modal-panel" id="roster-modal-content"></div>
     </div>
 
 <script>
@@ -301,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         welfareBtn.style.display = 'none';
 
         if (currentUser) {
-            userDisplay.style.display = 'block';
+            userDisplay.style.display = 'flex';
             loginBtn.style.display = 'none';
             historyBtn.style.display = 'inline-flex';
             usernameDisplay.textContent = currentUser.username;
@@ -332,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function initializePage() {
-        mainContent.innerHTML = '<p style="color:var(--text-muted); text-align:center; width:100%;">正在加载最新赛程和预测数据...</p>';
+        mainContent.innerHTML = '<p style="color:var(--smoke); text-align:center; width:100%;">正在加载最新赛程和预测数据...</p>';
         const [
             { data: matches, error: mError }, 
             { data: bets, error: bError }, 
@@ -351,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (mError || bError || uError || wError || gError || pError) {
             console.error("加载数据失败:", mError || bError || uError || wError || gError || pError);
-            mainContent.innerHTML = '<p style="color:var(--primary-color); text-align:center; width:100%;">加载数据失败，请刷新页面重试。</p>';
+            mainContent.innerHTML = '<p style="color:var(--coral-pulse); text-align:center; width:100%;">加载数据失败，请刷新页面重试。</p>';
             return;
         }
 
@@ -545,13 +566,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const teamBBtn = document.getElementById('bet-team-b-btn');
         teamABtn.textContent = match.team_a;
         teamBBtn.textContent = match.team_b;
-        [teamABtn, teamBBtn].forEach(btn => btn.style.borderColor = 'var(--border-color)');
+        [teamABtn, teamBBtn].forEach(btn => btn.style.borderColor = 'var(--border)');
 
         loadAndRenderExistingBets(match.id, match.group);
         
         let selectedTeam = null;
-        teamABtn.onclick = () => { selectedTeam = match.team_a; teamABtn.style.borderColor = 'var(--win-color)'; teamBBtn.style.borderColor = 'var(--border-color)'; };
-        teamBBtn.onclick = () => { selectedTeam = match.team_b; teamBBtn.style.borderColor = 'var(--win-color)'; teamABtn.style.borderColor = 'var(--border-color)'; };
+        teamABtn.onclick = () => { selectedTeam = match.team_a; teamABtn.style.borderColor = 'var(--success-green)'; teamBBtn.style.borderColor = 'var(--border)'; };
+        teamBBtn.onclick = () => { selectedTeam = match.team_b; teamBBtn.style.borderColor = 'var(--success-green)'; teamABtn.style.borderColor = 'var(--border)'; };
 
         betConfirmBtn.onclick = async () => {
             const amount = parseInt(document.getElementById('bet-amount-input').value);
@@ -602,15 +623,15 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(p => ({ id: p.id, name: p.name, isSub: false }));
 
         const rosterHTML = `
-            <div class="modal-close" onclick="document.getElementById('roster-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
+            <button class="modal-close" type="button" aria-label="关闭" onclick="document.getElementById('roster-modal').classList.remove('visible')">&times;</button>
             <span class="modal-eyebrow">Roster</span>
             <div class="modal-header">${teamName} (${groupName}) 成员列表</div>
             <ul class="roster-list">
                 ${officialRoster.length > 0 ? officialRoster.map(player => `
                     <li>
-                        <span style="color:var(--text-color); font-weight:700;">${player.name}</span> <span style="font-size: 13px; color:var(--text-muted);">(${player.id})</span>
+                        <span style="color:var(--mist); font-weight:700;">${player.name}</span> <span style="font-size: 13px; color:var(--smoke);">(${player.id})</span>
                     </li>
-                `).join('') : '<li><span style="color:var(--text-muted);">暂无该队伍成员信息</span></li>'}
+                `).join('') : '<li><span style="color:var(--smoke);">暂无该队伍成员信息</span></li>'}
             </ul>
         `;
         rosterContent.innerHTML = rosterHTML;
@@ -619,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadAndRenderExistingBets(matchId, groupName) {
         const listContainer = document.getElementById('existing-bets-list');
-        listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">加载中...</p>';
+        listContainer.innerHTML = '<p style="text-align:center; color:var(--smoke);">加载中...</p>';
         
         // 1. 查本场预测记录
         const { data: bets, error } = await supabaseClient
@@ -629,12 +650,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .order('created_at', { ascending: false });
 
         if (error) {
-            listContainer.innerHTML = `<p style="color:var(--loss-color)">加载失败：${error.message} (code: ${error.code})</p>`;
+            listContainer.innerHTML = `<p style="color:var(--ash)">加载失败：${error.message} (code: ${error.code})</p>`;
             console.error('获取bets出错:', error);
             return;
         }
         if (!bets || bets.length === 0) {
-            listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">暂无预测记录</p>';
+            listContainer.innerHTML = '<p style="text-align:center; color:var(--smoke);">暂无预测记录</p>';
             return;
         }
 
@@ -646,7 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .in('id', userIds);
 
         if (userError) {
-            listContainer.innerHTML = `<p style="color:var(--loss-color)">加载用户信息失败：${userError.message} (code: ${userError.code})</p>`;
+            listContainer.innerHTML = `<p style="color:var(--ash)">加载用户信息失败：${userError.message} (code: ${userError.code})</p>`;
             console.error('获取users出错:', userError);
             return;
         }
@@ -659,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
         listContainer.innerHTML = bets.map(bet => `
             <div class="bet-record">
                 <span>${userMap[bet.user_id] || '匿名'}</span>
-                <span style="color:var(--text-color);">支持 ${bet.predicted_winner} <strong>${bet.amount}</strong> 分</span>
+                <span style="color:var(--mist);">支持 ${bet.predicted_winner} <strong>${bet.amount}</strong> 分</span>
                 ${(currentUser && bet.user_id === currentUser.id && !isGroupLocked) ? `<button class="cancel-bet-btn" data-bet-id="${bet.id}">撤销</button>` : '<span></span>'}
             </div>`).join('');
 
@@ -737,15 +758,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const historyModal = document.getElementById('history-modal');
         document.getElementById('history-modal-header').textContent = `${username}的预测记录`;
         const historyBody = document.getElementById('history-table-body');
-        historyBody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);">计算中...</td></tr>';
+        historyBody.innerHTML = '<tr><td colspan="6" style="color:var(--smoke);">计算中...</td></tr>';
         
         const userBets = allBetsData.filter(b => b.user_id === userId).sort((a,b) => new Date(b.created_at) - new Date(a,b));
         
-        if (userBets.length === 0) { historyBody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);">暂无记录</td></tr>'; historyModal.classList.add('visible'); return; }
+        if (userBets.length === 0) { historyBody.innerHTML = '<tr><td colspan="6" style="color:var(--smoke);">暂无记录</td></tr>'; historyModal.classList.add('visible'); return; }
 
         historyBody.innerHTML = userBets.map(bet => {
             const match = allMatchesData.find(m => m.id === bet.match_id);
-            let status = '待结算', settlement = 'N/A', odds = 'N/A', color = 'var(--text-color)';
+            let status = '待结算', settlement = 'N/A', odds = 'N/A', color = 'var(--mist)';
             if (match && match.score_a !== null && match.score_b !== null && match.score_a !== match.score_b) {
                 const winner = match.score_a > match.score_b ? match.team_a : match.team_b;
                 const betsForMatch = allBetsData.filter(b => b.match_id === match.id);
@@ -760,18 +781,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     const profit = Math.ceil((bet.amount / winnerPool) * loserPool);
                     odds = ((bet.amount + profit) / bet.amount).toFixed(2);
                     settlement = `+${profit}`;
-                    color = 'var(--win-color)';
+                    color = 'var(--success-green)';
                 } else {
                     status = '失败';
                     odds = (bet.predicted_winner === match.team_a ? (poolA+poolB)/poolA : (poolA+poolB)/poolB).toFixed(2);
                     settlement = `-${bet.amount}`;
-                    color = 'var(--loss-color)';
+                    color = 'var(--ash)';
                 }
             }
             return `<tr>
                 <td>${match ? `${match.team_a} vs ${match.team_b}`: '未知比赛'}</td>
-                <td style="color:var(--text-color); font-weight:700;">${bet.predicted_winner}</td><td>${bet.amount}</td><td>${odds}</td>
-                <td>${status}</td><td style="color:${color}; font-weight:900;">${settlement}</td>
+                <td style="color:var(--mist); font-weight:700;">${bet.predicted_winner}</td><td>${bet.amount}</td><td>${odds}</td>
+                <td>${status}</td><td style="color:${color}; font-weight:700;">${settlement}</td>
             </tr>`;
         }).join('');
         historyModal.classList.add('visible');
@@ -805,11 +826,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         leaderboardBody.innerHTML = usersWithStats.map((user, index) => `
             <tr>
-                <td style="color:var(--text-muted); font-weight:700;">${index + 1}</td>
+                <td style="color:var(--smoke); font-weight:700;">${index + 1}</td>
                 <td class="username-cell" data-user-id="${user.id}" data-username="${user.username}">${user.username}</td>
-                <td style="color:var(--text-color); font-weight:900;">${Math.round(user.balance)}</td>
+                <td style="color:var(--mist); font-weight:700;">${Math.round(user.balance)}</td>
                 <td>${user.predictionCount}</td>
-                <td style="color:var(--win-color); font-weight:700;">${user.accuracy.toFixed(1)}%</td>
+                <td style="color:var(--success-green); font-weight:700;">${user.accuracy.toFixed(1)}%</td>
                 <td>${user.welfareCount}</td>
             </tr>
         `).join('');

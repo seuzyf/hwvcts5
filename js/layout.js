@@ -371,7 +371,9 @@
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
         cell('开始时间', fmt(ev.start_time)) +
         cell('报名截止', fmt(ev.reg_deadline)) +
-        cell('形式', esc(ev.format || '')) +
+        cell('赛制', esc(ev.format || '')) +
+        cell('分组', ev.group_count ? (ev.group_count + ' 组') : '') +
+        cell('参赛队伍', esc(ev.teams || '')) +
         cell('地点 / 房间', esc(ev.venue || '')) +
       '</div>' +
       (ev.description ? '<p style="font-size: 15px;line-height:1.75;color:var(--ash);margin:14px 0 0;">' + esc(ev.description) + '</p>' : '') +

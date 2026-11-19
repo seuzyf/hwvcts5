@@ -182,9 +182,25 @@ s6_betting_groups` + RPC `check_admin_password`。
     （赛季队长 game_id/昵称匹配 + event_captains 扩展），manage 补缺失的 showToast 实现，
     工作台改为「先渲染基础四块再升级权限」。测试增至 **71 项**（新增 vm 运行时冒烟 8 场 +
     未定义符号静态哨兵）。
+- **Phase 7（三页风格重构 + 创建活动赛制选择）**：
+  - **竞猜 / 赛程 / 管理后台 / 数据台 全部换装为统一壳语言**（matches/events 同款）：
+    删尽 legacy `:root` 别名、左侧渐变装饰条（`::before` accent）、900 字重/2px 字距、
+    全局 `button/input/table` 元素选择器、`[data-theme=light]` 页面级补丁；
+    新版只用 theme token（`var(--ink/--obsidian/--border/--smoke…)`，深浅色自动翻转）
+    + 组件（page-header / card / filter-bar / seg / btn / table-wrap / modal-*）。
+  - betting：`main.page` 壳、账户芯片头部、分组卡+预测卡扁平化、排名榜进 card+mono 表头；
+  - schedule：event-bar 居顶、对阵区 `main.card` + stage-head、括号图（match-card/round-title）
+    全新扁平视觉、比赛详情弹窗 md-box/md-edit 组件化、解说统计与横幅换 token；
+  - admin：孤儿样式清除（data-section/tab-content/warning-text/…），活动行新卡片语言；
+  - manage：Phase 6 沿拷的旧式 data-section 装饰条同批换新（tab/表格/模板按钮重写）。
+  - **创建活动新增赛制选择**：赛制下拉（单循环/双败/单败 × BO1/3/5 → 存 `format`）、
+    分组数量（1/2/3 → 新列 `group_count`）、参赛队伍（按赛季花名册勾选 → 新列 `teams` 逗号分隔）；
+    详情 meta 与概况浮层同步展示；花名册无队伍时给出引导文案。
+  - 测试 **107 项 + E2E 3 场全过**（含三页重构哨兵、赛制字段、access 运行时）。
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
-  （幂等）：`events.cover_image` + `event-covers` 桶若已建过则跳过；
-  **本轮新增** `event_captains` 表（队长绑定 → 数据台权限）必须建表后功能才可用。
+  （幂等）：已建过的 cover/event_captains 若在则跳过；
+  **Phase 7 新增** `events.teams` / `events.group_count` 两列 —— 不建则创建活动的
+  参赛队伍与分组数量无法保存（赛制存既有 `format` 列，无需迁移）。
 
 ## 8. 功能保留清单
 

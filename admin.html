@@ -9,84 +9,33 @@
     <link rel="stylesheet" href="css/theme.css">
     <script src="js/auth.js"></script>
     <script src="js/layout.js"></script>
-    <style>
-        :root {
-            /* legacy aliases → theme tokens（深浅色随 theme.css 自动翻转） */
-            --primary-color: var(--coral-pulse);
-            --bg-color: var(--void-black);
-            --bg-gradient-mid: var(--obsidian);
-            --text-color: var(--mist);
-            --card-bg-color: var(--ink);
-            --header-bg-color: transparent;
-            --border-color: var(--border);
-            --border-highlight: var(--smoke);
-            --success-color: var(--success-green);
-            --shadow-color: rgba(0, 0, 0, 0.5);
-            --control-height: 34px;
-            --text-muted: var(--smoke);
-        }
-
-        .container { width: 95%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10;}
-
-        .controls-container { display: flex; justify-content: flex-start; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .data-section { background-color: var(--card-bg-color); backdrop-filter: blur(10px); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 10px 40px var(--shadow-color); margin-top: 30px; position: relative; }
-        .data-section::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), transparent); border-radius: 8px 0 0 8px; }
-        .data-section h3 { margin-top: 0; color: var(--primary-color); border-bottom: 1px solid var(--border-highlight); padding-bottom: 15px; font-weight: 900; letter-spacing: 2px; font-size: 20px; }
-
-        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 15px; }
-        th, td { padding: 12px 5px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
-        [data-theme="light"] th, [data-theme="light"] td { border-bottom: 1px solid rgba(0,0,0,0.05); }
-        thead th { background-color: transparent; color: var(--text-muted); font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--border-highlight); }
-        tbody tr:hover { background-color: rgba(255,255,255,0.05); }
-        
-        input, select { height: var(--control-height); padding: 0 10px; background-color: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-color); border-radius: var(--r-input, 8px); box-sizing: border-box; font-family: 'Noto Sans SC'; font-size: 15px; outline: none; transition: border-color 0.3s; width: 100%; min-width: 60px; }
-        [data-theme="light"] input, [data-theme="light"] select { background: #fff; }
-        input:focus, select:focus { border-color: var(--primary-color); }
-        input[readonly] { background-color: rgba(0,0,0,0.5); opacity: 0.6; cursor: not-allowed; }
-
-        td.actions { text-align: center; }
-
-        button { height: var(--control-height); padding: 0 16px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--graphite); color: var(--mist); cursor: pointer; font-weight: 600; transition: all 0.15s; letter-spacing: 0.02em; font-size: 14px; }
-        button:hover { background-color: var(--slate); color: var(--pure-white); box-shadow: none; }
-        button.success { background-color: rgba(89, 212, 153, 0.1); border: 1px solid var(--success-color); color: var(--success-color); }
-        button.success:hover { background-color: var(--success-color); color: white; box-shadow: none; }
-
-        .add-row-btn { margin-bottom: 20px; border: 1px solid var(--border-highlight); background: rgba(255,255,255,0.07); color: var(--primary-color); }
-        .add-row-btn:hover { background: var(--primary-color); color: white; }
-        .delete-row-btn { background-color: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 13px; height: 32px; padding: 0 15px; }
-        .delete-row-btn:hover { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
-
-        /* modal 容器由 theme.css 单一提供（.modal-backdrop/.modal-panel） */
-        .modal-panel h2 { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--pure-white); font-size: 18px; font-weight: 500; letter-spacing: 0.2px; text-align: left; }
-        
-        .match-record { border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 25px; padding: 15px; position: relative; }
-        [data-theme="light"] .match-record { background: rgba(255,255,255,0.5); }
-        .match-record::after { content:''; position:absolute; left:-1px; top:0; width:4px; height:100%; background:var(--primary-color); border-radius: 6px 0 0 6px; }
-
-        .warning-text { color: #9c9c9d; text-align: left; font-size: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.16); max-height: 200px; overflow-y: auto; line-height: 1.6; }
-        [data-theme="light"] .warning-text { background: rgba(255,255,255,0.8); }
+        <style>
+        /* ═════════ 管理后台 · 重构版（纯 theme 组件语言 · 无 legacy 别名 · 无全局元素选择器） ═════════ */
         body { padding-top: 80px; }
 
-        /* 活动管理行（管理员枢纽） */
-        .adm-ev-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(0,0,0,0.15); margin-bottom: 10px; }
-        .adm-ev-main { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
-        .adm-ev-title { color: var(--text-color); font-weight: 600; font-size: 15px; }
-        .adm-ev-sub { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em; }
-        #admin-tools-label { display: flex; align-items: baseline; gap: 10px; margin: 36px 0 4px; }
-        #admin-tools-label h2 { margin: 0; font-size: 18px; font-weight: 500; color: var(--text-color); }
-        #admin-tools-label span { font-family: var(--font-mono, monospace); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
-    
-        /* ── light adjustments (data-theme) ── */
-        [data-theme="light"] tbody tr:hover { background-color: rgba(0, 0, 0, 0.04); }
-        [data-theme="light"] input[readonly] { background-color: rgba(0, 0, 0, 0.06); }
-        [data-theme="light"] .add-row-btn { background: rgba(0, 0, 0, 0.05); }
-        [data-theme="light"] .delete-row-btn { background-color: rgba(0, 0, 0, 0.06); color: var(--text-muted); }
-        [data-theme="light"] .adm-ev-row { background: rgba(0, 0, 0, 0.03); }
-        [data-theme="light"] button:hover { box-shadow: none; }
+        #password-modal h2 { margin: 6px 0 14px; font-size: 17px; font-weight: 500; color: var(--pure-white); }
+
+        /* 活动管理行 */
+        .adm-ev-row {
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+            background: var(--obsidian); border: 1px solid var(--border);
+            border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+            transition: border-color 0.15s ease;
+        }
+        .adm-ev-row:hover { border-color: var(--smoke); }
+        .adm-ev-main { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 3px; }
+        .adm-ev-title { color: var(--pure-white); font-weight: 600; font-size: 15px; }
+        .adm-ev-sub {
+            font-family: var(--font-mono); font-size: 11px;
+            letter-spacing: 0.05em; color: var(--smoke);
+        }
+        .adm-ev-row .select { width: auto; min-width: 104px; height: 30px; padding: 0 8px; font-size: 13px; }
+
+        /* 视图切换提示行 */
+        .view-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+        }
     </style>
 </head>
 <body data-page="admin">
@@ -108,13 +57,13 @@
            管理员 → 举办与管理活动、设置活动队长（赛事数据台在活动详情进入）
          ═════════════════════════════════════════════════════════════ -->
     <div id="manage-shell" class="container">
+        <div id="event-bar" hidden></div>
+
         <header class="page-header">
             <span class="eyebrow">Management</span>
             <h1 class="page-title">管理后台</h1>
             <p class="page-sub" id="manage-sub">加载中…</p>
         </header>
-
-        <div id="event-bar" hidden></div>
 
         <!-- 游客视图 -->
         <section id="guest-view" class="card" hidden>
@@ -194,18 +143,18 @@
             <div class="grid-4 mt-16">
                 <a class="card card-hover" href="draft.html" style="text-decoration:none; display:block;">
                     <span class="eyebrow">Draft</span>
-                    <div style="font-size:15px; font-weight:500; color:var(--text-color); margin-top:8px;">分队系统</div>
-                    <div style="font-size: 13px; color:var(--text-muted); margin-top:2px;">表格分队 / 随机抽取</div>
+                    <div style="font-size:15px; font-weight:500; color:var(--mist); margin-top:8px;">分队系统</div>
+                    <div style="font-size: 13px; color:var(--smoke); margin-top:2px;">表格分队 / 随机抽取</div>
                 </a>
                 <a class="card card-hover" href="schedule.html" style="text-decoration:none; display:block;">
                     <span class="eyebrow">Schedule</span>
-                    <div style="font-size:15px; font-weight:500; color:var(--text-color); margin-top:8px;">赛程中心</div>
-                    <div style="font-size: 13px; color:var(--text-muted); margin-top:2px;">对阵编排与随机生成</div>
+                    <div style="font-size:15px; font-weight:500; color:var(--mist); margin-top:8px;">赛程中心</div>
+                    <div style="font-size: 13px; color:var(--smoke); margin-top:2px;">对阵编排与随机生成</div>
                 </a>
                 <a class="card card-hover" href="summary.html" style="text-decoration:none; display:block;">
                     <span class="eyebrow">Stats</span>
-                    <div style="font-size:15px; font-weight:500; color:var(--text-color); margin-top:8px;">数据汇总</div>
-                    <div style="font-size: 13px; color:var(--text-muted); margin-top:2px;">选手数据与多维对比</div>
+                    <div style="font-size:15px; font-weight:500; color:var(--mist); margin-top:8px;">数据汇总</div>
+                    <div style="font-size: 13px; color:var(--smoke); margin-top:2px;">选手数据与多维对比</div>
                 </a>
             </div>
         </section>

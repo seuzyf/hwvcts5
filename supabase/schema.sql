@@ -97,6 +97,9 @@ comment on table public.events is '赛事/活动数据（与报名信息完全�
 
 -- 幂等补列：已有项目重跑本文件时自动加上封面图列
 alter table public.events add column if not exists cover_image text default '';
+-- 幂等补列：创建活动「赛制选择」（参赛队伍 / 分组数量；赛制复用 format 列）
+alter table public.events add column if not exists teams text default '';
+alter table public.events add column if not exists group_count integer default 1;
 
 -- ---------------------------------------------------------------------
 -- 3. 报名信息表（只存“谁报了什么”，赛事详情一律回查 events）
