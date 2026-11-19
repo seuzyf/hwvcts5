@@ -17,8 +17,8 @@
 (function () {
   'use strict';
 
-  var SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
-  var SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
+  var SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
 
   var SESSION_KEY = 'hw_session';
   var LEGACY_SESSION_KEY = 'betting-user';

@@ -25,7 +25,7 @@
             --loss-color: #9c9c9d;
             --text-muted: rgba(255, 255, 255, 0.5);
         }
-        body.light-theme {
+        [data-theme="light"] {
             --primary-color: #e53935;
             --bg-color: #f4f5f7;
             --bg-gradient-mid: #e9ecef;
@@ -47,23 +47,23 @@
 
         .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
         .particle { position: absolute; width: 2px; height: 2px; background: rgba(255,255,255,0.32); border-radius: 50%; animation: float linear infinite; }
-        body.light-theme .particle { background: rgba(229, 57, 53, 0.4); }
+        [data-theme="light"] .particle { background: rgba(229, 57, 53, 0.4); }
         @keyframes float { 0% { transform: translateY(100vh) translateX(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) translateX(100px); opacity: 0; } }
 
         .container { width: 90%; max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
         .main-header-block { padding: 25px; text-align: center; margin-bottom: 40px; position: relative; }
         .title-badge { display: inline-block; padding: 6px 20px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-highlight); border-radius: 20px; font-size: 14px; color: var(--primary-color); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
-        body.light-theme .title-badge { background: rgba(229, 57, 53, 0.1); }
+        [data-theme="light"] .title-badge { background: rgba(229, 57, 53, 0.1); }
         .main-header-block h1 { font-size: 50px; font-weight: 900; letter-spacing: 5px; margin: 0 0 10px 0; background: linear-gradient(135deg, var(--primary-color), #9c9c9d, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255,255,255,0.16)); }
-        body.light-theme .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
+        [data-theme="light"] .main-header-block h1 { background: linear-gradient(135deg, var(--primary-color), #b71c1c, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: none; }
         
         .disclaimer { font-size: 13px; color: var(--text-muted); margin: 0 0 20px 0; letter-spacing: 1px; }
         .controls-container { display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
         
         .nav-button { height: var(--control-height); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; padding: 0 25px; border: 1px solid var(--border-color); color: var(--primary-color); text-decoration: none; transition: all 0.3s; background: rgba(255,255,255,0.06); backdrop-filter: blur(5px); letter-spacing: 1px; cursor: pointer; }
-        body.light-theme .nav-button { background: rgba(229, 57, 53, 0.05); }
+        [data-theme="light"] .nav-button { background: rgba(229, 57, 53, 0.05); }
         .nav-button:hover { background-color: rgba(255,255,255,0.12); color: var(--text-color); border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.12); }
-        body.light-theme .nav-button:hover { color: var(--primary-color); }
+        [data-theme="light"] .nav-button:hover { color: var(--primary-color); }
 
         #main-content { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; }
         
@@ -80,7 +80,7 @@
         .betting-matches-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
 
         .betting-card { background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        body.light-theme .betting-card { background-color: rgba(255,255,255,0.5); }
+        [data-theme="light"] .betting-card { background-color: rgba(255,255,255,0.5); }
         
         .betting-card.bettable { border-left: 4px solid var(--win-color); cursor: pointer; transition: all 0.3s; }
         .betting-card.not-bettable { border-left: 4px solid var(--border-color); opacity: 0.6; }
@@ -97,7 +97,7 @@
         .team-odds { font-weight: 900; font-size: 16px; color: var(--text-muted); }
         .team-odds.high-odds { color: var(--win-color); }
         hr { border-color: rgba(255,255,255,0.05); margin: 8px 0; }
-        body.light-theme hr { border-color: rgba(0,0,0,0.05); }
+        [data-theme="light"] hr { border-color: rgba(0,0,0,0.05); }
 
         /* ── modal · unified Raycast treatment（与 theme.css 同语言） ── */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(2, 2, 3, 0.78); backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: opacity 0.25s, visibility 0.25s; padding: 18px; box-sizing: border-box; }
@@ -125,7 +125,7 @@
         
         .user-info { position: absolute; top: 25px; right: 25px; text-align: right; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
         #user-display { background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); padding: 10px 15px; border-radius: 6px; backdrop-filter: blur(5px); font-size: 13px; }
-        body.light-theme #user-display { background: rgba(255,255,255,0.5); }
+        [data-theme="light"] #user-display { background: rgba(255,255,255,0.5); }
         #user-display span { font-weight: 700; color: var(--primary-color); }
         #welfare-btn { border-color: var(--win-color); color: var(--win-color); background: rgba(129, 199, 132, 0.1); width: 100%; justify-content: center; }
         #welfare-btn:hover { background: var(--win-color); color: #fff; box-shadow: 0 0 15px rgba(129, 199, 132, 0.4); }
@@ -133,20 +133,20 @@
         .history-table, .leaderboard-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
         .history-table th, .leaderboard-table th { padding: 12px 8px; border-bottom: 1px solid var(--border-highlight); text-align: center; color: var(--text-muted); font-weight: 700; }
         .history-table td, .leaderboard-table td { padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; white-space: nowrap; }
-        body.light-theme .history-table td, body.light-theme .leaderboard-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
+        [data-theme="light"] .history-table td, [data-theme="light"] .leaderboard-table td { border-bottom: 1px solid rgba(0,0,0,0.05); }
         .leaderboard-table tbody tr:hover { background: rgba(255,255,255,0.05); }
         .leaderboard-table .username-cell { cursor: pointer; color: var(--primary-color); font-weight: 900; transition: color 0.2s; letter-spacing: 1px; }
         .leaderboard-table .username-cell:hover { text-decoration: underline; text-shadow: 0 0 8px rgba(255,255,255,0.28); }
 
         .roster-list { list-style: none; padding: 0; font-size: 14px; }
         .roster-list li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 500; }
-        body.light-theme .roster-list li { border-bottom: 1px solid rgba(0,0,0,0.05); }
+        [data-theme="light"] .roster-list li { border-bottom: 1px solid rgba(0,0,0,0.05); }
         .roster-list li:last-child { border-bottom: none; }
 
         #existing-bets-section { margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 20px; }
         #existing-bets-section h4 { margin-top: 0; text-align: center; color: var(--text-muted); font-size: 13px; letter-spacing: 1px; }
         .bet-record { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; padding: 10px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 8px; font-size: 13px; }
-        body.light-theme .bet-record { background-color: rgba(255,255,255,0.5); }
+        [data-theme="light"] .bet-record { background-color: rgba(255,255,255,0.5); }
         .bet-record span:first-child { font-weight: 900; color: var(--primary-color); letter-spacing: 1px; }
         .bet-record .cancel-bet-btn { background: rgba(255,138,128,0.1); color: var(--loss-color); border: 1px solid var(--loss-color); border-radius: 4px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
         .bet-record .cancel-bet-btn:hover { background-color: var(--loss-color); color: white; box-shadow: 0 0 10px rgba(255,138,128,0.4); }
@@ -159,11 +159,16 @@
         .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
         .theme-switch input { display:none; }
         .slider-theme { background-color: rgba(255,255,255,0.1); border: 1px solid var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 20px; }
-        body.light-theme .slider-theme { background-color: rgba(0,0,0,0.1); }
+        [data-theme="light"] .slider-theme { background-color: rgba(0,0,0,0.1); }
         .slider-theme:before { background-color: var(--text-color); bottom: 2px; content: ""; height: 14px; left: 3px; position: absolute; transition: .4s; width: 14px; border-radius: 50%; }
         input:checked + .slider-theme { background-color: var(--primary-color); border-color: var(--primary-color); }
         input:checked + .slider-theme:before { transform: translateX(18px); background-color: #fff; }
         body { padding-top: 80px; }
+    
+        /* ── light adjustments (data-theme) ── */
+        [data-theme="light"] .betting-card { background-color: rgba(255, 255, 255, 0.72); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
+        [data-theme="light"] #user-display { background: rgba(255, 255, 255, 0.72); }
+        [data-theme="light"] .leaderboard-table tbody tr:hover { background: rgba(0, 0, 0, 0.04); }
     </style>
 </head>
 <body data-page="betting" data-crumb="events">
@@ -285,8 +290,8 @@
 <script>
 
 document.addEventListener('DOMContentLoaded', () => {
-    const SUPABASE_URL = 'https://jvmwfjvedijeapnegmqd.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_iDpaoEOqjOK2WDcloYp69Q_UWUCwq-r';
+    const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 

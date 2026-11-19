@@ -126,6 +126,11 @@ s6_betting_groups` + RPC `check_admin_password`。
 ## 7. 实施与验证
 
 - **Phase 1 已上线**：PR #3 合并 → Vercel Production。
+- **新库迁移（Phase 4）**：全站 Supabase 客户端已切换到新项目 `odjmanvkhwiirswscrht`（9 个文件的
+  URL + publishable key 同步替换）。新项目初始化顺序（SQL Editor 依次运行）：
+  ① `supabase/schema.sql`（账号/活动/报名 + 示例活动）→ ② `supabase/bootstrap.sql`
+  （历史业务表 DDL + RLS + GRANT + 测试数据，分段异常保护，注意看 NOTICE）。
+  测试账号：`tester/test1234`（成员+队长）、`testadmin/admin1234`（管理员）；竞猜锁定口令 `admin1234`。
 - **Phase 2 验证**（提交前必须全过）：
   ```bash
   cd .scratch && node test.js     # 13 项：壳/双 Tab 合并/重定向/换壳四页/脚本语法…
