@@ -197,6 +197,15 @@ s6_betting_groups` + RPC `check_admin_password`。
     分组数量（1/2/3 → 新列 `group_count`）、参赛队伍（按赛季花名册勾选 → 新列 `teams` 逗号分隔）；
     详情 meta 与概况浮层同步展示；花名册无队伍时给出引导文案。
   - 测试 **107 项 + E2E 3 场全过**（含三页重构哨兵、赛制字段、access 运行时）。
+- **Phase 7.1（数据台排版与录入修正）**：
+  - manage.html 补上 `main.page > container` 壳（修复元素通栏顶到左右两边）；
+    `page-eyebrow` → theme `eyebrow`；theme 键名修正为 `hw_theme`；去掉未导出的 `buildNav()` 调用。
+  - tabs 由「合并录入/赛果明细/成员维护」改为 **「结果录入 / 成员维护」**：
+    赛果明细整块（新增/修改选手数据）并入结果录入同一 tab（双 active 清除）。
+  - **队长默认录入本队**：非管理员进入时解析本队（赛季队长用 captainTeams；
+    活动队长用 event_captains 反查花名册拿 team+group），范围段默认「我的比赛」
+    （可切「全部比赛」），并自动切到本队所在分组；管理员默认全部。
+  - 测试 94 项 + E2E 3 场（新增 manage 队长场景）全过。
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
   （幂等）：已建过的 cover/event_captains 若在则跳过；
   **Phase 7 新增** `events.teams` / `events.group_count` 两列 —— 不建则创建活动的

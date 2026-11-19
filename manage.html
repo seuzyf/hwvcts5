@@ -124,7 +124,7 @@
 </style>
 </head>
 <body data-page="manage">
-    <script> if (localStorage.getItem('hwvct-theme') === 'light') document.body.setAttribute('data-theme', 'light'); HWLayout.buildNav(); </script>
+    <script> if (localStorage.getItem('hw_theme') === 'light') document.body.setAttribute('data-theme', 'light');</script>
     <script> if (typeof HWAuth !== 'undefined') { try { HWAuth.init(); } catch (e) {} } </script>
 
     <datalist id="teams-datalist"></datalist>
@@ -143,11 +143,13 @@
     </div>
 
 
+    <main class="page">
+    <div class="container">
     <div id="manage-gate" class="data-section manage-gate" style="display:none;"></div>
 
     <div id="manage-shell" style="display:none;">
         <div class="page-header">
-            <span class="page-eyebrow">Console</span>
+            <span class="eyebrow">Console</span>
             <h1 class="page-title">赛事数据台</h1>
             <div class="page-sub" id="mf-event-title"></div>
         </div>
@@ -158,16 +160,22 @@
                 <button data-group="挑战组" class="">挑战组</button>
             </div>
             <div class="seg" id="tab-filters">
-                <button data-tab="merged-tab" class="active">合并录入</button>
-                <button data-tab="matches-tab" class="">赛果明细</button>
+                <button data-tab="merged-tab" class="active">结果录入</button>
                 <button data-tab="ids-tab" class="">成员维护</button>
             </div>
         </div>
 
     <div id="merged-tab" class="tab-content active">
         <div class="data-section">
-            <h3>赛程 + 赛果 · 合并录入</h3>
-            <p class="merge-hint">选择对阵 → 逐图录入比分 → 大比分由图胜自动识别，一次保存同时写入赛程与赛果明细。逐图选手数据仍可在「赛果明细」页编辑。</p>
+            <h3>结 果 录 入（赛程大比分 + 每图比分 + 选手数据）</h3>
+            <p class="merge-hint">选择对阵 → 逐图录入比分 → 大比分由图胜自动识别，一次保存写入赛程与赛果；每图选手数据在本页下方编辑并提交。</p>
+            <div class="admin-row" style="justify-content:space-between; margin-bottom:12px;">
+                <div class="seg" id="mf-scope" style="display:none;">
+                    <button data-scope="mine" class="active" type="button">我的比赛</button>
+                    <button data-scope="all" type="button">全部比赛</button>
+                </div>
+                <span class="muted" id="mf-scope-note" style="font-size:13px;"></span>
+            </div>
             <div id="merge-fixtures"></div>
             <div class="admin-row" style="margin-top: 16px;">
                 <button class="btn btn-ghost" id="merge-new-fixture">+ 新建对阵</button>
@@ -210,25 +218,22 @@
                 </div>
             </div>
         </div>
-    </div>
-
-<div id="matches-tab" class="tab-content active">
             <div class="data-section">
-                <h3>新 增 赛 果</h3>
+                <h3>选手数据 · 新增（整场逐图）</h3>
                 <button class="add-row-btn" data-table="matches-table-body">+ 新增对局记录 (默认3局)</button>
                 <div id="matches-form-container"></div>
                 <button class="success" style="margin-top: 15px;" id="submit-matches">提 交 新 赛 果</button>
             </div>
             
             <div class="data-section">
-                <h3>修 改 赛 果</h3>
+                <h3>选手数据 · 修改（按对阵）</h3>
                 <select id="edit-match-selector" style="margin-bottom: 20px;"></select>
                 <div id="edit-match-form-container"></div>
                 <button class="success" style="margin-top: 15px; display: none;" id="update-match">更 新 此 赛 果</button>
             </div>
-        </div>
 
-        
+            </div>
+
 <div id="ids-tab" class="tab-content">
              <div class="data-section">
                 <h3>选 手 信 息 维 护</h3>
@@ -252,6 +257,8 @@
             </div>
         </div>
     </div>
+    </div>
+    </main>
     <div id="toast"></div>
 <script>
 const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
@@ -881,6 +888,8 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
 
     /* ---------- 合并录入（赛程 + 赛果 一次写入） ---------- */
     var mfState = { fixtureId: null, maps: [] };
+    var mfScope = 'all';      // 队长默认只看/只录本队比赛
+    var mfMyTeams = [];
 
     function mfSeasonMatches() { return currentSeason === 's5' ? 's5_matches' : 's6_matches'; }
     function mfSeasonSchedule() { return currentSeason === 's5' ? 's5_match_schedule' : 's6_match_schedule'; }
@@ -888,11 +897,19 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
     function renderMergeFixtures() {
         var el = document.getElementById('merge-fixtures');
         if (!el) return;
-        if (!currentScheduleData.length) {
-            el.innerHTML = '<p class="empty-hint">当前分组暂无对阵 — 点下方「新建对阵」开始录入。</p>';
+        var list = currentScheduleData;
+        if (mfScope === 'mine' && mfMyTeams.length) {
+            list = list.filter(function (m) {
+                return mfMyTeams.indexOf(m.team_a) !== -1 || mfMyTeams.indexOf(m.team_b) !== -1;
+            });
+        }
+        if (!list.length) {
+            el.innerHTML = mfScope === 'mine'
+                ? '<p class="empty-hint">本队在当前分组暂无对阵 — 可切换「全部比赛」查看，或点「新建对阵」录入。</p>'
+                : '<p class="empty-hint">当前分组暂无对阵 — 点下方「新建对阵」开始录入。</p>';
             return;
         }
-        el.innerHTML = currentScheduleData.map(function (m) {
+        el.innerHTML = list.map(function (m) {
             var sa = (m.score_a == null) ? '-' : m.score_a;
             var sb2 = (m.score_b == null) ? '-' : m.score_b;
             return '<button class="mf-fixture" data-id="' + m.id + '">' +
@@ -1134,16 +1151,17 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
                 gateMsg('<h3>无访问权限</h3><p style="margin-top:12px; color:var(--mist);">数据台仅对本活动的 <b>管理员</b> 与 <b>活动队长</b> 开放。如需权限，请联系管理员在活动详情页授予。</p>');
                 return;
             }
-            startManageConsole();
+            startManageConsole(perms);
         });
     });
 
-    async function startManageConsole() {
+    async function startManageConsole(perms) {
+        perms = perms || {};
         document.getElementById('manage-shell').style.display = 'block';
         try {
             await initializeAdminPanel();
         } catch (e) { console.error('数据台初始化失败:', e); }
-        // 合并录入绑定
+        // 结果录入绑定
         document.getElementById('merge-new-fixture').addEventListener('click', function () { openMergeForm(null); });
         document.getElementById('mf-add-map').addEventListener('click', addMergeMapRow);
         document.getElementById('mf-save').addEventListener('click', saveMerged);
@@ -1151,7 +1169,93 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         ['mf-big-a', 'mf-big-b'].forEach(function (id) {
             document.getElementById(id).addEventListener('input', updateBigScore);
         });
+
+        // 比赛范围切换（队长默认本队）
+        var scopeSeg = document.getElementById('mf-scope');
+        if (scopeSeg) {
+            scopeSeg.addEventListener('click', function (e) {
+                if (e.target.tagName !== 'BUTTON') return;
+                var act = scopeSeg.querySelector('.active');
+                if (act) act.classList.remove('active');
+                e.target.classList.add('active');
+                mfScope = e.target.dataset.scope;
+                renderMergeFixtures();
+            });
+        }
+        var note = document.getElementById('mf-scope-note');
+        if (perms.isAdmin) {
+            if (note) note.textContent = '管理员：可录入全部比赛';
+        } else {
+            resolveCaptainScope(perms).then(function (info) {
+                if (!info || !info.teams.length) {
+                    if (note) note.textContent = '';
+                    renderMergeFixtures();
+                    return;
+                }
+                mfMyTeams = info.teams;
+                mfScope = 'mine';
+                if (scopeSeg) scopeSeg.style.display = 'flex';
+                var mine = scopeSeg && scopeSeg.querySelector('[data-scope="mine"]');
+                var all = scopeSeg && scopeSeg.querySelector('[data-scope="all"]');
+                if (mine) mine.classList.add('active');
+                if (all) all.classList.remove('active');
+                if (note) note.textContent = '队长默认录入本队比赛：' + mfMyTeams.join(' / ');
+                // 默认切到本队所在分组
+                if (info.group) {
+                    var gbtn = document.querySelector('#group-filter-buttons button[data-group="' + info.group + '"]');
+                    if (gbtn && !gbtn.classList.contains('active')) gbtn.click();
+                }
+                renderMergeFixtures();
+            });
+        }
         renderMergeFixtures();
+    }
+
+    /* 队长 → 本队队伍与分组（赛季队长用 captainTeams；活动队长用 event_captains 反查花名册） */
+    function resolveCaptainScope(perms) {
+        var out = { teams: [], group: '' };
+        var findGroup = function (teams) {
+            return supabaseClient.from(currentSeason + '_player_ids').select('team, group')
+                .then(function (res) {
+                    var rows = (res && res.data) || [];
+                    for (var i = 0; i < rows.length; i++) {
+                        if (rows[i].team && teams.indexOf(rows[i].team) !== -1 && rows[i].group) {
+                            out.group = rows[i].group; break;
+                        }
+                    }
+                    return out;
+                }).catch(function () { return out; });
+        };
+        if (perms.captainTeams && perms.captainTeams.length) {
+            out.teams = perms.captainTeams.slice();
+            return findGroup(out.teams);
+        }
+        if (!boundEvent) return Promise.resolve(out);
+        return supabaseClient.from('event_captains')
+            .select('player_name, game_id').eq('event_id', boundEvent.id)
+            .then(function (r) {
+                var rows = (r && r.data) || [];
+                if (!rows.length) return out;
+                var names = [], gids = [];
+                rows.forEach(function (c) {
+                    if (c.player_name) names.push(c.player_name);
+                    if (c.game_id) gids.push(String(c.game_id));
+                });
+                return supabaseClient.from(currentSeason + '_player_ids')
+                    .select('name, id, team, group')
+                    .then(function (res2) {
+                        var roster = (res2 && res2.data) || [];
+                        roster.forEach(function (p) {
+                            var hit = (p.name && names.indexOf(p.name) !== -1) ||
+                                      (p.id && gids.indexOf(String(p.id)) !== -1);
+                            if (hit && p.team) {
+                                if (out.teams.indexOf(p.team) === -1) out.teams.push(p.team);
+                                if (!out.group && p.group) out.group = p.group;
+                            }
+                        });
+                        return out;
+                    });
+            }).catch(function () { return out; });
     }
 
 </script>
