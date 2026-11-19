@@ -206,6 +206,15 @@ s6_betting_groups` + RPC `check_admin_password`。
     活动队长用 event_captains 反查花名册拿 team+group），范围段默认「我的比赛」
     （可切「全部比赛」），并自动切到本队所在分组；管理员默认全部。
   - 测试 94 项 + E2E 3 场（新增 manage 队长场景）全过。
+- **Phase 7.2（数据中心 + 活动栏恢复）**：
+  - manage.html 补回 `#event-bar` host（此前缺 host 导致整行活动栏不渲染）。
+  - 顶部导航新增 **数据中心**（`players.html`）：全赛季选手数据库 ——
+    赛事届次筛选（events 去重赛季 + 活动名标签，URL `?season=` 同步）、
+    搜索、可排序列（场次/K/D/KDA/ACS）、三表联查
+    （`{season}_matches` 战斗数据 + `{season}_player_ids` 花名册 + `{season}_player_stats` 角色）。
+  - 选手行点击 → **个人主页 `player.html`**（既有早期版本能力雷达图：
+    ACS/每回合击杀/助攻/存活率/KDA 百分位 + 生涯平均 + 角色数据 + 评论）。
+  - 测试 141 项 + E2E 4 场（events×2、manage 含活动栏 7 页签、players 数据中心）全过。
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
   （幂等）：已建过的 cover/event_captains 若在则跳过；
   **Phase 7 新增** `events.teams` / `events.group_count` 两列 —— 不建则创建活动的

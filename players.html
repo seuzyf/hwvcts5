@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据中心 · HWVCTS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+  <link rel="stylesheet" href="css/theme.css">
+  <script src="js/auth.js"></script>
+  <script src="js/layout.js"></script>
+  <style>
+    #dc-season { width: 320px; }
+    #dc-search { width: 260px; }
+    #dc-count { margin-left: auto; white-space: nowrap; }
+    #dc-table tbody tr { cursor: default; }
+    #dc-table a {
+      color: var(--pure-white);
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      border-bottom: 1px solid transparent;
+    }
+    #dc-table a:hover { color: var(--info-blue); border-bottom-color: currentColor; }
+    #dc-table th.sortable:hover { color: var(--pure-white); }
+    #dc-table th .sort-ind { margin-left: 4px; font-size: 10px; color: var(--ash); }
+  </style>
+</head>
+<body data-page="players">
+  <main class="page"><div class="container">
+    <header class="page-header">
+      <span class="eyebrow">Data Center</span>
+      <h1 class="page-title">数 据 中 心</h1>
+      <p class="page-sub">全赛季选手数据库 —— 按赛事届次筛选，点击选手进入个人主页（能力雷达图 · 生涯平均数据 · 角色数据 · 玩家评论）。</p>
+    </header>
+
+    <div class="filter-bar">
+      <label class="form-label" for="dc-season" style="margin:0;">赛事</label>
+      <select id="dc-season" class="select" aria-label="按赛事筛选"></select>
+      <input id="dc-search" class="input" type="search" placeholder="搜索选手 / 游戏ID / 分组…" aria-label="搜索选手">
+      <span id="dc-count" class="page-sub" style="margin:0;">加载中…</span>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="dc-table">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="gid">游戏ID<span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="name">真名<span class="sort-ind"></span></th>
+            <th>分组</th>
+            <th>队伍</th>
+            <th>角色</th>
+            <th class="sortable" data-sort="matches">场次<span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="kills">击杀<span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="deaths">死亡<span class="sort-ind"></span></th>
+            <th>助攻</th>
+            <th class="sortable" data-sort="kd">K/D<span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="kda">KDA<span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="acs">ACS<span class="sort-ind"></span></th>
+          </tr>
+        </thead>
+        <tbody id="dc-tbody"><tr><td colspan="12">加载中…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div id="dc-empty" class="empty-state" hidden>
+      <strong>暂无选手数据</strong>
+      <p>该赛事下还没有比赛记录，或尚未录入选手。</p>
+    </div>
+  </div></main>
+
+  <script>
+    (function () {
+      'use strict';
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+      }
+
+      var state = { season: 's6', rows: [], sort: { key: 'kills', dir: -1 }, q: '' };
+
+      /* —— 赛事选项：events 里每个赛季一条（带最近活动名），失败则回退 S6/S5 —— */
+      async function loadSeasonOptions() {
+        var sel = document.getElementById('dc-season');
+        var seasons = [];
+        try {
+          var res = await HWAuth.getClient().from('events')
+            .select('title, season, created_at')
+            .order('created_at', { ascending: false });
+          var evs = (res && !res.error && res.data) ? res.data : [];
+          var seen = {};
+          evs.forEach(function (ev) {
+            var raw = String(ev.season || '').trim();
+            var key = raw.toLowerCase();
+            if (!key || seen[key]) return;
+            seen[key] = true;
+            seasons.push({ key: key, label: (raw.toUpperCase()) + (ev.title ? ' · ' + ev.title : '') });
+          });
+        } catch (e) { /* 回退 */ }
+        if (!seasons.length) seasons = [{ key: 's6', label: 'S6' }, { key: 's5', label: 'S5' }];
+        sel.innerHTML = seasons.map(function (s) {
+          return '<option value="' + esc(s.key) + '">' + esc(s.label) + '</option>';
+        }).join('');
+        var qs = null;
+        try { qs = new URLSearchParams(window.location.search).get('season'); } catch (e) {}
+        var want = (qs && seasons.some(function (s) { return s.key === qs; })) ? qs : seasons[0].key;
+        sel.value = want;
+        state.season = want;
+      }
+
+      function topKey(obj) {
+        var k = '', n = -1;
+        Object.keys(obj).forEach(function (x) { if (obj[x] > n) { n = obj[x]; k = x; } });
+        return k;
+      }
+
+      function mkRow(gid, name, group, team, agg) {
+        var kd = agg.deaths > 0 ? agg.kills / agg.deaths : agg.kills;
+        var kda = agg.deaths > 0 ? (agg.kills + agg.assists) / agg.deaths : agg.kills + agg.assists;
+        return {
+          gid: String(gid == null ? '' : gid),
+          name: name || '',
+          group: group || '',
+          team: team || '',
+          role: '',
+          matches: agg.matches || 0,
+          kills: agg.kills || 0,
+          deaths: agg.deaths || 0,
+          assists: agg.assists || 0,
+          kd: kd,
+          kda: kda,
+          acs: agg.acsN > 0 ? agg.acsSum / agg.acsN : 0
+        };
+      }
+
+      /* —— 加载某届赛事（赛季）的选手数据 —— */
+      async function loadSeason(season) {
+        var tb = document.getElementById('dc-tbody');
+        var empty = document.getElementById('dc-empty');
+        tb.innerHTML = '<tr><td colspan="12">加载中…</td></tr>';
+        empty.hidden = true;
+        document.getElementById('dc-count').textContent = '加载中…';
+
+        var sb = HWAuth.getClient();
+        var r = null;
+        try {
+          r = await Promise.all([
+            sb.from(season + '_matches').select('*'),
+            sb.from(season + '_player_ids').select('name, id, team, "group"'),
+            sb.from(season + '_player_stats').select('game_id, role')
+          ]);
+        } catch (e) { r = null; }
+        var matches = (r && r[0] && !r[0].error) ? (r[0].data || []) : [];
+        var roster  = (r && r[1] && !r[1].error) ? (r[1].data || []) : [];
+        var stats   = (r && r[2] && !r[2].error) ? (r[2].data || []) : [];
+
+        /* 与 player.html 同源解析：每场双方 player1..5 的 id/data(ACS/K/D/A) */
+        var byId = {};
+        matches.forEach(function (m) {
+          var score = String(m.score || '').split(/[/:：]/).map(Number);
+          var rounds = (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1])) ? score[0] + score[1] : 0;
+          ['team_a', 'team_b'].forEach(function (tk) {
+            for (var i = 1; i <= 5; i++) {
+              var gid = m[tk + '_player' + i + '_id'];
+              var ds = m[tk + '_player' + i + '_data'];
+              if (!gid || !ds) continue;
+              var st = String(ds).split('/').map(Number);
+              if (st.length !== 4 || st.some(isNaN)) continue;
+              var row = byId[gid] || (byId[gid] = { matches: 0, kills: 0, deaths: 0, assists: 0, acsSum: 0, acsN: 0, rounds: 0, groups: {}, teams: {} });
+              row.matches++;
+              if (st[0] > 0) { row.acsSum += st[0]; row.acsN++; }
+              row.kills += st[1];
+              row.deaths += st[2];
+              row.assists += st[3];
+              row.rounds += rounds;
+              if (m.group) row.groups[m.group] = (row.groups[m.group] || 0) + 1;
+              var tn = m[tk];
+              if (tn) row.teams[tn] = (row.teams[tn] || 0) + 1;
+            }
+          });
+        });
+
+        var roleByGid = {};
+        stats.forEach(function (s) { if (s.game_id) roleByGid[String(s.game_id)] = s.role || ''; });
+
+        var rows = [];
+        var seen = {};
+        roster.forEach(function (p) {
+          var gid = String(p.id == null ? '' : p.id);
+          if (!gid) return;
+          seen[gid] = true;
+          var agg = byId[gid] || { matches: 0, kills: 0, deaths: 0, assists: 0, acsSum: 0, acsN: 0, rounds: 0, groups: {}, teams: {} };
+          rows.push(mkRow(gid, p.name, p.group, p.team, agg));
+        });
+        Object.keys(byId).forEach(function (gid) {
+          if (seen[gid]) return;
+          var agg = byId[gid];
+          rows.push(mkRow(gid, '', topKey(agg.groups), topKey(agg.teams), agg));
+        });
+        rows.forEach(function (row) { row.role = roleByGid[row.gid] || ''; });
+
+        state.rows = rows;
+        render();
+      }
+
+      function render() {
+        var q = state.q.trim().toLowerCase();
+        var rows = state.rows.filter(function (r) {
+          if (!q) return true;
+          return (r.gid || '').toLowerCase().indexOf(q) !== -1
+            || (r.name || '').toLowerCase().indexOf(q) !== -1
+            || (r.group || '').toLowerCase().indexOf(q) !== -1;
+        });
+        var s = state.sort;
+        rows.sort(function (a, b) {
+          var av = a[s.key], bv = b[s.key];
+          if (typeof av === 'string' || typeof bv === 'string') {
+            return s.dir * String(av).localeCompare(String(bv));
+          }
+          return s.dir * (av - bv);
+        });
+
+        var tb = document.getElementById('dc-tbody');
+        document.getElementById('dc-count').textContent = rows.length + ' 名选手';
+        document.querySelectorAll('#dc-table th .sort-ind').forEach(function (el) { el.textContent = ''; });
+        var activeTh = document.querySelector('#dc-table th[data-sort="' + s.key + '"] .sort-ind');
+        if (activeTh) activeTh.textContent = s.dir === -1 ? '▼' : '▲';
+
+        if (!rows.length) {
+          tb.innerHTML = '';
+          document.getElementById('dc-empty').hidden = false;
+          return;
+        }
+        document.getElementById('dc-empty').hidden = true;
+        tb.innerHTML = rows.map(function (r) {
+          var idCell = r.name
+            ? '<a href="player.html?name=' + encodeURIComponent(r.name)
+              + '&group=' + encodeURIComponent(r.group || '未分组')
+              + '&season=' + esc(state.season) + '">' + esc(r.gid) + '</a>'
+            : esc(r.gid);
+          return '<tr>'
+            + '<td>' + idCell + '</td>'
+            + '<td>' + esc(r.name || '—') + '</td>'
+            + '<td>' + esc(r.group || '—') + '</td>'
+            + '<td>' + esc(r.team || '—') + '</td>'
+            + '<td>' + esc(r.role || '—') + '</td>'
+            + '<td>' + r.matches + '</td>'
+            + '<td>' + r.kills + '</td>'
+            + '<td>' + r.deaths + '</td>'
+            + '<td>' + r.assists + '</td>'
+            + '<td>' + r.kd.toFixed(2) + '</td>'
+            + '<td>' + r.kda.toFixed(2) + '</td>'
+            + '<td>' + (r.acs > 0 ? r.acs.toFixed(1) : '—') + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      document.querySelectorAll('#dc-table th[data-sort]').forEach(function (th) {
+        th.addEventListener('click', function () {
+          var key = th.dataset.sort;
+          if (state.sort.key === key) state.sort.dir *= -1;
+          else state.sort = { key: key, dir: (key === 'name' || key === 'gid') ? 1 : -1 };
+          render();
+        });
+      });
+      document.getElementById('dc-search').addEventListener('input', function (e) {
+        state.q = e.target.value;
+        render();
+      });
+      document.getElementById('dc-season').addEventListener('change', function (e) {
+        state.season = e.target.value;
+        try {
+          var u = new URL(window.location.href);
+          u.searchParams.set('season', state.season);
+          window.history.replaceState(null, '', u);
+        } catch (err) { /* ignore */ }
+        loadSeason(state.season);
+      });
+
+      document.addEventListener('DOMContentLoaded', async function () {
+        await loadSeasonOptions();
+        await loadSeason(state.season);
+      });
+    })();
+  </script>
+</body>
+</html>
