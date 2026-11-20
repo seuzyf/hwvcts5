@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const username = document.getElementById('username-input').value.trim();
         const password = document.getElementById('password-input').value;
         if (!username || !password) {
-            alert('请输入用户名和密码');
+            HWLayout.toast('请输入用户名和密码');
             return;
         }
         try {
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loginModal.classList.remove('visible');
             await initializePage();
         } catch (err) {
-            alert(err.message || '登录失败，请重试');
+            HWLayout.toast(err.message || '登录失败，请重试');
         }
     }
 
@@ -528,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const { data: manageData, error: manageError } = await supabaseClient.from('manage').select('password').limit(1).single();
         if(manageError || manageData.password !== adminPassword) {
-            alert('管理员密码错误！');
+            HWLayout.toast('管理员密码错误！');
             return;
         }
 
@@ -538,23 +538,23 @@ document.addEventListener('DOMContentLoaded', () => {
             .eq('group_name', groupName);
 
         if (updateError) {
-            alert(`${action}失败: ${updateError.message}`);
+            HWLayout.toast(`${action}失败: ${updateError.message}`);
         } else {
-            alert(`"${groupName}" 已成功${action}！`);
+            HWLayout.toast(`"${groupName}" 已成功${action}！`);
             await initializePage();
         }
     }
 
     function openBetModal(matchId) {
         if (!currentUser) {
-            alert('请先登录再进行操作。');
+            HWLayout.toast('请先登录再进行操作。');
             loginModal.classList.add('visible');
             return;
         }
         const match = allMatchesData.find(m => m.id === matchId);
         
         if (bettingGroupStatus[match.group]) {
-            alert(`"${match.group}" 的竞猜已被管理员锁定，无法进行操作。`);
+            HWLayout.toast(`"${match.group}" 的竞猜已被管理员锁定，无法进行操作。`);
             return;
         }
 
@@ -577,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
         betConfirmBtn.onclick = async () => {
             const amount = parseInt(document.getElementById('bet-amount-input').value);
             if (!selectedTeam || isNaN(amount) || amount < 1 || amount > Math.round(currentUser.balance)) {
-                alert("请选择队伍并输入有效的分数（不能超过您的余额）");
+                HWLayout.toast("请选择队伍并输入有效的分数（不能超过您的余额）");
                 return;
             }
             
@@ -588,11 +588,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 .single();
 
             if (groupError) {
-                alert("错误：无法验证竞猜状态，请重试。" + groupError.message);
+                HWLayout.toast("错误：无法验证竞猜状态，请重试。" + groupError.message);
                 return;
             }
             if (groupStatus.is_locked) {
-                alert(`"${match.group}"的竞猜已被锁定，无法提交新的预测。`);
+                HWLayout.toast(`"${match.group}"的竞猜已被锁定，无法提交新的预测。`);
                 betModal.classList.remove('visible');
                 await initializePage();
                 return;
@@ -603,10 +603,10 @@ document.addEventListener('DOMContentLoaded', () => {
             betConfirmBtn.disabled = false; betConfirmBtn.textContent = '确 认 预 测';
 
             if (error) {
-                alert("预测失败: " + error.message);
+                HWLayout.toast("预测失败: " + error.message);
                 return;
             }
-            alert("预测成功!");
+            HWLayout.toast("预测成功!");
             betModal.classList.remove('visible');
             await initializePage();
         };
@@ -692,12 +692,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const betToCancel = allBetsData.find(b => b.id === betId);
         if (!betToCancel) {
-            alert('找不到该预测记录。');
+            HWLayout.toast('找不到该预测记录。');
             return;
         }
         const matchOfBet = allMatchesData.find(m => m.id === betToCancel.match_id);
         if (!matchOfBet) {
-             alert('找不到该预测对应的比赛。');
+             HWLayout.toast('找不到该预测对应的比赛。');
              return;
         }
 
@@ -708,11 +708,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .single();
 
         if (groupError) {
-            alert("错误：无法验证竞猜状态，请重试。" + groupError.message);
+            HWLayout.toast("错误：无法验证竞猜状态，请重试。" + groupError.message);
             return;
         }
         if (groupStatus.is_locked) {
-            alert(`"${matchOfBet.group}"的竞猜已被锁定，无法撤销预测。`);
+            HWLayout.toast(`"${matchOfBet.group}"的竞猜已被锁定，无法撤销预测。`);
             betModal.classList.remove('visible');
             await initializePage();
             return;
@@ -721,9 +721,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm(`您确定要撤销这笔预测吗？`)) return;
 
         const { error } = await supabaseClient.from('s6_bet_bets').delete().eq('id', betId);
-        if (error) { alert('撤销失败: ' + error.message); return; }
+        if (error) { HWLayout.toast('撤销失败: ' + error.message); return; }
         
-        alert('撤销成功！');
+        HWLayout.toast('撤销成功！');
         await initializePage();
         
         if (betModal.classList.contains('visible')) {
@@ -744,13 +744,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const { error } = await supabaseClient.from('s6_bet_welfare_claims').insert([{ user_id: currentUser.id }]);
         
         if (error) {
-            alert('领取失败: ' + error.message);
+            HWLayout.toast('领取失败: ' + error.message);
             welfareBtn.disabled = false;
             welfareBtn.textContent = '领 取 低 保 (+5分)';
             return;
         }
         
-        alert('低保领取成功，获得5分！');
+        HWLayout.toast('低保领取成功，获得5分！');
         await initializePage();
     }
 

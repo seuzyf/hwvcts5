@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function checkPassword() {
         const inputPassword = passwordInput.value;
-        if (!inputPassword) { alert('请输入口令！'); return; }
+        if (!inputPassword) { HWLayout.toast('请输入口令！'); return; }
         try {
             const { data: isCorrect, error } = await supabaseClient.rpc('check_admin_password', { input_pwd: inputPassword });
             if (error) throw error;
@@ -188,8 +188,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 HWLayout.promoteRole();
                 document.dispatchEvent(new CustomEvent('hw:admin'));
                 enterAdminMode();
-            } else { alert('口令错误！'); }
-        } catch (error) { console.error('验证口令时出错:', error); alert('验证失败，请检查数据库连接。'); }
+            } else { HWLayout.toast('口令错误！'); }
+        } catch (error) { console.error('验证口令时出错:', error); HWLayout.toast('验证失败，请检查数据库连接。'); }
     }
     passwordSubmit.addEventListener('click', checkPassword);
     passwordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') checkPassword(); });
@@ -275,13 +275,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         var id = Number(sel.dataset.ev);
                         var st = sel.value;
                         supabaseClient.from('events').update({ status: st }).eq('id', id).then(function (r) {
-                            if (r.error) { alert('状态更新失败：' + r.error.message); return; }
+                            if (r.error) { HWLayout.toast('状态更新失败：' + r.error.message); return; }
                             var badge = host.querySelector('[data-ev-badge="' + id + '"]');
                             if (badge) {
                                 badge.className = 'badge ' + (EV_BADGE[st] || '');
                                 badge.textContent = EV_STATUS_ZH[st] || st;
                             }
-                        }).catch(function (e) { alert('状态更新失败：' + (e.message || e)); });
+                            HWLayout.toast('活动状态已更新');
+                        }).catch(function (e) { HWLayout.toast('状态更新失败：' + (e.message || e)); });
                     });
                 });
             })

@@ -467,7 +467,7 @@
                 if (cb.checked) {
                     if (selectedForCompare.length >= 6) {
                         cb.checked = false;
-                        alert('最多只能选择 6 名选手进行对比！');
+                        HWLayout.toast('最多只能选择 6 名选手进行对比！');
                         return;
                     }
                     selectedForCompare.push({ name: name, group: group });

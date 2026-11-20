@@ -188,7 +188,7 @@
             hero.innerHTML =
                 '<span class="eyebrow">Personal Home</span>' +
                 '<h1>你的赛事<span class="accent-name">指挥中心</span></h1>' +
-                '<p class="lead">一个账号贯穿全站：报名参赛、跟踪审核状态、管理个人资料、同步竞猜积分。登录后这里就是你的主页。</p>' +
+                '<p class="lead">登录后这里就是你的主页。</p>' +
                 '<div class="hero-actions">' +
                 '  <button class="btn btn-primary btn-lg" id="hero-login" type="button">登录 / 注册</button>' +
                 '  <a class="btn btn-ghost btn-lg" href="events.html">先看看活动</a>' +
@@ -329,7 +329,7 @@
                从活动大厅进入；剧情模式独立于赛事体系，保留直入口。 */
             var tiles = [
                 ['events.html', '🗓️', '活动大厅', '报名参赛与审核'],
-                ['events.html#mine', '📋', '我的报名', '跟踪审核与参赛状态'],
+                ['events.html#mine', '📋', '我的报名', '报名与参赛记录'],
                 ['game.html', '🎮', '剧情模式', '沉浸式训练赛故事']
             ].map(function (t) {
                 return '<a class="tile" href="' + t[0] + '">' +
@@ -422,7 +422,7 @@
             }).then(function () {
                 closeProfileModal();
                 render();
-            }).catch(function (err) { alert(err.message); });
+            }).catch(function (err) { HWLayout.toast(err.message); });
         });
 
         document.getElementById('pwd-form').addEventListener('submit', function (e) {
@@ -431,10 +431,10 @@
                 document.getElementById('pf-old-pwd').value,
                 document.getElementById('pf-new-pwd').value
             ).then(function () {
-                alert('密码修改成功');
+                HWLayout.toast('密码修改成功');
                 document.getElementById('pf-old-pwd').value = '';
                 document.getElementById('pf-new-pwd').value = '';
-            }).catch(function (err) { alert(err.message); });
+            }).catch(function (err) { HWLayout.toast(err.message); });
         });
 
         /* ---------- Render ---------- */

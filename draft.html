@@ -313,7 +313,6 @@
             <header class="page-header">
                 <span class="eyebrow">Draft</span>
                 <h1 class="page-title">分队系统</h1>
-                <p class="page-sub">两种模式：<strong style="color:var(--mist);">表格分队</strong> 导入选手库手动编队导出；<strong style="color:var(--mist);">随机抽取</strong> 从选手池抽卡招募并同步数据库。</p>
             </header>
 
             <div id="event-bar" hidden></div>
@@ -727,7 +726,7 @@
 
         function exportData() {
             if (playersData.length === 0) {
-                alert("数据库为空，请先导入选手数据。");
+                HWLayout.toast("数据库为空，请先导入选手数据。");
                 return;
             }
 
@@ -867,7 +866,7 @@
 
             const { data, error } = await supabaseClient.from('player_stats').select('*');
             if (error) {
-                alert("加载失败: " + error.message);
+                HWLayout.toast("加载失败: " + error.message);
                 setStatus('数据加载失败', 'var(--coral-pulse)');
                 return;
             }
@@ -987,10 +986,10 @@
         async function startDraw() {
             if (isDrawing || pool.length === 0) return;
             const targetTeam = targetTeamSelect.value;
-            if (!targetTeam) return alert("请先选择一支队伍！");
+            if (!targetTeam) return HWLayout.toast("请先选择一支队伍！");
 
             if (teams[targetTeam] && teams[targetTeam].members.length >= 6) {
-                return alert("当前队伍已满员（6人），请选择其他队伍！");
+                return HWLayout.toast("当前队伍已满员（6人），请选择其他队伍！");
             }
 
             isDrawing = true;
@@ -1064,7 +1063,7 @@
             const available = candidates.filter(p => !seenInCurrentDraw.has(p.player_name));
 
             if (available.length === 0) {
-                alert("Top10 候选池中已无其他未展示过的选手可供更换！");
+                HWLayout.toast("Top10 候选池中已无其他未展示过的选手可供更换！");
                 isDrawing = false;
                 return;
             }
@@ -1124,13 +1123,13 @@
                 .select();
 
             if (error) {
-                alert("写入数据库报错: " + error.message);
+                HWLayout.toast("写入数据库报错: " + error.message);
                 isDrawing = false;
                 setStatus('网络/数据库错误', 'var(--coral-pulse)');
                 return;
             }
             if (!data || data.length === 0) {
-                alert(`数据库更新失败！\n\n可能原因：\n1. player_stats 表开启了 RLS 且未允许匿名 Update\n2. 表中没有 player_name 为 "${player.player_name}" 的数据\n\n本次操作已被阻断。`);
+                HWLayout.toast(`数据库更新失败！\n\n可能原因：\n1. player_stats 表开启了 RLS 且未允许匿名 Update\n2. 表中没有 player_name 为 "${player.player_name}" 的数据\n\n本次操作已被阻断。`);
                 isDrawing = false;
                 setStatus('更新被数据库拦截', 'var(--coral-pulse)');
                 return;
@@ -1190,11 +1189,11 @@
                 .select();
 
             if (error) {
-                alert("撤销时数据库报错: " + error.message);
+                HWLayout.toast("撤销时数据库报错: " + error.message);
                 return;
             }
             if (!data || data.length === 0) {
-                alert("撤销失败！数据库未执行修改操作（RLS 拦截或数据不匹配）。");
+                HWLayout.toast("撤销失败！数据库未执行修改操作（RLS 拦截或数据不匹配）。");
                 setStatus('撤销被拦截', 'var(--coral-pulse)');
                 return;
             }
@@ -1255,14 +1254,14 @@
 
                 await Promise.all(updatePromises);
 
-                alert("🎉 所有分队数据及队长信息已成功同步至 player_ids 表！");
+                HWLayout.toast("🎉 所有分队数据及队长信息已成功同步至 player_ids 表！");
                 pendingIdsToSubmit = [];
                 lastDraft = null;
                 updateControls();
                 renderTeams();
                 setStatus('所有数据同步完毕', 'var(--success-green)');
             } catch (err) {
-                alert("同步中止：" + err.message);
+                HWLayout.toast("同步中止：" + err.message);
                 setStatus('同步遭遇错误', 'var(--coral-pulse)');
                 updateControls();
             }
