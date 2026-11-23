@@ -264,6 +264,51 @@ drop policy if exists notifications_write on public.notifications;
 create policy notifications_write on public.notifications for all using (true) with check (true);
 
 -- ---------------------------------------------------------------------
+-- 9. 报名选手资料档案（新选手完整两段式；老选手自动带入）
+--    + 站点头像（右上角导航展示）+ 资料截图存储桶
+-- ---------------------------------------------------------------------
+alter table public.site_users add column if not exists avatar text default '';
+
+create table if not exists public.reg_profiles (
+    user_id     bigint primary key references public.site_users(id) on delete cascade,
+    game_id     text default '',                -- 游戏 ID
+    real_name   text default '',                -- 真名
+    staff_no    text default '',                -- 工号
+    positions   text default '',                -- 常玩位置，逗号分隔（一突,二突,先锋,控场,哨位）
+    cur_rank    text default '',                -- 当前段位
+    cur_acs     text default '',                -- 当前 ACS
+    cur_kda     text default '',                -- 当前 KDA
+    cur_kast    text default '',                -- 当前 KAST
+    cur_adr     text default '',                -- 当前回合伤害
+    cur_shot    text default '',                -- 当前赛季数据截图 URL
+    hist_rank   text default '',                -- 历史最高段位
+    hist_acs    text default '',                -- 历史巅峰 ACS
+    hist_kda    text default '',                -- 历史巅峰 KDA
+    hist_kast   text default '',                -- 历史巅峰 KAST
+    hist_adr    text default '',                -- 历史巅峰回合伤害
+    playtime    text default '',                -- 总游戏时长
+    fps_before  text default '',                -- 之前玩过的 FPS
+    fps_best    text default '',                -- 其他 FPS 最高段位
+    career_shot text default '',                -- 生涯数据截图 URL
+    created_at  timestamptz not null default now(),
+    updated_at  timestamptz not null default now()
+);
+alter table public.reg_profiles enable row level security;
+drop policy if exists reg_profiles_select on public.reg_profiles;
+create policy reg_profiles_select on public.reg_profiles for select using (true);
+drop policy if exists reg_profiles_write on public.reg_profiles;
+create policy reg_profiles_write on public.reg_profiles for all using (true) with check (true);
+
+insert into storage.buckets (id, name, public)
+values ('reg-docs', 'reg-docs', true)
+on conflict (id) do nothing;
+
+drop policy if exists "reg_docs_all" on storage.objects;
+create policy "reg_docs_all" on storage.objects for all
+    using (bucket_id = 'reg-docs')
+    with check (bucket_id = 'reg-docs');
+
+-- ---------------------------------------------------------------------
 -- 完成 ✓
 -- 执行后刷新网站即可：登录 → 个人主页 → 活动大厅报名
 -- ---------------------------------------------------------------------

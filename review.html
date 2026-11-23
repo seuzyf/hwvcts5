@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>报名审核 · HWVCTS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+  <link rel="stylesheet" href="css/theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/layout.js"></script>
+  <style>
+    .rv-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+    .rv-chip { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; padding: 7px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--mist); background: rgba(255,255,255,.04); }
+    .rv-chip b { color: var(--pure-white); }
+    .rv-feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+    .rv-card { display: flex; gap: 14px; align-items: center; cursor: pointer; text-align: left; width: 100%; padding: 16px; }
+    .rv-card .who { min-width: 0; flex: 1; }
+    .rv-card .nm { font-size: 15px; font-weight: 600; color: var(--pure-white); }
+    .rv-card .sub { font-size: 13px; color: var(--smoke); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rv-card .tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .rv-avatar { width: 44px; height: 44px; border-radius: var(--r-circle); flex: none; object-fit: cover; background: var(--graphite); display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--coral-pulse); overflow: hidden; }
+    .rv-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .rv-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 8px; }
+    .rv-kv { background: var(--obsidian); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; }
+    .rv-kv .k { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--smoke); }
+    .rv-kv .v { margin-top: 4px; font-size: 14px; color: var(--mist); word-break: break-all; }
+    .rv-shots { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+    .rv-shots figure { margin: 0; }
+    .rv-shots img { max-width: 260px; max-height: 170px; border-radius: 10px; border: 1px solid var(--border); display: block; }
+    .rv-shots figcaption { font-family: var(--font-mono); font-size: 11px; color: var(--smoke); margin-top: 6px; letter-spacing: .05em; }
+    .rv-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  </style>
+</head>
+<body data-page="review" data-crumb="events">
+  <main class="page"><div class="container">
+    <div id="event-bar" hidden></div>
+
+    <header class="page-header">
+      <span class="eyebrow">Review</span>
+      <h1 class="page-title">报 名 审 核</h1>
+      <p class="page-sub" id="rv-sub" hidden></p>
+    </header>
+
+    <div id="rv-gate" class="card" hidden>
+      <span class="eyebrow">Admin</span>
+      <h2 class="section-title" style="margin-top:8px;">管理员验证</h2>
+      <p class="muted" style="margin:6px 0 14px;">输入管理员口令进入报名审核。</p>
+      <div class="filter-bar" style="margin-bottom:0;">
+        <input class="input" id="rv-pwd" type="password" placeholder="管理员口令" style="width:240px;">
+        <button class="btn btn-primary" id="rv-verify" type="button">验证</button>
+      </div>
+      <p class="smoke" id="rv-gate-msg" style="font-size:13px; min-height:16px; margin-top:10px;"></p>
+    </div>
+
+    <div id="rv-main" hidden>
+      <div class="rv-chips" id="rv-chips"></div>
+      <div id="rv-feed" class="rv-feed"><div class="empty-state">加载中…</div></div>
+    </div>
+  </div></main>
+
+  <!-- 报名详情 -->
+  <div class="modal-backdrop" id="rv-detail-modal">
+    <div class="modal-panel wide" id="rv-detail-panel"></div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+      }
+      var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回' };
+      var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet' };
+
+      var ev = null, regs = [], userMap = {}, profMap = {};
+
+      function sb() { return HWAuth.getClient(); }
+      function isAdminNow() {
+        return (typeof HWLayout !== 'undefined' && HWLayout.isAdminNow()) ||
+          HWAuth.getSession() && HWAuth.getSession().role === 'admin';
+      }
+      function fmtTime(t) {
+        if (!t) return '—';
+        try { return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+        catch (e) { return String(t); }
+      }
+
+      /* ---------- 门禁 ---------- */
+      document.getElementById('rv-verify').addEventListener('click', function () {
+        var pwd = document.getElementById('rv-pwd').value;
+        if (!pwd) { document.getElementById('rv-gate-msg').textContent = '请输入口令。'; return; }
+        var btn = document.getElementById('rv-verify');
+        btn.disabled = true; btn.textContent = '验证中…';
+        sb().rpc('check_admin_password', { input_pwd: pwd })
+          .then(function (res) {
+            btn.disabled = false; btn.textContent = '验证';
+            if (res.error || res.data !== true) { document.getElementById('rv-gate-msg').textContent = '口令错误。'; return; }
+            sessionStorage.setItem('hw_admin_verified_at', String(Date.now()));
+            HWLayout.markAdmin(15);
+            HWLayout.promoteRole();
+            document.dispatchEvent(new CustomEvent('hw:admin'));
+            boot();
+          }).catch(function (e) {
+            btn.disabled = false; btn.textContent = '验证';
+            document.getElementById('rv-gate-msg').textContent = '验证失败：' + (e.message || e);
+          });
+      });
+
+      /* ---------- 数据 ---------- */
+      function loadAll() {
+        return Promise.all([
+          sb().from('event_registrations').select('*').order('created_at', { ascending: false }),
+          sb().from('site_users').select('id, username, nickname, game_id, avatar'),
+          sb().from('reg_profiles').select('*')
+        ]).then(function (rs) {
+          regs = (rs[0] && !rs[0].error && rs[0].data) || [];
+          regs = regs.filter(function (r) { return r.event_id === ev.id; });
+          userMap = {};
+          ((rs[1] && !rs[1].error && rs[1].data) || []).forEach(function (u) { userMap[u.id] = u; });
+          profMap = {};
+          ((rs[2] && !rs[2].error && rs[2].data) || []).forEach(function (p) { profMap[p.user_id] = p; });
+        });
+      }
+
+      function sortedRegs() {
+        var order = { pending: 0, approved: 1, rejected: 2, cancelled: 3 };
+        return regs.slice().sort(function (a, b) {
+          var d = (order[a.status] == null ? 9 : order[a.status]) - (order[b.status] == null ? 9 : order[b.status]);
+          if (d) return d;
+          return new Date(b.created_at) - new Date(a.created_at);
+        });
+      }
+
+      function renderChips() {
+        var n = { pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+        regs.forEach(function (r) { if (n[r.status] != null) n[r.status]++; });
+        document.getElementById('rv-chips').innerHTML =
+          '<span class="rv-chip">待审核 <b>' + n.pending + '</b></span>' +
+          '<span class="rv-chip">已通过 <b>' + n.approved + '</b></span>' +
+          '<span class="rv-chip">未通过 <b>' + n.rejected + '</b></span>' +
+          '<span class="rv-chip">已撤回 <b>' + n.cancelled + '</b></span>' +
+          '<span class="rv-chip">合计 <b>' + regs.length + '</b></span>';
+      }
+
+      function renderFeed() {
+        var feed = document.getElementById('rv-feed');
+        var list = sortedRegs();
+        if (!list.length) {
+          feed.innerHTML = '<div class="empty-state">本活动暂无报名。</div>';
+          return;
+        }
+        feed.innerHTML = list.map(function (r) {
+          var u = userMap[r.user_id] || {};
+          var p = profMap[r.user_id];
+          var name = (p && p.real_name) || u.nickname || u.username || ('用户#' + r.user_id);
+          var avatar = u.avatar
+            ? '<img src="' + esc(u.avatar) + '" alt="">'
+            : esc(String(name).charAt(0));
+          return '<button type="button" class="card card-hover rv-card" data-reg="' + r.id + '">' +
+            '<span class="rv-avatar">' + avatar + '</span>' +
+            '<span class="who">' +
+            '  <span class="nm">' + esc(name) + '</span>' +
+            '  <span class="sub">' + esc((p && p.game_id) || u.game_id || u.username || '') +
+            (u.username && u.username !== name ? ' · @' + esc(u.username) : '') + '</span>' +
+            '  <span class="tags">' +
+            '    <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
+            '    <span class="badge badge-quiet">' + esc(r.team_name || '—') + '</span>' +
+            (r.new_team ? '<span class="badge badge-blue">新建队伍</span>' : '') +
+            (!p ? '<span class="badge badge-gold">无资料档案</span>' : '') +
+            '  </span>' +
+            '</span>' +
+            '</button>';
+        }).join('');
+        Array.prototype.forEach.call(feed.querySelectorAll('[data-reg]'), function (el) {
+          el.addEventListener('click', function () { openDetail(parseInt(el.dataset.reg, 10)); });
+        });
+      }
+
+      /* ---------- 详情 ---------- */
+      function kv(k, v) {
+        return '<div class="rv-kv"><div class="k">' + esc(k) + '</div><div class="v">' + (v ? esc(v) : '—') + '</div></div>';
+      }
+      function openDetail(regId) {
+        var r = regs.find(function (x) { return x.id === regId; });
+        if (!r) return;
+        var u = userMap[r.user_id] || {};
+        var p = profMap[r.user_id];
+        var panel = document.getElementById('rv-detail-panel');
+        var shots = p && (p.cur_shot || p.career_shot)
+          ? '<div class="rv-shots">' +
+            (p.cur_shot ? '<figure><a href="' + esc(p.cur_shot) + '" target="_blank"><img src="' + esc(p.cur_shot) + '" alt="当前赛季截图"></a><figcaption>当前赛季数据截图</figcaption></figure>' : '') +
+            (p.career_shot ? '<figure><a href="' + esc(p.career_shot) + '" target="_blank"><img src="' + esc(p.career_shot) + '" alt="生涯数据截图"></a><figcaption>生涯数据截图</figcaption></figure>' : '') +
+            '</div>'
+          : '';
+        panel.innerHTML =
+          '<button class="modal-close" id="rv-detail-close" type="button">&times;</button>' +
+          '<span class="eyebrow">Application</span>' +
+          '<h3 class="modal-title" style="margin-top:6px;">' + esc((p && p.real_name) || u.nickname || u.username || ('用户#' + r.user_id)) + ' · 报名详情</h3>' +
+          '<div class="tags" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">' +
+          '  <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
+          '  <span class="badge badge-quiet">提交 ' + fmtTime(r.created_at) + '</span>' +
+          (r.new_team ? '<span class="badge badge-blue">新建队伍 → 通过后自动队长</span>' : '') +
+          '</div>' +
+
+          '<div class="section-label" style="margin-top:18px;">报名信息</div>' +
+          '<div class="rv-detail-grid">' +
+          kv('战队', r.team_name) + kv('队员名单', (r.members || []).join('、')) +
+          kv('联系方式', r.contact) + kv('账号', u.username ? '@' + u.username : '') +
+          (r.note ? '<div class="rv-kv" style="grid-column:1/-1;"><div class="k">备注</div><div class="v">' + esc(r.note) + '</div></div>' : '') +
+          '</div>' +
+
+          '<div class="section-label" style="margin-top:18px;">个人资料' + (p ? '' : '（未填写 / 未迁移）') + '</div>' +
+          (p
+            ? '<div class="rv-detail-grid">' +
+              kv('真名', p.real_name) + kv('游戏 ID', p.game_id) + kv('工号', p.staff_no) +
+              kv('常玩位置', p.positions) +
+              '</div>' +
+              '<div class="section-label" style="margin-top:14px;">当前赛季</div>' +
+              '<div class="rv-detail-grid">' +
+              kv('段位', p.cur_rank) + kv('ACS', p.cur_acs) + kv('KDA', p.cur_kda) +
+              kv('KAST%', p.cur_kast) + kv('回合伤害', p.cur_adr) +
+              '</div>' +
+              '<div class="section-label" style="margin-top:14px;">历史巅峰与生涯</div>' +
+              '<div class="rv-detail-grid">' +
+              kv('历史最高段位', p.hist_rank) + kv('巅峰 ACS', p.hist_acs) + kv('巅峰 KDA', p.hist_kda) +
+              kv('巅峰 KAST%', p.hist_kast) + kv('巅峰回合伤害', p.hist_adr) +
+              kv('总游戏时长', p.playtime) + kv('其他 FPS', p.fps_before) + kv('其他 FPS 最高段位', p.fps_best) +
+              '</div>' + shots
+            : '<div class="notice">该报名者未提交资料档案（可能为旧数据）。</div>') +
+
+          (r.status === 'pending'
+            ? '<div class="rv-actions">' +
+              '  <button class="btn btn-primary" id="rv-approve" type="button">通过报名</button>' +
+              '  <button class="btn btn-ghost" id="rv-reject" type="button">拒绝报名</button>' +
+              '</div>'
+            : '');
+
+        document.getElementById('rv-detail-modal').classList.add('visible');
+        document.getElementById('rv-detail-close').addEventListener('click', closeDetail);
+        var ap = document.getElementById('rv-approve');
+        if (ap) ap.addEventListener('click', function () { setRegStatus(r, 'approved'); });
+        var rj = document.getElementById('rv-reject');
+        if (rj) rj.addEventListener('click', function () { setRegStatus(r, 'rejected'); });
+      }
+      function closeDetail() { document.getElementById('rv-detail-modal').classList.remove('visible'); }
+      document.getElementById('rv-detail-modal').addEventListener('click', function (e) {
+        if (e.target === this) closeDetail();
+      });
+
+      /* ---------- 审核动作 ---------- */
+      function setRegStatus(reg, status) {
+        sb().from('event_registrations').update({ status: status, updated_at: new Date().toISOString() })
+          .eq('id', reg.id)
+          .then(function (res) {
+            if (res.error) { HWLayout.toast('操作失败: ' + res.error.message, 'err'); return; }
+            HWLayout.toast(status === 'approved' ? '已通过报名' : '已拒绝报名', status === 'approved' ? 'ok' : 'info');
+            var isCaptainGrant = status === 'approved' && reg.new_team;
+            var u = userMap[reg.user_id] || {};
+            var teamName = reg.team_name || '';
+            var body = status === 'approved'
+              ? (isCaptainGrant
+                  ? '新队伍「' + teamName + '」已通过，你已成为本活动队长。'
+                  : '你已加入「' + teamName + '」。')
+              : '报名未通过' + (teamName ? '（' + teamName + '）' : '') + '，如有疑问请联系管理员。';
+            HWLayout.notifyUser(reg.user_id, status === 'approved' ? '报名已通过' : '报名未通过', body, 'register.html?event=' + ev.id);
+            if (isCaptainGrant) grantEventCaptain(reg);
+            loadAll().then(function () {
+              closeDetail();
+              renderChips();
+              renderFeed();
+            });
+          });
+      }
+
+      /* 新队伍通过 → 自动绑定本活动队长 */
+      function grantEventCaptain(reg) {
+        var u = userMap[reg.user_id] || {};
+        var gid = u.game_id || '';
+        if (!gid && reg.note) {
+          var m = String(reg.note).match(/游戏ID:\s*([^|]+)/);
+          if (m) gid = m[1].trim();
+        }
+        var pname = u.nickname || u.username || '';
+        if (!pname) return;
+        sb().from('event_captains').insert([{ event_id: ev.id, player_name: pname, game_id: gid, added_by: 'admin' }])
+          .then(function (r) {
+            if (r.error && !/duplicate|unique/i.test(String(r.error.message || ''))) {
+              HWLayout.toast('队长绑定失败: ' + r.error.message, 'err');
+            } else if (!r.error) {
+              HWLayout.toast('已设为本活动队长');
+            }
+            var list = String(ev.teams || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+            if (reg.team_name && list.indexOf(reg.team_name) === -1) {
+              list.push(reg.team_name);
+              sb().from('events').update({ teams: list.join(','), updated_at: new Date().toISOString() })
+                .eq('id', ev.id)
+                .then(function (r2) { if (!r2.error) ev.teams = list.join(','); });
+            }
+          });
+      }
+
+      /* ---------- 启动 ---------- */
+      function boot() {
+        if (!ev) {
+          document.getElementById('rv-sub').hidden = false;
+          document.getElementById('rv-sub').textContent = '未指定活动 — 请从活动大厅或通知进入。';
+          return;
+        }
+        if (!isAdminNow()) {
+          document.getElementById('rv-gate').hidden = false;
+          document.getElementById('rv-main').hidden = true;
+          return;
+        }
+        document.getElementById('rv-gate').hidden = true;
+        document.getElementById('rv-main').hidden = false;
+        document.getElementById('rv-sub').hidden = false;
+        document.getElementById('rv-sub').textContent = ev.title + ' · 逐人卡片审核，点开查看完整填报资料';
+        loadAll().then(function () {
+          renderChips();
+          renderFeed();
+        }).catch(function (err) {
+          document.getElementById('rv-feed').innerHTML = '<div class="empty-state">加载失败：' + esc(err.message || err) + '</div>';
+        });
+      }
+
+      HWAuth.init();
+      HWAuth.detectAccountSource().catch(function () {}).finally(function () {
+        HWLayout.resolveEvent().then(function (resolved) {
+          ev = resolved;
+          if (ev) {
+            HWLayout.access(HWLayout.seasonKey(ev), ev).then(function (perms) {
+              HWLayout.eventBar({ event: ev, perms: perms });
+            });
+          } else {
+            HWLayout.eventBar({ event: null });
+          }
+          boot();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

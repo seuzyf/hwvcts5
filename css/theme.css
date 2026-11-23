@@ -197,6 +197,9 @@ button, input, select, textarea { font-family: inherit; }
   justify-content: center;
 }
 
+img.nav-avatar { object-fit: cover; display: block; background: var(--graphite); }
+img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
+
 .nav-username {
   color: var(--mist);
   font-size: 14px;

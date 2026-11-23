@@ -453,7 +453,10 @@
 
         const { error: updateError } = await supabaseClient.from(playersTable).update({ id: newId, image: imageUrl, honor: honor }).eq('name', playerName);
         if (updateError) { alert('更新资料失败: ' + updateError.message); } 
-        else { alert('资料更新成功！页面将刷新以显示最新信息。'); window.location.reload(); }
+        else {
+            try { await supabaseClient.from('site_users').update({ avatar: imageUrl }).eq('nickname', playerName); } catch (e) { /* 站点头像同步尽力而为 */ }
+            alert('资料更新成功！页面将刷新以显示最新信息。'); window.location.reload();
+        }
     }
 
     async function handleChangePassword(event, playerName) {

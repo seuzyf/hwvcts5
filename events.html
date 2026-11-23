@@ -599,10 +599,6 @@
                         '<span class="badge ' + (REG_BADGE[r.status] || '') + '" style="min-width:62px; justify-content:center;">' + (REG_STATUS[r.status] || r.status) + '</span>' +
                         '<span class="team">' + esc(r.team_name || who.nickname || who.username || ('用户#' + r.user_id)) + '</span>' +
                         '<span class="who">' + esc(who.username ? '@' + who.username : '') + (r.members && r.members.length ? ' · ' + r.members.length + ' 人' : '') + '</span>' +
-                        (isAdmin() && r.status === 'pending'
-                            ? '<span style="display:flex; gap:6px;"><button class="mini-btn ok" data-approve="' + r.id + '" type="button">通过</button>' +
-                              '<button class="mini-btn no" data-reject="' + r.id + '" type="button">拒绝</button></span>'
-                            : '') +
                         '</li>';
                 }).join('') + '</ul>';
 
@@ -612,53 +608,16 @@
                   (mine.status === 'approved' ? 'var(--success-green)' : mine.status === 'pending' ? '#ffd700' : '#ff8f8f') +
                   '">' + (REG_STATUS[mine.status] || mine.status) + '</strong></span>' +
                   (mine.team_name ? '<span class="smoke">战队 ' + esc(mine.team_name) + '</span>' : '') +
+                  '<a class="mini-btn" href="register.html?event=' + ev.id + '">报名页 / 资料</a>' +
                   ((mine.status === 'pending' || mine.status === 'approved')
                       ? '<button class="mini-btn no" data-cancel="' + mine.id + '" style="margin-left:auto;" type="button">撤回报名</button>' : '') +
                   '</div>'
                 : '';
 
             var registerHtml;
-            /* 队伍池：本活动已通过报名的战队 + 活动已登记队伍 */
-            var teamPool = {};
-            allRegs.forEach(function (r) {
-                if (r.event_id === ev.id && r.status === 'approved' && r.team_name) teamPool[r.team_name] = 1;
-            });
-            String(ev.teams || '').split(',').forEach(function (t) { t = t.trim(); if (t) teamPool[t] = 1; });
-            var teamList = Object.keys(teamPool).sort(function (a, b) { return a.localeCompare(b, 'zh'); });
-            var startMode = teamList.length ? 'join' : 'new';
             if (canRegister) {
-                registerHtml = u
-                    ? '<form id="reg-form">' +
-                      '<div class="form-row">' +
-                      '  <div class="full"><label class="form-label">队伍 *</label>' +
-                      '  <div class="seg" id="rf-team-mode">' +
-                      '    <button type="button" data-mode="join"' + (startMode === 'join' ? ' class="active"' : '') + '>加入已有队伍</button>' +
-                      '    <button type="button" data-mode="new"' + (startMode === 'new' ? ' class="active"' : '') + '>新建队伍</button>' +
-                      '  </div></div>' +
-                      '  <div class="full" id="rf-join-wrap"' + (startMode === 'join' ? '' : ' hidden') + '>' +
-                      '  <label class="form-label" for="rf-team">选择队伍</label>' +
-                      '  <select class="select" id="rf-team">' +
-                      (teamList.length
-                          ? teamList.map(function (t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('')
-                          : '<option value="">暂无已有队伍</option>') +
-                      '</select></div>' +
-                      '  <div class="full" id="rf-new-wrap"' + (startMode === 'new' ? '' : ' hidden') + '>' +
-                      '  <label class="form-label" for="rf-team-new">新队伍名称 *</label>' +
-                      '  <input class="input" id="rf-team-new" maxlength="24" placeholder="新战队名称">' +
-                      '  <span class="empty-hint" style="display:block; margin-top:6px;">新建队伍需管理员审批，通过后你将成为本活动队长。</span></div>' +
-                      '  <div class="full"><label class="form-label" for="rf-members">队员名单（每行一个，可选）</label>' +
-                      '  <textarea class="textarea" id="rf-members" rows="3" placeholder="张三&#10;李四"></textarea></div>' +
-                      '  <div><label class="form-label" for="rf-contact">联系方式（可选）</label>' +
-                      '  <input class="input" id="rf-contact" maxlength="40" placeholder="微信 / QQ"></div>' +
-                      '  <div><label class="form-label" for="rf-ingame">游戏内 ID</label>' +
-                      '  <input class="input" id="rf-ingame" maxlength="30" value="' + esc(u.game_id || '') + '"></div>' +
-                      '  <div class="full"><label class="form-label" for="rf-note">备注</label>' +
-                      '  <input class="input" id="rf-note" maxlength="100" placeholder="想说的话 / 组队需求"></div>' +
-                      '</div>' +
-                      '<div class="modal-actions"><button class="btn btn-primary" id="rf-submit" type="submit">确认报名</button></div>' +
-                      '</form>'
-                    : '<div class="empty-state" style="padding:24px 0;">登录后即可报名本活动。<br><br>' +
-                      '<button class="btn btn-primary" id="rf-login" type="button">登录 / 注册</button></div>';
+                registerHtml = '<a class="btn btn-primary" href="register.html?event=' + ev.id + '" style="width:100%;">' +
+                    (u ? '填写并报名 →' : '登录并报名 →') + '</a>';
             } else if (!mine) {
                 registerHtml = '<div class="notice">' +
                     (ev.status !== 'registration' ? '当前状态（' + (EV_STATUS[ev.status] || ev.status) + '）不可报名。'
@@ -675,6 +634,7 @@
                        }).join('') +
                   '  </select>' +
                   '  <button class="btn btn-ghost" id="adm-save-status" type="button">更新活动状态</button>' +
+                  '  <a class="btn btn-ghost" href="review.html?event=' + ev.id + '">审核报名</a>' +
                   '  <button class="btn btn-ghost" id="adm-cover-btn" type="button">更换封面图</button>' +
                   (ev.cover_image ? '  <button class="btn btn-ghost" id="adm-cover-clear" type="button">移除封面</button>' : '') +
                   '  <input type="file" id="adm-cover-file" accept="image/*" style="display:none;">' +
@@ -714,43 +674,21 @@
                 '</div>' +
                 (ev.description ? '<div class="desc-block">' + esc(ev.description) + '</div>' : '') +
                 (ev.rules ? '<div class="section-label">赛制 / 规则</div><div class="desc-block">' + esc(ev.rules) + '</div>' : '') +
-                '<div class="section-label">活动空间（赛程 / 比赛 / 数据 / 竞猜 · 按权限显示分队与管理）</div>' +
+                '<div class="section-label">活动空间</div>' +
                 '<div id="ev-workspace" class="tiles" style="margin-bottom:4px;">加载中…</div>' +
-                '<div class="section-label">报名名单（' + regs.length + '）</div>' + rosterHtml +
+                '<div class="section-label" style="display:flex; align-items:center; gap:10px;">报名名单（' + regs.length + '）' +
+                (isAdmin() ? '<a href="review.html?event=' + ev.id + '" style="font-size:12px; color:var(--info-blue);">审核报名 →</a>' : '') +
+                '</div>' + rosterHtml +
                 myRegHtml +
                 (registerHtml ? '<div style="margin-top:18px;">' + registerHtml + '</div>' : '') +
-                adminHtml +
-                '<p class="modal-note">赛事数据存于 EVENTS 表 · 报名信息存于 REGISTRATIONS 表，彼此独立</p>';
+                adminHtml;
 
             document.getElementById('detail-modal').classList.add('visible');
             document.getElementById('detail-close').addEventListener('click', closeDetail);
             renderWorkspace(ev);
 
-            panel.querySelectorAll('[data-approve]').forEach(function (b) {
-                b.addEventListener('click', function () { setRegStatus(parseInt(b.dataset.approve, 10), 'approved', eventId); });
-            });
-            panel.querySelectorAll('[data-reject]').forEach(function (b) {
-                b.addEventListener('click', function () { setRegStatus(parseInt(b.dataset.reject, 10), 'rejected', eventId); });
-            });
             panel.querySelectorAll('[data-cancel]').forEach(function (b) {
                 b.addEventListener('click', function () { cancelReg(parseInt(b.dataset.cancel, 10), eventId); });
-            });
-
-            var rfLogin = document.getElementById('rf-login');
-            if (rfLogin) rfLogin.addEventListener('click', function () {
-                HWAuth.openModal({ stay: true }).then(function () { openDetail(eventId); render(); }).catch(function () {});
-            });
-            var rfForm = document.getElementById('reg-form');
-            if (rfForm) rfForm.addEventListener('submit', function (e) { e.preventDefault(); submitReg(ev); });
-            var rfMode = document.getElementById('rf-team-mode');
-            if (rfMode) rfMode.addEventListener('click', function (e) {
-                var b = e.target.closest ? e.target.closest('button[data-mode]') : null;
-                if (!b) return;
-                Array.prototype.forEach.call(rfMode.querySelectorAll('button'), function (x) {
-                    x.classList.toggle('active', x === b);
-                });
-                document.getElementById('rf-join-wrap').hidden = b.dataset.mode !== 'join';
-                document.getElementById('rf-new-wrap').hidden = b.dataset.mode !== 'new';
             });
 
             var admSave = document.getElementById('adm-save-status');
@@ -850,62 +788,6 @@
         });
 
         /* ---------- registration ops ---------- */
-        function submitReg(ev) {
-            var u = HWAuth.getSession();
-            if (!u) return;
-            var modeBtn = document.querySelector('#rf-team-mode button.active');
-            var mode = modeBtn ? modeBtn.dataset.mode : 'join';
-            var teamName = '', newTeam = false;
-            if (mode === 'new') {
-                var newInput = document.getElementById('rf-team-new');
-                teamName = newInput ? newInput.value.trim() : '';
-                if (!teamName) { HWLayout.toast('请填写新队伍名称', 'err'); return; }
-                newTeam = true;
-            } else {
-                var sel = document.getElementById('rf-team');
-                teamName = sel ? String(sel.value || '').trim() : '';
-                if (!teamName) { HWLayout.toast('暂无已有队伍，请选择新建队伍', 'err'); return; }
-            }
-
-            var membersRaw = document.getElementById('rf-members').value.trim();
-            var members = membersRaw ? membersRaw.split('\n').map(function (s) { return s.trim(); }).filter(Boolean) : [];
-            var contact = document.getElementById('rf-contact').value.trim();
-            var ingame = document.getElementById('rf-ingame').value.trim();
-            var note = document.getElementById('rf-note').value.trim();
-            if (ingame) note = (note ? note + ' | ' : '') + '游戏ID: ' + ingame;
-
-            var btn = document.getElementById('rf-submit');
-            btn.disabled = true; btn.textContent = '提交中…';
-
-            var existing = allRegs.find(function (r) { return r.event_id === ev.id && r.user_id === u.id; });
-            var payload = { team_name: teamName, members: members, contact: contact, note: note, status: 'pending', updated_at: new Date().toISOString() };
-            if (newTeam) payload.new_team = true;
-            var sb = HWAuth.getClient();
-            var restore = function () { btn.disabled = false; btn.textContent = '确认报名'; };
-            var runOp = function (pl, allowFallback) {
-                var op = existing
-                    ? sb.from('event_registrations').update(pl).eq('id', existing.id).select()
-                    : sb.from('event_registrations').insert([Object.assign({ event_id: ev.id, user_id: u.id }, pl)]).select();
-                return op.then(function (res) {
-                    /* new_team 字段尚未迁移时回退，保证报名不被阻断 */
-                    if (res.error && allowFallback && /new_team|42703/.test(String(res.error.message || ''))) {
-                        var pl2 = Object.assign({}, pl); delete pl2.new_team;
-                        return runOp(pl2, false);
-                    }
-                    return res;
-                });
-            };
-            runOp(payload, true).then(function (res) {
-                if (res.error) { HWLayout.toast('报名失败: ' + res.error.message, 'err'); restore(); return; }
-                closeDetail();
-                refresh();
-                HWLayout.toast('报名已提交，等待审核');
-                var link = 'events.html?open=' + ev.id;
-                HWLayout.notifyUser(u.id, '报名已提交', '「' + ev.title + '」· ' + teamName, link);
-                HWLayout.notifyAdmins('新报名待审核', (u.nickname || u.username || '有人') + ' →「' + ev.title + '」· ' + teamName, link);
-            });
-        }
-
         function cancelReg(regId, keepDetailEventId) {
             if (!confirm('确定撤回这条报名吗？')) return;
             HWAuth.getClient().from('event_registrations')
@@ -919,68 +801,6 @@
                 });
         }
 
-        function setRegStatus(regId, status, eventId) {
-            var reg = allRegs.find(function (r) { return r.id === regId; }) || null;
-            HWAuth.getClient().from('event_registrations')
-                .update({ status: status, updated_at: new Date().toISOString() })
-                .eq('id', regId)
-                .then(function (res) {
-                    if (res.error) { HWLayout.toast('操作失败: ' + res.error.message, 'err'); return; }
-                    HWLayout.toast(status === 'approved' ? '已通过报名' : '已拒绝报名', status === 'approved' ? 'ok' : 'info');
-                    var isCaptainGrant = status === 'approved' && reg && reg.new_team;
-                    if (reg && reg.user_id) {
-                        var teamName = reg.team_name || '';
-                        var body = status === 'approved'
-                            ? (isCaptainGrant
-                                ? '新队伍「' + teamName + '」已通过，你已成为本活动队长。'
-                                : '你已加入「' + teamName + '」。')
-                            : '报名未通过' + (teamName ? '（' + teamName + '）' : '') + '，如有疑问请联系管理员。';
-                        HWLayout.notifyUser(reg.user_id, status === 'approved' ? '报名已通过' : '报名未通过', body, 'events.html?open=' + eventId);
-                    }
-                    if (isCaptainGrant) grantEventCaptain(reg, eventId);
-                    refresh().then(function () { if (eventId != null) openDetail(eventId); });
-                });
-        }
-
-        /* 新队伍审批通过 → 自动绑定本活动队长（解锁数据台管理权限） */
-        function grantEventCaptain(reg, eventId) {
-            var sb = HWAuth.getClient();
-            sb.from('site_users').select('nickname, username, game_id').eq('id', reg.user_id).maybeSingle()
-                .then(function (res) {
-                    var u = (res && res.data) || {};
-                    var gid = u.game_id || '';
-                    if (!gid && reg.note) {
-                        var m = String(reg.note).match(/游戏ID:\s*([^|]+)/);
-                        if (m) gid = m[1].trim();
-                    }
-                    var pname = u.nickname || u.username || '';
-                    if (!pname) return null;
-                    return sb.from('event_captains').insert([{
-                        event_id: eventId, player_name: pname, game_id: gid, added_by: 'admin'
-                    }]).then(function (r) {
-                        if (r.error && !/duplicate|unique/i.test(String(r.error.message || ''))) {
-                            HWLayout.toast('队长绑定失败: ' + r.error.message, 'err');
-                        } else if (!r.error) {
-                            HWLayout.toast('已设为本活动队长');
-                        }
-                        return r;
-                    });
-                })
-                .then(function () {
-                    var ev = allEvents.find(function (e) { return e.id === eventId; });
-                    if (!ev || !reg.team_name) return;
-                    var list = String(ev.teams || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
-                    if (list.indexOf(reg.team_name) !== -1) return;
-                    list.push(reg.team_name);
-                    return sb.from('events').update({ teams: list.join(','), updated_at: new Date().toISOString() })
-                        .eq('id', eventId)
-                        .then(function (r) { if (!r.error) ev.teams = list.join(','); });
-                })
-                .catch(function () {});
-        }
-
-        /* ---------- admin create ---------- */
-        var pendingAdminAction = null;
         function requestAdminThen(fn) {
             if (isAdmin()) { fn(); return; }
             document.getElementById('admin-pwd').value = '';
