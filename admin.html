@@ -90,6 +90,8 @@
                     <input class="input" id="pv-nickname" maxlength="24" placeholder="显示用昵称">
                     <label class="form-label" for="pv-gameid">游戏内 ID</label>
                     <input class="input" id="pv-gameid" maxlength="30" placeholder="对局中使用的 ID">
+                    <label class="form-label" for="pv-avatar">头像图片 URL</label>
+                    <input class="input" id="pv-avatar" type="url" maxlength="400" placeholder="https://…（右上角头像展示）">
                     <label class="form-label" for="pv-bio">个人简介</label>
                     <textarea class="textarea" id="pv-bio" rows="3" maxlength="120" placeholder="一句话介绍自己"></textarea>
                     <div class="modal-actions">
@@ -139,6 +141,16 @@
                     </div>
                 </div>
                 <div id="adm-events-list"><div class="empty-state">正在加载活动…</div></div>
+            </div>
+            <div class="card mt-16">
+                <div class="flex-between">
+                    <div>
+                        <span class="eyebrow">Players</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">选手账号（头像管理）</h2>
+                    </div>
+                    <span class="smoke" style="font-size:13px;" id="su-count"></span>
+                </div>
+                <div id="su-list" style=" margin-top:14px;"><div class="empty-state">加载中…</div></div>
             </div>
             <div class="grid-4 mt-16">
                 <a class="card card-hover" href="draft.html" style="text-decoration:none; display:block;">
@@ -214,8 +226,59 @@ document.addEventListener('DOMContentLoaded', () => {
         admin: document.getElementById('admin-view')
     };
 
+    var suLoaded = false;
+    function loadSiteUsers() {
+        if (suLoaded) return;
+        suLoaded = true;
+        var host = document.getElementById('su-list');
+        supabaseClient.from('site_users').select('id, username, nickname, game_id, avatar, role')
+            .order('id').then(function (res) {
+                var rows = (res && !res.error && res.data) || [];
+                document.getElementById('su-count').textContent = rows.length + ' 个账号';
+                if (!rows.length) { host.innerHTML = '<div class="empty-state">暂无账号。</div>'; return; }
+                var me = (typeof HWAuth !== 'undefined' && HWAuth.getSession()) || null;
+                host.innerHTML = '<div class="rv-feed" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:12px;">' +
+                    rows.map(function (u) {
+                        var av = u.avatar
+                            ? '<img src="' + esc(u.avatar) + '" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">'
+                            : '<span class="nav-avatar">' + esc(String(u.nickname || u.username || '?').charAt(0).toUpperCase()) + '</span>';
+                        return '<div class="card" style="padding:14px;">' +
+                            '<div style="display:flex; gap:10px; align-items:center;">' + av +
+                            '<div style="min-width:0;"><div style="font-weight:600; color:var(--pure-white); font-size:14px;">' + esc(u.nickname || u.username) + '</div>' +
+                            '<div class="smoke" style="font-size:12px;">@' + esc(u.username) + (u.game_id ? ' · ' + esc(u.game_id) : '') + (u.role === 'admin' ? ' · 管理员' : '') + '</div></div></div>' +
+                            '<div class="filter-bar" style="margin:10px 0 0;">' +
+                            '<input class="input" type="url" id="su-av-' + u.id + '" value="' + esc(u.avatar || '') + '" placeholder="头像图片 URL" style="flex:1; min-width:140px;">' +
+                            '<button class="btn btn-ghost btn-sm" data-su-save="' + u.id + '" type="button">保存头像</button>' +
+                            '</div></div>';
+                    }).join('') + '</div>';
+                Array.prototype.forEach.call(host.querySelectorAll('[data-su-save]'), function (b) {
+                    b.addEventListener('click', function () {
+                        var id = Number(b.dataset.suSave);
+                        var url = document.getElementById('su-av-' + id).value.trim();
+                        b.disabled = true;
+                        supabaseClient.from('site_users').update({ avatar: url }).eq('id', id).then(function (r) {
+                            b.disabled = false;
+                            if (r.error) { HWLayout.toast('保存失败: ' + r.error.message, 'err'); return; }
+                            HWLayout.toast('头像已保存');
+                            suLoaded = false;
+                            loadSiteUsers();
+                            var sess = (typeof HWAuth !== 'undefined' && HWAuth.getSession()) || null;
+                            if (sess && sess.id === id) {
+                                try {
+                                    var raw = localStorage.getItem('hw_session');
+                                    if (raw) { var sj = JSON.parse(raw); sj.avatar = url; localStorage.setItem('hw_session', JSON.stringify(sj)); }
+                                } catch (e) {}
+                                HWLayout.renderAuth();
+                            }
+                        });
+                    });
+                });
+            }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; suLoaded = false; });
+    }
+
     function showView(name) {
         Object.keys(views).forEach(function (k) { if (views[k]) views[k].hidden = (k !== name); });
+        if (name === 'admin') loadSiteUsers();
         document.getElementById('manage-sub').textContent =
             name === 'admin' ? '举办与管理活动、设置活动队长。'
             : name === 'member' ? '修改你的个人信息与账号安全设置。'
@@ -225,6 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function fillProfileView(u) {
         document.getElementById('pv-nickname').value = u.nickname || '';
         document.getElementById('pv-gameid').value = u.game_id || '';
+        document.getElementById('pv-avatar').value = u.avatar || '';
         document.getElementById('pv-bio').value = u.bio || '';
         document.getElementById('pv-chips').innerHTML =
             '<span class="chip mono">@' + esc(u.username) + '</span>' +
@@ -322,7 +386,8 @@ document.addEventListener('DOMContentLoaded', () => {
         HWAuth.updateProfile({
             nickname: document.getElementById('pv-nickname').value.trim(),
             game_id: document.getElementById('pv-gameid').value.trim(),
-            bio: document.getElementById('pv-bio').value.trim()
+            bio: document.getElementById('pv-bio').value.trim(),
+            avatar: document.getElementById('pv-avatar').value.trim()
         }).then(function (s) {
             st.textContent = '已保存 ✓';
             fillProfileView(s);

@@ -56,12 +56,14 @@
 
   var EV_TABS = [
     { page: 'events',   href: 'events.html?open={id}', label: '概况' },
+    { page: 'register', href: 'register.html?event={id}', label: '报名' },
     { page: 'schedule', href: 'schedule.html?event={id}', label: '赛程' },
     { page: 'matches',  href: 'matches.html?event={id}',  label: '比赛' },
     { page: 'summary',  href: 'summary.html?event={id}',  label: '数据' },
     { page: 'betting',  href: 'betting.html?event={id}',  label: '竞猜' },
     { page: 'draft',    href: 'draft.html?event={id}',    label: '分队', need: 'staff' },
-    { page: 'manage',   href: 'manage.html?event={id}',   label: '管理', need: 'manage' }
+    { page: 'manage',   href: 'manage.html?event={id}',   label: '管理', need: 'manage' },
+    { page: 'review',   href: 'review.html?event={id}',   label: '审核', need: 'admin' }
   ];
 
   var SUN_SVG = '<svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
@@ -550,9 +552,12 @@
     if (user) {
       var initial = esc((user.nickname || user.username || '?').charAt(0).toUpperCase());
       var admin = isAdminNow();
+      var avUrl = user.avatar || '';
       host.innerHTML =
         '<a class="nav-user" href="index.html" title="个人主页' + (admin ? ' · 管理员' : '') + '">' +
-        '  <span class="nav-avatar' + (admin ? ' is-admin' : '') + '">' + initial + '</span>' +
+        (avUrl
+          ? '<img class="nav-avatar nav-avatar-img' + (admin ? ' is-admin' : '') + '" src="' + esc(avUrl) + '" alt="">'
+          : '<span class="nav-avatar' + (admin ? ' is-admin' : '') + '">' + initial + '</span>') +
         '  <span class="nav-username">' + esc(user.nickname || user.username) + '</span>' +
         '</a>';
     } else {
@@ -605,6 +610,7 @@
     seasonKey: seasonKey,
     eventBar: eventBar,
     toast: toast,
+    renderAuth: renderAuth,
     notifyUser: notifyUser,
     notifyAdmins: notifyAdmins,
     refreshBell: refreshBell

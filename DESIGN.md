@@ -229,11 +229,29 @@ s6_betting_groups` + RPC `check_admin_password`。
   - **文案清理**：删除各页介绍中的需求/用法描述（活动大厅副标题、创建表单架构提示、
     数据中心副标题、赛程/分队用法说明、首页功能罗列等）。
   - 新表 `notifications` + `event_registrations.new_team`（见 schema.sql 第 8 节）。
+- **Phase 9（独立报名/审核 + 资料档案 + 头像）**：
+  - 活动栏 host 移入 `main.page > container`（manage 宽度与各页一致）；EV_TABS 增至 9 个：
+    …竞猜 → **报名**（register.html?event=）→ 分队/管理 → **审核**（need admin，review.html?event=）。
+  - **register.html**：独立报名页。登录门禁 → 活动摘要 → 队伍二选一 →
+    **新选手两段式资料**（第一部分当前赛季：真名/游戏ID/工号/常玩位置多选/段位+ACS/KDA/KAST/回合伤害+当前赛季截图；
+    第二部分历史巅峰与生涯：历史段位+四项/总时长/其他FPS+最高段位+生涯截图）。
+    **老选手**（有 reg_profiles 或花名册命中）→ 仅当前赛季必填，资料自动带入、第二段选填。
+    已报名 → 状态卡（撤回）+ 资料更新。提交 = upsert reg_profiles + insert 报名 + 双端通知。
+  - **review.html**：管理员审核独立页（口令门禁）。**逐人卡片信息流**（头像/真名/战队/新队伍/状态），
+    点开详情弹层 = 报名信息 + 基本/当前/历史分组 + 两张截图预览 + 通过/拒绝；
+    通过新建队伍 → event_captains 自动队长 + events.teams 追加 + 通知。
+    **通知跳转**：管理员 → review.html?event=，本人 → register.html?event=（不再进活动详情）。
+  - events.html：内联报名表与详情内审核按钮移除，改为「填写并报名 →」「审核报名」入口（详情保留状态与撤回）。
+  - **头像**：site_users.avatar 新列；导航右上角头像图（回退首字母）；管理后台成员资料可设 +
+    管理员视图新增「选手账号（头像管理）」卡片；player.html 存档时尽力同步站点头像。
+  - schema 第 9 节：site_users.avatar + reg_profiles（两段式资料）+ reg-docs 存储桶（截图上传）。
+  - 测试：静态 + E2E（见 .scratch）覆盖报名/审核/头像/活动栏。
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
   （幂等）：已建过的 cover/event_captains 若在则跳过；
   **Phase 7 新增** `events.teams` / `events.group_count` 两列（赛制存既有 `format` 列）；
-  **Phase 8 新增** `notifications` 表 + `event_registrations.new_team` 列 ——
-  不建则站内通知与「新建队伍审批→自动队长」不生效（报名本身有回退不受阻）。
+  **Phase 8 新增** `notifications` 表 + `event_registrations.new_team` 列；
+  **Phase 9 新增** `site_users.avatar` + `reg_profiles` 表 + `reg-docs` 存储桶 ——
+  不建则通知/自动队长、报名页截图上传与头像功能不生效（老报名流程有回退）。
 
 ## 8. 功能保留清单
 

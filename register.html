@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>活动报名 · HWVCTS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+  <link rel="stylesheet" href="css/theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/layout.js"></script>
+  <style>
+    .reg-sec-title { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--smoke); margin: 22px 0 12px; }
+    .pos-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pos-chips label { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; color: var(--mist); cursor: pointer; background: rgba(255,255,255,.04); }
+    .pos-chips label:has(input:checked) { border-color: var(--coral-pulse); color: var(--pure-white); background: rgba(255,111,97,.12); }
+    .pos-chips input { accent-color: var(--coral-pulse); }
+    .shot-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .shot-row .grow { flex: 1; min-width: 200px; }
+    .shot-preview { max-width: 220px; max-height: 130px; border-radius: 10px; border: 1px solid var(--border); display: none; }
+    .req { color: var(--coral-pulse); }
+    #reg-status-box .st-line { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  </style>
+</head>
+<body data-page="register" data-crumb="events">
+  <main class="page"><div class="container">
+    <div id="event-bar" hidden></div>
+
+    <header class="page-header">
+      <span class="eyebrow">Registration</span>
+      <h1 class="page-title">活 动 报 名</h1>
+    </header>
+
+    <div id="reg-loading" class="empty-state">加载中…</div>
+
+    <div id="reg-gate" class="card" hidden>
+      <span class="eyebrow">Account</span>
+      <h2 class="section-title" style="margin-top:8px;">登录后报名</h2>
+      <p class="muted" style="margin:6px 0 16px;">使用站内账号登录 / 注册，即可填写报名与个人资料。</p>
+      <button class="btn btn-primary" id="reg-login" type="button">登录 / 注册</button>
+    </div>
+
+    <div id="reg-wrap" hidden>
+      <div class="card" id="reg-event-card" hidden></div>
+      <div id="reg-status-box" class="card" hidden></div>
+      <div id="reg-none" class="notice" hidden></div>
+
+      <form id="reg-form" class="card" hidden>
+        <span class="eyebrow">Form</span>
+        <h2 class="section-title" style="margin-top:8px;" id="reg-form-title">填写报名信息</h2>
+        <div id="rp-old-note" class="notice" hidden style="margin-top:12px;"></div>
+
+        <!-- 队伍（报名已提交后隐藏，修改需撤回重报） -->
+        <div id="rp-team-sec">
+          <div class="reg-sec-title">队伍</div>
+          <div class="form-row">
+            <div class="full"><label class="form-label">队伍 <span class="req">*</span></label>
+              <div class="seg" id="rp-mode">
+                <button type="button" data-mode="join" class="active">加入已有队伍</button>
+                <button type="button" data-mode="new">新建队伍</button>
+              </div></div>
+            <div class="full" id="rp-join-wrap">
+              <label class="form-label" for="rp-team">选择队伍</label>
+              <select class="select" id="rp-team"></select></div>
+            <div class="full" id="rp-new-wrap" hidden>
+              <label class="form-label" for="rp-team-new">新队伍名称 <span class="req">*</span></label>
+              <input class="input" id="rp-team-new" maxlength="24" placeholder="新战队名称">
+              <span class="empty-hint" style="display:block; margin-top:6px;">新建队伍需管理员审批，通过后你将成为本活动队长。</span></div>
+            <div class="full"><label class="form-label" for="rp-members">队员名单（每行一个，可选）</label>
+              <textarea class="textarea" id="rp-members" rows="3" placeholder="张三&#10;李四"></textarea></div>
+            <div><label class="form-label" for="rp-contact">联系方式（可选）</label>
+              <input class="input" id="rp-contact" maxlength="40" placeholder="微信 / QQ"></div>
+            <div class="full"><label class="form-label" for="rp-note">备注（可选）</label>
+              <input class="input" id="rp-note" maxlength="100" placeholder="想说的话 / 组队需求"></div>
+          </div>
+        </div>
+
+        <!-- 第一段：当前赛季 -->
+        <div class="reg-sec-title">个人资料 · 第一部分：当前赛季</div>
+        <div class="form-row">
+          <div><label class="form-label" for="rp-real">真名 <span class="req">*</span></label>
+            <input class="input" id="rp-real" maxlength="20" placeholder="真实姓名"></div>
+          <div><label class="form-label" for="rp-gameid">游戏 ID <span class="req">*</span></label>
+            <input class="input" id="rp-gameid" maxlength="30" placeholder="对局中使用的 ID"></div>
+          <div><label class="form-label" for="rp-staff">工号 <span class="req" id="rp-staff-req">*</span></label>
+            <input class="input" id="rp-staff" maxlength="20" placeholder="员工编号"></div>
+          <div class="full"><label class="form-label">常玩位置（可多选） <span class="req" id="rp-pos-req">*</span></label>
+            <div class="pos-chips" id="rp-positions">
+              <label><input type="checkbox" value="一突">一突</label>
+              <label><input type="checkbox" value="二突">二突</label>
+              <label><input type="checkbox" value="先锋">先锋</label>
+              <label><input type="checkbox" value="控场">控场</label>
+              <label><input type="checkbox" value="哨位">哨位</label>
+            </div></div>
+          <div><label class="form-label" for="rp-cur-rank">当前段位 <span class="req">*</span></label>
+            <input class="input" id="rp-cur-rank" maxlength="30" placeholder="例如：不朽 2"></div>
+          <div><label class="form-label" for="rp-cur-acs">ACS <span class="req">*</span></label>
+            <input class="input" id="rp-cur-acs" maxlength="10" placeholder="例如：210.5"></div>
+          <div><label class="form-label" for="rp-cur-kda">KDA <span class="req">*</span></label>
+            <input class="input" id="rp-cur-kda" maxlength="10" placeholder="例如：1.35"></div>
+          <div><label class="form-label" for="rp-cur-kast">KAST% <span class="req">*</span></label>
+            <input class="input" id="rp-cur-kast" maxlength="10" placeholder="例如：74"></div>
+          <div><label class="form-label" for="rp-cur-adr">回合伤害 <span class="req">*</span></label>
+            <input class="input" id="rp-cur-adr" maxlength="10" placeholder="例如：148.2"></div>
+          <div class="full"><label class="form-label">当前赛季数据截图 <span class="req">*</span></label>
+            <div class="shot-row">
+              <div class="grow"><input class="input" type="file" id="rp-cur-shot" accept="image/*" style="padding:7px;"></div>
+              <img class="shot-preview" id="rp-cur-shot-preview" alt="当前赛季截图预览">
+            </div></div>
+        </div>
+
+        <!-- 第二段：历史巅峰与生涯 -->
+        <div id="rp-career-sec">
+          <div class="reg-sec-title">个人资料 · 第二部分：历史巅峰与生涯</div>
+          <div class="form-row">
+            <div><label class="form-label" for="rp-hist-rank">历史最高段位 <span class="req" id="rp-hist-req">*</span></label>
+              <input class="input" id="rp-hist-rank" maxlength="30" placeholder="例如：不朽 3"></div>
+            <div><label class="form-label" for="rp-hist-acs">巅峰 ACS <span class="req" data-career-req>*</span></label>
+              <input class="input" id="rp-hist-acs" maxlength="10" placeholder="例如：232.1"></div>
+            <div><label class="form-label" for="rp-hist-kda">巅峰 KDA <span class="req" data-career-req>*</span></label>
+              <input class="input" id="rp-hist-kda" maxlength="10" placeholder="例如：1.52"></div>
+            <div><label class="form-label" for="rp-hist-kast">巅峰 KAST% <span class="req" data-career-req>*</span></label>
+              <input class="input" id="rp-hist-kast" maxlength="10" placeholder="例如：76"></div>
+            <div><label class="form-label" for="rp-hist-adr">巅峰回合伤害 <span class="req" data-career-req>*</span></label>
+              <input class="input" id="rp-hist-adr" maxlength="10" placeholder="例如：162.4"></div>
+            <div><label class="form-label" for="rp-playtime">总游戏时长 <span class="req" data-career-req>*</span></label>
+              <input class="input" id="rp-playtime" maxlength="30" placeholder="例如：1456 小时"></div>
+            <div><label class="form-label" for="rp-fps-before">之前是否玩过其他 FPS <span class="req" data-career-req>*</span></label>
+              <input class="input" id="rp-fps-before" maxlength="60" placeholder="例如：CS:GO、OW；没有填「无」"></div>
+            <div><label class="form-label" for="rp-fps-best">其他 FPS 最高段位 <span class="req" id="rp-fpsbest-req">*</span></label>
+              <input class="input" id="rp-fps-best" maxlength="40" placeholder="例如：大地球 / 钻石"></div>
+            <div class="full"><label class="form-label">生涯数据截图 <span class="req" id="rp-career-shot-req">*</span></label>
+              <div class="shot-row">
+                <div class="grow"><input class="input" type="file" id="rp-career-shot" accept="image/*" style="padding:7px;"></div>
+                <img class="shot-preview" id="rp-career-shot-preview" alt="生涯数据截图预览">
+              </div></div>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:22px;">
+          <button class="btn btn-primary" id="rp-submit" type="submit">提交报名</button>
+        </div>
+      </form>
+    </div>
+  </div></main>
+
+  <script>
+    (function () {
+      'use strict';
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+      }
+      var POS_LIST = ['一突', '二突', '先锋', '控场', '哨位'];
+      var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回' };
+      var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet' };
+      var EV_STATUS = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
+
+      var ev = null, profile = null, mine = null, allRegs = [], rosterHit = null, shotUrls = { cur: '', career: '' };
+
+      function sb() { return HWAuth.getClient(); }
+
+      /* ---------- 老选手判定：已有资料档案 或 花名册命中 ---------- */
+      function detectOld(u, seasonKey) {
+        if (profile) { rosterHit = { name: profile.real_name || '' }; return Promise.resolve(true); }
+        var t = seasonKey + '_player_ids';
+        return sb().from(t).select('name, id').limit(2000).then(function (res) {
+          var rows = (res && !res.error && res.data) || [];
+          var hit = rows.find(function (p) {
+            return (u.game_id && String(p.id) === String(u.game_id)) ||
+                   (u.nickname && p.name === u.nickname);
+          }) || null;
+          rosterHit = hit;
+          return !!hit;
+        }).catch(function () { return false; });
+      }
+
+      function positionsChecked() {
+        return Array.prototype.map.call(
+          document.querySelectorAll('#rp-positions input:checked'),
+          function (i) { return i.value; }
+        );
+      }
+      function setPositions(list) {
+        Array.prototype.forEach.call(document.querySelectorAll('#rp-positions input'), function (i) {
+          i.checked = (list || []).indexOf(i.value) !== -1;
+        });
+      }
+
+      /* ---------- 截图上传（reg-docs 桶） ---------- */
+      function uploadShot(file, tag) {
+        if (!file) return Promise.resolve('');
+        if (!file.type || file.type.indexOf('image/') !== 0) { HWLayout.toast('截图需为图片文件', 'err'); return Promise.reject(new Error('type')); }
+        if (file.size > 2 * 1024 * 1024) { HWLayout.toast('截图需 ≤ 2MB', 'err'); return Promise.reject(new Error('size')); }
+        var u = HWAuth.getSession();
+        var safe = tag + '-' + (u ? u.id : '0') + '-' + String(Date.now()) + '.' + String(file.name || 'img').split('.').pop().replace(/[^a-z0-9]/gi, '').slice(0, 8);
+        return sb().storage.from('reg-docs').upload('shots/' + safe, file, { contentType: file.type, upsert: false })
+          .then(function (r) {
+            if (r.error) throw new Error(r.error.message);
+            return sb().storage.from('reg-docs').getPublicUrl(r.data.path).data.publicUrl;
+          });
+      }
+      function bindShotPreview(inputId, previewId) {
+        var f = document.getElementById(inputId);
+        var pv = document.getElementById(previewId);
+        if (!f) return;
+        f.addEventListener('change', function () {
+          var file = f.files && f.files[0];
+          if (!file) { pv.style.display = 'none'; pv.src = ''; return; }
+          if (file.size > 2 * 1024 * 1024) { HWLayout.toast('截图需 ≤ 2MB', 'err'); f.value = ''; return; }
+          var rd = new FileReader();
+          rd.onload = function () { pv.src = rd.result; pv.style.display = 'block'; };
+          rd.readAsDataURL(file);
+        });
+      }
+
+      /* ---------- 校验 ---------- */
+      function val(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+      function shotPresent(kind, inputId) {
+        if (shotUrls[kind]) return true;
+        var el = document.getElementById(inputId);
+        return !!(el && el.files && el.files.length);
+      }
+      function requireFields(pairs, label) {
+        for (var i = 0; i < pairs.length; i++) {
+          if (!pairs[i][1]) { HWLayout.toast('请填写' + pairs[i][0], 'err'); var el = document.getElementById(pairs[i][2]); if (el) el.focus(); return false; }
+        }
+        return true;
+      }
+      function validateAll() {
+        /* 基本 + 当前赛季（新老都要） */
+        if (!requireFields([
+          ['真名', val('rp-real'), 'rp-real'],
+          ['游戏 ID', val('rp-gameid'), 'rp-gameid'],
+          ['工号', val('rp-staff'), 'rp-staff'],
+          ['当前段位', val('rp-cur-rank'), 'rp-cur-rank'],
+          ['ACS', val('rp-cur-acs'), 'rp-cur-acs'],
+          ['KDA', val('rp-cur-kda'), 'rp-cur-kda'],
+          ['KAST%', val('rp-cur-kast'), 'rp-cur-kast'],
+          ['回合伤害', val('rp-cur-adr'), 'rp-cur-adr']
+        ])) return false;
+        if (!positionsChecked().length) { HWLayout.toast('请至少选择一个常玩位置', 'err'); return false; }
+        if (!shotPresent('cur', 'rp-cur-shot')) { HWLayout.toast('请上传当前赛季数据截图', 'err'); return false; }
+        /* 第二部分：新选手必填；老选手未存过资料时也必填 */
+        var careerRequired = document.getElementById('rp-career-sec').dataset.required === '1';
+        if (careerRequired) {
+          var fpsBefore = val('rp-fps-before');
+          if (!requireFields([
+            ['历史最高段位', val('rp-hist-rank'), 'rp-hist-rank'],
+            ['巅峰 ACS', val('rp-hist-acs'), 'rp-hist-acs'],
+            ['巅峰 KDA', val('rp-hist-kda'), 'rp-hist-kda'],
+            ['巅峰 KAST%', val('rp-hist-kast'), 'rp-hist-kast'],
+            ['巅峰回合伤害', val('rp-hist-adr'), 'rp-hist-adr'],
+            ['总游戏时长', val('rp-playtime'), 'rp-playtime'],
+            ['是否玩过其他 FPS', fpsBefore, 'rp-fps-before']
+          ])) return false;
+          if (!/^无$|^暂无|^没有/i.test(fpsBefore) && !val('rp-fps-best')) {
+            HWLayout.toast('请填写其他 FPS 的最高段位', 'err');
+            document.getElementById('rp-fps-best').focus();
+            return false;
+          }
+          if (!shotPresent('career', 'rp-career-shot')) { HWLayout.toast('请上传生涯数据截图', 'err'); return false; }
+        }
+        return true;
+      }
+
+      /* ---------- 提交 ---------- */
+      function collectProfile() {
+        return {
+          game_id: val('rp-gameid'),
+          real_name: val('rp-real'),
+          staff_no: val('rp-staff'),
+          positions: positionsChecked().join(','),
+          cur_rank: val('rp-cur-rank'),
+          cur_acs: val('rp-cur-acs'),
+          cur_kda: val('rp-cur-kda'),
+          cur_kast: val('rp-cur-kast'),
+          cur_adr: val('rp-cur-adr'),
+          cur_shot: shotUrls.cur,
+          hist_rank: val('rp-hist-rank'),
+          hist_acs: val('rp-hist-acs'),
+          hist_kda: val('rp-hist-kda'),
+          hist_kast: val('rp-hist-kast'),
+          hist_adr: val('rp-hist-adr'),
+          playtime: val('rp-playtime'),
+          fps_before: val('rp-fps-before'),
+          fps_best: val('rp-fps-best'),
+          career_shot: shotUrls.career,
+          updated_at: new Date().toISOString()
+        };
+      }
+
+      function submitForm(e) {
+        e.preventDefault();
+        var u = HWAuth.getSession();
+        if (!u || !ev) return;
+        if (!validateAll()) return;
+
+        var btn = document.getElementById('rp-submit');
+        btn.disabled = true; btn.textContent = '提交中…';
+
+        var curFileEl = document.getElementById('rp-cur-shot');
+        var careerFileEl = document.getElementById('rp-career-shot');
+        var curFile = curFileEl && curFileEl.files ? curFileEl.files[0] : null;
+        var careerFile = careerFileEl && careerFileEl.files ? careerFileEl.files[0] : null;
+
+        Promise.all([
+          curFile ? uploadShot(curFile, 'cur') : Promise.resolve(''),
+          careerFile ? uploadShot(careerFile, 'career') : Promise.resolve('')
+        ]).then(function (urls) {
+          if (urls[0]) shotUrls.cur = urls[0];
+          if (urls[1]) shotUrls.career = urls[1];
+          var pData = collectProfile();
+          return sb().from('reg_profiles').upsert([Object.assign({ user_id: u.id }, pData)])
+            .then(function (r) {
+              if (r.error) { throw new Error('资料保存失败: ' + r.error.message); }
+              if (mine) { return null; } /* 已有报名 = 仅更新资料 */
+              return submitRegistration(u);
+            });
+        }).then(function (res) {
+          if (res && res.error) throw new Error(res.error.message);
+          var isUpdateOnly = !!mine;
+          HWLayout.toast(isUpdateOnly ? '资料已保存' : '报名已提交，等待审核');
+          if (!isUpdateOnly) {
+            var link = 'register.html?event=' + ev.id;
+            var teamName = currentTeamName();
+            HWLayout.notifyUser(u.id, '报名已提交', '「' + ev.title + '」· ' + teamName, link);
+            HWLayout.notifyAdmins('新报名待审核', (u.nickname || u.username || '有人') + ' →「' + ev.title + '」· ' + teamName, 'review.html?event=' + ev.id);
+          }
+          return bootData();
+        }).catch(function (err) {
+          HWLayout.toast(err.message || '提交失败', 'err');
+          btn.disabled = false;
+          btn.textContent = mine ? '保存资料' : '提交报名';
+        });
+      }
+
+      function currentTeamName() {
+        var modeBtn = document.querySelector('#rp-mode button.active');
+        var mode = modeBtn ? modeBtn.dataset.mode : 'join';
+        if (mode === 'new') return val('rp-team-new');
+        var sel = document.getElementById('rp-team');
+        return sel ? String(sel.value || '').trim() : '';
+      }
+
+      function submitRegistration(u) {
+        var modeBtn = document.querySelector('#rp-mode button.active');
+        var mode = modeBtn ? modeBtn.dataset.mode : 'join';
+        var teamName = '', newTeam = false;
+        if (mode === 'new') {
+          teamName = val('rp-team-new');
+          if (!teamName) { HWLayout.toast('请填写新队伍名称', 'err'); throw new Error('team'); }
+          newTeam = true;
+        } else {
+          teamName = currentTeamName();
+          if (!teamName) { HWLayout.toast('暂无已有队伍，请选择新建队伍', 'err'); throw new Error('team'); }
+        }
+        var members = val('rp-members') ? val('rp-members').split('\n').map(function (s) { return s.trim(); }).filter(Boolean) : [];
+        var payload = {
+          team_name: teamName, members: members, contact: val('rp-contact'), note: val('rp-note'),
+          status: 'pending', updated_at: new Date().toISOString()
+        };
+        if (newTeam) payload.new_team = true;
+        var runOp = function (pl, allowFallback) {
+          var op = sb().from('event_registrations')
+            .insert([Object.assign({ event_id: ev.id, user_id: u.id }, pl)]).select();
+          return op.then(function (res) {
+            if (res.error && allowFallback && /new_team|42703/.test(String(res.error.message || ''))) {
+              var pl2 = Object.assign({}, pl); delete pl2.new_team;
+              return runOp(pl2, false);
+            }
+            return res;
+          });
+        };
+        return runOp(payload, true);
+      }
+
+      function cancelReg(regId) {
+        if (!confirm('确定撤回这条报名吗？')) return;
+        sb().from('event_registrations').update({ status: 'cancelled', updated_at: new Date().toISOString() })
+          .eq('id', regId)
+          .then(function (res) {
+            if (res.error) { HWLayout.toast('撤回失败: ' + res.error.message, 'err'); return; }
+            HWLayout.toast('报名已撤回，可重新报名');
+            bootData();
+          });
+      }
+
+      /* ---------- 渲染 ---------- */
+      function renderEventCard() {
+        var host = document.getElementById('reg-event-card');
+        host.hidden = false;
+        var regsCount = allRegs.filter(function (r) { return r.event_id === ev.id && (r.status === 'pending' || r.status === 'approved'); }).length;
+        host.innerHTML =
+          '<div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">' +
+          '  <span class="icon-circle" style="width:46px;height:46px;font-size:22px;">' + esc(ev.cover_emoji || '🏆') + '</span>' +
+          '  <div><span class="eyebrow">' + esc(ev.season || '') + '</span>' +
+          '    <div style="font-size:18px; font-weight:600; color:var(--pure-white); margin-top:2px;">' + esc(ev.title) + '</div></div>' +
+          '  <span class="badge ' + (ev.status === 'registration' ? 'badge-green' : 'badge-quiet') + '" style="margin-left:auto;">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
+          '</div>' +
+          '<div class="meta-grid" style="margin-top:14px;">' +
+          '  <div class="meta-cell"><div class="k">报名截止</div><div class="v">' + (ev.reg_deadline ? new Date(ev.reg_deadline).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '不限') + '</div></div>' +
+          '  <div class="meta-cell"><div class="k">名额</div><div class="v">' + (ev.max_slots ? regsCount + ' / ' + ev.max_slots : regsCount + '（不限）') + '</div></div>' +
+          '  <div class="meta-cell"><div class="k">赛制</div><div class="v">' + esc(ev.format || '—') + '</div></div>' +
+          '</div>';
+      }
+
+      function renderStatus() {
+        var box = document.getElementById('reg-status-box');
+        if (!mine) { box.hidden = true; return; }
+        box.hidden = false;
+        box.innerHTML =
+          '<span class="eyebrow">My Application</span>' +
+          '<div class="st-line" style="margin-top:10px;">' +
+          '  <span class="badge ' + (REG_BADGE[mine.status] || '') + '">' + (REG_STATUS[mine.status] || mine.status) + '</span>' +
+          '  <span style="color:var(--mist);">战队「' + esc(mine.team_name || '—') + '」</span>' +
+          (mine.new_team ? '<span class="badge badge-blue">新建队伍 · 待队长生效</span>' : '') +
+          '  <span class="smoke" style="font-size:13px;">提交于 ' + new Date(mine.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</span>' +
+          ((mine.status === 'pending' || mine.status === 'approved')
+            ? '<button class="btn btn-ghost btn-sm" id="st-cancel" type="button" style="margin-left:auto;">撤回报名</button>' : '') +
+          '</div>' +
+          '<p class="smoke" style="font-size:13px; margin:10px 0 0;">如需更换队伍，请撤回后重新报名；个人资料可随时在下方更新。</p>';
+        var c = document.getElementById('st-cancel');
+        if (c) c.addEventListener('click', function () { cancelReg(mine.id); });
+      }
+
+      function prefill() {
+        var p = profile || {};
+        var u = HWAuth.getSession();
+        document.getElementById('rp-real').value = p.real_name || (rosterHit && rosterHit.name) || '';
+        document.getElementById('rp-gameid').value = p.game_id || (u && u.game_id) || '';
+        document.getElementById('rp-staff').value = p.staff_no || '';
+        setPositions(p.positions ? String(p.positions).split(',') : []);
+        document.getElementById('rp-cur-rank').value = p.cur_rank || '';
+        document.getElementById('rp-cur-acs').value = p.cur_acs || '';
+        document.getElementById('rp-cur-kda').value = p.cur_kda || '';
+        document.getElementById('rp-cur-kast').value = p.cur_kast || '';
+        document.getElementById('rp-cur-adr').value = p.cur_adr || '';
+        document.getElementById('rp-hist-rank').value = p.hist_rank || '';
+        document.getElementById('rp-hist-acs').value = p.hist_acs || '';
+        document.getElementById('rp-hist-kda').value = p.hist_kda || '';
+        document.getElementById('rp-hist-kast').value = p.hist_kast || '';
+        document.getElementById('rp-hist-adr').value = p.hist_adr || '';
+        document.getElementById('rp-playtime').value = p.playtime || '';
+        document.getElementById('rp-fps-before').value = p.fps_before || '';
+        document.getElementById('rp-fps-best').value = p.fps_best || '';
+        shotUrls.cur = p.cur_shot || '';
+        shotUrls.career = p.career_shot || '';
+        var cp = document.getElementById('rp-cur-shot-preview');
+        if (shotUrls.cur) { cp.src = shotUrls.cur; cp.style.display = 'block'; }
+        var pp = document.getElementById('rp-career-shot-preview');
+        if (shotUrls.career) { pp.src = shotUrls.career; pp.style.display = 'block'; }
+        /* 第二部分必填性：资料档案或花名册命中 = 老选手 → 选填 */
+        var careerSec = document.getElementById('rp-career-sec');
+        var required = !profile && !rosterHit;
+        careerSec.dataset.required = required ? '1' : '0';
+        Array.prototype.forEach.call(careerSec.querySelectorAll('.req'), function (el) { el.style.display = required ? '' : 'none'; });
+        var oldNote = document.getElementById('rp-old-note');
+        if (!required) {
+          oldNote.hidden = false;
+          oldNote.innerHTML = '老选手资料已带入：仅需保持<strong>当前赛季</strong>数据为最新；历史巅峰与截图为选填，不改即沿用已保存内容。';
+        } else {
+          oldNote.hidden = true;
+        }
+      }
+
+      function renderTeamPool() {
+        var pool = {};
+        allRegs.forEach(function (r) {
+          if (r.event_id === ev.id && r.status === 'approved' && r.team_name) pool[r.team_name] = 1;
+        });
+        String(ev.teams || '').split(',').forEach(function (t) { t = t.trim(); if (t) pool[t] = 1; });
+        var list = Object.keys(pool).sort(function (a, b) { return a.localeCompare(b, 'zh'); });
+        var sel = document.getElementById('rp-team');
+        sel.innerHTML = list.length
+          ? list.map(function (t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('')
+          : '<option value="">暂无已有队伍</option>';
+        var mode = document.getElementById('rp-mode');
+        var joinBtn = mode.querySelector('button[data-mode="join"]');
+        var newBtn = mode.querySelector('button[data-mode="new"]');
+        if (list.length) { joinBtn.classList.add('active'); newBtn.classList.remove('active'); }
+        else { newBtn.classList.add('active'); joinBtn.classList.remove('active'); }
+        document.getElementById('rp-join-wrap').hidden = !list.length;
+        document.getElementById('rp-new-wrap').hidden = !!list.length;
+      }
+
+      function renderForm() {
+        var u = HWAuth.getSession();
+        var form = document.getElementById('reg-form');
+        var deadlinePassed = ev.reg_deadline && new Date(ev.reg_deadline) < new Date();
+        var activeCount = allRegs.filter(function (r) { return r.event_id === ev.id && (r.status === 'pending' || r.status === 'approved'); }).length;
+        var full = ev.max_slots && activeCount >= ev.max_slots;
+
+        if (mine) {
+          /* 已报名：显示状态 + 资料更新（隐藏队伍段） */
+          form.hidden = false;
+          document.getElementById('rp-team-sec').hidden = true;
+          document.getElementById('reg-form-title').textContent = '更新个人资料';
+          document.getElementById('rp-submit').textContent = '保存资料';
+          prefill();
+          return;
+        }
+        var canReg = ev.status === 'registration' && !deadlinePassed && !full && u;
+        if (!canReg) {
+          form.hidden = true;
+          var none = document.getElementById('reg-none');
+          none.hidden = false;
+          none.textContent = !u ? '登录后可报名。'
+            : ev.status !== 'registration' ? '当前状态（' + (EV_STATUS[ev.status] || ev.status) + '）不可报名。'
+            : deadlinePassed ? '报名已截止。'
+            : full ? '名额已满。' : '暂不可报名。';
+          return;
+        }
+        form.hidden = false;
+        document.getElementById('rp-team-sec').hidden = false;
+        document.getElementById('reg-form-title').textContent = '填写报名信息';
+        document.getElementById('rp-submit').textContent = '提交报名';
+        renderTeamPool();
+        prefill();
+      }
+
+      function renderGate() {
+        document.getElementById('reg-gate').hidden = false;
+        document.getElementById('reg-wrap').hidden = true;
+        document.getElementById('reg-loading').hidden = true;
+      }
+
+      function bootData() {
+        var u = HWAuth.getSession();
+        document.getElementById('reg-loading').hidden = false;
+        if (!ev) {
+          document.getElementById('reg-loading').textContent = '未指定活动 — 请从活动大厅进入。';
+          return Promise.resolve();
+        }
+        if (!u) {
+          document.getElementById('reg-loading').hidden = true;
+          renderGate();
+          return Promise.resolve();
+        }
+        var seasonKey = HWLayout.seasonKey(ev);
+        return Promise.all([
+          sb().from('event_registrations').select('*').order('created_at', { ascending: false }),
+          sb().from('reg_profiles').select('*').eq('user_id', u.id).maybeSingle()
+        ]).then(function (rs) {
+          allRegs = (rs[0] && !rs[0].error && rs[0].data) || [];
+          profile = (rs[1] && !rs[1].error && rs[1].data) || null;
+          mine = allRegs.find(function (r) {
+            return r.event_id === ev.id && r.user_id === u.id &&
+              (r.status === 'pending' || r.status === 'approved');
+          }) || null;
+          return detectOld(u, seasonKey);
+        }).then(function () {
+          document.getElementById('reg-loading').hidden = true;
+          document.getElementById('reg-wrap').hidden = false;
+          document.getElementById('reg-gate').hidden = true;
+          renderEventCard();
+          renderStatus();
+          renderForm();
+        }).catch(function (err) {
+          document.getElementById('reg-loading').textContent = '加载失败：' + (err.message || err);
+        });
+      }
+
+      /* ---------- 事件绑定 ---------- */
+      document.getElementById('rp-mode').addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('button[data-mode]') : null;
+        if (!b) return;
+        Array.prototype.forEach.call(this.querySelectorAll('button'), function (x) { x.classList.toggle('active', x === b); });
+        document.getElementById('rp-join-wrap').hidden = b.dataset.mode !== 'join';
+        document.getElementById('rp-new-wrap').hidden = b.dataset.mode !== 'new';
+      });
+      document.getElementById('reg-login').addEventListener('click', function () {
+        HWAuth.openModal({ stay: true }).then(function () { bootData(); }).catch(function () {});
+      });
+      document.getElementById('reg-form').addEventListener('submit', submitForm);
+      bindShotPreview('rp-cur-shot', 'rp-cur-shot-preview');
+      bindShotPreview('rp-career-shot', 'rp-career-shot-preview');
+
+      /* ---------- 启动 ---------- */
+      HWAuth.init();
+      HWAuth.detectAccountSource().catch(function () {}).finally(function () {
+        HWLayout.resolveEvent().then(function (resolved) {
+          ev = resolved;
+          if (ev) {
+            HWLayout.access(HWLayout.seasonKey(ev), ev).then(function (perms) {
+              HWLayout.eventBar({ event: ev, perms: perms });
+            });
+          } else {
+            HWLayout.eventBar({ event: null });
+          }
+          bootData();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

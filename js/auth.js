@@ -269,7 +269,7 @@
       }
       var sb = getClient();
       var allowed = {};
-      ['nickname', 'game_id', 'bio', 'role'].forEach(function (k) {
+      ['nickname', 'game_id', 'bio', 'role', 'avatar'].forEach(function (k) {
         if (k in patch) allowed[k] = patch[k];
       });
       return sb.from(table).update(allowed).eq('id', session.id).select().single().then(function (res) {
