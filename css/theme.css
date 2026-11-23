@@ -573,6 +573,18 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
 }
 
 /* ---------- Circular icon container ---------- */
+/* Lucide 内联图标（coss.com/ui 所用图标库） */
+.ico {
+  flex: none;
+  display: inline-block;
+  vertical-align: -0.15em;
+}
+.icon-circle > .ico,
+.ev-emoji-fb .ico,
+.li-icon .ico {
+  display: block;
+}
+
 .icon-circle {
   display: inline-flex;
   align-items: center;

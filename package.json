@@ -1,8 +1,8 @@
 {
-  "name": "hwvcts-tests",
+  "name": "hwvcts5",
   "private": true,
-  "version": "1.0.0",
   "dependencies": {
-    "jsdom": "^31.0.1"
+    "jsdom": "^26.0.0",
+    "lucide-static": "^0.462.0"
   }
 }

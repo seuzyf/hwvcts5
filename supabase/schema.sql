@@ -309,6 +309,12 @@ create policy "reg_docs_all" on storage.objects for all
     with check (bucket_id = 'reg-docs');
 
 -- ---------------------------------------------------------------------
+-- 10. 审核增强：截图人工核对标记
+-- ---------------------------------------------------------------------
+alter table public.reg_profiles add column if not exists shots_verified boolean not null default false;
+alter table public.reg_profiles add column if not exists shots_verified_at timestamptz;
+
+-- ---------------------------------------------------------------------
 -- 完成 ✓
 -- 执行后刷新网站即可：登录 → 个人主页 → 活动大厅报名
 -- ---------------------------------------------------------------------

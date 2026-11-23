@@ -56,7 +56,8 @@
         
         #player-honors { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px 20px; }
         .honor-item { display: inline-flex; align-items: center; gap: 10px; padding: 5px 12px; position: relative; }
-        .honor-item .crown-icon { font-size: 1.3em; background: linear-gradient(135deg, var(--gold-light), var(--gold-main), var(--gold-dark)); -webkit-background-clip: text; color: transparent; filter: drop-shadow(0 0 6px var(--gold-glow)); animation: crown-shimmer 3s infinite ease-in-out, subtle-bob 4s infinite ease-in-out 0.2s; }
+        .honor-item .crown-icon { font-size: 1.3em; background: linear-gradient(135deg, var(--gold-light), var(--gold-main), var(--gold-dark)); -webkit-background-clip: text; color: transparent; filter: drop-shadow(0 0 6px var(--gold-glow)); animation: crown-shimmer 3s infinite ease-in-out, subtle-bob 4s infinite ease-in-out 0.2s; display: inline-flex; }
+        .honor-item .crown-icon .ico { color: var(--gold-main); background: none; -webkit-background-clip: border-box; animation: subtle-bob 4s infinite ease-in-out 0.2s; }
         .honor-text { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-weight: 900; font-size: 24px; letter-spacing: 2px; color: transparent; background-size: 300% 100%; -webkit-background-clip: text; animation: subtle-bob 4s ease-in-out infinite, gradient-flow 8s ease-in-out infinite; }
         .honor-text.champion { background-image: linear-gradient(135deg, var(--gold-light) 10%, var(--gold-main) 30%, var(--gold-medium) 45%, #d4af37 60%, var(--gold-dark) 75%, var(--gold-main) 90%); filter: drop-shadow(0 2px 4px rgba(184, 134, 11, 0.2)); }
         .honor-text.cool-gradient { background-image: linear-gradient(135deg, var(--cool-light) 0%, var(--cool-medium) 40%, var(--cool-main) 70%, var(--cool-dark) 100%); filter: drop-shadow(0 2px 4px rgba(255,255,255,0.12)); }
@@ -532,7 +533,7 @@
         if (honors) {
             document.getElementById('player-honors').innerHTML = honors.split('、').map((h, i) => {
                 const honorText = escapeHTML(h);
-                if (honorText.includes('冠军')) { return `<span class="honor-item"><span class="crown-icon">👑</span><span class="honor-text champion" style="--i: ${i}">${honorText}</span></span>`; } 
+                if (honorText.includes('冠军')) { return `<span class="honor-item"><span class="crown-icon">${HWLayout.ico('crown', 14)}</span><span class="honor-text champion" style="--i: ${i}">${honorText}</span></span>`; } 
                 else { return `<span class="honor-item"><span class="honor-text cool-gradient" style="--i: ${i}">${honorText}</span></span>`; }
             }).join('');
         }

@@ -285,10 +285,6 @@
                             <option value="3" selected>3 组（传奇 / 中坚 / 挑战）</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="form-label" for="cf-emoji">封面图标</label>
-                        <input class="input" id="cf-emoji" value="🏆" maxlength="4">
-                    </div>
                     <div class="full">
                         <label class="form-label" for="cf-venue">地点 / 房间说明</label>
                         <input class="input" id="cf-venue" maxlength="60" placeholder="自定义房间：HWVCT-XXX">
@@ -373,16 +369,16 @@
             function paint(perms) {
                 perms = perms || {};
                 var entries = [
-                    ['schedule.html?event=' + ev.id, '🗓️', '赛程'],
-                    ['matches.html?event=' + ev.id, '🎮', '比赛'],
-                    ['summary.html?event=' + ev.id, '📊', '数据'],
-                    ['betting.html?event=' + ev.id, '🎯', '竞猜']
+                    ['schedule.html?event=' + ev.id, 'calendar', '赛程'],
+                    ['matches.html?event=' + ev.id, 'gamepad', '比赛'],
+                    ['summary.html?event=' + ev.id, 'chart-column', '数据'],
+                    ['betting.html?event=' + ev.id, 'target', '竞猜']
                 ];
-                if (perms.isCaptain || perms.isAdmin) entries.push(['draft.html?event=' + ev.id, '🪪', '分队']);
-                if (perms.isAdmin || perms.isEventCaptain) entries.push(['manage.html?event=' + ev.id, '🛠️', '管理']);
+                if (perms.isCaptain || perms.isAdmin) entries.push(['draft.html?event=' + ev.id, 'users', '分队']);
+                if (perms.isAdmin || perms.isEventCaptain) entries.push(['manage.html?event=' + ev.id, 'shield-check', '管理']);
                 host.innerHTML = entries.map(function (t) {
                     return '<a class="tile" href="' + t[0] + '">' +
-                        '<span class="icon-circle" style="width:34px;height:34px;font-size:15px;">' + t[1] + '</span>' +
+                        '<span class="icon-circle" style="width:34px;height:34px;">' + HWLayout.ico(t[1], 17) + '</span>' +
                         '<span class="t-name">' + t[2] + '</span></a>';
                 }).join('') +
                 (perms.isAdmin ? '<span class="badge badge-coral">ADMIN</span>'
@@ -495,7 +491,7 @@
                 var ratio = ['r34', 'r11', 'r43'][(ev.id || 0) % 3];
                 var coverInner = ev.cover_image
                     ? '<img src="' + esc(ev.cover_image) + '" alt="" loading="lazy">'
-                    : '<span class="ev-emoji-fb">' + esc(ev.cover_emoji || '🏆') + '</span>';
+                    : '<span class="ev-emoji-fb">' + HWLayout.ico('trophy', 30) + '</span>';
                 var tags =
                     '<span class="badge badge-quiet">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + '</span>' +
                     '<span class="badge ' + (EV_BADGE[ev.status] || '') + '">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
@@ -553,7 +549,7 @@
                 var ev = allEvents.find(function (e) { return e.id === r.event_id; }) || {};
                 var canCancel = r.status === 'pending' || r.status === 'approved';
                 return '<div class="mine-item">' +
-                    '<span class="icon-circle">' + esc(ev.cover_emoji || '📋') + '</span>' +
+                    '<span class="icon-circle">' + (ev.cover_image ? '<img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">' : HWLayout.ico('clipboard-list', 16)) + '</span>' +
                     '<div class="mine-info">' +
                     '  <div class="t">' + esc(ev.title || '（活动已删除）') + '</div>' +
                     '  <div class="s">报名于 ' + fmtTime(r.created_at) +
@@ -658,7 +654,7 @@
                 '<button class="modal-close" id="detail-close" type="button">&times;</button>' +
                 coverBanner +
                 '<div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:6px;">' +
-                (ev.cover_image ? '' : '  <span class="icon-circle" style="width:52px;height:52px;font-size:24px;">' + esc(ev.cover_emoji || '🏆') + '</span>') +
+                (ev.cover_image ? '' : '  <span class="icon-circle" style="width:52px;height:52px;">' + HWLayout.ico('trophy', 24) + '</span>') +
                 '  <div><span class="eyebrow">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
                 '  <h3 class="modal-title" style="font-size:20px; margin-top:4px;">' + esc(ev.title) + '</h3></div>' +
                 '  <span class="badge ' + (EV_BADGE[ev.status] || '') + '" style="margin-left:auto;">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
@@ -884,7 +880,6 @@
                 reg_deadline: document.getElementById('cf-deadline').value ? new Date(document.getElementById('cf-deadline').value).toISOString() : null,
                 format: document.getElementById('cf-format').value.trim(),
                 group_count: parseInt(document.getElementById('cf-groups').value, 10) || 1,
-                cover_emoji: document.getElementById('cf-emoji').value.trim() || '🏆',
                 venue: document.getElementById('cf-venue').value.trim(),
                 description: document.getElementById('cf-desc').value.trim(),
                 rules: document.getElementById('cf-rules').value.trim(),
@@ -905,7 +900,6 @@
                     document.getElementById('create-modal').classList.remove('visible');
                     document.getElementById('create-form').reset();
                     document.getElementById('cf-season').value = 'S6';
-                    document.getElementById('cf-emoji').value = '🏆';
                     resetCoverField();
                     refresh();
                 });

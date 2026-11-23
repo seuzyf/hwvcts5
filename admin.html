@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 host.innerHTML = rows.map(function (ev) {
                     var thumb = ev.cover_image
                         ? '<span class="icon-circle" style="width:36px;height:36px;font-size:16px;padding:0;overflow:hidden;"><img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></span>'
-                        : '<span class="icon-circle" style="width:36px;height:36px;font-size:16px;">' + esc(ev.cover_emoji || '🏆') + '</span>';
+                        : '<span class="icon-circle" style="width:36px;height:36px;">' + HWLayout.ico('trophy', 16) + '</span>';
                     return '<div class="adm-ev-row">' +
                         thumb +
                         '<span class="adm-ev-main">' +

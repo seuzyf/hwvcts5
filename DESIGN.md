@@ -246,12 +246,32 @@ s6_betting_groups` + RPC `check_admin_password`。
     管理员视图新增「选手账号（头像管理）」卡片；player.html 存档时尽力同步站点头像。
   - schema 第 9 节：site_users.avatar + reg_profiles（两段式资料）+ reg-docs 存储桶（截图上传）。
   - 测试：静态 + E2E（见 .scratch）覆盖报名/审核/头像/活动栏。
+- **Phase 10（五项改进 + 图标去 emoji）**：
+  1. **绑定游戏 ID**：register.html 顶部绑定条（未绑定时显示）→ 校验未被其他账号占用后写
+     `site_users.game_id`；老/新判定升级为**已绑定只按 ID 确定性匹配花名册（当前+上赛季回退）**，
+     未绑定才走昵称启发式 —— 防重名误判与冒用。
+  2. **截图人工核对**：`reg_profiles.shots_verified / shots_verified_at`；review 详情「标记截图已核对」
+     切换 + 卡片与详情显示已核对徽标。
+  3. **审核批量 + 筛选**：卡片勾选（pending）、全选待审核、按状态/队伍筛选、「批量通过 (n)」
+     逐条 applyStatus（通知/自动队长同单条）；**名额守卫**：单条与批量均受 `max_slots` 限制
+     （批量自动按余量截断并提示）。
+  4. **历史段位软校验**：`rankScore()` 档位序（辐能…金）比较，历史 < 当前 → 黄字提示
+     「请确认是否填写有误」，**不阻断提交**。
+  5. **截止/满员硬禁**：register 提交瞬间复检 status/deadline/满员（打开表单期间活动关闭也会被拦），
+     满员按 pending+approved 占位；events/register 的 CTA 均已有截止态文案。
+  - **图标系统**：`HWLayout.ico(name, size)` 内联 **Lucide**（coss.com/ui 粒子所用图标库，
+    来源 cosscom/ui 注册表确认 lucide-react）30 枚；全站 UI emoji 清零
+    （活动空间/首页功能卡/分队锁/自动写入横幅/解说席/皇冠/封面兜底等 → SVG）。
+    **保留**：game.html 剧情聊天表情（内容）、`cover_emoji` 数据列（渲染已改用封面图或图标）、
+    ★ 评分与 → 箭头字形。
+  - schema 第 10 节：`reg_profiles.shots_verified` + `shots_verified_at`。
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
   （幂等）：已建过的 cover/event_captains 若在则跳过；
   **Phase 7 新增** `events.teams` / `events.group_count` 两列（赛制存既有 `format` 列）；
   **Phase 8 新增** `notifications` 表 + `event_registrations.new_team` 列；
   **Phase 9 新增** `site_users.avatar` + `reg_profiles` 表 + `reg-docs` 存储桶 ——
-  不建则通知/自动队长、报名页截图上传与头像功能不生效（老报名流程有回退）。
+  不建则通知/自动队长、报名页截图上传与头像功能不生效（老报名流程有回退）；
+  **Phase 10 新增** `reg_profiles.shots_verified` + `shots_verified_at`（截图人工核对标记）。
 
 ## 8. 功能保留清单
 

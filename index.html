@@ -302,7 +302,7 @@
                 : '<div class="list">' + regs.slice(0, 6).map(function (r) {
                     var ev = r.events || {};
                     return '<a class="list-item" href="events.html#mine">' +
-                        '<span class="li-icon">' + esc(ev.cover_emoji || '📋') + '</span>' +
+                        '<span class="li-icon">' + (ev.cover_image ? '<img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">' : HWLayout.ico('clipboard-list', 15)) + '</span>' +
                         '<span class="li-main">' +
                         '  <span class="li-title">' + esc(ev.title || '（活动已删除）') + '</span>' +
                         '  <span class="li-sub">' + esc(ev.season || '') + ' · ' + fmtDate(r.created_at) +
@@ -316,7 +316,7 @@
                 ? '<div class="empty-line">近期暂无进行中的活动</div>'
                 : '<div class="list">' + upcoming.map(function (ev) {
                     return '<a class="list-item" href="events.html?open=' + ev.id + '">' +
-                        '<span class="li-icon">' + esc(ev.cover_emoji || '🏆') + '</span>' +
+                        '<span class="li-icon">' + (ev.cover_image ? '<img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">' : HWLayout.ico('trophy', 15)) + '</span>' +
                         '<span class="li-main">' +
                         '  <span class="li-title">' + esc(ev.title) + '</span>' +
                         '  <span class="li-sub">' + fmtDate(ev.start_time) + (ev.venue ? ' · ' + esc(ev.venue) : '') + '</span>' +
@@ -328,12 +328,12 @@
             /* 功能入口：赛程/比赛/数据/竞猜/分队/管理全部绑定在活动下，
                从活动大厅进入；剧情模式独立于赛事体系，保留直入口。 */
             var tiles = [
-                ['events.html', '🗓️', '活动大厅', '报名参赛与审核'],
-                ['events.html#mine', '📋', '我的报名', '报名与参赛记录'],
-                ['game.html', '🎮', '剧情模式', '沉浸式训练赛故事']
+                ['events.html', 'trophy', '活动大厅', '报名参赛与审核'],
+                ['events.html#mine', 'clipboard-list', '我的报名', '报名与参赛记录'],
+                ['game.html', 'gamepad', '剧情模式', '沉浸式训练赛故事']
             ].map(function (t) {
                 return '<a class="tile" href="' + t[0] + '">' +
-                    '<span class="icon-circle">' + t[1] + '</span>' +
+                    '<span class="icon-circle">' + HWLayout.ico(t[1], 18) + '</span>' +
                     '<span><span class="t-name">' + t[2] + '</span><br><span class="t-desc">' + t[3] + '</span></span>' +
                     '</a>';
             }).join('');
@@ -358,7 +358,7 @@
                 '      <h3 class="profile-name">' + esc(user.nickname || user.username) + '<span class="profile-handle">@' + esc(user.username) + '</span></h3>' +
                 '      <div class="profile-chips">' +
                 '        <span class="chip mono">ID ' + user.id + '</span>' +
-                (user.game_id ? '<span class="chip">🎮 ' + esc(user.game_id) + '</span>' : '') +
+                (user.game_id ? '<span class="chip">' + HWLayout.ico('gamepad', 13) + ' ' + esc(user.game_id) + '</span>' : '') +
                 '        <span class="chip">注册于 ' + fmtDate(user.created_at) + '</span>' +
                 '      </div>' +
                 (user.bio
