@@ -860,7 +860,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    document.querySelectorAll('.modal-backdrop').forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('visible'); }));
 
     // 统一账号：初始化会话并探测账号表（升级前用旧表，升级后自动切新表）
     HWAuth.init();

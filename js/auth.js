@@ -409,7 +409,6 @@
     });
 
     document.getElementById('hw-auth-close').addEventListener('click', function () { close(true); });
-    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) close(true); });
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();

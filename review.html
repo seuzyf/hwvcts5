@@ -104,6 +104,11 @@
         return (typeof HWLayout !== 'undefined' && HWLayout.isAdminNow()) ||
           HWAuth.getSession() && HWAuth.getSession().role === 'admin';
       }
+      function canReview() {
+        if (isAdminNow()) return true;
+        var u = HWAuth.getSession();
+        return !!(ev && u && ev.organizer_id != null && String(ev.organizer_id) === String(u.id));
+      }
       function fmtTime(t) {
         if (!t) return '—';
         try { return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); }
@@ -220,7 +225,7 @@
             (u.username && u.username !== name ? ' · @' + esc(u.username) : '') + '</span>' +
             '  <span class="tags">' +
             '    <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
-            '    <span class="badge badge-quiet">' + esc(r.team_name || '—') + '</span>' +
+            '    <span class="badge badge-quiet">' + esc(r.team_name || '待分队') + '</span>' +
             (r.new_team ? '<span class="badge badge-blue">新建队伍</span>' : '') +
             (!p ? '<span class="badge badge-gold">无资料档案</span>' : '') +
             (p && p.shots_verified ? '<span class="badge badge-green rv-verified">' + HWLayout.ico('badge-check', 12) + '已核对</span>' : '') +
@@ -282,7 +287,7 @@
 
           '<div class="section-label" style="margin-top:18px;">报名信息</div>' +
           '<div class="rv-detail-grid">' +
-          kv('战队', r.team_name) + kv('队员名单', (r.members || []).join('、')) +
+          kv('战队', r.team_name || '待分队') + kv('队员名单', (r.members || []).join('、')) +
           kv('联系方式', r.contact) + kv('账号', u.username ? '@' + u.username : '') +
           (r.note ? '<div class="rv-kv" style="grid-column:1/-1;"><div class="k">备注</div><div class="v">' + esc(r.note) + '</div></div>' : '') +
           '</div>' +
@@ -338,9 +343,6 @@
         });
       }
       function closeDetail() { document.getElementById('rv-detail-modal').classList.remove('visible'); }
-      document.getElementById('rv-detail-modal').addEventListener('click', function (e) {
-        if (e.target === this) closeDetail();
-      });
 
       /* ---------- 审核动作 ---------- */
       function slotLeft() {
@@ -455,7 +457,7 @@
           document.getElementById('rv-sub').textContent = '未指定活动 — 请从活动大厅或通知进入。';
           return;
         }
-        if (!isAdminNow()) {
+        if (!canReview()) {
           document.getElementById('rv-gate').hidden = false;
           document.getElementById('rv-main').hidden = true;
           return;

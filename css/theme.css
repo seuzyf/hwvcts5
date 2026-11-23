@@ -659,6 +659,9 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
 .hero-atmosphere {
   position: relative;
   overflow: hidden;
+  /* 背景渐变比文字更宽：左右各外扩 48px，文字位置保持不变 */
+  width: calc(100% + 96px);
+  margin-left: -48px;
 }
 
 .hero-atmosphere::before {
@@ -688,7 +691,7 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
   z-index: 0;
 }
 
-.hero-atmosphere > * { position: relative; z-index: 1; }
+.hero-atmosphere > * { position: relative; z-index: 1; margin-left: 48px; }
 
 /* ---------- Utility ---------- */
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
