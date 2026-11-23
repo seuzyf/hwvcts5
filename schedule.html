@@ -117,15 +117,6 @@
 
     <div id="auto-submit-banner"></div>
 
-    <div id="password-modal" class="modal-backdrop" style="display: none; z-index: 1050;">
-        <div class="modal-panel" style="max-width:440px;">
-            <span class="modal-eyebrow">Admin Gate</span>
-            <h2>管理员验证</h2>
-            <input class="input" type="password" id="password-input-modal" placeholder="请输入管理口令">
-            <button class="btn btn-primary" id="password-submit-modal" style="width:100%;">确 认 权 限</button>
-        </div>
-    </div>
-
     <div id="caster-modal" class="modal-backdrop" style="display: none;">
         <div class="modal-panel" style="max-width: 600px;">
             <span class="modal-eyebrow">Caster Stats</span>
@@ -227,9 +218,6 @@
         const swissSection    = document.getElementById('swiss-stage-section');
         const playoffSection  = document.getElementById('playoff-stage-section');
         const randomDrawBtn   = document.getElementById('random-draw-btn');
-        const passwordModal   = document.getElementById('password-modal');
-        const passwordInputModal   = document.getElementById('password-input-modal');
-        const passwordSubmitModal  = document.getElementById('password-submit-modal');
         const submitChangesBtn     = document.getElementById('submit-changes-btn');
         const casterStatsBtn       = document.getElementById('caster-stats-btn');
         const casterModal          = document.getElementById('caster-modal');
@@ -241,39 +229,24 @@
         const autoSubmitBanner     = document.getElementById('auto-submit-banner');
 
         let currentEditingMatch  = null;
-        let pendingAuthAction    = null;
         let allMatchesData       = {};
         let allTeamsByGroup      = {};
         let allRegisteredPlayers = [];
         let processedMatchStats  = {};
-        let isPasswordVerified   = false;
         let pendingDataToUpsert  = [];
         let pendingIdsToDelete   = [];
         let currentSeason        = 's6'; 
 
-        // ── 密码验证 ─────────────────────────────────────────────────────────────
-        async function verifyPassword() {
-            const inputPassword = passwordInputModal.value;
-            if (!inputPassword) { HWLayout.toast('请输入口令！'); return; }
-            try {
-                const { data: isCorrect, error } = await supabaseClient.rpc('check_admin_password', { input_pwd: inputPassword });
-                if (error) throw error;
-                if (isCorrect === true) {
-                    isPasswordVerified = true;
-                    passwordModal.style.display = 'none';
-                    passwordInputModal.value = '';
-                    // 口令正确 → 全站管理会话（15 分钟）+ 尝试把当前账号升级为 admin 角色
-                    HWLayout.markAdmin(15);
-                    HWLayout.promoteRole();
-                    document.dispatchEvent(new CustomEvent('hw:admin'));
-                    if (pendingAuthAction) { pendingAuthAction(); pendingAuthAction = null; }
-                } else { HWLayout.toast('口令错误！'); }
-            } catch (error) { console.error('验证口令时出错:', error); HWLayout.toast('验证失败，请检查数据库连接。'); }
+        // ── 管理员权限（不再使用口令，按身份区分） ─────────────────────────────
+        function isAdminRole() {
+            var sess = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+            return !!(sess && sess.role === 'admin') ||
+                (typeof HWLayout !== 'undefined' && HWLayout.isAdminNow());
         }
 
         function requireAdminAuth(actionCallback) {
-            if (isPasswordVerified) { actionCallback(); }
-            else { pendingAuthAction = actionCallback; passwordModal.style.display = 'flex'; passwordInputModal.focus(); }
+            if (isAdminRole()) { actionCallback(); }
+            else { HWLayout.toast('仅管理员可执行此操作', 'err'); }
         }
 
         // ── 赛程布局 ─────────────────────────────────────────────────────────────
@@ -1109,7 +1082,7 @@
 
         // ── 提交更改 ─────────────────────────────────────────────────────────────
         submitChangesBtn.addEventListener('click', async () => {
-            if (!isPasswordVerified) { passwordModal.style.display = 'flex'; passwordInputModal.focus(); return; }
+            if (!isAdminRole()) { HWLayout.toast('仅管理员可提交更改', 'err'); return; }
             if (pendingDataToUpsert.length === 0 && pendingIdsToDelete.length === 0) { HWLayout.toast('没有待提交的更改。'); return; }
             const groupName = groupFilters.querySelector('.active').dataset.group;
             submitChangesBtn.disabled = true; submitChangesBtn.textContent = '提交中...';
@@ -1225,12 +1198,7 @@
 
         modalCloseBtn.addEventListener('click', () => matchDetailModal.style.display = 'none');
         closeCasterModal.addEventListener('click', () => casterModal.style.display = 'none');
-        matchDetailModal.addEventListener('click', e => { if (e.target === matchDetailModal) matchDetailModal.style.display = 'none'; });
-        casterModal.addEventListener('click', e => { if (e.target === casterModal) casterModal.style.display = 'none'; });
         randomDrawBtn.addEventListener('click', () => requireAdminAuth(generateAndDisplaySchedule));
-        passwordSubmitModal.addEventListener('click', verifyPassword);
-        passwordInputModal.addEventListener('keypress', e => { if (e.key === 'Enter') verifyPassword(); });
-        passwordModal.addEventListener('click', e => { if (e.target === passwordModal) { passwordModal.style.display = 'none'; pendingAuthAction = null; } });
 
         groupFilters.addEventListener('click', e => {
             if (e.target.tagName !== 'BUTTON' || e.target.classList.contains('active')) return;

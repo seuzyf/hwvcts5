@@ -432,7 +432,6 @@
             document.getElementById('id-input').value = playerData.id || ''; document.getElementById('image-url-input').value = playerData.image || '';
             document.getElementById('honor-input').value = playerData.honor || ''; modal.classList.add('visible');
         });
-        modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('visible'); });
         
         document.querySelectorAll('input[name="settings-tab"]').forEach(radio => {
             radio.addEventListener('change', (e) => { profileForm.classList.toggle('active', e.target.id === 'profile-tab'); passwordForm.classList.toggle('active', e.target.id === 'password-tab'); });

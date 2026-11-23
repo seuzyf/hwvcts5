@@ -64,8 +64,8 @@
     </div>
 
     <div id="dc-empty" class="empty-state" hidden>
-      <strong>暂无选手数据</strong>
-      <p>该赛事下还没有比赛记录，或尚未录入选手。</p>
+      <strong>暂无已报名选手</strong>
+      <p>当前筛选下没有已报名选手（或尚未录入比赛数据）。</p>
     </div>
   </div></main>
 
@@ -78,9 +78,36 @@
         });
       }
 
-      var state = { season: 's6', rows: [], sort: { key: 'kills', dir: -1 }, q: '' };
+      var state = { season: '', rows: [], sort: { key: 'kills', dir: -1 }, q: '', reg: null, eventLabel: '' };
 
-      /* —— 赛事选项：events 里每个赛季一条（带最近活动名），失败则回退 S6/S5 —— */
+      /* —— 已报名选手集合（报过名才展示）：reg → 站点账号/资料档案 → game_id/昵称 —— */
+      async function loadRegisteredSet() {
+        var sb = HWAuth.getClient();
+        var r = await Promise.all([
+          sb.from('event_registrations').select('user_id'),
+          sb.from('site_users').select('id, game_id, nickname'),
+          sb.from('reg_profiles').select('user_id, game_id')
+        ]).catch(function () { return null; });
+        var gids = {}, names = {};
+        if (r && r[0] && !r[0].error) {
+          var uIds = {};
+          (r[0].data || []).forEach(function (x) { if (x.user_id != null) uIds[String(x.user_id)] = 1; });
+          var users = (r[1] && !r[1].error && r[1].data) || [];
+          var profs = (r[2] && !r[2].error && r[2].data) || [];
+          Object.keys(uIds).forEach(function (id) {
+            var u = null, p = null;
+            users.forEach(function (x) { if (String(x.id) === id) u = x; });
+            profs.forEach(function (x) { if (String(x.user_id) === id) p = x; });
+            var gid = (p && p.game_id) || (u && u.game_id) || '';
+            if (gid) gids[String(gid)] = 1;
+            if (u && u.nickname) names[String(u.nickname)] = 1;
+            if (p && p.real_name) names[String(p.real_name)] = 1;
+          });
+        }
+        state.reg = { gids: gids, names: names };
+      }
+
+      /* —— 赛事选项：默认「全部赛事（合并）」；?event= / ?season= 直接筛选 —— */
       async function loadSeasonOptions() {
         var sel = document.getElementById('dc-season');
         var seasons = [];
@@ -99,12 +126,29 @@
           });
         } catch (e) { /* 回退 */ }
         if (!seasons.length) seasons = [{ key: 's6', label: 'S6' }, { key: 's5', label: 'S5' }];
-        sel.innerHTML = seasons.map(function (s) {
+        sel.innerHTML = '<option value="">全部赛事（合并）</option>' + seasons.map(function (s) {
           return '<option value="' + esc(s.key) + '">' + esc(s.label) + '</option>';
         }).join('');
-        var qs = null;
-        try { qs = new URLSearchParams(window.location.search).get('season'); } catch (e) {}
-        var want = (qs && seasons.some(function (s) { return s.key === qs; })) ? qs : seasons[0].key;
+
+        var params = null;
+        try { params = new URLSearchParams(window.location.search); } catch (e) { params = null; }
+        var evQ = params && params.get('event');
+        var qs = params && params.get('season');
+        var want = '';
+        if (evQ) {
+          /* 活动页跳转：解析活动 → 其赛季 */
+          try {
+            var q = /^\d+$/.test(evQ)
+              ? await HWAuth.getClient().from('events').select('title, season').eq('id', Number(evQ)).maybeSingle()
+              : await HWAuth.getClient().from('events').select('title, season').eq('code', evQ).maybeSingle();
+            if (q && !q.error && q.data) {
+              var sk = String(q.data.season || '').toLowerCase();
+              if (seasons.some(function (x) { return x.key === sk; })) { want = sk; state.eventLabel = q.data.title || ''; }
+            }
+          } catch (e) { /* 回退全部 */ }
+        } else if (qs && seasons.some(function (s) { return s.key === qs; })) {
+          want = qs;
+        }
         sel.value = want;
         state.season = want;
       }
@@ -134,7 +178,7 @@
         };
       }
 
-      /* —— 加载某届赛事（赛季）的选手数据 —— */
+      /* —— 加载选手数据：season='' → 全部赛季合并；只展示已报名选手 —— */
       async function loadSeason(season) {
         var tb = document.getElementById('dc-tbody');
         var empty = document.getElementById('dc-empty');
@@ -143,17 +187,25 @@
         document.getElementById('dc-count').textContent = '加载中…';
 
         var sb = HWAuth.getClient();
+        var prefixes = season ? [season] : ['s6', 's5'];
         var r = null;
         try {
-          r = await Promise.all([
-            sb.from(season + '_matches').select('*'),
-            sb.from(season + '_player_ids').select('name, id, team, "group"'),
-            sb.from(season + '_player_stats').select('game_id, role')
-          ]);
+          var calls = [];
+          prefixes.forEach(function (p) {
+            calls.push(sb.from(p + '_matches').select('*'));
+            calls.push(sb.from(p + '_player_ids').select('name, id, team, "group"'));
+            calls.push(sb.from(p + '_player_stats').select('game_id, role'));
+          });
+          r = await Promise.all(calls);
         } catch (e) { r = null; }
-        var matches = (r && r[0] && !r[0].error) ? (r[0].data || []) : [];
-        var roster  = (r && r[1] && !r[1].error) ? (r[1].data || []) : [];
-        var stats   = (r && r[2] && !r[2].error) ? (r[2].data || []) : [];
+        var matches = [], roster = [], stats = [];
+        prefixes.forEach(function (p, i) {
+          var base = r ? i * 3 : -1;
+          if (!r) return;
+          if (r[base] && !r[base].error) matches = matches.concat(r[base].data || []);
+          if (r[base + 1] && !r[base + 1].error) roster = roster.concat(r[base + 1].data || []);
+          if (r[base + 2] && !r[base + 2].error) stats = stats.concat(r[base + 2].data || []);
+        });
 
         /* 与 player.html 同源解析：每场双方 player1..5 的 id/data(ACS/K/D/A) */
         var byId = {};
@@ -200,6 +252,13 @@
         });
         rows.forEach(function (row) { row.role = roleByGid[row.gid] || ''; });
 
+        /* 只展示报过名的选手 */
+        if (state.reg) {
+          rows = rows.filter(function (row) {
+            return state.reg.gids[row.gid] || (row.name && state.reg.names[row.name]);
+          });
+        }
+
         state.rows = rows;
         render();
       }
@@ -222,7 +281,7 @@
         });
 
         var tb = document.getElementById('dc-tbody');
-        document.getElementById('dc-count').textContent = rows.length + ' 名选手';
+        document.getElementById('dc-count').textContent = rows.length + ' 名已报名选手';
         document.querySelectorAll('#dc-table th .sort-ind').forEach(function (el) { el.textContent = ''; });
         var activeTh = document.querySelector('#dc-table th[data-sort="' + s.key + '"] .sort-ind');
         if (activeTh) activeTh.textContent = s.dir === -1 ? '▼' : '▲';
@@ -237,7 +296,7 @@
           var idCell = r.name
             ? '<a href="player.html?name=' + encodeURIComponent(r.name)
               + '&group=' + encodeURIComponent(r.group || '未分组')
-              + '&season=' + esc(state.season) + '">' + esc(r.gid) + '</a>'
+              + '&season=' + esc(state.season || 's6') + '">' + esc(r.gid) + '</a>'
             : esc(r.gid);
           return '<tr>'
             + '<td>' + idCell + '</td>'
@@ -279,7 +338,7 @@
       });
 
       document.addEventListener('DOMContentLoaded', async function () {
-        await loadSeasonOptions();
+        await Promise.all([loadSeasonOptions(), loadRegisteredSet()]);
         await loadSeason(state.season);
       });
     })();

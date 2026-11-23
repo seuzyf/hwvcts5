@@ -123,9 +123,19 @@
     var page = document.body.dataset.page || '';
     var crumb = document.body.dataset.crumb || '';
 
+    var evCtx = null;
+    try {
+      var qpNav = new URLSearchParams(window.location.search);
+      evCtx = qpNav.get('event') || qpNav.get('open'); /* 活动详情页 ?open= 同样携带上下文 */
+    } catch (e) { evCtx = null; }
     var linksHtml = NAV.map(function (item) {
       var active = item.id === page || (crumb && item.id === crumb);
-      return '<a class="nav-link' + (active ? ' active' : '') + '" href="' + item.href + '">' + item.label + '</a>';
+      var href = item.href;
+      /* 活动页内跳转数据中心 → 直接筛选当前活动 */
+      if (evCtx && item.href.indexOf('players.html') === 0) {
+        href = 'players.html?event=' + encodeURIComponent(evCtx);
+      }
+      return '<a class="nav-link' + (active ? ' active' : '') + '" href="' + href + '">' + item.label + '</a>';
     }).join('');
 
     var nav = document.createElement('nav');
@@ -424,9 +434,18 @@
         isAdmin: admin,
         isCaptain: !!(hits && hits.length),
         captainTeams: (hits || []).map(function (p) { return p.team; }).filter(Boolean),
-        isEventCaptain: admin
+        isEventCaptain: admin,
+        isOrganizer: false
       };
-      return attachEventCaptain(result);
+      return attachEventCaptain(result).then(function (r2) {
+        /* 活动组织者：在本活动下等同管理员（不授予全局 admin） */
+        if (ev && u && ev.organizer_id != null && String(ev.organizer_id) === String(u.id)) {
+          r2.isAdmin = true;
+          r2.isOrganizer = true;
+          r2.isEventCaptain = true;
+        }
+        return r2;
+      });
     }).catch(function () {
       var fallback = { isAdmin: admin, isCaptain: false, captainTeams: [], isEventCaptain: admin };
       accessCache[cacheKey] = fallback;
@@ -579,12 +598,24 @@
 
     document.body.appendChild(m);
     m.addEventListener('click', function (e) {
-      if (e.target === m || (e.target.closest && e.target.closest('[data-ov-close]'))) m.remove();
+      /* Phase 11：点空白不关闭，仅手动 ×/按钮 */
+      if (e.target.closest && e.target.closest('[data-ov-close]')) m.remove();
     });
   }
 
   /* ---------------- Auth chip ---------------- */
+  function currentRole() {
+    var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+    if (isAdminNow()) return 'admin';
+    if (!u) return 'guest';
+    if (u.role === 'admin') return 'admin';
+    if (u.role === 'organizer') return 'organizer';
+    return 'member';
+  }
+
   function renderAuth() {
+    /* 全站鉴权标记：所有页面 body[data-role] = guest|member|organizer|admin */
+    if (document.body) document.body.dataset.role = currentRole();
     var host = document.getElementById('nav-auth');
     if (!host) return;
 
@@ -656,6 +687,7 @@
     eventBar: eventBar,
     toast: toast,
     ico: ico,
+    getRole: currentRole,
     notifyUser: notifyUser,
     notifyAdmins: notifyAdmins,
     refreshBell: refreshBell

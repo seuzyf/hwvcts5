@@ -277,10 +277,12 @@
             var upcoming = data.upcoming;
             var balance = data.balance;
 
+            var isAdminUser = (typeof HWLayout !== 'undefined' && HWLayout.isAdminNow()) || user.role === 'admin';
             hero.innerHTML =
                 '<span class="eyebrow">Personal Home</span>' +
                 '<h1>你好，<span class="accent-name">' + esc(user.nickname || user.username) + '</span></h1>' +
-                '<p class="lead">管理你的报名与赛事参与，随时掌握审核状态与竞猜积分。</p>';
+                '<p class="lead">管理你的报名与赛事参与，随时掌握审核状态与竞猜积分。</p>' +
+                (isAdminUser ? '<div class="hero-actions"><a class="btn btn-ghost" href="admin.html#perm-card">权限管理</a></div>' : '');
 
             var active = regs.filter(function (r) { return r.status === 'pending' || r.status === 'approved'; });
             var pending = regs.filter(function (r) { return r.status === 'pending'; });
@@ -409,9 +411,7 @@
         }
         document.getElementById('pm-close').addEventListener('click', closeProfileModal);
         document.getElementById('pm-cancel').addEventListener('click', closeProfileModal);
-        document.getElementById('profile-modal').addEventListener('click', function (e) {
-            if (e.target.id === 'profile-modal') closeProfileModal();
-        });
+        /* Phase 11：弹框不点空白关闭，仅手动 ×/取消（由上方按钮绑定） */
 
         document.getElementById('profile-form').addEventListener('submit', function (e) {
             e.preventDefault();

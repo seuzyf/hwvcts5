@@ -265,13 +265,37 @@ s6_betting_groups` + RPC `check_admin_password`。
     **保留**：game.html 剧情聊天表情（内容）、`cover_emoji` 数据列（渲染已改用封面图或图标）、
     ★ 评分与 → 箭头字形。
   - schema 第 10 节：`reg_profiles.shots_verified` + `shots_verified_at`。
+- **Phase 11（身份体系 + 数据中心口径 + 交互修缮）**：
+  - **数据中心口径**：players.html 默认「全部赛事（合并）」且**只展示报过名的选手**
+    （event_registrations → site_users/reg_profiles → game_id/昵称/真名匹配）；
+    活动页内导航「数据中心」自动携带 `?event=`（layout buildNav 动态 href）→ 直接筛选该活动赛季。
+  - **报名可不填队伍**：第三种模式「暂不填（等待分队）」→ `team_name=''`，
+    各处显示回退为「待分队」（状态卡/我的报名/审核卡片与详情）。
+  - **赛程去口令**：schedule.html 密码弹框整体移除，抽签与提交更改改为**按 admin 身份**放行
+    （`requireAdminAuth` → 角色校验）。
+  - **全站鉴权标记**：layout renderAuth 给所有页面写 `body[data-role]=guest|member|organizer|admin`，
+    导出 `HWLayout.getRole()`，登录/登出/提权自动刷新 —— 供后续按身份区分功能。
+  - **活动组织者（organizer）**：
+    - 申请：events.html「申请举办活动」→ `organizer_requests` → 通知管理员；
+    - 审核：admin.html「举办活动申请」卡片 同意/拒绝 → 同意即 `site_users.role='organizer'` + 通知；
+    - 权限：`access()` 判定 `ev.organizer_id === user.id` → **该活动下 isAdmin/isEventCaptain 等同管理员**
+      （活动栏 管理/审核 页签、详情管理块、review 门禁、创建活动、草稿可见），**不授予全局 admin**；
+      组织者创建活动时写入 `events.organizer_id`。
+  - **权限管理**：admin.html 新增「权限管理」卡片（个人主页 admin 入口 → `admin.html#perm-card`）：
+    编辑任意用户身份（成员/活动组织者/管理员）+ **重置密码为 123456**（sha256 同 auth 口径）。
+  - **弹框交互**：全部弹框取消「点空白关闭」（betting/matches/player/review/schedule/auth 登录框），
+    仅手动 × 关闭。
+  - **视觉修缮**：主页横幅渐变背景左右各外扩 48px（文字位置不变，背景比文字宽）；
+    报名页功能块之间 `margin-top:16px` 留空。
+  - schema 第 11 节：`events.organizer_id` + `organizer_requests` 表（RLS）。
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
   （幂等）：已建过的 cover/event_captains 若在则跳过；
   **Phase 7 新增** `events.teams` / `events.group_count` 两列（赛制存既有 `format` 列）；
   **Phase 8 新增** `notifications` 表 + `event_registrations.new_team` 列；
   **Phase 9 新增** `site_users.avatar` + `reg_profiles` 表 + `reg-docs` 存储桶 ——
   不建则通知/自动队长、报名页截图上传与头像功能不生效（老报名流程有回退）；
-  **Phase 10 新增** `reg_profiles.shots_verified` + `shots_verified_at`（截图人工核对标记）。
+  **Phase 10 新增** `reg_profiles.shots_verified` + `shots_verified_at`（截图人工核对标记）；
+  **Phase 11 新增** `events.organizer_id` + `organizer_requests` 表（活动组织者申请/审核）。
 
 ## 8. 功能保留清单
 

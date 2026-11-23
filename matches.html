@@ -557,9 +557,6 @@
             if (teamName) showTeamRoster(teamName, activeGroup);
         });
 
-        modal.addEventListener('click', function (e) {
-            if (e.target === modal) modal.classList.remove('visible');
-        });
 
         /* 活动上下文先于首屏加载 */
         HWLayout.resolveEvent().then(function (ev) {

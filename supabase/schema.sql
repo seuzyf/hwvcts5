@@ -315,6 +315,26 @@ alter table public.reg_profiles add column if not exists shots_verified boolean 
 alter table public.reg_profiles add column if not exists shots_verified_at timestamptz;
 
 -- ---------------------------------------------------------------------
+-- 11. 活动组织者：申请 → 管理员审核 → 该活动下等同管理员
+-- ---------------------------------------------------------------------
+alter table public.events add column if not exists organizer_id bigint;
+
+create table if not exists public.organizer_requests (
+    id           bigint generated always as identity primary key,
+    user_id      bigint not null references public.site_users(id) on delete cascade,
+    reason       text default '',
+    status       text not null default 'pending',   -- pending / approved / rejected
+    reviewed_by  bigint,
+    reviewed_at  timestamptz,
+    created_at   timestamptz not null default now()
+);
+alter table public.organizer_requests enable row level security;
+drop policy if exists organizer_requests_select on public.organizer_requests;
+create policy organizer_requests_select on public.organizer_requests for select using (true);
+drop policy if exists organizer_requests_write on public.organizer_requests;
+create policy organizer_requests_write on public.organizer_requests for all using (true) with check (true);
+
+-- ---------------------------------------------------------------------
 -- 完成 ✓
 -- 执行后刷新网站即可：登录 → 个人主页 → 活动大厅报名
 -- ---------------------------------------------------------------------

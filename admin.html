@@ -152,6 +152,26 @@
                 </div>
                 <div id="su-list" style=" margin-top:14px;"><div class="empty-state">加载中…</div></div>
             </div>
+            <div class="card mt-16" id="org-req-card">
+                <div class="flex-between">
+                    <div>
+                        <span class="eyebrow">Requests</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">举办活动申请</h2>
+                    </div>
+                    <span class="smoke" style="font-size:13px;" id="org-req-count"></span>
+                </div>
+                <div id="org-req-list" style="margin-top:14px;"><div class="empty-state">加载中…</div></div>
+            </div>
+            <div class="card mt-16" id="perm-card">
+                <div class="flex-between">
+                    <div>
+                        <span class="eyebrow">Roles</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">权限管理</h2>
+                    </div>
+                    <span class="smoke" style="font-size:13px;" id="perm-count"></span>
+                </div>
+                <div id="perm-list" style="margin-top:14px;"><div class="empty-state">加载中…</div></div>
+            </div>
             <div class="grid-4 mt-16">
                 <a class="card card-hover" href="draft.html" style="text-decoration:none; display:block;">
                     <span class="eyebrow">Draft</span>
@@ -276,9 +296,141 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; suLoaded = false; });
     }
 
+    function sha256Hex(text) {
+        if (!(window.crypto && window.crypto.subtle)) return Promise.reject(new Error('当前环境不支持 Web Crypto'));
+        var data = new TextEncoder().encode(text);
+        return crypto.subtle.digest('SHA-256', data).then(function (buf) {
+            return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+        });
+    }
+
+    /* —— 举办活动申请（同意 → 赋予活动组织者身份） —— */
+    var ORG_REQ_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet' };
+    var ORG_REQ_LABEL = { pending: '待审核', approved: '已同意', rejected: '已拒绝' };
+    function loadOrgRequests() {
+        var host = document.getElementById('org-req-list');
+        if (!host) return;
+        HWAuth.getClient().from('organizer_requests').select('*').order('created_at', { ascending: false })
+            .then(function (res) {
+                var rows = (res && !res.error && res.data) || [];
+                var pending = rows.filter(function (r) { return r.status === 'pending'; }).length;
+                document.getElementById('org-req-count').textContent = pending ? pending + ' 条待审核' : '';
+                if (!rows.length) { host.innerHTML = '<div class="empty-state">暂无申请。</div>'; return; }
+                host.innerHTML = rows.map(function (r) {
+                    return '<div class="adm-ev-row" data-req="' + r.id + '" data-user="' + r.user_id + '">' +
+                        '<span class="adm-ev-main">' +
+                        '  <span class="adm-ev-title">#' + r.id + ' · 用户 #' + esc(r.user_id) + '</span>' +
+                        '  <span class="adm-ev-sub">' + esc(r.reason || '（未填写理由）') + '</span>' +
+                        '</span>' +
+                        '<span class="badge ' + (ORG_REQ_BADGE[r.status] || '') + '">' + (ORG_REQ_LABEL[r.status] || r.status) + '</span>' +
+                        (r.status === 'pending'
+                            ? '<button class="btn btn-primary btn-sm" data-approve="' + r.id + '" type="button">同意</button>' +
+                              '<button class="btn btn-ghost btn-sm" data-reject="' + r.id + '" type="button">拒绝</button>'
+                            : '') +
+                        '</div>';
+                }).join('');
+                host.querySelectorAll('[data-approve]').forEach(function (b) {
+                    b.addEventListener('click', function () { reviewOrgReq(parseInt(b.dataset.approve, 10), true); });
+                });
+                host.querySelectorAll('[data-reject]').forEach(function (b) {
+                    b.addEventListener('click', function () { reviewOrgReq(parseInt(b.dataset.reject, 10), false); });
+                });
+            }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; });
+    }
+    function reviewOrgReq(id, approve) {
+        var me = HWAuth.getSession();
+        HWAuth.getClient().from('organizer_requests')
+            .update({ status: approve ? 'approved' : 'rejected', reviewed_by: me ? me.id : null, reviewed_at: new Date().toISOString() })
+            .eq('id', id).eq('status', 'pending').select()
+            .then(function (res) {
+                if (res.error) throw new Error(res.error.message);
+                var row = res.data && res.data[0];
+                if (!row) { HWLayout.toast('该申请已被处理', 'info'); loadOrgRequests(); return null; }
+                if (!approve) {
+                    HWLayout.toast('已拒绝申请');
+                    HWLayout.notifyUser(row.user_id, '举办活动申请未通过', '如有疑问可联系管理员。', 'events.html');
+                    loadOrgRequests();
+                    return null;
+                }
+                return HWAuth.getClient().from('site_users').update({ role: 'organizer' }).eq('id', row.user_id)
+                    .then(function (r2) {
+                        if (r2.error) throw new Error(r2.error.message);
+                        HWLayout.toast('已赋予活动组织者身份');
+                        HWLayout.notifyUser(row.user_id, '你已成为活动组织者', '现在可以创建并管理自己的活动了。', 'events.html');
+                        loadOrgRequests();
+                        loadPermUsers();
+                    });
+            }).catch(function (e) { HWLayout.toast('处理失败: ' + (e.message || e), 'err'); });
+    }
+
+    /* —— 权限管理：编辑所有用户身份 + 重置密码 —— */
+    function loadPermUsers() {
+        var host = document.getElementById('perm-list');
+        if (!host) return;
+        HWAuth.getClient().from('site_users').select('id, username, nickname, game_id, role').order('id')
+            .then(function (res) {
+                var rows = (res && !res.error && res.data) || [];
+                document.getElementById('perm-count').textContent = rows.length + ' 个账号';
+                if (!rows.length) { host.innerHTML = '<div class="empty-state">暂无账号。</div>'; return; }
+                host.innerHTML = rows.map(function (u) {
+                    var role = u.role || 'member';
+                    return '<div class="adm-ev-row" data-user="' + u.id + '">' +
+                        '<span class="adm-ev-main">' +
+                        '  <span class="adm-ev-title">' + esc(u.nickname || u.username) + ' <span class="smoke" style="font-weight:400;">@' + esc(u.username) + (u.game_id ? ' · ' + esc(u.game_id) : '') + '</span></span>' +
+                        '  <span class="adm-ev-sub">ID ' + u.id + '</span>' +
+                        '</span>' +
+                        '<select class="select adm-role" data-user="' + u.id + '" aria-label="身份">' +
+                        ['member', 'organizer', 'admin'].map(function (r) {
+                            return '<option value="' + r + '"' + (role === r ? ' selected' : '') + '>' +
+                                ({ member: '成员', organizer: '活动组织者', admin: '管理员' })[r] + '</option>';
+                        }).join('') +
+                        '</select>' +
+                        '<button class="btn btn-ghost btn-sm" data-role-save="' + u.id + '" type="button">保存</button>' +
+                        '<button class="btn btn-danger-ghost btn-sm" data-role-reset="' + u.id + '" type="button">重置密码</button>' +
+                        '</div>';
+                }).join('');
+                host.querySelectorAll('[data-role-save]').forEach(function (b) {
+                    b.addEventListener('click', function () {
+                        var id = parseInt(b.dataset.roleSave, 10);
+                        var sel = host.querySelector('.adm-role[data-user="' + id + '"]');
+                        var role = sel.value;
+                        HWAuth.getClient().from('site_users').update({ role: role }).eq('id', id)
+                            .then(function (r) {
+                                if (r.error) throw new Error(r.error.message);
+                                HWLayout.toast('身份已更新为 ' + sel.options[sel.selectedIndex].text);
+                                var me = HWAuth.getSession();
+                                if (me && me.id === id) {
+                                    me.role = role;
+                                    try { localStorage.setItem('hw_session', JSON.stringify(me)); } catch (e) {}
+                                    HWLayout.renderAuth();
+                                }
+                            }).catch(function (e) { HWLayout.toast('保存失败: ' + (e.message || e), 'err'); });
+                    });
+                });
+                host.querySelectorAll('[data-role-reset]').forEach(function (b) {
+                    b.addEventListener('click', function () {
+                        var id = parseInt(b.dataset.roleReset, 10);
+                        if (!window.confirm('确定将该用户密码重置为 123456？')) return;
+                        sha256Hex('123456').then(function (hash) {
+                            return HWAuth.getClient().from('site_users').update({ password: hash }).eq('id', id);
+                        }).then(function (r) {
+                            if (r.error) throw new Error(r.error.message);
+                            HWLayout.toast('密码已重置为 123456');
+                        }).catch(function (e) { HWLayout.toast('重置失败: ' + (e.message || e), 'err'); });
+                    });
+                });
+            }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; });
+    }
+
     function showView(name) {
         Object.keys(views).forEach(function (k) { if (views[k]) views[k].hidden = (k !== name); });
-        if (name === 'admin') loadSiteUsers();
+        if (name === 'admin') { loadSiteUsers(); loadOrgRequests(); loadPermUsers(); }
+        if (name === 'admin' && window.location.hash === '#perm-card') {
+            setTimeout(function () {
+                var el = document.getElementById('perm-card');
+                if (el) el.scrollIntoView({ block: 'start' });
+            }, 120);
+        }
         document.getElementById('manage-sub').textContent =
             name === 'admin' ? '举办与管理活动、设置活动队长。'
             : name === 'member' ? '修改你的个人信息与账号安全设置。'

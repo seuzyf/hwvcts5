@@ -203,6 +203,7 @@
                     <button data-status="finished" type="button">已结束</button>
                 </div>
                 <div style="flex:1"></div>
+                <button class="btn btn-ghost" id="apply-ev-btn" style="display:none;" type="button">申请举办活动</button>
                 <button class="btn btn-primary" id="create-ev-btn" style="display:none;" type="button">＋ 创建活动</button>
             </div>
 
@@ -213,6 +214,22 @@
     <!-- 活动详情 -->
     <div class="modal-backdrop" id="detail-modal">
         <div class="modal-panel wide" id="detail-panel"></div>
+    </div>
+
+    <!-- 申请举办活动 -->
+    <div class="modal-backdrop" id="apply-modal">
+        <div class="modal-panel">
+            <button class="modal-close" data-close="apply-modal" type="button">&times;</button>
+            <span class="eyebrow">Organizer</span>
+            <h3 class="modal-title" style="margin-top:8px;">申请举办活动</h3>
+            <p class="muted" style="font-size:13px; margin:8px 0 14px;">提交申请，管理员审核通过后你将获得「活动组织者」身份，可创建并管理自己的活动。</p>
+            <label class="form-label" for="apply-reason">申请理由（可选）</label>
+            <textarea class="textarea" id="apply-reason" rows="4" maxlength="300" placeholder="想举办什么样的活动？"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" type="button" data-close="apply-modal">取消</button>
+                <button class="btn btn-primary" id="apply-submit" type="button">提交申请</button>
+            </div>
+        </div>
     </div>
 
     <!-- 创建活动 -->
@@ -362,6 +379,16 @@
                    (typeof HWLayout !== 'undefined' && HWLayout.isAdminNow());
         }
 
+        function isOrganizerRole() {
+            var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+            return !!(u && u.role === 'organizer');
+        }
+        function evOrganizer(ev) {
+            var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+            return !!(ev && u && ev.organizer_id != null && String(ev.organizer_id) === String(u.id));
+        }
+        function canManageEv(ev) { return isAdmin() || evOrganizer(ev); }
+
         /* 活动空间入口（权限感知：分队=队长/管理员，管理=管理员） */
         function renderWorkspace(ev) {
             var host = document.getElementById('ev-workspace');
@@ -441,7 +468,12 @@
         }
 
         function updateAdminUI() {
-            createBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
+            var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+            createBtn.style.display = (isAdmin() || isOrganizerRole()) ? 'inline-flex' : 'none';
+            var applyBtn = document.getElementById('apply-ev-btn');
+            if (applyBtn) {
+                applyBtn.style.display = (u && !isAdmin() && !isOrganizerRole()) ? 'inline-flex' : 'none';
+            }
         }
 
         function renderMissing() {
@@ -467,7 +499,7 @@
         function renderHall() {
             if (tableMissing) { renderMissing(); return; }
             var list = allEvents.filter(function (ev) {
-                if (ev.status === 'draft' && !isAdmin()) return false;
+                if (ev.status === 'draft' && !canManageEv(ev)) return false;
                 return currentFilter === 'all' || ev.status === currentFilter;
             });
             if (list.length === 0) {
@@ -553,7 +585,7 @@
                     '<div class="mine-info">' +
                     '  <div class="t">' + esc(ev.title || '（活动已删除）') + '</div>' +
                     '  <div class="s">报名于 ' + fmtTime(r.created_at) +
-                    (r.team_name ? ' · 战队「' + esc(r.team_name) + '」' : '') +
+                    (r.team_name ? ' · 战队「' + esc(r.team_name) + '」' : ' · 待分队') +
                     (ev.start_time ? ' · 活动 ' + fmtTime(ev.start_time) : '') + '</div>' +
                     '</div>' +
                     '<div class="mine-ops">' +
@@ -593,7 +625,7 @@
                     var who = userMap[r.user_id] || {};
                     return '<li>' +
                         '<span class="badge ' + (REG_BADGE[r.status] || '') + '" style="min-width:62px; justify-content:center;">' + (REG_STATUS[r.status] || r.status) + '</span>' +
-                        '<span class="team">' + esc(r.team_name || who.nickname || who.username || ('用户#' + r.user_id)) + '</span>' +
+                        '<span class="team">' + esc(r.team_name || '待分队') + '</span>' +
                         '<span class="who">' + esc(who.username ? '@' + who.username : '') + (r.members && r.members.length ? ' · ' + r.members.length + ' 人' : '') + '</span>' +
                         '</li>';
                 }).join('') + '</ul>';
@@ -603,7 +635,7 @@
                   '<span>我的报名：<strong style="color:' +
                   (mine.status === 'approved' ? 'var(--success-green)' : mine.status === 'pending' ? '#ffd700' : '#ff8f8f') +
                   '">' + (REG_STATUS[mine.status] || mine.status) + '</strong></span>' +
-                  (mine.team_name ? '<span class="smoke">战队 ' + esc(mine.team_name) + '</span>' : '') +
+                  '<span class="smoke">战队 ' + esc(mine.team_name || '待分队') + '</span>' +
                   '<a class="mini-btn" href="register.html?event=' + ev.id + '">报名页 / 资料</a>' +
                   ((mine.status === 'pending' || mine.status === 'approved')
                       ? '<button class="mini-btn no" data-cancel="' + mine.id + '" style="margin-left:auto;" type="button">撤回报名</button>' : '') +
@@ -621,8 +653,8 @@
                      : full ? '名额已满。' : '暂不可报名。') + '</div>';
             } else registerHtml = '';
 
-            var adminHtml = isAdmin()
-                ? '<div class="section-label">管理（管理员）</div>' +
+            var adminHtml = canManageEv(ev)
+                ? '<div class="section-label">管理（' + (isAdmin() ? '管理员' : '活动组织者') + '）</div>' +
                   '<div class="admin-row">' +
                   '  <select class="select" id="adm-status">' +
                        ['draft', 'registration', 'ongoing', 'finished', 'cancelled'].map(function (s) {
@@ -779,9 +811,7 @@
         }
 
         function closeDetail() { document.getElementById('detail-modal').classList.remove('visible'); }
-        document.getElementById('detail-modal').addEventListener('click', function (e) {
-            if (e.target.id === 'detail-modal') closeDetail();
-        });
+        /* Phase 11：弹框不点空白关闭，仅手动 ×（closeDetail 由 × 绑定） */
 
         /* ---------- registration ops ---------- */
         function cancelReg(regId, keepDetailEventId) {
@@ -798,7 +828,7 @@
         }
 
         function requestAdminThen(fn) {
-            if (isAdmin()) { fn(); return; }
+            if (isAdmin() || isOrganizerRole()) { fn(); return; }
             document.getElementById('admin-pwd').value = '';
             document.getElementById('admin-modal').classList.add('visible');
             pendingAdminAction = fn;
@@ -823,6 +853,38 @@
                 }).catch(function (e) {
                     btn.disabled = false; btn.textContent = '验证';
                     HWLayout.toast('验证失败: ' + (e.message || e));
+                });
+        });
+
+        var applyBtn = document.getElementById('apply-ev-btn');
+        if (applyBtn) applyBtn.addEventListener('click', function () {
+            document.getElementById('apply-reason').value = '';
+            document.getElementById('apply-modal').classList.add('visible');
+        });
+        var applySubmit = document.getElementById('apply-submit');
+        if (applySubmit) applySubmit.addEventListener('click', function () {
+            var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+            if (!u) { HWLayout.toast('请先登录', 'err'); return; }
+            var reason = document.getElementById('apply-reason').value.trim();
+            var btn = applySubmit;
+            btn.disabled = true; btn.textContent = '提交中…';
+            HWAuth.getClient().from('organizer_requests').select('id').eq('user_id', u.id).eq('status', 'pending').limit(1)
+                .then(function (ex) {
+                    if (ex.error) throw new Error(ex.error.message);
+                    if (ex.data && ex.data.length) { return { dup: true }; }
+                    return HWAuth.getClient().from('organizer_requests').insert([{ user_id: u.id, reason: reason }]).select();
+                })
+                .then(function (r) {
+                    btn.disabled = false; btn.textContent = '提交申请';
+                    if (r && r.dup) { HWLayout.toast('已有待审核的申请，请耐心等待', 'info'); return; }
+                    if (r && r.error) throw new Error(r.error.message);
+                    document.getElementById('apply-modal').classList.remove('visible');
+                    HWLayout.toast('申请已提交，等待管理员审核');
+                    HWLayout.notifyAdmins('新的举办活动申请', (u.nickname || u.username) + ' 申请举办活动', 'admin.html');
+                })
+                .catch(function (e) {
+                    btn.disabled = false; btn.textContent = '提交申请';
+                    HWLayout.toast('提交失败: ' + (e.message || e), 'err');
                 });
         });
 
@@ -886,6 +948,8 @@
                 created_by: 'admin',
                 cover_image: ''
             };
+            var rowSess = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+            if (rowSess && rowSess.role === 'organizer' && !isAdmin()) row.organizer_id = rowSess.id;
             var btn = document.getElementById('cf-submit');
             var coverInput = document.getElementById('cf-cover');
             var coverFile = coverInput && coverInput.files ? coverInput.files[0] : null;
