@@ -32,6 +32,13 @@
     .rv-shots img { max-width: 260px; max-height: 170px; border-radius: 10px; border: 1px solid var(--border); display: block; }
     .rv-shots figcaption { font-family: var(--font-mono); font-size: 11px; color: var(--smoke); margin-top: 6px; letter-spacing: .05em; }
     .rv-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    .rv-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .rv-toolbar .select { max-width: 170px; }
+    .rv-selall { display: inline-flex; gap: 7px; align-items: center; font-size: 13px; color: var(--mist); cursor: pointer; user-select: none; }
+    .rv-selall input, .rv-check input { accent-color: var(--coral-pulse); width: 15px; height: 15px; cursor: pointer; }
+    .rv-check { flex: none; display: flex; align-items: center; padding: 4px; margin: -4px -4px -4px 0; }
+    .rv-verified { display: inline-flex; gap: 4px; align-items: center; }
+    .rv-verified .ico { flex: none; }
   </style>
 </head>
 <body data-page="review" data-crumb="events">
@@ -57,6 +64,18 @@
 
     <div id="rv-main" hidden>
       <div class="rv-chips" id="rv-chips"></div>
+      <div class="rv-toolbar">
+        <label class="rv-selall"><input type="checkbox" id="rv-select-all"> 全选待审核</label>
+        <select class="select" id="rv-filter-status">
+          <option value="">全部状态</option>
+          <option value="pending">待审核</option>
+          <option value="approved">已通过</option>
+          <option value="rejected">未通过</option>
+          <option value="cancelled">已撤回</option>
+        </select>
+        <select class="select" id="rv-filter-team"><option value="">全部队伍</option></select>
+        <button class="btn btn-primary btn-sm" id="rv-batch-approve" type="button" disabled>批量通过 (0)</button>
+      </div>
       <div id="rv-feed" class="rv-feed"><div class="empty-state">加载中…</div></div>
     </div>
   </div></main>
@@ -78,6 +97,7 @@
       var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet' };
 
       var ev = null, regs = [], userMap = {}, profMap = {};
+      var rvSel = {}; /* 批量勾选：regId -> true */
 
       function sb() { return HWAuth.getClient(); }
       function isAdminNow() {
@@ -147,11 +167,39 @@
           '<span class="rv-chip">合计 <b>' + regs.length + '</b></span>';
       }
 
+      function filteredRegs() {
+        var st = document.getElementById('rv-filter-status').value;
+        var tm = document.getElementById('rv-filter-team').value;
+        return sortedRegs().filter(function (r) {
+          return (!st || r.status === st) && (!tm || r.team_name === tm);
+        });
+      }
+      function renderTeamFilter() {
+        var sel = document.getElementById('rv-filter-team');
+        var cur = sel.value;
+        var teams = {};
+        regs.forEach(function (r) { if (r.team_name) teams[r.team_name] = 1; });
+        var list = Object.keys(teams).sort(function (a, b) { return a.localeCompare(b, 'zh'); });
+        sel.innerHTML = '<option value="">全部队伍</option>' +
+          list.map(function (t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('');
+        sel.value = cur && teams[cur] ? cur : '';
+      }
+      function updateBatchBtn() {
+        var n = Object.keys(rvSel).filter(function (id) {
+          var r = regs.find(function (x) { return x.id === parseInt(id, 10); });
+          return r && r.status === 'pending';
+        }).length;
+        var btn = document.getElementById('rv-batch-approve');
+        btn.textContent = '批量通过 (' + n + ')';
+        btn.disabled = n === 0;
+      }
       function renderFeed() {
         var feed = document.getElementById('rv-feed');
-        var list = sortedRegs();
+        renderTeamFilter();
+        var list = filteredRegs();
         if (!list.length) {
-          feed.innerHTML = '<div class="empty-state">本活动暂无报名。</div>';
+          feed.innerHTML = '<div class="empty-state">' + (regs.length ? '没有符合筛选条件的报名。' : '本活动暂无报名。') + '</div>';
+          updateBatchBtn();
           return;
         }
         feed.innerHTML = list.map(function (r) {
@@ -161,7 +209,10 @@
           var avatar = u.avatar
             ? '<img src="' + esc(u.avatar) + '" alt="">'
             : esc(String(name).charAt(0));
-          return '<button type="button" class="card card-hover rv-card" data-reg="' + r.id + '">' +
+          return '<div role="button" tabindex="0" class="card card-hover rv-card" data-reg="' + r.id + '">' +
+            (r.status === 'pending'
+              ? '<span class="rv-check"><input type="checkbox" data-check="' + r.id + '"' + (rvSel[r.id] ? ' checked' : '') + ' aria-label="选择 ' + esc(name) + '"></span>'
+              : '') +
             '<span class="rv-avatar">' + avatar + '</span>' +
             '<span class="who">' +
             '  <span class="nm">' + esc(name) + '</span>' +
@@ -172,13 +223,27 @@
             '    <span class="badge badge-quiet">' + esc(r.team_name || '—') + '</span>' +
             (r.new_team ? '<span class="badge badge-blue">新建队伍</span>' : '') +
             (!p ? '<span class="badge badge-gold">无资料档案</span>' : '') +
+            (p && p.shots_verified ? '<span class="badge badge-green rv-verified">' + HWLayout.ico('badge-check', 12) + '已核对</span>' : '') +
             '  </span>' +
             '</span>' +
-            '</button>';
+            '</div>';
         }).join('');
         Array.prototype.forEach.call(feed.querySelectorAll('[data-reg]'), function (el) {
-          el.addEventListener('click', function () { openDetail(parseInt(el.dataset.reg, 10)); });
+          el.addEventListener('click', function (e) {
+            var chk = e.target && e.target.closest ? e.target.closest('[data-check]') : null;
+            if (chk) return; /* 勾选框自行处理 */
+            openDetail(parseInt(el.dataset.reg, 10));
+          });
         });
+        Array.prototype.forEach.call(feed.querySelectorAll('[data-check]'), function (chk) {
+          chk.addEventListener('click', function (e) { e.stopPropagation(); });
+          chk.addEventListener('change', function () {
+            var id = parseInt(chk.dataset.check, 10);
+            if (chk.checked) rvSel[id] = true; else delete rvSel[id];
+            updateBatchBtn();
+          });
+        });
+        updateBatchBtn();
       }
 
       /* ---------- 详情 ---------- */
@@ -195,7 +260,14 @@
           ? '<div class="rv-shots">' +
             (p.cur_shot ? '<figure><a href="' + esc(p.cur_shot) + '" target="_blank"><img src="' + esc(p.cur_shot) + '" alt="当前赛季截图"></a><figcaption>当前赛季数据截图</figcaption></figure>' : '') +
             (p.career_shot ? '<figure><a href="' + esc(p.career_shot) + '" target="_blank"><img src="' + esc(p.career_shot) + '" alt="生涯数据截图"></a><figcaption>生涯数据截图</figcaption></figure>' : '') +
-            '</div>'
+            '</div>' +
+            (p && (p.cur_shot || p.career_shot)
+              ? '<div class="rv-actions" style="margin-top:10px;">' +
+                '<button class="btn btn-ghost btn-sm" id="rv-verify-shots" type="button">' +
+                (p.shots_verified ? '取消核对标记' : '标记截图已核对') + '</button>' +
+                (p.shots_verified && p.shots_verified_at ? '<span class="smoke" style="font-size:12px; align-self:center;">核对于 ' + fmtTime(p.shots_verified_at) + '</span>' : '') +
+                '</div>'
+              : '')
           : '';
         panel.innerHTML =
           '<button class="modal-close" id="rv-detail-close" type="button">&times;</button>' +
@@ -205,6 +277,7 @@
           '  <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
           '  <span class="badge badge-quiet">提交 ' + fmtTime(r.created_at) + '</span>' +
           (r.new_team ? '<span class="badge badge-blue">新建队伍 → 通过后自动队长</span>' : '') +
+          (p && p.shots_verified ? '<span class="badge badge-green rv-verified">' + HWLayout.ico('badge-check', 12) + '截图已核对</span>' : '') +
           '</div>' +
 
           '<div class="section-label" style="margin-top:18px;">报名信息</div>' +
@@ -246,6 +319,23 @@
         if (ap) ap.addEventListener('click', function () { setRegStatus(r, 'approved'); });
         var rj = document.getElementById('rv-reject');
         if (rj) rj.addEventListener('click', function () { setRegStatus(r, 'rejected'); });
+        var vf = document.getElementById('rv-verify-shots');
+        if (vf) vf.addEventListener('click', function () { toggleVerify(r, p); });
+      }
+      function toggleVerify(reg, p) {
+        if (!p) return;
+        var next = !p.shots_verified;
+        sb().from('reg_profiles').update({
+          shots_verified: next,
+          shots_verified_at: next ? new Date().toISOString() : null
+        }).eq('user_id', p.user_id).then(function (res) {
+          if (res.error) { HWLayout.toast('核对标记失败: ' + res.error.message, 'err'); return; }
+          p.shots_verified = next;
+          p.shots_verified_at = next ? new Date().toISOString() : null;
+          HWLayout.toast(next ? '已标记截图核对' : '已取消核对标记');
+          openDetail(reg.id);
+          renderFeed();
+        });
       }
       function closeDetail() { document.getElementById('rv-detail-modal').classList.remove('visible'); }
       document.getElementById('rv-detail-modal').addEventListener('click', function (e) {
@@ -253,14 +343,17 @@
       });
 
       /* ---------- 审核动作 ---------- */
-      function setRegStatus(reg, status) {
-        sb().from('event_registrations').update({ status: status, updated_at: new Date().toISOString() })
+      function slotLeft() {
+        if (!ev || !ev.max_slots) return Infinity;
+        var approved = regs.filter(function (r) { return r.status === 'approved'; }).length;
+        return Math.max(0, ev.max_slots - approved);
+      }
+      function applyStatus(reg, status) {
+        return sb().from('event_registrations').update({ status: status, updated_at: new Date().toISOString() })
           .eq('id', reg.id)
           .then(function (res) {
-            if (res.error) { HWLayout.toast('操作失败: ' + res.error.message, 'err'); return; }
-            HWLayout.toast(status === 'approved' ? '已通过报名' : '已拒绝报名', status === 'approved' ? 'ok' : 'info');
+            if (res.error) { HWLayout.toast('操作失败: ' + res.error.message, 'err'); return false; }
             var isCaptainGrant = status === 'approved' && reg.new_team;
-            var u = userMap[reg.user_id] || {};
             var teamName = reg.team_name || '';
             var body = status === 'approved'
               ? (isCaptainGrant
@@ -269,12 +362,50 @@
               : '报名未通过' + (teamName ? '（' + teamName + '）' : '') + '，如有疑问请联系管理员。';
             HWLayout.notifyUser(reg.user_id, status === 'approved' ? '报名已通过' : '报名未通过', body, 'register.html?event=' + ev.id);
             if (isCaptainGrant) grantEventCaptain(reg);
-            loadAll().then(function () {
-              closeDetail();
-              renderChips();
-              renderFeed();
-            });
+            return true;
           });
+      }
+      function setRegStatus(reg, status) {
+        if (status === 'approved' && slotLeft() <= 0) {
+          HWLayout.toast('名额已满（' + ev.max_slots + '），无法通过 — 可先拒绝其他报名或调高名额', 'err');
+          return;
+        }
+        applyStatus(reg, status).then(function (ok) {
+          if (!ok) return;
+          HWLayout.toast(status === 'approved' ? '已通过报名' : '已拒绝报名', status === 'approved' ? 'ok' : 'info');
+          loadAll().then(function () {
+            closeDetail();
+            renderChips();
+            renderFeed();
+          });
+        });
+      }
+      function batchApprove() {
+        var targets = Object.keys(rvSel).map(function (id) { return parseInt(id, 10); })
+          .map(function (id) { return regs.find(function (x) { return x.id === id; }); })
+          .filter(function (r) { return r && r.status === 'pending'; });
+        if (!targets.length) return;
+        var left = slotLeft();
+        if (left <= 0) {
+          HWLayout.toast('名额已满（' + ev.max_slots + '），无法批量通过', 'err');
+          return;
+        }
+        var overflow = targets.length > left;
+        targets = targets.slice(0, left);
+        var btn = document.getElementById('rv-batch-approve');
+        btn.disabled = true; btn.textContent = '通过中…';
+        Promise.all(targets.map(function (r) { return applyStatus(r, 'approved'); }))
+          .then(function (oks) {
+            var n = oks.filter(Boolean).length;
+            rvSel = {};
+            var msg = '已批量通过 ' + n + ' 条报名' +
+              (n < targets.length ? '（' + (targets.length - n) + ' 条失败）' : '') +
+              (overflow ? '（已按名额上限截断）' : '');
+            HWLayout.toast(msg, n === targets.length ? 'ok' : 'info');
+            return loadAll();
+          })
+          .then(function () { renderChips(); renderFeed(); })
+          .catch(function () { renderFeed(); });
       }
 
       /* 新队伍通过 → 自动绑定本活动队长 */
@@ -303,6 +434,19 @@
             }
           });
       }
+
+      /* ---------- 工具栏事件 ---------- */
+      document.getElementById('rv-filter-status').addEventListener('change', renderFeed);
+      document.getElementById('rv-filter-team').addEventListener('change', renderFeed);
+      document.getElementById('rv-batch-approve').addEventListener('click', batchApprove);
+      document.getElementById('rv-select-all').addEventListener('change', function () {
+        var on = this.checked;
+        filteredRegs().forEach(function (r) {
+          if (r.status !== 'pending') return;
+          if (on) rvSel[r.id] = true; else delete rvSel[r.id];
+        });
+        renderFeed();
+      });
 
       /* ---------- 启动 ---------- */
       function boot() {

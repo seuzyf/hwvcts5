@@ -451,7 +451,7 @@
                             host.hidden = false;
                             host.innerHTML = '<div class="locked-state">' +
                                 '<span class="lock-role">' + (typeof HWAuth !== 'undefined' && HWAuth.getSession() ? '权限不足' : '需要登录') + '</span>' +
-                                '<div class="lock-ic">🔒</div>' +
+                                '<div class="lock-ic">' + HWLayout.ico('lock', 26) + '</div>' +
                                 '<h2>分队系统仅限队长与管理员</h2>' +
                                 '<p>' + ((typeof HWAuth !== 'undefined' && HWAuth.getSession())
                                     ? '当前账号不是任何队伍的队长，也没有管理权限。队长身份由分队结果（对应赛季 player_stats 中角色=队长）自动识别。'
@@ -1153,7 +1153,7 @@
 
             setTimeout(() => {
                 const banner = document.getElementById('result-banner');
-                banner.textContent = `🎉 ${player.player_name} 加入了 ${teamName}！`;
+                banner.textContent = `${player.player_name} 加入了 ${teamName}！`;
                 banner.classList.add('show');
 
                 setTimeout(() => {
@@ -1254,7 +1254,7 @@
 
                 await Promise.all(updatePromises);
 
-                HWLayout.toast("🎉 所有分队数据及队长信息已成功同步至 player_ids 表！");
+                HWLayout.toast("所有分队数据及队长信息已成功同步至 player_ids 表！");
                 pendingIdsToSubmit = [];
                 lastDraft = null;
                 updateControls();

@@ -151,7 +151,7 @@
                 </div>
             </div>
             <div class="md-edit">
-                <h3>✍️ 更新比赛信息</h3>
+                <h3 style="display:flex; align-items:center; gap:8px;"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" /> <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" /></svg> 更新比赛信息</h3>
                 <div style="display:flex; gap:16px; flex-wrap:wrap;">
                     <div style="flex:1; min-width:220px;">
                         <label class="md-label">解说席（多人用逗号或空格分隔）</label>
@@ -494,7 +494,7 @@
             autoSubmitBanner.style.opacity = '1';
             autoSubmitBanner.style.borderColor = 'var(--success-green)';
             autoSubmitBanner.style.color = 'var(--success-green)';
-            autoSubmitBanner.textContent = `⚡ 正在自动写入 ${toUpsert.length} 场已确定赛程...`;
+            autoSubmitBanner.textContent = `正在自动写入 ${toUpsert.length} 场已确定赛程...`;
 
             try {
                 const { error } = await supabaseClient
@@ -510,7 +510,7 @@
                 });
 
                 const names = toUpsert.map(m => `[${m.group}] ${m.match_id}: ${m.team_a} vs ${m.team_b}`).join('\n');
-                autoSubmitBanner.textContent = `✅ 已自动写入 ${toUpsert.length} 场赛程:\n${names}`;
+                autoSubmitBanner.textContent = `已自动写入 ${toUpsert.length} 场赛程:\n${names}`;
 
                 const activeGroup = groupFilters.querySelector('.active').dataset.group;
                 renderBrackets(activeGroup);
@@ -527,7 +527,7 @@
                 console.error('自动提交赛程失败:', err);
                 autoSubmitBanner.style.borderColor = 'var(--ash)';
                 autoSubmitBanner.style.color = 'var(--ash)';
-                autoSubmitBanner.textContent = `❌ 自动写入失败: ${err.message}`;
+                autoSubmitBanner.textContent = `自动写入失败: ${err.message}`;
                 setTimeout(() => { autoSubmitBanner.style.display = 'none'; }, 4000);
             }
         }
@@ -599,11 +599,11 @@
             card.dataset.matchId = data?.match_id || '';
             card.dataset.group   = data?.group   || '';
             card.innerHTML = `
-                <div class="match-date">${matchDateStr} ${data?.link ? '📺(附录像)' : ''}</div>
+                <div class="match-date">${matchDateStr} ${data?.link ? '（附录像）' : ''}</div>
                 <div class="team ${winnerA?'winner':''} ${winnerB?'loser':''}"><span class="team-name">${teamA}</span><span class="team-score">${scoreA}</span></div>
                 <hr>
                 <div class="team ${winnerB?'winner':''} ${winnerA?'loser':''}"><span class="team-name">${teamB}</span><span class="team-score">${scoreB}</span></div>
-                <div class="commentator-info">🎙️ 解说: ${casters}</div>
+                <div class="commentator-info">解说: ${casters}</div>
             `;
             return card;
         }
@@ -1096,7 +1096,7 @@
             pendingIdsToDelete  = idsToDelete;
 
             if (pendingDataToUpsert.length > 0 || pendingIdsToDelete.length > 0) {
-                HWLayout.toast(`✅ 已生成新对阵！\n${operationMessage}\n\n请点击「提交赛程」保存到数据库。`);
+                HWLayout.toast(`已生成新对阵！\n${operationMessage}\n\n请点击「提交赛程」保存到数据库。`);
                 const tempGroupData = { ...allMatchesData[groupName] };
                 pendingIdsToDelete.forEach(id => delete tempGroupData[id]);
                 pendingDataToUpsert.forEach(m => { tempGroupData[m.match_id] = { ...tempGroupData[m.match_id], ...m }; });
@@ -1217,7 +1217,7 @@
                 ? '<p style="text-align:center;color:var(--smoke);">暂无解说数据</p>'
                 : Object.keys(stats).sort((a,b) => stats[b].count - stats[a].count).map(c =>
                     `<div class="caster-stat-item">
-                        <h3 class="caster-stat-header">🎙️ ${c} <span>总计: ${stats[c].count} 场</span></h3>
+                        <h3 class="caster-stat-header">${c} <span>总计: ${stats[c].count} 场</span></h3>
                         <ul class="caster-stat-list">${stats[c].matches.map(m=>`<li>${m}</li>`).join('')}</ul>
                     </div>`).join('');
             casterModal.style.display = 'flex';

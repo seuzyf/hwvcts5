@@ -45,6 +45,7 @@
     <div id="reg-wrap" hidden>
       <div class="card" id="reg-event-card" hidden></div>
       <div id="reg-status-box" class="card" hidden></div>
+      <div id="reg-bind" class="notice" hidden></div>
       <div id="reg-none" class="notice" hidden></div>
 
       <form id="reg-form" class="card" hidden>
@@ -114,6 +115,7 @@
         <!-- 第二段：历史巅峰与生涯 -->
         <div id="rp-career-sec">
           <div class="reg-sec-title">个人资料 · 第二部分：历史巅峰与生涯</div>
+          <div id="rp-rank-warn" class="notice" hidden style="margin-bottom:12px; border-color:var(--amber, #d9a441); color:#e8c67a;"></div>
           <div class="form-row">
             <div><label class="form-label" for="rp-hist-rank">历史最高段位 <span class="req" id="rp-hist-req">*</span></label>
               <input class="input" id="rp-hist-rank" maxlength="30" placeholder="例如：不朽 3"></div>
@@ -166,16 +168,97 @@
       /* ---------- 老选手判定：已有资料档案 或 花名册命中 ---------- */
       function detectOld(u, seasonKey) {
         if (profile) { rosterHit = { name: profile.real_name || '' }; return Promise.resolve(true); }
-        var t = seasonKey + '_player_ids';
-        return sb().from(t).select('name, id').limit(2000).then(function (res) {
-          var rows = (res && !res.error && res.data) || [];
-          var hit = rows.find(function (p) {
-            return (u.game_id && String(p.id) === String(u.game_id)) ||
-                   (u.nickname && p.name === u.nickname);
-          }) || null;
-          rosterHit = hit;
-          return !!hit;
-        }).catch(function () { return false; });
+        function querySeason(key) {
+          return sb().from(key + '_player_ids').select('name, id').limit(2000)
+            .then(function (res) { return (res && !res.error && res.data) || []; })
+            .catch(function () { return []; });
+        }
+        var prevKey = /^s(\d+)$/.test(String(seasonKey)) ? 's' + (parseInt(String(seasonKey).slice(1), 10) - 1) : null;
+        return Promise.all([querySeason(seasonKey)].concat(prevKey ? [querySeason(prevKey)] : []))
+          .then(function (lists) {
+            var rows = lists[0].concat(lists[1] || []);
+            var hit = null;
+            if (u.game_id) {
+              /* 已绑定游戏 ID → 仅按 ID 确定性匹配（防重名误判） */
+              hit = rows.find(function (p) { return String(p.id) === String(u.game_id); }) || null;
+            } else {
+              hit = rows.find(function (p) { return u.nickname && p.name === u.nickname; }) || null;
+            }
+            rosterHit = hit;
+            return !!hit;
+          }).catch(function () { return false; });
+      }
+
+      /* ---------- 绑定游戏 ID（一次性校验，老/新判定与防重复以此为准） ---------- */
+      function renderBind() {
+        var u = HWAuth.getSession();
+        var host = document.getElementById('reg-bind');
+        if (!u || String(u.game_id || '').trim()) { host.hidden = true; return; }
+        host.hidden = false;
+        host.innerHTML =
+          '<strong>绑定游戏 ID</strong>' +
+          '<div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">' +
+          '  <input class="input" id="rp-bind-id" maxlength="30" placeholder="对局中使用的 ID（已绑定可跳过）" style="max-width:260px;" value="' + esc(val('rp-gameid')) + '">' +
+          '  <button class="btn btn-primary" id="rp-bind-btn" type="button">绑定</button>' +
+          '</div>' +
+          '<p class="smoke" style="font-size:13px; margin:8px 0 0;">绑定后用于确认你的老/新选手身份并防止他人重复使用该 ID。</p>';
+        document.getElementById('rp-bind-btn').addEventListener('click', bindGameId);
+      }
+      function bindGameId() {
+        var u = HWAuth.getSession();
+        var gid = val('rp-bind-id') || val('rp-gameid');
+        if (!u || !gid) { HWLayout.toast('请填写要绑定的游戏 ID', 'err'); return; }
+        sb().from('site_users').select('id').eq('game_id', gid).neq('id', u.id).limit(1)
+          .then(function (res) {
+            var taken = (res && !res.error && res.data && res.data.length);
+            if (res && res.error) throw new Error(res.error.message);
+            if (taken) { HWLayout.toast('该游戏 ID 已被其他账号绑定', 'err'); return null; }
+            return sb().from('site_users').update({ game_id: gid }).eq('id', u.id).then(function (r) {
+              if (r.error) throw new Error(r.error.message);
+              var sess = HWAuth.getSession();
+              if (sess) {
+                sess.game_id = gid;
+                try { localStorage.setItem('hw_session', JSON.stringify(sess)); } catch (e) {}
+              }
+              HWLayout.renderAuth();
+              var after = function () {
+                HWLayout.toast('游戏 ID 已绑定');
+                bootData();
+              };
+              if (typeof HWAuth.refresh === 'function') {
+                HWAuth.refresh().then(after).catch(after);
+              } else { after(); }
+              return null;
+            });
+          })
+          .catch(function (e) { HWLayout.toast('绑定失败：' + (e.message || e), 'err'); });
+      }
+
+      /* ---------- 段位软校验（历史低于当前 → 黄字提示，不阻断） ---------- */
+      var RANK_ORDER = ['辐能', '不朽', '神话', '超凡', '钻石', '白金', '铂金', '黄金', '白银', '青铜', '黄铜', '铜', '铁', '金'];
+      function rankScore(str) {
+        if (!str) return null;
+        var s = String(str);
+        var tier = -1;
+        for (var i = 0; i < RANK_ORDER.length; i++) {
+          if (s.indexOf(RANK_ORDER[i]) !== -1) { tier = i; break; }
+        }
+        if (tier < 0) return null;
+        var m = s.match(/(\d+)\s*$/);
+        var sub = m ? Math.min(parseInt(m[1], 10), 9) : 0;
+        return (RANK_ORDER.length - 1 - tier) * 10 + sub;
+      }
+      function checkRankWarn() {
+        var el = document.getElementById('rp-rank-warn');
+        if (!el) return;
+        var cur = rankScore(val('rp-cur-rank'));
+        var hist = rankScore(val('rp-hist-rank'));
+        if (cur != null && hist != null && hist < cur) {
+          el.hidden = false;
+          el.textContent = '历史最高段位低于当前段位，请确认是否填写有误（不阻断提交）。';
+        } else {
+          el.hidden = true;
+        }
       }
 
       function positionsChecked() {
@@ -297,6 +380,17 @@
         e.preventDefault();
         var u = HWAuth.getSession();
         if (!u || !ev) return;
+        if (!mine) {
+          /* 提交瞬间再检：截止 / 满员 / 状态变化（打开表单期间活动关闭） */
+          var dl = ev.reg_deadline && new Date(ev.reg_deadline) < new Date();
+          var act = allRegs.filter(function (r) { return r.event_id === ev.id && (r.status === 'pending' || r.status === 'approved'); }).length;
+          var fl = ev.max_slots && act >= ev.max_slots;
+          if (ev.status !== 'registration' || dl || fl) {
+            HWLayout.toast(dl ? '报名已截止' : fl ? '名额已满' : '当前状态不可报名', 'err');
+            bootData();
+            return;
+          }
+        }
         if (!validateAll()) return;
 
         var btn = document.getElementById('rp-submit');
@@ -317,6 +411,7 @@
           return sb().from('reg_profiles').upsert([Object.assign({ user_id: u.id }, pData)])
             .then(function (r) {
               if (r.error) { throw new Error('资料保存失败: ' + r.error.message); }
+              syncBoundGameId(u);
               if (mine) { return null; } /* 已有报名 = 仅更新资料 */
               return submitRegistration(u);
             });
@@ -336,6 +431,31 @@
           btn.disabled = false;
           btn.textContent = mine ? '保存资料' : '提交报名';
         });
+      }
+
+      /* 表单内改了游戏 ID → 同步站内绑定（best-effort：被占用/失败只提示不阻断报名） */
+      function syncBoundGameId(u) {
+        var gidNow = val('rp-gameid');
+        if (!gidNow) return;
+        var bound = u.game_id ? String(u.game_id) : '';
+        if (bound === gidNow) return;
+        sb().from('site_users').select('id').eq('game_id', gidNow).neq('id', u.id).limit(1)
+          .then(function (res) {
+            if (res.error) return;
+            if (res.data && res.data.length) {
+              HWLayout.toast('提示：游戏 ID「' + gidNow + '」已被其他账号绑定，站内绑定未更新', 'info');
+              return;
+            }
+            return sb().from('site_users').update({ game_id: gidNow }).eq('id', u.id).then(function (r) {
+              if (r.error) return;
+              var sess = HWAuth.getSession();
+              if (sess) {
+                sess.game_id = gidNow;
+                try { localStorage.setItem('hw_session', JSON.stringify(sess)); } catch (e) {}
+              }
+              HWLayout.renderAuth();
+            });
+          }).catch(function () {});
       }
 
       function currentTeamName() {
@@ -396,7 +516,7 @@
         var regsCount = allRegs.filter(function (r) { return r.event_id === ev.id && (r.status === 'pending' || r.status === 'approved'); }).length;
         host.innerHTML =
           '<div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">' +
-          '  <span class="icon-circle" style="width:46px;height:46px;font-size:22px;">' + esc(ev.cover_emoji || '🏆') + '</span>' +
+          '  <span class="icon-circle" style="width:46px;height:46px;">' + (ev.cover_image ? '<img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">' : HWLayout.ico('trophy', 22)) + '</span>' +
           '  <div><span class="eyebrow">' + esc(ev.season || '') + '</span>' +
           '    <div style="font-size:18px; font-weight:600; color:var(--pure-white); margin-top:2px;">' + esc(ev.title) + '</div></div>' +
           '  <span class="badge ' + (ev.status === 'registration' ? 'badge-green' : 'badge-quiet') + '" style="margin-left:auto;">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
@@ -458,6 +578,7 @@
         var required = !profile && !rosterHit;
         careerSec.dataset.required = required ? '1' : '0';
         Array.prototype.forEach.call(careerSec.querySelectorAll('.req'), function (el) { el.style.display = required ? '' : 'none'; });
+        checkRankWarn();
         var oldNote = document.getElementById('rp-old-note');
         if (!required) {
           oldNote.hidden = false;
@@ -559,6 +680,7 @@
           renderEventCard();
           renderStatus();
           renderForm();
+          renderBind();
         }).catch(function (err) {
           document.getElementById('reg-loading').textContent = '加载失败：' + (err.message || err);
         });
@@ -576,6 +698,8 @@
         HWAuth.openModal({ stay: true }).then(function () { bootData(); }).catch(function () {});
       });
       document.getElementById('reg-form').addEventListener('submit', submitForm);
+      document.getElementById('rp-cur-rank').addEventListener('input', checkRankWarn);
+      document.getElementById('rp-hist-rank').addEventListener('input', checkRankWarn);
       bindShotPreview('rp-cur-shot', 'rp-cur-shot-preview');
       bindShotPreview('rp-career-shot', 'rp-career-shot-preview');
 
