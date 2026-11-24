@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>战队 · HWVCTS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+  <link rel="stylesheet" href="css/theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/layout.js"></script>
+  <style>
+    .tm-roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .tm-player { display: flex; gap: 10px; align-items: center; }
+    .tm-player .nm { font-weight: 600; color: var(--pure-white); }
+    .tm-player .sub { font-size: 12px; color: var(--smoke); }
+    .tm-stats { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+    .tm-stat { background: var(--graphite); border-radius: 10px; padding: 12px 18px; text-align: center; }
+    .tm-stat b { display: block; font-size: 22px; color: var(--pure-white); font-family: var(--font-mono); }
+    .tm-stat span { font-size: 12px; color: var(--smoke); }
+  </style>
+</head>
+<body data-page="team">
+  <main class="page"><div class="container">
+    <header class="page-header flex-between">
+      <div>
+        <span class="eyebrow">Team</span>
+        <h1 class="page-title" id="tm-title">战队</h1>
+        <p class="page-sub" id="tm-sub">加载中…</p>
+      </div>
+      <a class="btn btn-ghost" href="players.html">← 数据中心</a>
+    </header>
+    <div id="event-bar" hidden></div>
+
+    <section class="card">
+      <div class="block-head"><h2>战绩</h2></div>
+      <div class="tm-stats" id="tm-stats"><span class="smoke">加载中…</span></div>
+    </section>
+
+    <section class="card mt-16">
+      <div class="block-head"><h2>阵容</h2></div>
+      <div class="tm-roster" id="tm-roster"></div>
+    </section>
+
+    <section class="card mt-16">
+      <div class="block-head"><h2>近期比赛</h2></div>
+      <div id="tm-recent"><span class="smoke">加载中…</span></div>
+    </section>
+  </div></main>
+
+<script>
+(function () {
+  'use strict';
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  var params = null;
+  try { params = new URLSearchParams(window.location.search); } catch (e) {}
+  var teamName = params ? (params.get('name') || '') : '';
+  var season = (params && params.get('season')) || 's6';
+  season = String(season).toLowerCase();
+  if (season !== 's5') season = 's6';
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!teamName) {
+      document.getElementById('tm-sub').textContent = '缺少战队参数（?name=）';
+      document.getElementById('tm-stats').innerHTML = '';
+      document.getElementById('tm-roster').innerHTML = '<div class="empty-state">未指定战队</div>';
+      document.getElementById('tm-recent').innerHTML = '';
+      HWLayout.eventBar({ event: null });
+      return;
+    }
+    document.title = teamName + ' · 战队 · HWVCTS';
+    document.getElementById('tm-title').textContent = teamName;
+
+    var sb = HWAuth.getClient();
+    var mT = season + '_matches';
+    var pT = season + '_player_ids';
+
+    HWLayout.resolveEvent().then(function (ev) { HWLayout.eventBar({ event: ev }); });
+
+    Promise.all([
+      sb.from(pT).select('id, name, team, "group"'),
+      sb.from(mT).select('*')
+    ]).then(function (rs) {
+      var roster = (rs[0] && !rs[0].error && rs[0].data) || [];
+      var matches = (rs[1] && !rs[1].error && rs[1].data) || [];
+      var mine = roster.filter(function (p) { return p.team === teamName; });
+      var games = matches.filter(function (m) { return m.team_a === teamName || m.team_b === teamName; });
+      games.sort(function (a, b) { return new Date(b.match_date || 0) - new Date(a.match_date || 0); });
+
+      var wins = 0, losses = 0, roundsFor = 0, roundsAgainst = 0, finished = 0;
+      games.forEach(function (m) {
+        var sc = String(m.score || '').split(/[/:：]/).map(Number);
+        if (sc.length !== 2 || isNaN(sc[0]) || isNaN(sc[1]) || (sc[0] === 0 && sc[1] === 0)) return;
+        finished++;
+        var isA = m.team_a === teamName;
+        var mineScore = isA ? sc[0] : sc[1];
+        var oppScore = isA ? sc[1] : sc[0];
+        roundsFor += mineScore; roundsAgainst += oppScore;
+        if (mineScore > oppScore) wins++; else if (mineScore < oppScore) losses++;
+      });
+
+      document.getElementById('tm-sub').textContent =
+        season.toUpperCase() + ' 赛季 · ' + mine.length + ' 名选手 · ' + games.length + ' 场比赛';
+
+      document.getElementById('tm-stats').innerHTML =
+        '<div class="tm-stat"><b>' + wins + '</b><span>胜</span></div>' +
+        '<div class="tm-stat"><b>' + losses + '</b><span>负</span></div>' +
+        '<div class="tm-stat"><b>' + (finished ? Math.round(wins / finished * 100) : 0) + '%</b><span>胜率</span></div>' +
+        '<div class="tm-stat"><b>' + roundsFor + ':' + roundsAgainst + '</b><span>回合 得:失</span></div>';
+
+      document.getElementById('tm-roster').innerHTML = mine.length
+        ? mine.map(function (p) {
+            return '<div class="card tm-player">' +
+              '<span class="icon-circle" style="width:38px;height:38px;font-size:16px;">' + esc(String(p.name || '?').charAt(0)) + '</span>' +
+              '<span><span class="nm"><a href="player.html?name=' + encodeURIComponent(p.name || '') + '&group=' + encodeURIComponent(p.group || '未分组') + '&season=' + season + '" style="color:inherit;">' + esc(p.name || '—') + '</a></span>' +
+              '<span class="sub" style="display:block;">' + esc(p.group || '未分组') + ' · ID ' + esc(String(p.id)) + '</span></span>' +
+              '</div>';
+          }).join('')
+        : '<div class="empty-state">该战队本赛季暂无花名册</div>';
+
+      document.getElementById('tm-recent').innerHTML = games.length
+        ? '<div class="list">' + games.slice(0, 8).map(function (m) {
+            var sc = String(m.score || '—');
+            var isA = m.team_a === teamName;
+            var mineScore = '—', oppScore = '—';
+            var raw = String(m.score || '').split(/[/:：]/).map(Number);
+            if (raw.length === 2 && !isNaN(raw[0]) && !isNaN(raw[1])) {
+              mineScore = isA ? raw[0] : raw[1];
+              oppScore = isA ? raw[1] : raw[0];
+            }
+            var tag = (mineScore !== '—' && oppScore !== '—')
+              ? (mineScore > oppScore ? '<span class="badge badge-green">胜</span>' : mineScore < oppScore ? '<span class="badge badge-quiet">负</span>' : '<span class="badge badge-quiet">平</span>')
+              : '<span class="badge badge-blue">未开始</span>';
+            return '<div class="list-item" style="cursor:default;">' +
+              '<span class="li-icon">' + HWLayout.ico('trophy', 15) + '</span>' +
+              '<span class="li-main"><span class="li-title">' + esc(m.team_a) + ' ' + esc(sc) + ' ' + esc(m.team_b) + '</span>' +
+              '<span class="li-sub">' + esc(m.group || '') + ' · ' + esc(m.match_date ? String(m.match_date).slice(0, 10) : '') + '</span></span>' +
+              '<span class="li-end">' + tag + '</span></div>';
+          }).join('') + '</div>'
+        : '<div class="empty-state">本赛季暂无比赛记录</div>';
+    }).catch(function (e) {
+      document.getElementById('tm-sub').textContent = '加载失败：' + ((e && e.message) || e);
+    });
+  });
+})();
+</script>
+</body>
+</html>

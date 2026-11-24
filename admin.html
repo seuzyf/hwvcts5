@@ -49,7 +49,42 @@
         </div>
     </div>
 
-    
+    <!-- P13：调分（×-only） -->
+    <div id="pts-modal" class="modal-backdrop" style="display:none;">
+        <div class="modal-panel" style="max-width:440px;">
+            <button class="modal-close" id="pts-close" type="button">&times;</button>
+            <span class="eyebrow">Points</span>
+            <h2 style="margin:6px 0 14px; font-size:17px; font-weight:500; color:var(--pure-white);">调整积分</h2>
+            <div id="pts-info" class="smoke" style="font-size:13px; margin-bottom:12px;"></div>
+            <label class="form-label" for="pts-delta">积分变化（正加负减，如 50 或 -20）</label>
+            <input class="input" id="pts-delta" type="number" step="1" placeholder="50">
+            <label class="form-label" for="pts-reason" style="margin-top:10px;">调整原因（会写入通知）</label>
+            <input class="input" id="pts-reason" maxlength="60" placeholder="例如：线下赛奖励">
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="pts-cancel" type="button">取消</button>
+                <button class="btn btn-primary" id="pts-apply" type="button">确认调整</button>
+            </div>
+        </div>
+    </div>
+    <!-- P13：封禁（×-only） -->
+    <div id="ban-modal" class="modal-backdrop" style="display:none;">
+        <div class="modal-panel" style="max-width:440px;">
+            <button class="modal-close" id="ban-close" type="button">&times;</button>
+            <span class="eyebrow">Ban</span>
+            <h2 style="margin:6px 0 14px; font-size:17px; font-weight:500; color:var(--pure-white);">封禁</h2>
+            <div id="ban-info" class="smoke" style="font-size:13px; margin-bottom:12px;"></div>
+            <label class="form-label" for="ban-reason">封禁原因（会写入通知）</label>
+            <input class="input" id="ban-reason" maxlength="60" placeholder="例如：恶意刷报名">
+            <label class="form-label" for="ban-until" style="margin-top:10px;">解封时间（留空 = 永久）</label>
+            <input class="input" id="ban-until" type="datetime-local">
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="ban-cancel" type="button">取消</button>
+                <button class="btn btn-danger-ghost" id="ban-apply" type="button">确认封禁</button>
+            </div>
+        </div>
+    </div>
+
+
     <!--═════════════════════════════════════════════════════════════
          管理后台 · 双角色界面
            游客 → 登录 CTA / 口令验证入口
@@ -162,6 +197,16 @@
                 </div>
                 <div id="perm-list" style="margin-top:14px;"><div class="empty-state">加载中…</div></div>
             </div>
+            <div class="card mt-16" id="my-reg-card" hidden>
+                <div class="flex-between">
+                    <div>
+                        <span class="eyebrow">Registrants</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">我的报名用户</h2>
+                    </div>
+                    <span class="smoke" style="font-size:13px;" id="my-reg-count"></span>
+                </div>
+                <div id="my-reg-list" style="margin-top:14px;"><div class="empty-state">加载中…</div></div>
+            </div>
             <div class="grid-4 mt-16">
                 <a class="card card-hover" href="draft.html" style="text-decoration:none; display:block;">
                     <span class="eyebrow">Draft</span>
@@ -178,6 +223,24 @@
                     <div style="font-size:15px; font-weight:500; color:var(--mist); margin-top:8px;">数据汇总</div>
                     <div style="font-size: 13px; color:var(--smoke); margin-top:2px;">选手数据与多维对比</div>
                 </a>
+            </div>
+            <div class="card mt-16" id="broadcast-card" hidden>
+                <span class="eyebrow">Announcements</span>
+                <h2 class="section-title" style="margin-top:8px;">全员广播公告</h2>
+                <div class="filter-bar" style="margin:14px 0 12px;">
+                    <select class="select" id="bc-scope" aria-label="范围">
+                        <option value="all">全员</option>
+                        <option value="members">仅普通成员</option>
+                        <option value="organizers">组织者及以上</option>
+                    </select>
+                </div>
+                <label class="form-label" for="bc-title">标题</label>
+                <input class="input" id="bc-title" maxlength="60" placeholder="例如：本周六决赛开打">
+                <label class="form-label" for="bc-body" style="margin-top:10px;">内容</label>
+                <textarea class="textarea" id="bc-body" rows="3" maxlength="300" placeholder="广播正文（会出现在通知中心）"></textarea>
+                <div class="modal-actions" style="justify-content:flex-start; margin-top:14px;">
+                    <button class="btn btn-primary" id="bc-send" type="button">发送广播</button>
+                </div>
             </div>
         </section>
     </div>
@@ -295,37 +358,56 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(function (e) { HWLayout.toast('处理失败: ' + (e.message || e), 'err'); });
     }
 
-    /* —— 权限管理：编辑所有用户身份 + 重置密码 —— */
+    /* —— 权限管理（P13b：按操作者身份截断选项 + 调分 + 全局封禁） —— */
+    var ROLE_ORDER = ['member', 'organizer', 'admin', 'superadmin'];
     function loadPermUsers() {
         var host = document.getElementById('perm-list');
         if (!host) return;
-        HWAuth.getClient().from('site_users').select('id, username, nickname, game_id, role').order('id')
+        var actorRank = HWLayout.roleRank(HWLayout.getRole());
+        /* 操作者可设置的最高身份：superadmin→superadmin；admin→organizer（admin 级仅 superadmin 可动） */
+        var allowedIdx = actorRank >= 4 ? 2 : 1; /* superadmin→admin；admin→organizer */
+        HWAuth.getClient().from('site_users').select('id, username, nickname, game_id, role, banned, banned_until').order('id')
             .then(function (res) {
                 var rows = (res && !res.error && res.data) || [];
                 document.getElementById('perm-count').textContent = rows.length + ' 个账号';
                 if (!rows.length) { host.innerHTML = '<div class="empty-state">暂无账号。</div>'; return; }
                 host.innerHTML = rows.map(function (u) {
                     var role = u.role || 'member';
+                    var targetIdx = ROLE_ORDER.indexOf(role);
+                    if (targetIdx < 0) targetIdx = 0;
+                    var canEdit = targetIdx <= allowedIdx;
+                    var gBanned = HWLayout.isBannedUser(u);
+                    var roleCell = canEdit
+                        ? '<select class="select adm-role" data-user="' + u.id + '" aria-label="身份">' +
+                          ROLE_ORDER.slice(0, allowedIdx + 1).map(function (r) {
+                              return '<option value="' + r + '"' + (role === r ? ' selected' : '') + '>' + (ROLE_ZH[r] || r) + '</option>';
+                          }).join('') +
+                          '</select>' +
+                          '<button class="btn btn-ghost btn-sm" data-role-save="' + u.id + '" type="button">保存</button>'
+                        : '<span class="badge badge-quiet">' + (ROLE_ZH[role] || role) + '</span>';
                     return '<div class="adm-ev-row" data-user="' + u.id + '">' +
                         '<span class="adm-ev-main">' +
-                        '  <span class="adm-ev-title">' + esc(u.nickname || u.username) + ' <span class="smoke" style="font-weight:400;">@' + esc(u.username) + (u.game_id ? ' · ' + esc(u.game_id) : '') + '</span></span>' +
+                        '  <span class="adm-ev-title">' + esc(u.nickname || u.username) + ' <span class="smoke" style="font-weight:400;">@' + esc(u.username) + (u.game_id ? ' · ' + esc(u.game_id) : '') + '</span>' + (gBanned ? ' ' + HWLayout.bannedBadgeHtml() : '') + '</span>' +
                         '  <span class="adm-ev-sub">ID ' + u.id + '</span>' +
                         '</span>' +
-                        '<select class="select adm-role" data-user="' + u.id + '" aria-label="身份">' +
-                        ['member', 'organizer', 'admin'].map(function (r) {
-                            return '<option value="' + r + '"' + (role === r ? ' selected' : '') + '>' +
-                                ({ member: '成员', organizer: '活动组织者', admin: '管理员' })[r] + '</option>';
-                        }).join('') +
-                        '</select>' +
-                        '<button class="btn btn-ghost btn-sm" data-role-save="' + u.id + '" type="button">保存</button>' +
+                        roleCell +
+                        '<button class="btn btn-ghost btn-sm" data-pts-user="' + u.id + '" type="button">调分</button>' +
+                        (gBanned
+                            ? '<button class="btn btn-ghost btn-sm" data-unban-user="' + u.id + '" type="button">解除封禁</button>'
+                            : '<button class="btn btn-danger-ghost btn-sm" data-ban-user="' + u.id + '" type="button">封禁</button>') +
                         '<button class="btn btn-danger-ghost btn-sm" data-role-reset="' + u.id + '" type="button">重置密码</button>' +
                         '</div>';
                 }).join('');
+                bindRowActions(host);
                 host.querySelectorAll('[data-role-save]').forEach(function (b) {
                     b.addEventListener('click', function () {
                         var id = parseInt(b.dataset.roleSave, 10);
                         var sel = host.querySelector('.adm-role[data-user="' + id + '"]');
+                        if (!sel) return;
                         var role = sel.value;
+                        /* 目标校验：不得越出操作者可设范围 */
+                        var idx = ROLE_ORDER.indexOf(role);
+                        if (idx < 0 || idx > allowedIdx) { HWLayout.toast('无法设置该身份', 'err'); return; }
                         HWAuth.getClient().from('site_users').update({ role: role }).eq('id', id)
                             .then(function (r) {
                                 if (r.error) throw new Error(r.error.message);
@@ -336,6 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     try { localStorage.setItem('hw_session', JSON.stringify(me)); } catch (e) {}
                                     HWLayout.renderAuth();
                                 }
+                                loadPermUsers();
                             }).catch(function (e) { HWLayout.toast('保存失败: ' + (e.message || e), 'err'); });
                     });
                 });
@@ -356,7 +439,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showView(name) {
         Object.keys(views).forEach(function (k) { if (views[k]) views[k].hidden = (k !== name); });
-        if (name === 'admin') { loadOrgRequests(); loadPermUsers(); }
+        if (name === 'admin') {
+            loadOrgRequests();
+            applyAdminScope();
+            if (HWLayout.isAdminNow()) loadPermUsers();
+            renderMyRegistrants();
+        }
         if (name === 'admin' && window.location.hash === '#perm-card') {
             setTimeout(function () {
                 var el = document.getElementById('perm-card');
@@ -377,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('pv-chips').innerHTML =
             '<span class="chip mono">@' + esc(u.username) + '</span>' +
             '<span class="chip mono">UID ' + esc(u.id) + '</span>' +
-            '<span class="chip">' + (u.role === 'admin' ? '管理员' : '成员') + '</span>' +
+            '<span class="chip">' + (ROLE_ZH[u.role] || '成员') + '</span>' +
             (u.created_at ? '<span class="chip">注册于 ' + esc(String(u.created_at).slice(0, 10)) + '</span>' : '');
         document.getElementById('pv-status').textContent = '';
         document.getElementById('pv-oldpwd').value = '';
@@ -392,6 +480,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(function (res) {
                 if (res.error) throw res.error;
                 var rows = res.data || [];
+                /* P13b：组织者只看自己的活动 */
+                if (!HWLayout.isAdminNow()) {
+                    var meId = String((HWAuth.getSession() || {}).id || '');
+                    rows = rows.filter(function (ev) { return ev.organizer_id != null && String(ev.organizer_id) === meId; });
+                }
                 if (!rows.length) {
                     host.innerHTML = '<div class="empty-state">还没有任何活动。<br><br><a class="btn btn-primary" href="events.html?create=1">创建第一个活动</a></div>';
                     return;
@@ -446,10 +539,249 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAdmEvents();
     }
 
+    /* —— P13：角色标签 + 后台裁剪视图 —— */
+    var ROLE_ZH = { member: '成员', organizer: '活动组织者', admin: '管理员', superadmin: '超级管理员' };
+    var ptsTarget = null;
+    var banTarget = null;
+    var banScope = 'global';
+    var banEventId = null;
+    var banEventTitle = '';
+
+    function applyAdminScope() {
+        var isAdmin = HWLayout.isAdminNow();
+        var orgCard = document.getElementById('org-req-card');
+        if (orgCard) orgCard.hidden = !isAdmin;
+        var permCard = document.getElementById('perm-card');
+        if (permCard) permCard.hidden = !isAdmin;
+        var bcCard = document.getElementById('broadcast-card');
+        if (bcCard) bcCard.hidden = !isAdmin;
+        var regCard = document.getElementById('my-reg-card');
+        if (regCard && !isAdmin) regCard.hidden = false;
+    }
+
+    /* —— P13：我的报名用户（组织者=仅自己活动；管理员=全部） —— */
+    function renderMyRegistrants() {
+        var card = document.getElementById('my-reg-card');
+        if (!card) return;
+        var me = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+        if (!me) { card.hidden = true; return; }
+        card.hidden = false;
+        var host = document.getElementById('my-reg-list');
+        var countEl = document.getElementById('my-reg-count');
+        host.innerHTML = '<div class="empty-state">加载中…</div>';
+        var sb = HWAuth.getClient();
+        var isAdmin = HWLayout.isAdminNow();
+        var evQ = isAdmin
+            ? sb.from('events').select('id, title').order('id')
+            : sb.from('events').select('id, title').eq('organizer_id', me.id).order('id');
+        evQ.then(function (r) {
+            var evs = (r && !r.error && r.data) || [];
+            if (!evs.length) {
+                countEl.textContent = '';
+                host.innerHTML = '<div class="empty-state">' + (isAdmin ? '还没有任何活动。' : '你还没有自己的活动。') + '</div>';
+                return null;
+            }
+            var evIds = evs.map(function (e) { return e.id; });
+            var evMap = {};
+            evs.forEach(function (e) { evMap[e.id] = e; });
+            return Promise.all([
+                sb.from('event_registrations').select('id, event_id, user_id, status').in('event_id', evIds),
+                sb.from('site_users').select('id, username, nickname, role, banned, banned_until'),
+                sb.from('event_bans').select('*').in('event_id', evIds)
+            ]).then(function (rs) {
+                var regs = (rs[0] && !rs[0].error && rs[0].data) || [];
+                var users = (rs[1] && !rs[1].error && rs[1].data) || [];
+                var ebans = (rs[2] && !rs[2].error && rs[2].data) || [];
+                var uMap = {};
+                users.forEach(function (u) { uMap[u.id] = u; });
+                var ebanMap = {};
+                ebans.forEach(function (b) { ebanMap[b.event_id + ':' + b.user_id] = b; });
+                countEl.textContent = regs.length + ' 条报名';
+                if (!regs.length) { host.innerHTML = '<div class="empty-state">暂无报名用户。</div>'; return; }
+                var RB = { pending: ['待审核', 'badge-blue'], approved: ['已通过', 'badge-green'], rejected: ['已拒绝', 'badge-quiet'], waitlist: ['候补中', 'badge-coral'] };
+                host.innerHTML = regs.map(function (rg) {
+                    var u = uMap[rg.user_id] || {};
+                    var b = RB[rg.status] || ['未知', 'badge-quiet'];
+                    var gBanned = HWLayout.isBannedUser(u);
+                    var eban = ebanMap[rg.event_id + ':' + rg.user_id] || null;
+                    return '<div class="adm-ev-row">' +
+                        '<span class="adm-ev-main">' +
+                        '  <span class="adm-ev-title">' + esc(u.nickname || u.username || ('用户#' + rg.user_id)) + (gBanned ? ' ' + HWLayout.bannedBadgeHtml() : '') + (eban ? ' <span class="badge badge-ban">' + HWLayout.ico('ban', 12) + ' 本活动禁赛</span>' : '') + '</span>' +
+                        '  <span class="adm-ev-sub">' + esc(evMap[rg.event_id] ? evMap[rg.event_id].title : '') + ' · ' + esc(ROLE_ZH[u.role] || '成员') + '</span>' +
+                        '</span>' +
+                        '<span class="badge ' + b[1] + '">' + b[0] + '</span>' +
+                        '<button class="btn btn-ghost btn-sm" data-pts-user="' + rg.user_id + '" type="button">调分</button>' +
+                        (eban
+                            ? '<button class="btn btn-ghost btn-sm" data-eban-unban="' + eban.id + '" type="button">解除活动封禁</button>'
+                            : '<button class="btn btn-danger-ghost btn-sm" data-eban-user="' + rg.user_id + '" data-eban-ev="' + rg.event_id + '" data-eban-title="' + esc(evMap[rg.event_id] ? evMap[rg.event_id].title : '') + '" type="button">活动封禁</button>') +
+                        (gBanned ? '' : '<button class="btn btn-danger-ghost btn-sm" data-ban-user="' + rg.user_id + '" type="button">封禁</button>') +
+                        (gBanned ? '<button class="btn btn-ghost btn-sm" data-unban-user="' + rg.user_id + '" type="button">解除封禁</button>' : '') +
+                        '</div>';
+                }).join('');
+                bindRowActions(host);
+            });
+        }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; });
+    }
+
+    /* —— 行内动作（perm 列表与我的报名用户共用） —— */
+    function bindRowActions(host) {
+        host.querySelectorAll('[data-pts-user]').forEach(function (b) {
+            b.addEventListener('click', function () { openPts(parseInt(b.dataset.ptsUser, 10)); });
+        });
+        host.querySelectorAll('[data-ban-user]').forEach(function (b) {
+            b.addEventListener('click', function () { openBan('global', parseInt(b.dataset.banUser, 10), null, ''); });
+        });
+        host.querySelectorAll('[data-unban-user]').forEach(function (b) {
+            b.addEventListener('click', function () { unbanGlobal(parseInt(b.dataset.unbanUser, 10)); });
+        });
+        host.querySelectorAll('[data-eban-user]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                openBan('event', parseInt(b.dataset.ebanUser, 10), parseInt(b.dataset.ebanEv, 10), b.dataset.ebanTitle || '');
+            });
+        });
+        host.querySelectorAll('[data-eban-unban]').forEach(function (b) {
+            b.addEventListener('click', function () { unbanEvent(parseInt(b.dataset.ebanUnban, 10)); });
+        });
+    }
+
+    /* —— 调分（P13：ledger + recalc + 通知） —— */
+    function openPts(uid) {
+        ptsTarget = uid;
+        document.getElementById('pts-info').textContent = '目标用户 #' + uid;
+        document.getElementById('pts-delta').value = '';
+        document.getElementById('pts-reason').value = '';
+        document.getElementById('pts-modal').style.display = 'flex';
+    }
+    function applyPoints() {
+        var uid = ptsTarget;
+        var delta = parseInt(document.getElementById('pts-delta').value, 10);
+        var reason = document.getElementById('pts-reason').value.trim();
+        if (!uid) return;
+        if (!delta) { HWLayout.toast('请输入非 0 的整数积分', 'err'); return; }
+        if (!reason) { HWLayout.toast('请填写调整原因', 'err'); return; }
+        var sb = HWAuth.getClient();
+        var me = HWAuth.getSession();
+        var roleName = ROLE_ZH[HWLayout.getRole()] || HWLayout.getRole();
+        sb.from('site_users').select('balance').eq('id', uid).maybeSingle()
+            .then(function (r0) {
+                var stored = r0 && !r0.error && r0.data && r0.data.balance != null ? r0.data.balance : 100;
+                return HWLayout.recalcBalance(uid).then(function (base) {
+                    var after = (base == null ? stored : base) + delta;
+                    return Promise.all([
+                        sb.from('site_users').update({ balance: after, balance_synced_at: new Date().toISOString() }).eq('id', uid),
+                        sb.from('points_ledger').insert([{
+                            user_id: uid, delta: delta, balance_after: after, reason: reason,
+                            operator_id: me ? me.id : null, source: 'admin'
+                        }])
+                    ]).then(function (rs) {
+                        if (rs[0] && rs[0].error) throw new Error(rs[0].error.message);
+                        if (rs[1] && rs[1].error) throw new Error(rs[1].error.message);
+                        var sign = delta > 0 ? '+' + delta : String(delta);
+                        HWLayout.notifyUser(uid, '积分调整',
+                            ((me && (me.nickname || me.username)) || '管理员') + '（' + roleName + '）为你调整积分 ' + sign +
+                            '，原因：' + reason + '，当前余额 ' + after + '。', 'index.html');
+                        HWLayout.toast('已调整，当前余额 ' + after);
+                        document.getElementById('pts-modal').style.display = 'none';
+                        if (HWLayout.isAdminNow()) loadPermUsers();
+                        renderMyRegistrants();
+                    });
+                });
+            })
+            .catch(function (e) { HWLayout.toast('调分失败: ' + ((e && e.message) || e), 'err'); });
+    }
+
+    /* —— 封禁（P13f：全局 / 活动） —— */
+    function openBan(scope, uid, evId, evTitle) {
+        banScope = scope; banTarget = uid; banEventId = evId; banEventTitle = evTitle || '';
+        document.getElementById('ban-info').textContent =
+            (scope === 'global' ? '全局封禁' : '活动封禁 · ' + (evTitle || ('活动#' + evId))) + ' · 用户 #' + uid;
+        document.getElementById('ban-reason').value = '';
+        document.getElementById('ban-until').value = '';
+        document.getElementById('ban-modal').style.display = 'flex';
+    }
+    function applyBan() {
+        var uid = banTarget;
+        var reason = document.getElementById('ban-reason').value.trim() || '违反赛事规则';
+        var untilRaw = document.getElementById('ban-until').value;
+        var until = untilRaw ? new Date(untilRaw).toISOString() : null;
+        if (!uid) return;
+        var sb = HWAuth.getClient();
+        var me = HWAuth.getSession();
+        var done = function (msg, note) {
+            HWLayout.notifyUser(uid, msg, note, 'index.html');
+            HWLayout.toast(msg);
+            document.getElementById('ban-modal').style.display = 'none';
+            if (HWLayout.isAdminNow()) loadPermUsers();
+            renderMyRegistrants();
+        };
+        if (banScope === 'global') {
+            sb.from('site_users').update({ banned: true, banned_reason: reason, banned_until: until }).eq('id', uid)
+                .then(function (r) {
+                    if (r.error) throw new Error(r.error.message);
+                    done('账号已被封禁', '原因：' + reason + (until ? '，解封时间：' + until : '，永久封禁'));
+                }).catch(function (e) { HWLayout.toast('封禁失败: ' + (e.message || e), 'err'); });
+        } else {
+            if (!banEventId) return;
+            sb.from('event_bans').select('id').eq('event_id', banEventId).eq('user_id', uid).maybeSingle()
+                .then(function (r0) {
+                    var row = r0 && !r0.error && r0.data;
+                    if (row) return sb.from('event_bans').update({ reason: reason, until: until }).eq('id', row.id);
+                    return sb.from('event_bans').insert([{
+                        event_id: banEventId, user_id: uid, reason: reason, until: until,
+                        created_by: me ? me.id : null
+                    }]);
+                })
+                .then(function (r) { if (r && r.error) throw new Error(r.error.message); done('活动封禁已生效', '你在「' + (banEventTitle || '该活动') + '」被禁赛。原因：' + reason); })
+                .catch(function (e) { HWLayout.toast('封禁失败: ' + (e.message || e), 'err'); });
+        }
+    }
+    function unbanGlobal(uid) {
+        if (!window.confirm('确定解除该用户的全局封禁？')) return;
+        HWAuth.getClient().from('site_users').update({ banned: false, banned_reason: '', banned_until: null }).eq('id', uid)
+            .then(function (r) {
+                if (r.error) throw new Error(r.error.message);
+                HWLayout.notifyUser(uid, '封禁已解除', '你的账号已恢复正常使用。', 'index.html');
+                HWLayout.toast('已解除封禁');
+                if (HWLayout.isAdminNow()) loadPermUsers();
+                renderMyRegistrants();
+            }).catch(function (e) { HWLayout.toast('解除失败: ' + (e.message || e), 'err'); });
+    }
+    function unbanEvent(banId) {
+        HWAuth.getClient().from('event_bans').delete().eq('id', banId)
+            .then(function (r) {
+                if (r.error) throw new Error(r.error.message);
+                HWLayout.toast('已解除活动封禁');
+                renderMyRegistrants();
+            }).catch(function (e) { HWLayout.toast('解除失败: ' + (e.message || e), 'err'); });
+    }
+
+    /* —— 弹窗关闭（×-only） —— */
+    [['pts-close', 'pts-modal'], ['pts-cancel', 'pts-modal'], ['ban-close', 'ban-modal'], ['ban-cancel', 'ban-modal']].forEach(function (pair) {
+        var el = document.getElementById(pair[0]);
+        if (el) el.addEventListener('click', function () { document.getElementById(pair[1]).style.display = 'none'; });
+    });
+    var ptsApplyBtn = document.getElementById('pts-apply');
+    if (ptsApplyBtn) ptsApplyBtn.addEventListener('click', applyPoints);
+    var banApplyBtn = document.getElementById('ban-apply');
+    if (banApplyBtn) banApplyBtn.addEventListener('click', applyBan);
+    var bcSendBtn = document.getElementById('bc-send');
+    if (bcSendBtn) bcSendBtn.addEventListener('click', function () {
+        var scope = document.getElementById('bc-scope').value;
+        var title = document.getElementById('bc-title').value.trim();
+        var body = document.getElementById('bc-body').value.trim();
+        if (!title || !body) { HWLayout.toast('请填写标题和内容', 'err'); return; }
+        bcSendBtn.disabled = true;
+        HWLayout.broadcastNotifications(scope, title, body, '').then(function (n) {
+            bcSendBtn.disabled = false;
+            if (n > 0) { HWLayout.toast('已发送给 ' + n + ' 人'); document.getElementById('bc-title').value = ''; document.getElementById('bc-body').value = ''; }
+            else HWLayout.toast('没有匹配的接收者', 'err');
+        });
+    });
+
     function route() {
         var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
         if (!u) { showView('guest'); return; }
-        if (HWLayout.isAdminNow()) { enterAdminMode(); return; }
+        if (HWLayout.atLeast('organizer')) { enterAdminMode(); return; }
         showView('member');
         fillProfileView(u);
     }

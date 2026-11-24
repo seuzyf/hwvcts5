@@ -211,6 +211,14 @@
         }
 
         function loadBalance(userId) {
+            /* P13e：权威余额（比赛推导 + 流水净额）优先；失败回退旧推导 */
+            return HWLayout.recalcBalance(userId).then(function (bal) {
+                if (bal != null) return bal;
+                return loadBalanceDerived(userId);
+            }).catch(function () { return loadBalanceDerived(userId); });
+        }
+
+        function loadBalanceDerived(userId) {
             var sb = HWAuth.getClient();
             return Promise.all([
                 sb.from('s6_bet_bets').select('*'),
@@ -345,6 +353,10 @@
                      upcomingHtml +
                 '  </section>' +
                 '</div>' +
+                '<section class="card mt-24" id="dash-brief">' +
+                '  <div class="block-head"><h2>今明提醒</h2></div>' +
+                '  <div id="dash-brief-body" class="empty-line">加载中…</div>' +
+                '</section>' +
                 '<section class="card mt-24" id="dash-notif">' +
                 '  <div class="block-head"><h2>消息</h2><a href="javascript:void(0)" id="notif-read-all">全部已读</a></div>' +
                 notifHtml +
@@ -353,6 +365,9 @@
                 '  <div class="block-head"><h2>功能入口</h2></div>' +
                 '  <div class="tiles">' + tiles + '</div>' +
                 '</section>';
+
+            /* P13h：今明活动 / 赛程 / 下注锁定 */
+            loadTodayBrief().then(fillTodayBrief);
 
             /* 消息：点击 → 标记已读并跳转；全部已读 */
             var notifCard = document.getElementById('dash-notif');
@@ -380,6 +395,73 @@
                         .catch(function () { HWLayout.toast('操作失败', 'err'); });
                 });
             }
+        }
+
+        function loadTodayBrief() {
+            var sb = HWAuth.getClient();
+            var d0 = new Date(); d0.setHours(0, 0, 0, 0);
+            var d2 = new Date(d0); d2.setDate(d2.getDate() + 2);
+            return Promise.all([
+                sb.from('events').select('id, title, status, start_time, end_time, reg_deadline')
+                    .in('status', ['registration', 'ongoing']),
+                sb.from('s6_match_schedule').select('id, team_a, team_b, match_date, group').not('match_date', 'is', null),
+                sb.from('s5_match_schedule').select('id, team_a, team_b, match_date, group').not('match_date', 'is', null),
+                sb.from('s6_betting_groups').select('group_name, is_locked')
+            ]).then(function (rs) {
+                var inRange = function (v) {
+                    if (!v) return false;
+                    var t = new Date(v).getTime();
+                    return !isNaN(t) && t >= d0.getTime() && t < d2.getTime();
+                };
+                var evs = ((rs[0] && !rs[0].error && rs[0].data) || []).filter(function (e) {
+                    return inRange(e.start_time) || inRange(e.reg_deadline) || inRange(e.end_time);
+                });
+                var matches = []
+                    .concat((rs[1] && !rs[1].error && rs[1].data) || [])
+                    .concat((rs[2] && !rs[2].error && rs[2].data) || [])
+                    .filter(function (m) { return inRange(m.match_date); })
+                    .sort(function (a, b) { return new Date(a.match_date) - new Date(b.match_date); })
+                    .slice(0, 8);
+                var locked = ((rs[3] && !rs[3].error && rs[3].data) || [])
+                    .filter(function (g) { return g.is_locked; })
+                    .map(function (g) { return g.group_name; });
+                return { evs: evs, matches: matches, locked: locked, d0: d0 };
+            }).catch(function () { return null; });
+        }
+        function fillTodayBrief(brief) {
+            var body = document.getElementById('dash-brief-body');
+            if (!body) return;
+            if (!brief) { body.innerHTML = '<div class="empty-line">今明暂无活动或赛程</div>'; return; }
+            var dayLabel = function (v) {
+                var d = new Date(v);
+                var t0 = new Date(); t0.setHours(0, 0, 0, 0);
+                var day = new Date(d); day.setHours(0, 0, 0, 0);
+                return day.getTime() === t0.getTime() ? '今日' : '明日';
+            };
+            var parts = [];
+            if (brief.evs.length) {
+                parts.push('<div class="list">' + brief.evs.slice(0, 4).map(function (e) {
+                    var when = e.start_time ? dayLabel(e.start_time) : (e.reg_deadline ? dayLabel(e.reg_deadline) : '今明');
+                    return '<a class="list-item" href="events.html?open=' + e.id + '">' +
+                        '<span class="li-icon">' + HWLayout.ico('calendar', 15) + '</span>' +
+                        '<span class="li-main"><span class="li-title">' + esc(e.title) + '</span>' +
+                        '<span class="li-sub">' + when + ' · ' + (e.status === 'registration' ? '报名中' : '进行中') + '</span></span></a>';
+                }).join('') + '</div>');
+            }
+            if (brief.matches.length) {
+                parts.push('<div class="list">' + brief.matches.map(function (m) {
+                    return '<a class="list-item" href="matches.html">' +
+                        '<span class="li-icon">' + HWLayout.ico('trophy', 15) + '</span>' +
+                        '<span class="li-main"><span class="li-title">' + esc(m.team_a) + ' vs ' + esc(m.team_b) + '</span>' +
+                        '<span class="li-sub">' + dayLabel(m.match_date) + ' ' +
+                        new Date(m.match_date).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) +
+                        ' · ' + esc(m.group || '') + '</span></span></a>';
+                }).join('') + '</div>');
+            }
+            if (brief.locked.length) {
+                parts.push('<div class="smoke" style="font-size:13px; margin-top:8px;">下注锁定：' + esc(brief.locked.join('、')) + '</div>');
+            }
+            body.innerHTML = parts.length ? parts.join('') : '<div class="empty-line">今明暂无活动或赛程</div>';
         }
 
         function statCard(num, label, coral) {

@@ -162,18 +162,14 @@
     </div>
 
     <div class="container">
-        <div id="event-bar" hidden></div>
         <header class="page-header">
             <span class="eyebrow">Schedule</span>
             <h1 class="page-title">赛程中心</h1>
         </header>
+        <div id="event-bar" hidden></div>
 
         <div class="filter-bar" style="flex-wrap: wrap; gap: 10px; margin-bottom: 26px;">
-            <div class="seg" id="group-filters">
-                <button class="active" data-group="传奇组" type="button">传奇组</button>
-                <button data-group="中坚组" type="button">中坚组</button>
-                <button data-group="挑战组" type="button">挑战组</button>
-            </div>
+            <div class="seg" id="group-filters"></div>
             <div class="seg" id="stage-filters">
                 <button class="active" data-stage="swiss" type="button">小组赛</button>
                 <button data-stage="playoff" type="button">淘汰赛</button>
@@ -182,6 +178,7 @@
             <button class="btn btn-ghost" id="random-draw-btn" type="button">随机生成对战</button>
             <div style="flex: 1"></div>
             <button id="caster-stats-btn" class="btn btn-ghost" type="button">解说统计</button>
+            <button id="ics-btn" class="btn btn-ghost" type="button">导出 .ics</button>
             <button id="submit-changes-btn" class="btn btn-primary" type="button" style="display: none;">提交赛程</button>
         </div>
 
@@ -235,7 +232,8 @@
         let processedMatchStats  = {};
         let pendingDataToUpsert  = [];
         let pendingIdsToDelete   = [];
-        let currentSeason        = 's6'; 
+        let currentSeason        = 's6';
+        var EV_CTX               = null;   /* P13d：绑定的活动上下文 */
 
         // ── 管理员权限（不再使用口令，按身份区分） ─────────────────────────────
         function isAdminRole() {
@@ -389,7 +387,31 @@
                 if (wWBF && wLBF) { ensure('P-GF'); data['P-GF'].team_a = wWBF; data['P-GF'].team_b = wLBF; }
                 ensure('P-CHAMPION'); data['P-CHAMPION'].result_team = getWinner(data['P-GF']);
             }
+
+            /* P13d：通用单败淘汰（B-R*）胜者推进 */
+            var bIds = Object.keys(data).filter(function (id) { return /^B-R\d+-\d+$/.test(id); });
+            var maxR = 0;
+            bIds.forEach(function (id) { maxR = Math.max(maxR, Number(/^B-R(\d+)-/.exec(id)[1])); });
+            for (var br = 1; br < maxR; br++) {
+                bIds.filter(function (id) { return id.indexOf('B-R' + br + '-') === 0; }).forEach(function (id) {
+                    var mi = Number(id.split('-').pop());
+                    var nextId = 'B-R' + (br + 1) + '-' + Math.ceil(mi / 2);
+                    if (!data[nextId]) return;
+                    var w = getAdvancer(data[id]);
+                    if (!w) return;
+                    var side = mi % 2 === 1 ? 'team_a' : 'team_b';
+                    if (data[nextId][side] !== w) data[nextId][side] = w;
+                });
+            }
             return data;
+        }
+
+        /* 单败推进：BYE 对局直接判胜，否则按比分取胜者 */
+        function getAdvancer(match) {
+            if (!match) return null;
+            if (match.team_a === 'BYE' && match.team_b && match.team_b !== 'TBD' && match.team_b !== '') return match.team_b;
+            if (match.team_b === 'BYE' && match.team_a && match.team_a !== 'TBD' && match.team_a !== '') return match.team_a;
+            return getWinner(match);
         }
 
         function processMatchData(matches) {
@@ -414,7 +436,7 @@
         }
 
         async function autoSubmitDeterminedMatches() {
-            const groups = ['传奇组','中坚组','挑战组'];
+            const groups = Array.from(groupFilters.querySelectorAll('button')).map(function (b) { return b.dataset.group; });
             const toUpsert = [];
 
             for (const groupName of groups) {
@@ -459,6 +481,25 @@
                     
                     toUpsert.push(payload);
                 }
+            }
+
+            /* P13d：通用单败（B-*）胜者推进持久化 */
+            for (const gName of groups) {
+                const gData = allMatchesData[gName] || {};
+                Object.keys(gData).forEach(id => {
+                    const mt = /^B-R(\d+)-(\d+)$/.exec(id);
+                    if (!mt) return;
+                    const nextId = 'B-R' + (Number(mt[1]) + 1) + '-' + Math.ceil(Number(mt[2]) / 2);
+                    const next = gData[nextId];
+                    if (!next) return;
+                    const w = getAdvancer(gData[id]);
+                    if (!w) return;
+                    const side = Number(mt[2]) % 2 === 1 ? 'team_a' : 'team_b';
+                    if (next[side] === w) return;
+                    toUpsert.push(Object.assign({}, next, {
+                        group: gName, match_id: nextId
+                    }, { [side]: w }));
+                });
             }
 
             if (toUpsert.length === 0) return;
@@ -614,22 +655,105 @@
             });
         }
 
+        /* P13d：按数据动态推导布局（任意轮数循环赛 / 任意规模单败树） */
+        function dynamicRRLayout(rawData) {
+            const rounds = {};
+            Object.keys(rawData).forEach(function (id) {
+                const m = /^RR-(\d+)-(\d+)$/.exec(id);
+                if (m) (rounds[m[1]] = rounds[m[1]] || []).push(id);
+            });
+            return Object.keys(rounds).map(Number).sort(function (a, b) { return a - b; }).map(function (r) {
+                return { type: 'round', content: [{ title: '第' + r + '轮', ids: rounds[r].sort() }] };
+            });
+        }
+        function genericBracketLayout(rawData) {
+            const rounds = {};
+            Object.keys(rawData).forEach(function (id) {
+                const m = /^B-R(\d+)-(\d+)$/.exec(id);
+                if (m) (rounds[m[1]] = rounds[m[1]] || []).push(id);
+            });
+            const keys = Object.keys(rounds).map(Number).sort(function (a, b) { return a - b; });
+            const last = keys[keys.length - 1];
+            return keys.map(function (r) {
+                return { type: 'round', content: [{ title: r === last ? '决赛' : ('第 ' + r + ' 轮'), ids: rounds[r].sort() }] };
+            });
+        }
+
         function renderBrackets(groupName, dataSource = allMatchesData) {
             const is12Team = groupName === '挑战组';
-            const isS6Legend = groupName === '传奇组' && currentSeason === 's6';
             const rawData  = dataSource[groupName] || {};
+            const idList   = Object.keys(rawData);
             const processed = processResultNodes(rawData, is12Team);
             document.getElementById('current-group-name').textContent = `${groupName}赛程`;
-            
+
+            /* 通用单败树：单栏渲染，隐藏阶段切换 */
+            if (idList.some(function (id) { return /^B-R\d+-\d+$/.test(id); })) {
+                stageFilters.style.display = 'none';
+                swissSection.style.display = 'block';
+                playoffSection.style.display = 'none';
+                buildBracket(document.getElementById('swiss-bracket'), genericBracketLayout(rawData), processed);
+                return;
+            }
+            stageFilters.style.display = '';
+            const activeStage = stageFilters.querySelector('.active');
+            const stage = activeStage ? activeStage.dataset.stage : 'swiss';
+            swissSection.style.display   = stage === 'swiss'   ? 'block' : 'none';
+            playoffSection.style.display = stage === 'playoff' ? 'block' : 'none';
+
             let swissLayout = swissBracketLayout;
-            if (isS6Legend) {
-                swissLayout = roundRobinLayout;
+            const hasRR = idList.some(function (id) { return /^RR-/.test(id); });
+            if (hasRR) {
+                swissLayout = dynamicRRLayout(rawData);
             } else if (is12Team) {
                 swissLayout = swissBracketLayout_12;
             }
-            
             buildBracket(document.getElementById('swiss-bracket'), swissLayout, processed);
-            buildBracket(document.getElementById('playoff-bracket'),  is12Team ? playoffBracketLayout_12 : playoffBracketLayout, processed);
+
+            const legacyGroups = ['传奇组', '中坚组', '挑战组'];
+            const hasPlayoff = idList.some(function (id) { return /^P-/.test(id); });
+            if (!hasPlayoff && legacyGroups.indexOf(groupName) === -1) {
+                document.getElementById('playoff-bracket').innerHTML =
+                    '<p style="text-align:center;color:var(--smoke);">暂无淘汰赛对阵</p>';
+            } else {
+                buildBracket(document.getElementById('playoff-bracket'), is12Team ? playoffBracketLayout_12 : playoffBracketLayout, processed);
+            }
+        }
+
+        /* ══ P13d：活动赛制驱动 ══ */
+        function groupNamesFor(ev) {
+            if (!ev) return ['传奇组', '中坚组', '挑战组'];
+            var fmt = String(ev.format || '');
+            if (/单败/.test(fmt)) return ['对阵'];
+            if (/分组\+淘汰/.test(fmt)) {
+                var base = groupBaseNames(ev);
+                return base.concat(['淘汰赛']);
+            }
+            if (/单循环|双循环/.test(fmt)) return ['全部'];
+            return groupBaseNames(ev);
+        }
+        function groupBaseNames(ev) {
+            var count = parseInt(ev.group_count, 10) || 0;
+            if (count === 3) return ['传奇组', '中坚组', '挑战组'];
+            if (count <= 1) return ['全部'];
+            var names = [];
+            for (var i = 1; i <= count; i++) names.push('第' + i + '组');
+            return names;
+        }
+        function renderGroupButtons(names) {
+            groupFilters.innerHTML = names.map(function (n, i) {
+                return '<button data-group="' + n + '"' + (i === 0 ? ' class="active"' : '') + ' type="button">' + n + '</button>';
+            }).join('');
+        }
+        function currentFormatKind() {
+            var fmt = EV_CTX && EV_CTX.ev ? String(EV_CTX.ev.format || '') : '';
+            if (!fmt) return '';
+            if (/单败/.test(fmt)) return 'single_elim';
+            if (/分组\+淘汰/.test(fmt)) return 'group_ko';
+            if (/双循环/.test(fmt)) return 'double_rr';
+            if (/分组循环/.test(fmt)) return 'group_rr';
+            if (/单循环/.test(fmt)) return 'single_rr';
+            if (/双败/.test(fmt)) return 'double_elim';
+            return '';
         }
 
         function seededRandom(seed) {
@@ -643,7 +767,7 @@
             }
         }
 
-        function generateAndDisplaySchedule() {
+        async function generateAndDisplaySchedule() {
             const groupName  = groupFilters.querySelector('.active').dataset.group;
             const is12Team   = groupName === '挑战组';
             const isS6Legend = groupName === '传奇组' && currentSeason === 's6';
@@ -664,6 +788,14 @@
 
             // ══ 一、小组赛抽签 ══════════════════════════════════════════════════════
             const allTeamsInGroup = Array.from(allTeamsByGroup[groupName] || []);
+
+            /* P13d：活动绑定 + 首版赛制 + 该组尚无旧瑞士轮结构 → 新生成器（双败仍走旧逻辑） */
+            const fmtKind = currentFormatKind();
+            const hasLegacySwiss = Object.keys(groupData).some(function (id) { return /^S\d/.test(id); });
+            if (fmtKind && fmtKind !== 'double_elim' && !hasLegacySwiss) {
+                await generateByFormat(fmtKind, groupName, rng, groupData, allTeamsInGroup);
+                return;
+            }
 
             // 如果用户在淘汰赛标签页，跳过小组赛生成，直接进行淘汰赛抽签
             if (!isOnPlayoffStage) {
@@ -1080,6 +1212,162 @@
             }
         }
 
+        /* ══ P13d：按赛制生成对阵 ══ */
+        function getEventTeams() {
+            if (!EV_CTX || !EV_CTX.ev) return Promise.resolve(null);
+            return supabaseClient.from('event_registrations')
+                .select('team_name, status')
+                .eq('event_id', EV_CTX.ev.id)
+                .then(function (r) {
+                    if (r && r.error) return null;
+                    var set = {};
+                    ((r && r.data) || []).forEach(function (x) {
+                        if (x.status === 'approved' && x.team_name && String(x.team_name).trim()) {
+                            set[String(x.team_name).trim()] = 1;
+                        }
+                    });
+                    var teams = Object.keys(set);
+                    return teams.length >= 2 ? teams : null;
+                }).catch(function () { return null; });
+        }
+
+        function roundRobinFixtures(teams, doubleLegs) {
+            var list = teams.slice();
+            if (list.length % 2) list.push('BYE');
+            var n = list.length, rounds = n - 1, half = n / 2;
+            var out = [];
+            for (var leg = 0; leg < (doubleLegs ? 2 : 1); leg++) {
+                var arr = list.slice();
+                for (var r = 0; r < rounds; r++) {
+                    for (var i = 0; i < half; i++) {
+                        var a = arr[i], b = arr[n - 1 - i];
+                        if (leg === 1) { var t = a; a = b; b = t; }
+                        if (a === 'BYE' || b === 'BYE') continue;
+                        out.push({ match_id: 'RR-' + (leg * rounds + r + 1) + '-' + (i + 1), team_a: a, team_b: b });
+                    }
+                    var fixed = arr[0];
+                    var rest = arr.slice(1);
+                    rest.unshift(rest.pop());
+                    arr = [fixed].concat(rest);
+                }
+            }
+            return out;
+        }
+
+        function singleElimSkeleton(teams) {
+            var size = 2;
+            while (size < teams.length) size *= 2;
+            var slots = teams.slice();
+            while (slots.length < size) slots.push('BYE');
+            var rows = {};
+            var cur = slots.slice();
+            var round = 1;
+            while (cur.length > 1) {
+                var next = [];
+                for (var i = 0; i < cur.length; i += 2) {
+                    var a = cur[i], b = cur[i + 1];
+                    if (a === 'BYE' && b === 'BYE') { next.push(null); continue; }
+                    if (a === 'BYE') { next.push(b); continue; }
+                    if (b === 'BYE') { next.push(a); continue; }
+                    var id = 'B-R' + round + '-' + (i / 2 + 1);
+                    rows[id] = {
+                        team_a: (a && a !== 'BYE') ? a : '',
+                        team_b: (b && b !== 'BYE') ? b : ''
+                    };
+                    next.push(null);
+                }
+                cur = next;
+                round++;
+            }
+            return rows;
+        }
+
+        async function groupWinners() {
+            var names = Array.from(groupFilters.querySelectorAll('button'))
+                .map(function (b) { return b.dataset.group; })
+                .filter(function (n) { return n !== '淘汰赛'; });
+            var winners = [];
+            for (var gi = 0; gi < names.length; gi++) {
+                var g = names[gi];
+                var gd = allMatchesData[g] || {};
+                var rr = Object.values(gd).filter(function (m) {
+                    return m && m.match_id && String(m.match_id).indexOf('RR-') === 0;
+                });
+                if (!rr.length) return null;
+                var done = rr.every(function (m) {
+                    return typeof m.score_a === 'number' && typeof m.score_b === 'number' && (m.score_a > 0 || m.score_b > 0);
+                });
+                if (!done) return null;
+                var pts = {};
+                rr.forEach(function (m) {
+                    if (m.team_a && m.team_a !== 'BYE') pts[m.team_a] = pts[m.team_a] || 0;
+                    if (m.team_b && m.team_b !== 'BYE') pts[m.team_b] = pts[m.team_b] || 0;
+                    if (m.score_a > m.score_b) pts[m.team_a] += 3;
+                    else if (m.score_b > m.score_a) pts[m.team_b] += 3;
+                    else { pts[m.team_a] += 1; pts[m.team_b] += 1; }
+                });
+                var ranked = Object.keys(pts).sort(function (a, b) { return pts[b] - pts[a]; });
+                if (!ranked.length) return null;
+                winners.push(ranked[0]);
+            }
+            return winners.length >= 2 ? winners : null;
+        }
+
+        async function generateByFormat(kind, groupName, rng, groupData, fallbackTeams) {
+            var hasScored = Object.values(groupData).some(function (m) {
+                return m && typeof m.score_a === 'number' && typeof m.score_b === 'number' && (m.score_a > 0 || m.score_b > 0);
+            });
+            if (hasScored) { HWLayout.toast('该组已有赛果，不可重新生成', 'err'); return; }
+
+            var isKO = kind === 'single_elim' || (kind === 'group_ko' && groupName === '淘汰赛');
+            var teams = await getEventTeams();
+            if (!teams) {
+                var union = {};
+                Object.keys(allTeamsByGroup).forEach(function (g) {
+                    allTeamsByGroup[g].forEach(function (t) { if (t) union[t] = 1; });
+                });
+                teams = Object.keys(union);
+            }
+            if (kind === 'group_ko' && groupName === '淘汰赛') {
+                var winners = await groupWinners();
+                if (!winners) { HWLayout.toast('小组赛尚未全部完成，暂无法生成淘汰赛', 'err'); return; }
+                teams = winners;
+            }
+            if (!teams || teams.length < 2) { HWLayout.toast('可用队伍不足（需至少 2 支报名通过的队伍）', 'err'); return; }
+            teams = teams.slice().sort();
+            shuffleArray(teams, rng);
+
+            var fixtures;
+            if (isKO) {
+                var skeleton = singleElimSkeleton(teams);
+                fixtures = Object.keys(skeleton).map(function (id) {
+                    return { match_id: id, team_a: skeleton[id].team_a, team_b: skeleton[id].team_b };
+                });
+            } else {
+                fixtures = roundRobinFixtures(teams, kind === 'double_rr');
+            }
+            var dataToUpsert = fixtures.map(function (f) {
+                return {
+                    group: groupName, match_id: f.match_id,
+                    team_a: f.team_a, team_b: f.team_b,
+                    score_a: 0, score_b: 0,
+                    match_date: null, link: null, commentators: null
+                };
+            });
+
+            pendingDataToUpsert = dataToUpsert;
+            pendingIdsToDelete = [];
+            if (dataToUpsert.length) {
+                HWLayout.toast('已生成 ' + dataToUpsert.length + ' 场对阵，点击「提交赛程」保存。');
+                var tempGroupData = { ...groupData };
+                dataToUpsert.forEach(function (m) { tempGroupData[m.match_id] = { ...tempGroupData[m.match_id], ...m }; });
+                renderBrackets(groupName, { ...allMatchesData, [groupName]: tempGroupData });
+                submitChangesBtn.style.display = 'inline-flex';
+            } else {
+                HWLayout.toast('没有可生成的对阵。', 'err');
+            }
+        }
+
         // ── 提交更改 ─────────────────────────────────────────────────────────────
         submitChangesBtn.addEventListener('click', async () => {
             if (!isAdminRole()) { HWLayout.toast('仅管理员可提交更改', 'err'); return; }
@@ -1176,6 +1464,21 @@
             });
         });
 
+        document.getElementById('ics-btn').addEventListener('click', () => {
+            const groupName = groupFilters.querySelector('.active').dataset.group;
+            const gd = allMatchesData[groupName] || {};
+            const items = Object.values(gd)
+                .filter(m => m && m.match_date && m.team_a && m.team_b)
+                .map(m => ({
+                    title: m.team_a + ' vs ' + m.team_b + '（' + (m.group || groupName) + '）',
+                    start: m.match_date,
+                    desc: m.link || '',
+                    loc: m.link || ''
+                }));
+            if (!items.length) { HWLayout.toast('该组暂无可导出的赛程', 'err'); return; }
+            HWLayout.exportIcs('schedule-' + groupName + '.ics', items);
+        });
+
         casterStatsBtn.addEventListener('click', () => {
             const stats = {};
             Object.values(allMatchesData).forEach(gd => Object.values(gd).forEach(match => {
@@ -1221,9 +1524,13 @@
         HWLayout.resolveEvent().then(function (ev) {
             if (!ev) {
                 HWLayout.eventBar({ event: null });
+                EV_CTX = null;
+                renderGroupButtons(groupNamesFor(null));
             } else {
                 var key = HWLayout.seasonKey(ev);
                 currentSeason = key;
+                EV_CTX = { ev: ev };
+                renderGroupButtons(groupNamesFor(ev));
                 HWLayout.access(key, ev).then(function (perms) {
                     HWLayout.eventBar({ event: ev, perms: perms });
                 });

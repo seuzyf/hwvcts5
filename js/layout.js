@@ -47,6 +47,7 @@
     { id: 'index',   href: 'index.html',   label: '主页' },
     { id: 'events',  href: 'events.html',  label: '活动' },
     { id: 'players', href: 'players.html', label: '数据中心' },
+    { id: 'shop',    href: 'shop.html',    label: '积分商店' },
     { id: 'admin',   href: 'admin.html',   label: '管理后台' }
   ];
 
@@ -78,6 +79,7 @@
     "chart-column": "<path d=\"M3 3v16a2 2 0 0 0 2 2h16\" />\n  <path d=\"M18 17V9\" />\n  <path d=\"M13 17V5\" />\n  <path d=\"M8 17v-3\" />",
     "target": "<circle cx=\"12\" cy=\"12\" r=\"10\" />\n  <circle cx=\"12\" cy=\"12\" r=\"6\" />\n  <circle cx=\"12\" cy=\"12\" r=\"2\" />",
     "trophy": "<path d=\"M6 9H4.5a2.5 2.5 0 0 1 0-5H6\" />\n  <path d=\"M18 9h1.5a2.5 2.5 0 0 0 0-5H18\" />\n  <path d=\"M4 22h16\" />\n  <path d=\"M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22\" />\n  <path d=\"M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22\" />\n  <path d=\"M18 2H6v7a6 6 0 0 0 12 0V2Z\" />",
+    "ban": "<circle cx=\"12\" cy=\"12\" r=\"10\" />\n  <path d=\"m4.9 4.9 14.2 14.2\" />",
     "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\" />\n  <path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\" />\n  <path d=\"M12 11h4\" />\n  <path d=\"M12 16h4\" />\n  <path d=\"M8 11h.01\" />\n  <path d=\"M8 16h.01\" />",
     "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\" />\n  <path d=\"M7 11V7a5 5 0 0 1 10 0v4\" />",
     "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\" />\n  <path d=\"m9 12 2 2 4-4\" />",
@@ -228,7 +230,7 @@
   function notifyAdmins(title, body, link) {
     var sb = supa();
     if (!sb) return Promise.resolve(null);
-    return sb.from('site_users').select('id').eq('role', 'admin')
+    return sb.from('site_users').select('id').in('role', ['admin', 'superadmin'])
       .then(function (res) {
         var ids = ((res && !res.error && res.data) || []).map(function (x) { return x.id; });
         if (!ids.length) return null;
@@ -236,6 +238,234 @@
           return { user_id: id, title: String(title || ''), body: String(body || ''), link: String(link || '') };
         }));
       }).then(function (r) { refreshBell(); return r; }).catch(function () { return null; });
+  }
+
+  /* ===================================================================
+   * P13c/e/f/g：积分重算 / 导出 / 封禁 / 候补递补 / 广播
+   * =================================================================== */
+
+  /** 积分权威重算：100 - 投注 + 赢利 + 签到×5 + 积分流水净额 → 写回 balance */
+  function recalcBalance(userId) {
+    var sb = supa();
+    if (!sb || !userId) return Promise.resolve(null);
+    return Promise.all([
+      sb.from('site_users').select('id, balance, balance_synced_at').eq('id', userId).maybeSingle(),
+      sb.from('s6_bet_bets').select('*'),
+      sb.from('s6_match_schedule').select('id, team_a, team_b, score_a, score_b'),
+      sb.from('s6_bet_welfare_claims').select('user_id'),
+      sb.from('points_ledger').select('delta').eq('user_id', userId),
+      sb.from('goods_redemptions').select('cost').eq('user_id', userId)
+    ]).then(function (rs) {
+      if (!rs || rs.some(function (r) { return r && r.error; })) return null;
+      var me = rs[0] && rs[0].data;
+      if (!me) return null;
+      var bets = rs[1].data || [], sched = rs[2].data || [], claims = rs[3].data || [], led = rs[4].data || [];
+      var reds = (rs[5] && rs[5].data) || [];
+      var matchMap = {};
+      sched.forEach(function (m) { matchMap[m.id] = m; });
+      var pools = {};
+      bets.forEach(function (b) {
+        if (!pools[b.match_id]) pools[b.match_id] = { a: 0, b: 0 };
+        var m = matchMap[b.match_id];
+        if (!m) return;
+        if (b.predicted_winner === m.team_a) pools[b.match_id].a += b.amount;
+        else pools[b.match_id].b += b.amount;
+      });
+      var staked = 0, winnings = 0;
+      bets.filter(function (b) { return b.user_id === userId; }).forEach(function (b) {
+        staked += b.amount;
+        var m = matchMap[b.match_id];
+        if (m && m.score_a != null && m.score_b != null && m.score_a !== m.score_b) {
+          var winner = m.score_a > m.score_b ? m.team_a : m.team_b;
+          if (b.predicted_winner === winner) {
+            var pool = pools[b.match_id];
+            var winnerPool = winner === m.team_a ? 100 + pool.a : 100 + pool.b;
+            var loserPool = winner === m.team_a ? 100 + pool.b : 100 + pool.a;
+            winnings += b.amount + Math.ceil((b.amount / winnerPool) * loserPool);
+          }
+        }
+      });
+      var mine = claims.filter(function (c) { return c.user_id === userId; }).length;
+      var ledgerNet = led.reduce(function (s, r) { return s + (r.delta || 0); }, 0);
+      var redeemCost = reds.reduce(function (s, r) { return s + (r.cost || 0); }, 0);
+      /* 权威公式：100 − 投注 + 赢利 + 签到 + 流水 − 商城兑换（redeem_goods 事实） */
+      var bal = Math.round(100 - staked + winnings + mine * 5 + ledgerNet - redeemCost);
+      return sb.from('site_users')
+        .update({ balance: bal, balance_synced_at: new Date().toISOString() })
+        .eq('id', userId)
+        .then(function () { return bal; })
+        .catch(function () { return null; });
+    }).catch(function () { return null; });
+  }
+
+  /** .ics 日历导出（P13h）：items = [{title, start, end?, desc?, loc?}] */
+  function exportIcs(filename, items) {
+    try {
+      var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+      var fmt = function (d) {
+        var dt = d instanceof Date ? d : new Date(d);
+        if (isNaN(dt.getTime())) return null;
+        return dt.getUTCFullYear() + pad(dt.getUTCMonth() + 1) + pad(dt.getUTCDate()) + 'T' +
+          pad(dt.getUTCHours()) + pad(dt.getUTCMinutes()) + pad(dt.getUTCSeconds()) + 'Z';
+      };
+      var escIcs = function (v) { return String(v == null ? '' : v).replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n'); };
+      var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//HWVCTS//Schedule//CN', 'CALSCALE:GREGORIAN'];
+      var now = fmt(new Date());
+      (items || []).forEach(function (it, i) {
+        var s = fmt(it && it.start);
+        if (!s) return;
+        var e = fmt((it && it.end) || it.start) || s;
+        lines.push('BEGIN:VEVENT');
+        lines.push('UID:hwvcts-' + Date.now() + '-' + i + '@hwvcts');
+        if (now) lines.push('DTSTAMP:' + now);
+        lines.push('DTSTART:' + s);
+        lines.push('DTEND:' + e);
+        lines.push('SUMMARY:' + escIcs(it.title));
+        if (it.desc) lines.push('DESCRIPTION:' + escIcs(it.desc));
+        if (it.loc) lines.push('LOCATION:' + escIcs(it.loc));
+        lines.push('END:VEVENT');
+      });
+      lines.push('END:VCALENDAR');
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast('已导出 ' + filename);
+    } catch (e) {
+      toast('日历导出失败', 'err');
+    }
+    return true;
+  }
+
+  /** 赛果写入后：重算所有有投注记录的用户余额（池与派彩都会变） */
+  function recalcAfterScoreChange() {
+    var sb = supa();
+    if (!sb) return Promise.resolve(0);
+    return sb.from('s6_bet_bets').select('user_id')
+      .then(function (res) {
+        var rows = (res && !res.error && res.data) || [];
+        var ids = {};
+        rows.forEach(function (b) { if (b.user_id != null) ids[b.user_id] = 1; });
+        var list = Object.keys(ids);
+        return list.reduce(function (p, id) {
+          return p.then(function (n) {
+            return recalcBalance(id).then(function () { return n + 1; });
+          });
+        }, Promise.resolve(0));
+      }).catch(function () { return 0; });
+  }
+
+  /** CSV 导出（BOM + RFC4180 转义），toast 提示 */
+  function exportCsv(filename, header, rows) {
+    try {
+      var q = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
+      var lines = [(header || []).map(q).join(',')];
+      (rows || []).forEach(function (r) { lines.push((r || []).map(q).join(',')); });
+      var blob = new Blob(['\\ufeff' + lines.join('\\r\\n')], { type: 'text/csv;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast('已导出 ' + filename);
+    } catch (e) {
+      toast('导出失败', 'err');
+    }
+    return true;
+  }
+
+  /* ---- 封禁（P13f） ---- */
+  function isBannedUser(u) {
+    if (!u || !u.banned) return false;
+    if (u.banned_until && new Date(u.banned_until).getTime() < Date.now()) return false;
+    return true;
+  }
+  function bannedBadgeHtml() {
+    return '<span class="badge badge-ban" title="已禁赛">' + ico('ban', 12) + ' 已禁赛</span>';
+  }
+  function fetchEventBan(eventId, userId) {
+    var sb = supa();
+    if (!sb || !eventId || !userId) return Promise.resolve(null);
+    return sb.from('event_bans').select('*').eq('event_id', eventId).eq('user_id', userId).maybeSingle()
+      .then(function (r) {
+        var row = r && !r.error && r.data;
+        if (!row) return null;
+        if (row.until && new Date(row.until).getTime() < Date.now()) return null;
+        return row;
+      }).catch(function () { return null; });
+  }
+  function myBanState() {
+    var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+    var sb = supa();
+    if (!u || !sb) return Promise.resolve(null);
+    return sb.from('site_users').select('banned, banned_reason, banned_until').eq('id', u.id).maybeSingle()
+      .then(function (r) { return (r && !r.error && r.data) || null; })
+      .catch(function () { return null; });
+  }
+
+  /* ---- 候补递补（P13h）：撤销/退出后把 waitlist → pending 并双向通知 ---- */
+  function promoteWaitlist(ev) {
+    var sb = supa();
+    if (!sb || !ev || !ev.id) return Promise.resolve(0);
+    var maxSlots = parseInt(ev.max_slots, 10) || 0;
+    if (!maxSlots) return Promise.resolve(0);
+    return sb.from('event_registrations').select('*').eq('event_id', ev.id)
+      .then(function (res) {
+        var rows = (res && !res.error && res.data) || [];
+        var approved = 0, pending = 0;
+        rows.forEach(function (r) {
+          if (r.status === 'approved') approved++;
+          else if (r.status === 'pending') pending++;
+        });
+        var room = maxSlots - approved - pending;
+        var wl = rows.filter(function (r) { return r.status === 'waitlist'; })
+          .sort(function (a, b) { return String(a.created_at || '') < String(b.created_at || '') ? -1 : 1; });
+        var up = wl.slice(0, Math.max(0, room));
+        if (!up.length) return 0;
+        return Promise.all(up.map(function (r) {
+          return sb.from('event_registrations').update({ status: 'pending' }).eq('id', r.id)
+            .then(function () {
+              notifyUser(r.user_id, '候补递补',
+                '你在「' + (ev.title || '') + '」的候补已递补为「待审核」，请等待管理员处理。',
+                'register.html?event=' + ev.id);
+              return 1;
+            }).catch(function () { return 0; });
+        })).then(function (arr) {
+          var n = arr.filter(Boolean).length;
+          if (n) notifyAdmins('候补递补待审核', '「' + (ev.title || '') + '」有 ' + n + ' 名候补用户已递补为待审核。', 'admin.html');
+          return n;
+        });
+      }).catch(function () { return 0; });
+  }
+
+  /* ---- 全员广播（P13b）：scope = all / members / organizers ---- */
+  function broadcastNotifications(scope, title, body, link) {
+    var sb = supa();
+    if (!sb) return Promise.resolve(0);
+    return sb.from('site_users').select('id, role').then(function (res) {
+      var rows = (res && !res.error && res.data) || [];
+      var ids = rows.filter(function (u) {
+        if (scope === 'organizers') return u.role === 'organizer' || u.role === 'admin' || u.role === 'superadmin';
+        if (scope === 'members') return !u.role || u.role === 'member';
+        return true;
+      }).map(function (u) { return u.id; });
+      var payloads = ids.map(function (id) {
+        return { user_id: id, title: String(title || ''), body: String(body || ''), link: String(link || '') };
+      });
+      var chunks = [];
+      for (var i = 0; i < payloads.length; i += 200) chunks.push(payloads.slice(i, i + 200));
+      return chunks.reduce(function (p, ch) {
+        return p.then(function (n) {
+          return sb.from('notifications').insert(ch)
+            .then(function () { return n + ch.length; })
+            .catch(function () { return n; });
+        });
+      }, Promise.resolve(0)).then(function (n) { refreshBell(); return n; });
+    }).catch(function () { return 0; });
   }
 
   function refreshBell() {
@@ -342,11 +572,24 @@
   function markAdmin(minutes) {
     try { localStorage.setItem(ADMIN_KEY, String(Date.now() + (minutes || 15) * 60000)); } catch (e) {}
   }
-  function isRoleAdmin() {
+  /* P13b：角色秩 guest0 member1 organizer2 admin3 superadmin4 */
+  var ROLE_RANK = { guest: 0, member: 1, organizer: 2, admin: 3, superadmin: 4 };
+  function roleRank(r) { return ROLE_RANK[r] || 0; }
+  function sessionRole() {
     var u = typeof HWAuth !== 'undefined' ? HWAuth.getSession() : null;
-    return !!(u && u.role === 'admin');
+    return (u && u.role) || 'guest';
   }
+  /** 有效秩：临时管理员（markAdmin）按 admin 算，但永不超过 admin */
+  function effectiveRank() {
+    var r = roleRank(sessionRole());
+    if (adminRemainingMs() > 0) r = Math.max(r, 3);
+    return Math.min(r, 3 + (roleRank(sessionRole()) >= 4 ? 1 : 0));
+  }
+  function isRoleAdmin() { return roleRank(sessionRole()) >= 3; }
   function isAdminNow() { return isRoleAdmin() || adminRemainingMs() > 0; }
+  function isSuperAdminNow() { return roleRank(sessionRole()) >= 4; }
+  /** 至少某角色（组织者以上等判断；临时管理员=admin，不升 superadmin） */
+  function atLeast(minRole) { return effectiveRank() >= roleRank(minRole); }
 
   function supa() {
     if (typeof supabase === 'undefined' || !supabase.createClient) return null;
@@ -613,10 +856,11 @@
   /* ---------------- Auth chip ---------------- */
   function currentRole() {
     var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
-    if (isAdminNow()) return 'admin';
-    if (!u) return 'guest';
+    if (!u) return adminRemainingMs() > 0 ? 'admin' : 'guest';
+    if (u.role === 'superadmin') return 'superadmin';
     if (u.role === 'admin') return 'admin';
     if (u.role === 'organizer') return 'organizer';
+    if (adminRemainingMs() > 0) return 'admin';
     return 'member';
   }
 
@@ -666,13 +910,26 @@
   }
 
   /* ---------------- 头像菜单 + 账号弹框 ---------------- */
-  var ROLE_ZH = { guest: '未登录', member: '普通成员', organizer: '活动组织者', admin: '管理员' };
+  var ROLE_ZH = { guest: '未登录', member: '普通成员', organizer: '活动组织者', admin: '管理员', superadmin: '超级管理员' };
 
   function wireAvatarMenu() {
+    var user = typeof HWAuth !== 'undefined' ? HWAuth.getSession() : null;
     var btn = document.getElementById('nav-user-btn');
     var menu = document.getElementById('nav-menu');
     if (!btn || !menu) return;
     ensureAccountModals();
+    /* P13f：本人被禁赛 → 头像角标 + body.user-banned */
+    if (user && user.id) {
+      myBanState().then(function (d) {
+        if (!isBannedUser(d)) return;
+        document.body.classList.add('user-banned');
+        var chip = document.getElementById('nav-user-btn');
+        if (chip && !chip.querySelector('.ban-dot')) {
+          chip.insertAdjacentHTML('beforeend',
+            '<span class="ban-dot" title="已禁赛' + (d.banned_reason ? '：' + esc(d.banned_reason) : '') + '">' + ico('ban', 12) + '</span>');
+        }
+      });
+    }
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
       var willOpen = menu.hidden;
@@ -703,7 +960,8 @@
     var u = HWAuth.getSession();
     if (!u) return;
     if (act === 'avatar') {
-      document.getElementById('hw-av-url').value = u.avatar || '';
+      var avFileInput = document.getElementById('hw-av-file');
+      if (avFileInput) avFileInput.value = '';
       updateAvPreview(u.avatar || '');
       openModalById('hw-av-modal');
     } else if (act === 'account') {
@@ -776,13 +1034,13 @@
       '    <div style="display:flex; gap:16px; align-items:center; margin-top:18px;">' +
       '      <span id="hw-av-preview" style="width:64px;height:64px;border-radius:50%;background:var(--ember-hush);color:var(--coral-pulse);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:600;flex-shrink:0;overflow:hidden;"></span>' +
       '      <div style="flex:1; min-width:0;">' +
-      '        <label class="form-label" for="hw-av-url">头像图片 URL</label>' +
-      '        <input class="input" id="hw-av-url" type="url" maxlength="400" placeholder="https://…">' +
+      '        <label class="form-label" for="hw-av-file">选择图片（≤5MB，PNG/JPG/WebP）</label>' +
+      '        <input class="input" id="hw-av-file" type="file" accept="image/png,image/jpeg,image/webp" style="padding:8px 10px;">' +
       '      </div>' +
       '    </div>' +
       '    <div class="modal-actions">' +
       '      <button class="btn btn-ghost" id="hw-av-clear" type="button">清除</button>' +
-      '      <button class="btn btn-primary" id="hw-av-save" type="button">保存</button>' +
+      '      <button class="btn btn-primary" id="hw-av-save" type="button">上传头像</button>' +
       '    </div>' +
       '  </div>' +
       '</div>' +
@@ -843,12 +1101,33 @@
       var el = document.getElementById(pair[0]);
       if (el) el.addEventListener('click', function () { closeModalById(pair[1]); });
     });
-    document.getElementById('hw-av-url').addEventListener('input', function (e) { updateAvPreview(e.target.value.trim()); });
+    document.getElementById('hw-av-file').addEventListener('change', function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      try { updateAvPreview(URL.createObjectURL(f)); } catch (err) { /* ignore */ }
+    });
     document.getElementById('hw-av-save').addEventListener('click', function () {
-      var url = document.getElementById('hw-av-url').value.trim();
-      HWAuth.updateProfile({ avatar: url }).then(function () {
-        renderAuth(); toast('头像已更新'); closeModalById('hw-av-modal');
-      }).catch(function (err) { toast((err && err.message) || '保存失败', 'err'); });
+      var u = HWAuth.getSession();
+      if (!u) { toast('请先登录', 'err'); return; }
+      var fi = document.getElementById('hw-av-file');
+      var f = fi && fi.files && fi.files[0];
+      if (!f) { toast('请先选择图片', 'err'); return; }
+      if (f.size > 5 * 1024 * 1024) { toast('图片不能超过 5MB', 'err'); return; }
+      var sb = typeof HWAuth !== 'undefined' && HWAuth.getClient ? HWAuth.getClient() : null;
+      if (!sb || !sb.storage) { toast('存储不可用', 'err'); return; }
+      var ext = (String(f.name).match(/\\.[a-z0-9]+$/i) || ['.png'])[0].toLowerCase();
+      var path = 'avatar-' + u.id + '-' + Date.now() + ext;
+      sb.storage.from('avatars').upload(path, f, { upsert: true, contentType: f.type || 'image/png' })
+        .then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '上传失败');
+          var pub = sb.storage.from('avatars').getPublicUrl(path);
+          var url = pub && pub.data && pub.data.publicUrl ? pub.data.publicUrl : '';
+          if (!url) throw new Error('无法获取图片地址');
+          return HWAuth.updateProfile({ avatar: url }).then(function () {
+            renderAuth(); toast('头像已更新'); closeModalById('hw-av-modal');
+          });
+        })
+        .catch(function (err) { toast('上传失败：' + ((err && err.message) || '未知错误'), 'err'); });
     });
     document.getElementById('hw-av-clear').addEventListener('click', function () {
       HWAuth.updateProfile({ avatar: '' }).then(function () {
@@ -921,6 +1200,19 @@
     toast: toast,
     ico: ico,
     getRole: currentRole,
+    roleRank: roleRank,
+    atLeast: atLeast,
+    isSuperAdminNow: isSuperAdminNow,
+    recalcBalance: recalcBalance,
+    recalcAfterScoreChange: recalcAfterScoreChange,
+    exportCsv: exportCsv,
+    exportIcs: exportIcs,
+    isBannedUser: isBannedUser,
+    bannedBadgeHtml: bannedBadgeHtml,
+    fetchEventBan: fetchEventBan,
+    myBanState: myBanState,
+    promoteWaitlist: promoteWaitlist,
+    broadcastNotifications: broadcastNotifications,
     notifyUser: notifyUser,
     notifyAdmins: notifyAdmins,
     refreshBell: refreshBell

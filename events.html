@@ -288,10 +288,13 @@
                             <option value="单循环 · BO1">单循环 · BO1</option>
                             <option value="单循环 · BO3" selected>单循环 · BO3</option>
                             <option value="单循环 · BO5">单循环 · BO5</option>
+                            <option value="双循环 · BO3">双循环 · BO3</option>
+                            <option value="分组循环 · BO3">分组循环 · BO3</option>
                             <option value="双败淘汰 · BO3">双败淘汰 · BO3</option>
                             <option value="单败淘汰 · BO1">单败淘汰 · BO1</option>
                             <option value="单败淘汰 · BO3">单败淘汰 · BO3</option>
                             <option value="单败淘汰 · BO5">单败淘汰 · BO5</option>
+                            <option value="分组+淘汰 · BO3">分组+淘汰 · BO3</option>
                         </select>
                     </div>
                     <div>
@@ -300,6 +303,9 @@
                             <option value="1">1 组（不分组）</option>
                             <option value="2">2 组</option>
                             <option value="3" selected>3 组（传奇 / 中坚 / 挑战）</option>
+                            <option value="4">4 组</option>
+                            <option value="5">5 组</option>
+                            <option value="6">6 组</option>
                         </select>
                     </div>
                     <div class="full">
@@ -313,6 +319,12 @@
                     <div class="full">
                         <label class="form-label" for="cf-rules">赛制 / 规则</label>
                         <textarea class="textarea" id="cf-rules" rows="3" maxlength="400" placeholder="BO3 单败、迟到判负……"></textarea>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="full">
+                        <label class="form-label" for="cf-stream">直播链接（选填）</label>
+                        <input class="input" id="cf-stream" type="url" maxlength="300" placeholder="https://live.example.com/…">
                     </div>
                 </div>
                 <div class="form-row">
@@ -351,10 +363,10 @@
         'use strict';
 
         var EV_STATUS = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
-        var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回' };
+        var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回', waitlist: '候补中' };
         var TYPE_LABEL = { tournament: '赛事', scrim: '训练赛', showmatch: '表演赛', activity: '活动' };
         var EV_BADGE = { draft: 'badge-quiet', registration: 'badge-coral', ongoing: 'badge-green', finished: 'badge-quiet', cancelled: 'badge-quiet' };
-        var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet' };
+        var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet', waitlist: 'badge-coral' };
 
         var allEvents = [], allRegs = [], userMap = {};
         var currentTab = 'hall', currentFilter = 'all', tableMissing = false;
@@ -580,7 +592,7 @@
             }
             main.innerHTML = '<div class="mine-list">' + mine.map(function (r) {
                 var ev = allEvents.find(function (e) { return e.id === r.event_id; }) || {};
-                var canCancel = r.status === 'pending' || r.status === 'approved';
+                var canCancel = r.status === 'pending' || r.status === 'approved' || r.status === 'waitlist';
                 return '<div class="mine-item">' +
                     '<span class="icon-circle">' + (ev.cover_image ? '<img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">' : HWLayout.ico('clipboard-list', 16)) + '</span>' +
                     '<div class="mine-info">' +
@@ -638,7 +650,7 @@
                   '">' + (REG_STATUS[mine.status] || mine.status) + '</strong></span>' +
                   '<span class="smoke">战队 ' + esc(mine.team_name || '待分队') + '</span>' +
                   '<a class="mini-btn" href="register.html?event=' + ev.id + '">报名页 / 资料</a>' +
-                  ((mine.status === 'pending' || mine.status === 'approved')
+                  ((mine.status === 'pending' || mine.status === 'approved' || mine.status === 'waitlist')
                       ? '<button class="mini-btn no" data-cancel="' + mine.id + '" style="margin-left:auto;" type="button">撤回报名</button>' : '') +
                   '</div>'
                 : '';
@@ -664,6 +676,8 @@
                   '  </select>' +
                   '  <button class="btn btn-ghost" id="adm-save-status" type="button">更新活动状态</button>' +
                   '  <a class="btn btn-ghost" href="review.html?event=' + ev.id + '">审核报名</a>' +
+                  '  <input class="input" id="adm-stream" style="flex:1; min-width:180px;" placeholder="直播链接 URL" value="' + esc(ev.stream_url || '') + '">' +
+                  '  <button class="btn btn-ghost" id="adm-stream-save" type="button">保存直播链接</button>' +
                   '  <button class="btn btn-ghost" id="adm-cover-btn" type="button">更换封面图</button>' +
                   (ev.cover_image ? '  <button class="btn btn-ghost" id="adm-cover-clear" type="button">移除封面</button>' : '') +
                   '  <input type="file" id="adm-cover-file" accept="image/*" style="display:none;">' +
@@ -697,6 +711,7 @@
                 '  <div class="meta-cell"><div class="k">报名截止</div><div class="v">' + (ev.reg_deadline ? fmtTime(ev.reg_deadline) : '不限') + '</div></div>' +
                 '  <div class="meta-cell"><div class="k">赛制</div><div class="v">' + esc(ev.format || '—') + '</div></div>' +
                 '  <div class="meta-cell"><div class="k">分组</div><div class="v">' + ((ev.group_count || 1) + ' 组') + '</div></div>' +
+                (ev.stream_url ? '  <div class="meta-cell" style="grid-column:1/-1;"><div class="k">直播</div><div class="v"><a href="' + esc(ev.stream_url) + '" target="_blank" rel="noopener" style="color:var(--info-blue);">进入直播间 →</a></div></div>' : '') +
                 (ev.teams ? '<div class="meta-cell" style="grid-column:1/-1;"><div class="k">参赛队伍</div><div class="v">' + esc(ev.teams) + '</div></div>' : '') +
                 '  <div class="meta-cell"><div class="k">名额</div><div class="v">' + (slots ? regs.length + ' / ' + slots : regs.length + '（不限）') + '</div></div>' +
                 (ev.venue ? '<div class="meta-cell" style="grid-column:1/-1;"><div class="k">地点 / 房间</div><div class="v">' + esc(ev.venue) + '</div></div>' : '') +
@@ -710,16 +725,39 @@
                 '</div>' + rosterHtml +
                 myRegHtml +
                 (registerHtml ? '<div style="margin-top:18px;">' + registerHtml + '</div>' : '') +
+                (ev.start_time ? '<div style="margin-top:14px;"><button class="btn btn-ghost btn-sm" id="ev-ics" type="button">导出 .ics 日历</button></div>' : '') +
                 adminHtml;
 
             document.getElementById('detail-modal').classList.add('visible');
             document.getElementById('detail-close').addEventListener('click', closeDetail);
+            var icsBtn = document.getElementById('ev-ics');
+            if (icsBtn) icsBtn.addEventListener('click', function () {
+                HWLayout.exportIcs('event-' + ev.id + '.ics', [{
+                    title: ev.title,
+                    start: ev.start_time || ev.reg_deadline,
+                    end: ev.end_time || ev.start_time || ev.reg_deadline,
+                    desc: (ev.format || '') + (ev.venue ? ' · ' + ev.venue : ''),
+                    loc: ev.venue || ''
+                }]);
+            });
             renderWorkspace(ev);
 
             panel.querySelectorAll('[data-cancel]').forEach(function (b) {
                 b.addEventListener('click', function () { cancelReg(parseInt(b.dataset.cancel, 10), eventId); });
             });
 
+            var admStreamSave = document.getElementById('adm-stream-save');
+            if (admStreamSave) admStreamSave.addEventListener('click', function () {
+                var url = (document.getElementById('adm-stream').value || '').trim();
+                HWAuth.getClient().from('events').update({ stream_url: url }).eq('id', ev.id)
+                    .then(function (res) {
+                        if (res.error) { HWLayout.toast('保存失败: ' + res.error.message, 'err'); return; }
+                        ev.stream_url = url;
+                        HWLayout.toast('直播链接已保存');
+                        closeDetail();
+                        refresh();
+                    }).catch(function (e) { HWLayout.toast('保存失败', 'err'); });
+            });
             var admSave = document.getElementById('adm-save-status');
             if (admSave) admSave.addEventListener('click', function () {
                 var newStatus = document.getElementById('adm-status').value;
@@ -820,9 +858,18 @@
             HWAuth.getClient().from('event_registrations')
                 .update({ status: 'cancelled', updated_at: new Date().toISOString() })
                 .eq('id', regId)
+                .select('event_id')
                 .then(function (res) {
                     if (res.error) { HWLayout.toast('撤回失败: ' + res.error.message, 'err'); return; }
                     HWLayout.toast('报名已撤回');
+                    /* P13h：撤销后候补递补 */
+                    var row = res.data && res.data[0];
+                    if (row && row.event_id) {
+                        HWAuth.getClient().from('events').select('id, title, max_slots').eq('id', row.event_id).maybeSingle()
+                            .then(function (er) {
+                                if (er && !er.error && er.data) HWLayout.promoteWaitlist(er.data);
+                            }).catch(function () {});
+                    }
                     if (keepDetailEventId != null) closeDetail();
                     refresh();
                 });
@@ -946,6 +993,7 @@
                 venue: document.getElementById('cf-venue').value.trim(),
                 description: document.getElementById('cf-desc').value.trim(),
                 rules: document.getElementById('cf-rules').value.trim(),
+                stream_url: document.getElementById('cf-stream').value.trim(),
                 created_by: 'admin',
                 cover_image: ''
             };

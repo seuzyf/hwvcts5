@@ -355,6 +355,162 @@ drop policy if exists lottery_write on public.event_lottery_results;
 create policy lottery_write on public.event_lottery_results for all using (true) with check (true);
 
 -- ---------------------------------------------------------------------
+-- 13. Phase 13：积分存库 / 封禁 / 活动封禁 / 商品商店 / 直播链接 / 比赛归属
+-- ---------------------------------------------------------------------
+-- 13.1 积分权威列 + 全局封禁
+alter table public.site_users add column if not exists balance_synced_at timestamptz;
+alter table public.site_users add column if not exists banned boolean not null default false;
+alter table public.site_users add column if not exists banned_reason text default '';
+alter table public.site_users add column if not exists banned_until timestamptz;  -- null = 永久
+
+-- 13.2 活动直播链接
+alter table public.events add column if not exists stream_url text default '';
+
+-- 13.3 积分流（审计 + 「谁改的」通知来源；余额 = 比赛推导部分 + 流水净额）
+create table if not exists public.points_ledger (
+    id            bigint generated always as identity primary key,
+    user_id       bigint not null references public.site_users(id) on delete cascade,
+    delta         integer not null,
+    balance_after integer,
+    reason        text default '',
+    operator_id   bigint,
+    source        text not null default 'admin',   -- admin / shop / system
+    created_at    timestamptz not null default now()
+);
+alter table public.points_ledger enable row level security;
+drop policy if exists points_ledger_select on public.points_ledger;
+create policy points_ledger_select on public.points_ledger for select using (true);
+drop policy if exists points_ledger_write on public.points_ledger;
+create policy points_ledger_write on public.points_ledger for all using (true) with check (true);
+
+-- 13.4 活动封禁（组织者仅限自己组织的活动）
+create table if not exists public.event_bans (
+    id          bigint generated always as identity primary key,
+    event_id    bigint not null references public.events(id) on delete cascade,
+    user_id     bigint not null references public.site_users(id) on delete cascade,
+    reason      text default '',
+    until       timestamptz,                        -- null = 永久
+    created_by  bigint,
+    created_at  timestamptz not null default now(),
+    unique (event_id, user_id)
+);
+alter table public.event_bans enable row level security;
+drop policy if exists event_bans_select on public.event_bans;
+create policy event_bans_select on public.event_bans for select using (true);
+drop policy if exists event_bans_write on public.event_bans;
+create policy event_bans_write on public.event_bans for all using (true) with check (true);
+
+-- 13.5 积分商店：商品 + 兑换记录
+create table if not exists public.goods (
+    id           bigint generated always as identity primary key,
+    title        text not null,
+    description  text default '',
+    image_url    text default '',
+    stock        integer not null default 0,
+    cost         integer not null default 0,
+    conditions   jsonb not null default '[]',        -- [{type, conn, ...params}]
+    status       text not null default 'active',     -- active / draft（下架）
+    created_by   bigint,
+    created_at   timestamptz not null default now(),
+    updated_at   timestamptz not null default now()
+);
+alter table public.goods enable row level security;
+drop policy if exists goods_select on public.goods;
+create policy goods_select on public.goods for select using (true);
+drop policy if exists goods_write on public.goods;
+create policy goods_write on public.goods for all using (true) with check (true);
+
+create table if not exists public.goods_redemptions (
+    id         bigint generated always as identity primary key,
+    goods_id   bigint not null references public.goods(id) on delete cascade,
+    user_id    bigint not null references public.site_users(id) on delete cascade,
+    cost       integer not null default 0,
+    created_at timestamptz not null default now()
+);
+alter table public.goods_redemptions enable row level security;
+drop policy if exists goods_redemptions_select on public.goods_redemptions;
+create policy goods_redemptions_select on public.goods_redemptions for select using (true);
+drop policy if exists goods_redemptions_write on public.goods_redemptions;
+create policy goods_redemptions_write on public.goods_redemptions for all using (true) with check (true);
+
+-- 13.6 比赛表归属赛事（赛季表可能不存在 → DO 保护；回填该赛季主活动）
+do $$
+declare
+    t text;
+    season_code text;
+begin
+    foreach t in array array['s5_matches', 's6_matches'] loop
+        begin
+            season_code := upper(substr(t, 1, 2));
+            execute format('alter table public.%I add column if not exists event_id bigint', t);
+            execute format(
+                'update public.%I m set event_id = coalesce(m.event_id, (' ||
+                'select e.id from public.events e where upper(coalesce(e.season, '''''')) = %L order by e.id limit 1))',
+                t, season_code);
+        exception when others then
+            raise notice '13 比赛 event_id 跳过 %: %', t, sqlerrm;
+        end;
+    end loop;
+end $$;
+
+-- 13.7 原子兑换：校验库存与余额 → 扣减 → 流水 + 兑换记录
+create or replace function public.redeem_goods(p_goods_id bigint, p_user_id bigint)
+returns jsonb
+language plpgsql
+security definer
+as $fn$
+declare
+    g public.goods%rowtype;
+    cur integer;
+    newbal integer;
+begin
+    select * into g from public.goods where id = p_goods_id for update;
+    if not found then
+        return jsonb_build_object('error', '商品不存在');
+    end if;
+    if g.status <> 'active' then
+        return jsonb_build_object('error', '商品已下架');
+    end if;
+    if g.stock <= 0 then
+        return jsonb_build_object('error', '库存不足');
+    end if;
+    select balance into cur from public.site_users where id = p_user_id for update;
+    if not found then
+        return jsonb_build_object('error', '用户不存在');
+    end if;
+    if cur is null or cur < g.cost then
+        return jsonb_build_object('error', '积分不足');
+    end if;
+    newbal := cur - g.cost;
+    update public.site_users set balance = newbal, balance_synced_at = now() where id = p_user_id;
+    update public.goods set stock = stock - 1, updated_at = now() where id = p_goods_id;
+    insert into public.goods_redemptions (goods_id, user_id, cost) values (p_goods_id, p_user_id, g.cost);
+    insert into public.points_ledger (user_id, delta, balance_after, reason, operator_id, source)
+        values (p_user_id, -g.cost, newbal, '兑换：' || g.title, null, 'shop');
+    return jsonb_build_object('ok', true, 'balance', newbal, 'stock', g.stock - 1);
+end;
+$fn$;
+grant execute on function public.redeem_goods(bigint, bigint) to anon, authenticated, service_role;
+
+-- 13.8 存储桶：头像 / 商品图
+insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+drop policy if exists "avatars_all" on storage.objects;
+create policy "avatars_all" on storage.objects for all
+    using (bucket_id = 'avatars')
+    with check (bucket_id = 'avatars');
+
+insert into storage.buckets (id, name, public) values ('goods', 'goods', true)
+on conflict (id) do nothing;
+drop policy if exists "goods_all" on storage.objects;
+create policy "goods_all" on storage.objects for all
+    using (bucket_id = 'goods')
+    with check (bucket_id = 'goods');
+
+-- 初始超级管理员（按需修改用户名后执行）：
+--   update public.site_users set role = 'superadmin' where username = 'testadmin';
+
+-- ---------------------------------------------------------------------
 -- 完成 ✓
 -- 执行后刷新网站即可：登录 → 个人主页 → 活动大厅报名
 -- ---------------------------------------------------------------------
