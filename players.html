@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
   <link rel="stylesheet" href="css/theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/auth.js"></script>
   <script src="js/layout.js"></script>
   <style>
@@ -82,12 +83,15 @@
 
       /* —— 已报名选手集合（报过名才展示）：reg → 站点账号/资料档案 → game_id/昵称 —— */
       async function loadRegisteredSet() {
-        var sb = HWAuth.getClient();
-        var r = await Promise.all([
-          sb.from('event_registrations').select('user_id'),
-          sb.from('site_users').select('id, game_id, nickname'),
-          sb.from('reg_profiles').select('user_id, game_id')
-        ]).catch(function () { return null; });
+        var r = null;
+        try {
+          var sb = HWAuth.getClient();
+          r = await Promise.all([
+            sb.from('event_registrations').select('user_id'),
+            sb.from('site_users').select('id, game_id, nickname'),
+            sb.from('reg_profiles').select('user_id, game_id')
+          ]).catch(function () { return null; });
+        } catch (e) { r = null; console.error('[players] loadRegisteredSet', e); }
         var gids = {}, names = {};
         if (r && r[0] && !r[0].error) {
           var uIds = {};
@@ -186,10 +190,10 @@
         empty.hidden = true;
         document.getElementById('dc-count').textContent = '加载中…';
 
-        var sb = HWAuth.getClient();
         var prefixes = season ? [season] : ['s6', 's5'];
         var r = null;
         try {
+          var sb = HWAuth.getClient();
           var calls = [];
           prefixes.forEach(function (p) {
             calls.push(sb.from(p + '_matches').select('*'));
@@ -338,8 +342,23 @@
       });
 
       document.addEventListener('DOMContentLoaded', async function () {
-        await Promise.all([loadSeasonOptions(), loadRegisteredSet()]);
-        await loadSeason(state.season);
+        try {
+          await Promise.race([
+            (async function () {
+              await Promise.all([loadSeasonOptions(), loadRegisteredSet()]);
+              await loadSeason(state.season);
+            })(),
+            new Promise(function (_, rej) {
+              setTimeout(function () { rej(new Error('加载超时（15 秒）')); }, 15000);
+            })
+          ]);
+        } catch (e) {
+          console.error('[players] boot:', e);
+          document.getElementById('dc-tbody').innerHTML =
+            '<tr><td colspan="12">加载失败：' + esc(String((e && e.message) || e)) + '（详情见控制台）</td></tr>';
+          document.getElementById('dc-count').textContent = '加载失败';
+          document.getElementById('dc-empty').hidden = true;
+        }
       });
     })();
   </script>

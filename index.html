@@ -128,37 +128,6 @@
         </div>
     </main>
 
-    <!-- 编辑资料 -->
-    <div class="modal-backdrop" id="profile-modal">
-        <div class="modal-panel">
-            <button class="modal-close" id="pm-close" type="button">&times;</button>
-            <span class="eyebrow">Account</span>
-            <h3 class="modal-title" style="margin-top:8px;">编辑资料</h3>
-            <form id="profile-form">
-                <label class="form-label" for="pf-nickname">昵称</label>
-                <input class="input" id="pf-nickname" maxlength="20" placeholder="展示用昵称">
-                <label class="form-label" for="pf-game-id">无畏契约游戏 ID</label>
-                <input class="input" id="pf-game-id" maxlength="30" placeholder="例如 Player#CN1">
-                <label class="form-label" for="pf-bio">个人简介</label>
-                <textarea class="textarea" id="pf-bio" rows="3" maxlength="120" placeholder="常玩位置 / 段位 / 想组队的队友…"></textarea>
-                <div class="modal-actions">
-                    <button class="btn btn-ghost" type="button" id="pm-cancel">取消</button>
-                    <button class="btn btn-primary" type="submit">保存</button>
-                </div>
-            </form>
-            <div style="border-top:1px solid var(--border); margin-top:22px; padding-top:6px;">
-                <form id="pwd-form">
-                    <label class="form-label" for="pf-old-pwd">修改密码 · 原密码</label>
-                    <input class="input" id="pf-old-pwd" type="password" placeholder="原密码">
-                    <label class="form-label" for="pf-new-pwd">新密码</label>
-                    <input class="input" id="pf-new-pwd" type="password" placeholder="至少 4 位">
-                    <div class="modal-actions">
-                        <button class="btn btn-ghost" type="submit">修改密码</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 
     <script>
     (function () {
@@ -231,6 +200,16 @@
         }
 
         /** 与竞猜页同口径：100 - 投入 + 派彩 + 低保 */
+        function loadNotifications(userId) {
+            return HWAuth.getClient().from('notifications')
+                .select('id, title, body, link, read, created_at')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(50)
+                .then(function (res) { return (res && !res.error && res.data) || []; })
+                .catch(function () { return []; });
+        }
+
         function loadBalance(userId) {
             var sb = HWAuth.getClient();
             return Promise.all([
@@ -281,8 +260,7 @@
             hero.innerHTML =
                 '<span class="eyebrow">Personal Home</span>' +
                 '<h1>你好，<span class="accent-name">' + esc(user.nickname || user.username) + '</span></h1>' +
-                '<p class="lead">管理你的报名与赛事参与，随时掌握审核状态与竞猜积分。</p>' +
-                (isAdminUser ? '<div class="hero-actions"><a class="btn btn-ghost" href="admin.html#perm-card">权限管理</a></div>' : '');
+                '<p class="lead">管理你的报名与赛事参与，随时掌握审核状态与竞猜积分。</p>';
 
             var active = regs.filter(function (r) { return r.status === 'pending' || r.status === 'approved'; });
             var pending = regs.filter(function (r) { return r.status === 'pending'; });
@@ -327,13 +305,28 @@
                         '</a>';
                 }).join('') + '</div>';
 
+            /* 消息：展示全部通知（含已读），未读高亮 */
+            var notifs = data.notifications || [];
+            var notifHtml = notifs.length === 0
+                ? '<div class="empty-line">暂无通知<br><span class="smoke">报名、审核与竞猜动态会出现在这里</span></div>'
+                : '<div class="list">' + notifs.slice(0, 30).map(function (n) {
+                    return '<a class="list-item" data-nid="' + n.id + '" data-link="' + esc(n.link || '') + '" href="' + (n.link ? esc(n.link) : 'javascript:void(0)') + '">' +
+                        '<span class="li-icon">' + HWLayout.ico('bell', 15) + '</span>' +
+                        '<span class="li-main">' +
+                        '  <span class="li-title">' + esc(n.title || '') + (n.read ? '' : ' <span class="badge badge-gold">未读</span>') + '</span>' +
+                        '  <span class="li-sub">' + esc(n.body || '') + ' · ' + fmtDate(n.created_at) + '</span>' +
+                        '</span></a>';
+                }).join('') + '</div>';
+
             /* 功能入口：赛程/比赛/数据/竞猜/分队/管理全部绑定在活动下，
                从活动大厅进入；剧情模式独立于赛事体系，保留直入口。 */
             var tiles = [
                 ['events.html', 'trophy', '活动大厅', '报名参赛与审核'],
                 ['events.html#mine', 'clipboard-list', '我的报名', '报名与参赛记录'],
                 ['game.html', 'gamepad', '剧情模式', '沉浸式训练赛故事']
-            ].map(function (t) {
+            ];
+            if (isAdminUser) tiles.push(['admin.html#perm-card', 'shield-check', '权限管理', '身份与密码管理']);
+            tiles = tiles.map(function (t) {
                 return '<a class="tile" href="' + t[0] + '">' +
                     '<span class="icon-circle">' + HWLayout.ico(t[1], 18) + '</span>' +
                     '<span><span class="t-name">' + t[2] + '</span><br><span class="t-desc">' + t[3] + '</span></span>' +
@@ -352,37 +345,41 @@
                      upcomingHtml +
                 '  </section>' +
                 '</div>' +
-                '<section class="card mt-24">' +
-                '  <div class="block-head"><h2>个人资料</h2></div>' +
-                '  <div class="profile-card">' +
-                '    <div class="profile-avatar">' + esc((user.nickname || user.username || '?').charAt(0).toUpperCase()) + '</div>' +
-                '    <div class="profile-main">' +
-                '      <h3 class="profile-name">' + esc(user.nickname || user.username) + '<span class="profile-handle">@' + esc(user.username) + '</span></h3>' +
-                '      <div class="profile-chips">' +
-                '        <span class="chip mono">ID ' + user.id + '</span>' +
-                (user.game_id ? '<span class="chip">' + HWLayout.ico('gamepad', 13) + ' ' + esc(user.game_id) + '</span>' : '') +
-                '        <span class="chip">注册于 ' + fmtDate(user.created_at) + '</span>' +
-                '      </div>' +
-                (user.bio
-                    ? '<p class="profile-bio">' + esc(user.bio) + '</p>'
-                    : '<p class="profile-bio smoke">还没有简介，点右侧「编辑资料」补充吧。</p>') +
-                '    </div>' +
-                '    <div class="profile-actions">' +
-                '      <button class="btn btn-ghost" id="edit-profile" type="button">编辑资料</button>' +
-                '      <button class="btn btn-ghost" id="logout-btn" type="button">退出登录</button>' +
-                '    </div>' +
-                '  </div>' +
+                '<section class="card mt-24" id="dash-notif">' +
+                '  <div class="block-head"><h2>消息</h2><a href="javascript:void(0)" id="notif-read-all">全部已读</a></div>' +
+                notifHtml +
                 '</section>' +
                 '<section class="mt-32">' +
                 '  <div class="block-head"><h2>功能入口</h2></div>' +
                 '  <div class="tiles">' + tiles + '</div>' +
                 '</section>';
 
-            document.getElementById('edit-profile').addEventListener('click', openProfileModal);
-            document.getElementById('logout-btn').addEventListener('click', function () {
-                HWAuth.logout();
-                render();
-            });
+            /* 消息：点击 → 标记已读并跳转；全部已读 */
+            var notifCard = document.getElementById('dash-notif');
+            if (notifCard) {
+                notifCard.addEventListener('click', function (e) {
+                    var item = e.target.closest ? e.target.closest('.list-item[data-nid]') : null;
+                    if (!item) return;
+                    e.preventDefault();
+                    var nid = item.dataset.nid;
+                    var link = item.dataset.link || '';
+                    var gone = false;
+                    function go() { if (!gone && link) { gone = true; window.location.href = link; } }
+                    try {
+                        HWAuth.getClient().from('notifications').update({ read: true }).eq('id', nid)
+                            .then(go).catch(go);
+                    } catch (err) { go(); }
+                    setTimeout(go, 400);
+                });
+                var ra = document.getElementById('notif-read-all');
+                if (ra) ra.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    HWAuth.getClient().from('notifications').update({ read: true })
+                        .eq('user_id', user.id).eq('read', false)
+                        .then(function () { HWLayout.toast('已全部标为已读'); render(); })
+                        .catch(function () { HWLayout.toast('操作失败', 'err'); });
+                });
+            }
         }
 
         function statCard(num, label, coral) {
@@ -397,45 +394,7 @@
             return '';
         }
 
-        /* ---------- Profile modal ---------- */
-        function openProfileModal() {
-            var u = HWAuth.getSession();
-            if (!u) return;
-            document.getElementById('pf-nickname').value = u.nickname || '';
-            document.getElementById('pf-game-id').value = u.game_id || '';
-            document.getElementById('pf-bio').value = u.bio || '';
-            document.getElementById('profile-modal').classList.add('visible');
-        }
-        function closeProfileModal() {
-            document.getElementById('profile-modal').classList.remove('visible');
-        }
-        document.getElementById('pm-close').addEventListener('click', closeProfileModal);
-        document.getElementById('pm-cancel').addEventListener('click', closeProfileModal);
-        /* Phase 11：弹框不点空白关闭，仅手动 ×/取消（由上方按钮绑定） */
-
-        document.getElementById('profile-form').addEventListener('submit', function (e) {
-            e.preventDefault();
-            HWAuth.updateProfile({
-                nickname: document.getElementById('pf-nickname').value.trim(),
-                game_id: document.getElementById('pf-game-id').value.trim(),
-                bio: document.getElementById('pf-bio').value.trim()
-            }).then(function () {
-                closeProfileModal();
-                render();
-            }).catch(function (err) { HWLayout.toast(err.message); });
-        });
-
-        document.getElementById('pwd-form').addEventListener('submit', function (e) {
-            e.preventDefault();
-            HWAuth.changePassword(
-                document.getElementById('pf-old-pwd').value,
-                document.getElementById('pf-new-pwd').value
-            ).then(function () {
-                HWLayout.toast('密码修改成功');
-                document.getElementById('pf-old-pwd').value = '';
-                document.getElementById('pf-new-pwd').value = '';
-            }).catch(function (err) { HWLayout.toast(err.message); });
-        });
+        /* 资料/密码弹框已迁移至 js/layout.js（右上角头像菜单统一入口） */
 
         /* ---------- Render ---------- */
         function render() {
@@ -450,7 +409,8 @@
                 HWAuth.refresh().catch(function () { return user; }),
                 loadMyRegs(user.id),
                 loadUpcoming(),
-                loadBalance(user.id)
+                loadBalance(user.id),
+                loadNotifications(user.id)
             ]).then(function (rs) {
                 var fresh = rs[0] || user;
                 if (!fresh) { renderGuest(); return; }
@@ -468,7 +428,7 @@
                     document.getElementById('reload-btn').addEventListener('click', function () { location.reload(); });
                     return;
                 }
-                renderDashboard(fresh, { myRegs: rs[1].rows, upcoming: rs[2], balance: rs[3] });
+                renderDashboard(fresh, { myRegs: rs[1].rows, upcoming: rs[2], balance: rs[3], notifications: rs[4] });
             }).catch(function (err) {
                 console.error(err);
                 hero.innerHTML = '<span class="eyebrow">Error</span><h1>加载失败</h1>';
@@ -479,6 +439,7 @@
         HWAuth.init();
         render();
         document.addEventListener('hw:login', render);
+        document.addEventListener('hw:profile', render);
     })();
     </script>
 </body>

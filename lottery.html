@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动抽奖 · HWVCTS</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="css/theme.css">
+    <style>
+        .lt-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+        @media (max-width: 900px) { .lt-grid { grid-template-columns: 1fr; } }
+        .lt-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+        .lt-match-list { max-height: 220px; overflow: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+        .lt-match-row {
+            display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+            border: 1px solid var(--border); border-radius: 10px; font-size: 13px; color: var(--mist);
+            cursor: pointer; background: rgba(255,255,255,0.02);
+        }
+        .lt-match-row:hover { border-color: var(--smoke); }
+        .lt-match-row input { accent-color: var(--coral-pulse); flex-shrink: 0; }
+        .lt-match-row .lt-mid { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lt-match-row .lt-score { color: var(--slate); font-family: var(--font-mono); font-size: 12px; flex-shrink: 0; }
+        .lt-pool {
+            margin-top: 12px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 12px;
+            font-size: 13px; color: var(--mist); max-height: 150px; overflow: auto;
+        }
+        .lt-chip {
+            display: inline-flex; align-items: center; gap: 6px; margin: 4px 6px 0 0; padding: 3px 9px;
+            background: var(--obsidian); border: 1px solid var(--border); border-radius: var(--r-pill);
+            font-size: 12px; color: var(--mist);
+        }
+        .lt-chip .lt-w { color: var(--coral-pulse); font-family: var(--font-mono); font-size: 11px; }
+        .lt-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+        .lt-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        @media (max-width: 560px) { .lt-row2 { grid-template-columns: 1fr; } }
+        .lt-drum-window {
+            position: relative; height: 208px; overflow: hidden; border-radius: 14px;
+            border: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(4,63,150,0.18), rgba(6,18,37,0.65) 55%, rgba(4,63,150,0.18));
+            margin-top: 12px;
+        }
+        .lt-drum-window::before, .lt-drum-window::after {
+            content: ''; position: absolute; left: 0; right: 0; height: 46px; z-index: 2; pointer-events: none;
+        }
+        .lt-drum-window::before { top: 0; background: linear-gradient(180deg, rgba(4,5,6,0.92), transparent); }
+        .lt-drum-window::after { bottom: 0; background: linear-gradient(0deg, rgba(4,5,6,0.92), transparent); }
+        .lt-drum-marker {
+            position: absolute; left: 8px; right: 8px; top: 50%; transform: translateY(-50%); height: 44px;
+            border: 1px solid rgba(255,122,82,0.65); border-radius: 10px; background: rgba(255,122,82,0.08);
+            z-index: 1; pointer-events: none;
+        }
+        .lt-drum-strip { position: absolute; left: 0; right: 0; top: 0; will-change: transform; z-index: 1; }
+        .lt-drum-item {
+            height: 44px; line-height: 44px; text-align: center; font-size: 16px; font-weight: 600;
+            color: var(--pure-white); letter-spacing: 0.4px;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 14px;
+        }
+        .lt-status { margin-top: 10px; font-size: 13px; color: var(--smoke); min-height: 18px; }
+        .lt-status strong { color: var(--coral-pulse); font-weight: 600; }
+        .lt-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+        .lt-win-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .lt-win-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,0.03);
+            animation: ltPop 0.35s ease;
+        }
+        @keyframes ltPop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+        .lt-win-rank {
+            width: 24px; height: 24px; border-radius: 50%; background: var(--coral-pulse); color: #14060b;
+            font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .lt-win-name { font-size: 14px; font-weight: 600; color: var(--pure-white); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lt-win-sub { font-size: 12px; color: var(--slate); margin-left: auto; flex-shrink: 0; font-family: var(--font-mono); }
+        .lt-hist-item { border-top: 1px solid var(--border); padding: 10px 0; font-size: 13px; }
+        .lt-hist-item:first-child { border-top: 0; }
+        .lt-hist-meta { color: var(--slate); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .lt-hist-win { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+        .lt-empty-pad { padding: 14px 0; }
+    </style>
+</head>
+<body data-page="lottery" data-crumb="events">
+    <div class="page">
+        <div class="container">
+            <header class="page-header">
+                <span class="eyebrow">Event Lottery</span>
+                <h1 class="page-title">活动抽奖</h1>
+                <p class="page-sub" id="lt-sub">加载中…</p>
+            </header>
+
+            <div id="event-bar" hidden></div>
+
+            <div id="lt-empty" class="empty-state" hidden></div>
+
+            <div id="lt-main" class="lt-grid" hidden>
+                <!-- 左列：名单来源 + 配置 + 滚筒 -->
+                <div class="lt-col">
+                    <section class="card">
+                        <div class="block-head">
+                            <h2>名单来源</h2>
+                            <a href="javascript:void(0)" id="lt-export">导出名单</a>
+                        </div>
+                        <div class="seg" id="lt-source-seg" style="margin-top:6px;">
+                            <button type="button" class="active" data-val="matches">按比赛统计</button>
+                            <button type="button" data-val="import">导入名单</button>
+                        </div>
+
+                        <div id="lt-pane-matches">
+                            <div class="lt-actions" style="margin-top:10px;">
+                                <button class="btn btn-ghost btn-sm" id="lt-select-all" type="button">全选</button>
+                                <button class="btn btn-ghost btn-sm" id="lt-clear" type="button">清空</button>
+                                <span class="smoke" style="font-size:12px; align-self:center;">勾选活动下的比赛记录，自动统计出场名单</span>
+                            </div>
+                            <div class="lt-match-list" id="lt-match-list"><div class="empty-state">加载中…</div></div>
+                        </div>
+
+                        <div id="lt-pane-import" hidden>
+                            <div class="lt-field">
+                                <label class="form-label" for="lt-import-text">每行一个名字（自动去重）</label>
+                                <textarea class="textarea" id="lt-import-text" rows="6" placeholder="选手A&#10;选手B&#10;…"></textarea>
+                            </div>
+                            <div class="lt-actions">
+                                <button class="btn btn-primary" id="lt-import" type="button">导入名单</button>
+                                <span class="smoke" style="font-size:12px; align-self:center;">导入后即作为本次抽取池</span>
+                            </div>
+                        </div>
+
+                        <div class="lt-pool" id="lt-pool"><span class="smoke">名单加载中…</span></div>
+                    </section>
+
+                    <section class="card">
+                        <div class="block-head"><h2>抽取配置</h2></div>
+                        <div class="lt-row2" style="margin-top:6px;">
+                            <div>
+                                <div class="smoke" style="font-size:12px; margin-bottom:6px;">抽取方式</div>
+                                <div class="seg" id="lt-mode-seg">
+                                    <button type="button" class="active" data-val="random">随机抽取</button>
+                                    <button type="button" data-val="weighted">按场次加权</button>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="smoke" style="font-size:12px; margin-bottom:6px;">执行方式</div>
+                                <div class="seg" id="lt-exec-seg">
+                                    <button type="button" class="active" data-val="auto">自动停止</button>
+                                    <button type="button" data-val="manual">手动停止</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lt-row2">
+                            <div class="lt-field">
+                                <label class="form-label" for="lt-seed">随机种子（留空 = 当前时间）</label>
+                                <input class="input" id="lt-seed" maxlength="64" placeholder="留空自动使用当前时间">
+                            </div>
+                            <div class="lt-field">
+                                <label class="form-label" for="lt-count">抽取人数</label>
+                                <input class="input" id="lt-count" type="number" min="1" value="1">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="card">
+                        <div class="block-head"><h2>名单滚筒</h2></div>
+                        <div class="lt-drum-window" id="lt-drum-window">
+                            <div class="lt-drum-strip" id="lt-drum-strip"></div>
+                            <div class="lt-drum-marker"></div>
+                        </div>
+                        <div class="lt-status" id="lt-status">准备就绪</div>
+                        <div class="lt-actions">
+                            <button class="btn btn-primary" id="lt-start" type="button">开始抽取</button>
+                            <span class="smoke" id="lt-seed-note" style="font-size:12px; align-self:center;"></span>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- 右列：中奖名单 + 历史 -->
+                <div class="lt-col">
+                    <section class="card">
+                        <div class="block-head">
+                            <h2>中奖名单</h2>
+                            <span class="smoke" id="lt-win-count" style="font-size:13px;">0 人</span>
+                        </div>
+                        <div class="lt-win-list" id="lt-win-list">
+                            <div class="empty-state lt-empty-pad">尚未抽取<br><span class="smoke" style="font-size:12px;">本次名单内不会重复中奖</span></div>
+                        </div>
+                        <div class="lt-actions">
+                            <button class="btn btn-primary" id="lt-submit" type="button" disabled>提交结果</button>
+                            <span class="smoke" style="font-size:12px; align-self:center;">提交后写入数据库并开启新一轮</span>
+                        </div>
+                    </section>
+
+                    <section class="card">
+                        <div class="block-head"><h2>历史中奖记录</h2></div>
+                        <div id="lt-history"><div class="empty-state lt-empty-pad">加载中…</div></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/layout.js"></script>
+    <script>
+    (function () {
+        'use strict';
+        var ITEM_H = 44;
+        var SPEED = window.__LT_FAST ? 0.05 : 1; /* 测试加速 */
+
+        function esc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        function toast(msg, type) { if (window.HWLayout) HWLayout.toast(msg, type); }
+
+        var state = {
+            ev: null, key: 's6',
+            matches: [], roster: {}, selected: {},
+            source: 'matches', importPool: [], pool: [],
+            mode: 'random', exec: 'auto',
+            winners: [], lastSeed: '', lastMode: '',
+            spinning: false, manualRunning: false, pending: [],
+            hist: [], stripPos: 0, raf: 0
+        };
+
+        /* ---------- 种子随机（同种子可复现） ---------- */
+        function xmur3(str) {
+            var h = 1779033703 ^ str.length;
+            for (var i = 0; i < str.length; i++) {
+                h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+                h = h << 13 | h >>> 19;
+            }
+            return function () {
+                h = Math.imul(h ^ h >>> 16, 2246822507);
+                h = Math.imul(h ^ h >>> 13, 3266489909);
+                return (h ^= h >>> 16) >>> 0;
+            };
+        }
+        function mulberry32(a) {
+            return function () {
+                a |= 0; a = a + 0x6D2B79F5 | 0;
+                var t = Math.imul(a ^ a >>> 15, 1 | a);
+                t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
+        }
+        function makeRng(seedStr) { return mulberry32(xmur3(String(seedStr))()); }
+
+        function pickWinners(pool, rng, n) {
+            /* 不重复抽取：复制池逐个抽 */
+            var avail = pool.slice();
+            var out = [];
+            for (var k = 0; k < n && avail.length; k++) {
+                var weights = avail.map(function (p) {
+                    return state.mode === 'weighted' ? Math.max(1, p.weight || 1) : 1;
+                });
+                var total = weights.reduce(function (a, b) { return a + b; }, 0);
+                var r = rng() * total;
+                var idx = 0;
+                for (var i = 0; i < avail.length; i++) { r -= weights[i]; if (r <= 0) { idx = i; break; } }
+                out.push(avail[idx]);
+                avail.splice(idx, 1);
+            }
+            return out;
+        }
+
+        /* ---------- 滚筒 ---------- */
+        function poolLabels() { return state.pool.map(function (p) { return p.label; }); }
+        function labelAt(absIdx) {
+            var labels = poolLabels();
+            if (!labels.length) return '';
+            var m = absIdx % labels.length;
+            if (m < 0) m += labels.length;
+            return labels[m];
+        }
+        function buildStrip(pos, spanPx) {
+            var strip = document.getElementById('lt-drum-strip');
+            var i0 = Math.floor(pos / ITEM_H) - 1;
+            var n = Math.ceil(Math.max(spanPx, 260) / ITEM_H) + 5;
+            var html = '';
+            for (var k = 0; k < n; k++) html += '<div class="lt-drum-item">' + esc(labelAt(i0 + k)) + '</div>';
+            strip.innerHTML = html;
+            strip.dataset.base = String(i0);
+            setStripPos(pos);
+        }
+        function setStripPos(pos) {
+            var strip = document.getElementById('lt-drum-strip');
+            var base = Number(strip.dataset.base || 0);
+            strip.style.transform = 'translateY(' + (-(pos - base * ITEM_H)) + 'px)';
+            state.stripPos = pos;
+        }
+        function easeOutQuint(t) { return 1 - Math.pow(1 - t, 5); }
+        function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+
+        function animateTo(targetPos, durMs, cb) {
+            var from = state.stripPos;
+            var delta = targetPos - from;
+            if (durMs <= 0) { setStripPos(targetPos); if (cb) cb(); return; }
+            var t0 = performance.now();
+            function frame(now) {
+                var t = Math.min(1, (now - t0) / durMs);
+                setStripPos(from + delta * easeOutQuint(t));
+                if (t < 1) state.raf = requestAnimationFrame(frame);
+                else if (cb) cb();
+            }
+            state.raf = requestAnimationFrame(frame);
+        }
+
+        /* 落点：目标选手在滚筒中的绝对位置（向前多滚若干圈，避免可指定） */
+        function landingPos(startPos, poolIdx, loops) {
+            var cycle = state.pool.length * ITEM_H;
+            if (!cycle) return startPos;
+            var startItem = Math.floor(startPos / ITEM_H);
+            var extra = ((poolIdx - startItem) % state.pool.length + state.pool.length) % state.pool.length;
+            return (startItem + extra + loops * state.pool.length) * ITEM_H;
+        }
+
+        function spinToWinner(winner, done) {
+            var poolIdx = state.pool.findIndex(function (p) { return p.label === winner.label; });
+            if (poolIdx < 0) poolIdx = 0;
+            var startPos = state.stripPos;
+            var target = landingPos(startPos, poolIdx, 6);
+            buildStrip(startPos, target - startPos + 300);
+            animateTo(target, 2300 * SPEED, function () {
+                /* 轻微回弹落定 */
+                var over = target + 10;
+                animateTo(over, 140 * SPEED, function () {
+                    animateTo(target, 220 * SPEED, function () {
+                        /* 归一化位置（内容周期相同，无视觉跳变） */
+                        var cycle = state.pool.length * ITEM_H;
+                        if (cycle > 0) {
+                            var norm = state.stripPos % cycle;
+                            state.stripPos = norm;
+                            buildStrip(norm, 260);
+                        }
+                        if (done) done();
+                    });
+                });
+            });
+        }
+
+        /* 手动模式：持续快转；点停止 → 惯性多滚一段再落定（防指定） */
+        function startContinuous() {
+            state.manualRunning = true;
+            var last = performance.now();
+            function frame(now) {
+                if (!state.manualRunning) return;
+                var dt = Math.min(50, now - last); last = now;
+                var pos = state.stripPos + dt * 1.7;
+                var cycle = state.pool.length * ITEM_H;
+                if (cycle > 0 && pos > cycle * 4) pos -= cycle * 3; /* 内容周期回绕 */
+                /* 内容不足时向前补建 */
+                var strip = document.getElementById('lt-drum-strip');
+                var base = Number(strip.dataset.base || 0);
+                if (pos + 300 > (base + strip.children.length - 3) * ITEM_H) buildStrip(pos, 600);
+                setStripPos(pos);
+                state.raf = requestAnimationFrame(frame);
+            }
+            state.raf = requestAnimationFrame(frame);
+        }
+        function stopContinuous(cb) {
+            state.manualRunning = false;
+            if (state.raf) cancelAnimationFrame(state.raf);
+            if (cb) cb();
+        }
+        function manualLandOn(winner, done) {
+            var poolIdx = state.pool.findIndex(function (p) { return p.label === winner.label; });
+            if (poolIdx < 0) poolIdx = 0;
+            var startPos = state.stripPos;
+            /* 惯性：先多滚约 1.5 圈（或至少 1.2 秒的量），再落定 —— 点击后仍继续滚动，避免指定 */
+            var target = landingPos(startPos, poolIdx, 2);
+            var extra = Math.max(target, startPos + state.pool.length * ITEM_H * 1.2);
+            buildStrip(startPos, extra - startPos + 300);
+            animateTo(extra, 1100 * SPEED, function () {
+                var settle = landingPos(extra, poolIdx, 0);
+                if (settle < extra) settle += state.pool.length * ITEM_H; /* 只向前 */
+                animateTo(settle, 420 * SPEED, function () {
+                    var cycle = state.pool.length * ITEM_H;
+                    if (cycle > 0) {
+                        var norm = state.stripPos % cycle;
+                        state.stripPos = norm;
+                        buildStrip(norm, 260);
+                    }
+                    if (done) done();
+                });
+            });
+        }
+
+        /* ---------- 渲染 ---------- */
+        function renderMatches() {
+            var host = document.getElementById('lt-match-list');
+            if (!state.matches.length) {
+                host.innerHTML = '<div class="empty-state">该活动赛季暂无比赛记录</div>';
+                return;
+            }
+            host.innerHTML = state.matches.map(function (m) {
+                var checked = state.selected[m.id] ? ' checked' : '';
+                var mid = '#' + m.id + ' ' + (m.group || '') + ' · ' + (m.team_a || '?') + ' vs ' + (m.team_b || '?');
+                return '<label class="lt-match-row">' +
+                    '<input type="checkbox" data-mid="' + m.id + '"' + checked + '>' +
+                    '<span class="lt-mid">' + esc(mid) + '</span>' +
+                    '<span class="lt-score">' + esc(m.score || '未完赛') + '</span>' +
+                    '</label>';
+            }).join('');
+            host.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+                cb.addEventListener('change', function () {
+                    state.selected[Number(cb.dataset.mid)] = cb.checked;
+                    rebuildPool();
+                });
+            });
+        }
+
+        function rebuildPool() {
+            if (state.source === 'matches') {
+                var tally = {};
+                state.matches.forEach(function (m) {
+                    if (!state.selected[m.id]) return;
+                    ['team_a', 'team_b'].forEach(function (tk) {
+                        for (var i = 1; i <= 5; i++) {
+                            var gid = m[tk + '_player' + i + '_id'];
+                            if (!gid) continue;
+                            var key = String(gid);
+                            if (!tally[key]) tally[key] = { gid: key, weight: 0 };
+                            tally[key].weight++;
+                        }
+                    });
+                });
+                state.pool = Object.keys(tally).map(function (k) {
+                    return { label: state.roster[k] || k, gid: k, weight: tally[k].weight };
+                }).sort(function (a, b) { return b.weight - a.weight; });
+            } else {
+                state.pool = state.importPool.slice();
+            }
+            renderPool();
+            renderWinners();
+        }
+
+        function renderPool() {
+            var host = document.getElementById('lt-pool');
+            if (!state.pool.length) {
+                host.innerHTML = '<span class="smoke">名单为空 — 勾选比赛或导入名单</span>';
+                return;
+            }
+            var totalW = state.pool.reduce(function (a, p) { return a + (p.weight || 1); }, 0);
+            host.innerHTML = '<div style="margin-bottom:4px;">共 <strong style="color:var(--coral-pulse);">' + state.pool.length +
+                '</strong> 人 · 总权重 ' + totalW + (state.mode === 'weighted' ? '（按场次加权）' : '') + '</div>' +
+                state.pool.map(function (p) {
+                    return '<span class="lt-chip">' + esc(p.label) +
+                        (p.weight > 1 ? '<span class="lt-w">×' + p.weight + '</span>' : '') + '</span>';
+                }).join('');
+        }
+
+        function renderWinners() {
+            var host = document.getElementById('lt-win-list');
+            document.getElementById('lt-win-count').textContent = state.winners.length + ' 人';
+            var btn = document.getElementById('lt-submit');
+            btn.disabled = state.winners.length === 0 || state.spinning;
+            if (!state.winners.length) {
+                host.innerHTML = '<div class="empty-state lt-empty-pad">尚未抽取<br><span class="smoke" style="font-size:12px;">本次名单内不会重复中奖</span></div>';
+                return;
+            }
+            host.innerHTML = state.winners.map(function (w, i) {
+                return '<div class="lt-win-item">' +
+                    '<span class="lt-win-rank">' + (i + 1) + '</span>' +
+                    '<span class="lt-win-name">' + esc(w.label) + '</span>' +
+                    '<span class="lt-win-sub">' + (w.gid ? esc(w.gid) + ' · ' : '') + '场次 ' + (w.weight || 1) + '</span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function renderHistory() {
+            var host = document.getElementById('lt-history');
+            if (!state.hist.length) {
+                host.innerHTML = '<div class="empty-state lt-empty-pad">暂无历史记录</div>';
+                return;
+            }
+            var MODE_ZH = { random: '随机抽取', weighted: '按场次加权' };
+            var EX_ZH = { auto: '自动', manual: '手动' };
+            host.innerHTML = state.hist.map(function (h) {
+                var ws = (h.winners || []).map(function (w) {
+                    return '<span class="lt-chip">' + esc(w.label) + '</span>';
+                }).join('');
+                return '<div class="lt-hist-item">' +
+                    '<div class="lt-hist-meta">' +
+                    '<span>' + esc(String(h.created_at || '').replace('T', ' ').slice(0, 16)) + '</span>' +
+                    '<span>' + esc(MODE_ZH[h.mode] || h.mode) + '</span>' +
+                    '<span>' + esc(EX_ZH[h.exec_mode] || h.exec_mode || '') + '</span>' +
+                    '<span>种子 ' + esc(h.seed || '—') + '</span>' +
+                    '</div>' +
+                    '<div class="lt-hist-win">' + ws + '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function setStatus(html) { document.getElementById('lt-status').innerHTML = html; }
+
+        /* ---------- 数据加载 ---------- */
+        function showError(msg) {
+            document.getElementById('lt-main').hidden = true;
+            var em = document.getElementById('lt-empty');
+            em.hidden = false;
+            em.innerHTML = msg;
+        }
+
+        function loadHistory() {
+            return HWAuth.getClient().from('event_lottery_results')
+                .select('*').eq('event_id', state.ev.id)
+                .order('created_at', { ascending: false }).limit(30)
+                .then(function (res) {
+                    state.hist = (res && !res.error && res.data) || [];
+                    renderHistory();
+                })
+                .catch(function () { state.hist = []; renderHistory(); });
+        }
+
+        function boot() {
+            var params = null;
+            try { params = new URLSearchParams(window.location.search); } catch (e) { params = null; }
+            var evQ = params && params.get('event');
+            if (!evQ) { showError('请从 <a href="events.html">活动大厅</a> 的活动空间进入抽奖。'); return; }
+
+            var sb = HWAuth.getClient();
+            var q = /^\d+$/.test(evQ)
+                ? sb.from('events').select('*').eq('id', Number(evQ)).maybeSingle()
+                : sb.from('events').select('*').eq('code', evQ).maybeSingle();
+
+            q.then(function (res) {
+                if (!res || res.error || !res.data) { showError('活动不存在或已被删除。'); return; }
+                state.ev = res.data;
+                state.key = HWLayout.seasonKey(state.ev);
+                document.getElementById('lt-sub').textContent =
+                    state.ev.title + ' · ' + (state.ev.season || '') + ' · 抽奖';
+                document.title = '活动抽奖 · ' + state.ev.title;
+                HWLayout.eventBar({ event: state.ev });
+
+                var pKey = state.key;
+                return Promise.all([
+                    sb.from(pKey + '_matches').select('*').order('id', { ascending: false }),
+                    sb.from(pKey + '_player_ids').select('id, name, team, "group"')
+                ]).then(function (rs) {
+                    state.matches = (rs[0] && !rs[0].error && rs[0].data) || [];
+                    state.roster = {};
+                    ((rs[1] && !rs[1].error && rs[1].data) || []).forEach(function (p) {
+                        if (p.id != null && p.name) state.roster[String(p.id)] = p.name;
+                    });
+                    state.matches.forEach(function (m) { state.selected[m.id] = true; });
+                    document.getElementById('lt-main').hidden = false;
+                    renderMatches();
+                    rebuildPool();
+                    buildStrip(0, 260);
+                    renderWinners();
+                    loadHistory();
+                });
+            }).catch(function (err) {
+                console.error('[lottery]', err);
+                showError('加载失败：' + esc((err && err.message) || err) + '（详情见控制台）');
+            });
+        }
+
+        /* ---------- 抽取流程 ---------- */
+        function currentSeed() {
+            var input = (document.getElementById('lt-seed').value || '').trim();
+            return input || String(Date.now());
+        }
+
+        function beginRound(winners, seedStr) {
+            state.spinning = true;
+            state.lastSeed = seedStr;
+            state.lastMode = state.mode;
+            document.getElementById('lt-start').disabled = true;
+            document.getElementById('lt-seed-note').textContent = '种子：' + seedStr;
+            renderWinners();
+
+            if (state.exec === 'auto') {
+                var i = 0;
+                setStatus('抽取中…（自动）');
+                function next() {
+                    if (i >= winners.length) { finishRound(); return; }
+                    setStatus('抽取中… <strong>' + esc(winners[i].label) + '</strong> 即将揭晓');
+                    spinToWinner(winners[i], function () {
+                        state.winners.push(winners[i]);
+                        renderWinners();
+                        i++;
+                        setTimeout(next, 350 * SPEED);
+                    });
+                }
+                next();
+            } else {
+                state.pending = winners.slice();
+                state.manualRunning = false;
+                document.getElementById('lt-start').disabled = false;
+                document.getElementById('lt-start').textContent = '停止';
+                setStatus('手动模式：点击 <strong>停止</strong> 抽出下一位（停止后仍会惯性滚动）');
+                startContinuous();
+            }
+        }
+
+        function manualStop() {
+            if (!state.pending.length) return;
+            stopContinuous(function () {
+                var winner = state.pending.shift();
+                setStatus('惯性滑行中…');
+                manualLandOn(winner, function () {
+                    state.winners.push(winner);
+                    renderWinners();
+                    if (state.pending.length) {
+                        setStatus('已抽出 <strong>' + esc(winner.label) + '</strong> — 还剩 ' + state.pending.length + ' 位，点击 <strong>停止</strong> 继续');
+                        startContinuous();
+                    } else {
+                        finishRound();
+                    }
+                });
+            });
+        }
+
+        function finishRound() {
+            state.spinning = false;
+            state.pending = [];
+            state.manualRunning = false;
+            document.getElementById('lt-start').disabled = false;
+            document.getElementById('lt-start').textContent = '开始抽取';
+            setStatus('本轮完成：新增 <strong>' + state.winners.length + '</strong> 位中奖者，可提交结果或继续抽取');
+            renderWinners();
+        }
+
+        function startDraw() {
+            if (state.spinning && state.exec === 'manual') { manualStop(); return; }
+            if (state.spinning) return;
+            if (!HWAuth.isLoggedIn()) {
+                toast('请先登录后参与抽奖');
+                HWAuth.openModal({ stay: true }).catch(function () {});
+                return;
+            }
+            if (!state.pool.length) { toast('名单为空，先勾选比赛或导入名单', 'err'); return; }
+            /* 本次名单不重复：池内剔除已中奖 */
+            var won = {};
+            state.winners.forEach(function (w) { won[String(w.label).toLowerCase()] = 1; });
+            var avail = state.pool.filter(function (p) { return !won[String(p.label).toLowerCase()]; });
+            if (!avail.length) { toast('名单内所有人都已中奖', 'err'); return; }
+            var want = Math.max(1, Math.min(Number(document.getElementById('lt-count').value) || 1, avail.length));
+            document.getElementById('lt-count').value = want;
+            var seedStr = currentSeed();
+            var rng = makeRng(seedStr + '::' + state.mode);
+            var picked = pickWinners(avail, rng, want);
+            if (!picked.length) { toast('抽取失败，请重试', 'err'); return; }
+            beginRound(picked, seedStr);
+        }
+
+        function submitResults() {
+            if (!state.winners.length) return;
+            if (!HWAuth.isLoggedIn()) { toast('请先登录'); return; }
+            var u = HWAuth.getSession();
+            var payload = {
+                event_id: state.ev.id,
+                mode: state.lastMode || state.mode,
+                exec_mode: state.exec,
+                seed: state.lastSeed || '',
+                winners: state.winners.map(function (w) {
+                    return { label: w.label, gid: w.gid || '', weight: w.weight || 1 };
+                }),
+                drawn_by: u ? u.id : null
+            };
+            HWAuth.getClient().from('event_lottery_results').insert(payload)
+                .then(function (res) {
+                    if (res && res.error) throw new Error(res.error.message);
+                    toast('中奖结果已提交');
+                    state.winners = [];
+                    renderWinners();
+                    setStatus('已提交，开启新一轮 — 可继续抽取');
+                    loadHistory();
+                })
+                .catch(function (err) {
+                    console.error('[lottery] submit', err);
+                    toast('提交失败：' + ((err && err.message) || err), 'err');
+                });
+        }
+
+        /* ---------- 名单导入导出 ---------- */
+        function importPool() {
+            var text = document.getElementById('lt-import-text').value || '';
+            var seen = {};
+            var out = [];
+            text.split(/\r?\n/).forEach(function (line) {
+                var t = line.trim();
+                if (!t) return;
+                var k = t.toLowerCase();
+                if (seen[k]) return;
+                seen[k] = 1;
+                out.push({ label: t, gid: '', weight: 1 });
+            });
+            if (!out.length) { toast('没有可导入的名字', 'err'); return; }
+            state.importPool = out;
+            state.source = 'import';
+            syncSourceSeg();
+            rebuildPool();
+            toast('已导入 ' + out.length + ' 人');
+        }
+
+        function exportPool() {
+            if (!state.pool.length) { toast('名单为空', 'err'); return; }
+            try {
+                var lines = ['名字\t游戏ID\t权重'].concat(state.pool.map(function (p) {
+                    return [p.label, p.gid || '', p.weight || 1].join('\t');
+                }));
+                var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'lottery-pool-' + (state.ev ? state.ev.id : '0') + '.txt';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 400);
+                toast('名单已导出');
+            } catch (e) {
+                toast('导出失败：' + (e.message || e), 'err');
+            }
+        }
+
+        function syncSourceSeg() {
+            document.querySelectorAll('#lt-source-seg button').forEach(function (b) {
+                b.classList.toggle('active', b.dataset.val === state.source);
+            });
+            document.getElementById('lt-pane-matches').hidden = state.source !== 'matches';
+            document.getElementById('lt-pane-import').hidden = state.source !== 'import';
+        }
+
+        /* ---------- 事件绑定 ---------- */
+        function segWire(id, cb) {
+            document.querySelectorAll('#' + id + ' button').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    document.querySelectorAll('#' + id + ' button').forEach(function (x) { x.classList.remove('active'); });
+                    b.classList.add('active');
+                    cb(b.dataset.val);
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            segWire('lt-source-seg', function (v) { state.source = v; syncSourceSeg(); rebuildPool(); });
+            segWire('lt-mode-seg', function (v) { state.mode = v; renderPool(); });
+            segWire('lt-exec-seg', function (v) {
+                state.exec = v;
+                if (state.spinning && v === 'auto') { /* 进行中切换：保持当前流程 */ }
+            });
+            document.getElementById('lt-select-all').addEventListener('click', function () {
+                state.matches.forEach(function (m) { state.selected[m.id] = true; });
+                renderMatches(); rebuildPool();
+            });
+            document.getElementById('lt-clear').addEventListener('click', function () {
+                state.matches.forEach(function (m) { state.selected[m.id] = false; });
+                renderMatches(); rebuildPool();
+            });
+            document.getElementById('lt-import').addEventListener('click', importPool);
+            document.getElementById('lt-export').addEventListener('click', exportPool);
+            document.getElementById('lt-start').addEventListener('click', startDraw);
+            document.getElementById('lt-submit').addEventListener('click', submitResults);
+            boot();
+        });
+    })();
+    </script>
+</body>
+</html>

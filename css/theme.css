@@ -183,6 +183,40 @@ button, input, select, textarea { font-family: inherit; }
   transition: border-color 0.15s ease;
 }
 .nav-user:hover { border-color: var(--smoke); }
+/* 头像按钮 + 下拉菜单（点击头像弹出，不跳转个人主页） */
+button.nav-user { font: inherit; color: inherit; cursor: pointer; }
+.nav-user-wrap { position: relative; }
+.nav-caret { display: inline-flex; color: var(--slate); flex-shrink: 0; }
+.nav-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 178px;
+  background: var(--obsidian);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 6px;
+  z-index: 90;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+.nav-menu[hidden] { display: none; }
+.nav-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--mist);
+  font-size: 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+}
+.nav-menu button:hover { background: var(--graphite); color: var(--pure-white); }
+.nav-menu button .ico { flex-shrink: 0; opacity: 0.85; }
+.nav-menu .nav-menu-danger:hover { background: rgba(255, 107, 107, 0.12); color: #ff9b9b; }
 
 .nav-avatar {
   width: 22px;
@@ -292,7 +326,25 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
   color: var(--smoke);
 }
 
-.page-header { margin-bottom: 40px; }
+.page-header {
+  position: relative;
+  margin-bottom: 40px;
+  /* Phase 12：各页页首加同款渐变背景（比内容更宽，与主页横幅一致） */
+  width: calc(100% + 96px);
+  margin-left: -48px;
+  padding: 8px 48px 0;
+}
+.page-header::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  inset: -64px -10% auto;
+  height: 340px;
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 26%, rgba(4, 63, 150, 0.5), rgba(6, 18, 37, 0.16) 60%, transparent 78%);
+}
+.page-header > * { position: relative; z-index: 1; }
 
 .page-header .eyebrow { display: block; margin-bottom: 12px; }
 
@@ -692,6 +744,9 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
 }
 
 .hero-atmosphere > * { position: relative; z-index: 1; margin-left: 48px; }
+/* 问候两行（h1/lead）：内联样式 margin 简写会清掉 margin-left，这里用更高特异性收回 */
+.hero.hero-atmosphere > h1,
+.hero.hero-atmosphere > .lead { position: relative; z-index: 1; margin-left: 48px; }
 
 /* ---------- Utility ---------- */
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }

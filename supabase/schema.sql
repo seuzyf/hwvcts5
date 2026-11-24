@@ -335,6 +335,26 @@ drop policy if exists organizer_requests_write on public.organizer_requests;
 create policy organizer_requests_write on public.organizer_requests for all using (true) with check (true);
 
 -- ---------------------------------------------------------------------
+-- 12. 活动抽奖：中奖记录（名单滚筒抽取 → 提交入库 → 历史可查）
+-- ---------------------------------------------------------------------
+create table if not exists public.event_lottery_results (
+    id          bigint generated always as identity primary key,
+    event_id    bigint not null references public.events(id) on delete cascade,
+    mode        text not null default 'random',    -- random=随机抽取 / weighted=按场次加权
+    exec_mode   text not null default 'auto',      -- auto=自动停止 / manual=手动停止（带惯性）
+    seed        text not null default '',          -- 随机种子（默认当前时间，可手动指定）
+    winners     jsonb not null default '[]',       -- [{label, gid, weight}]
+    drawn_by    bigint,
+    created_at  timestamptz not null default now()
+);
+create index if not exists idx_lottery_event on public.event_lottery_results (event_id, created_at desc);
+alter table public.event_lottery_results enable row level security;
+drop policy if exists lottery_select on public.event_lottery_results;
+create policy lottery_select on public.event_lottery_results for select using (true);
+drop policy if exists lottery_write on public.event_lottery_results;
+create policy lottery_write on public.event_lottery_results for all using (true) with check (true);
+
+-- ---------------------------------------------------------------------
 -- 完成 ✓
 -- 执行后刷新网站即可：登录 → 个人主页 → 活动大厅报名
 -- ---------------------------------------------------------------------

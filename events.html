@@ -399,7 +399,8 @@
                     ['schedule.html?event=' + ev.id, 'calendar', '赛程'],
                     ['matches.html?event=' + ev.id, 'gamepad', '比赛'],
                     ['summary.html?event=' + ev.id, 'chart-column', '数据'],
-                    ['betting.html?event=' + ev.id, 'target', '竞猜']
+                    ['betting.html?event=' + ev.id, 'target', '竞猜'],
+                    ['lottery.html?event=' + ev.id, 'gift', '抽奖']
                 ];
                 if (perms.isCaptain || perms.isAdmin) entries.push(['draft.html?event=' + ev.id, 'users', '分队']);
                 if (perms.isAdmin || perms.isEventCaptain) entries.push(['manage.html?event=' + ev.id, 'shield-check', '管理']);

@@ -288,6 +288,29 @@ s6_betting_groups` + RPC `check_admin_password`。
   - **视觉修缮**：主页横幅渐变背景左右各外扩 48px（文字位置不变，背景比文字宽）；
     报名页功能块之间 `margin-top:16px` 留空。
   - schema 第 11 节：`events.organizer_id` + `organizer_requests` 表（RLS）。
+- **Phase 12（头像菜单 + 消息面板 + 活动抽奖）**：
+  - **数据中心修复**：players.html 漏引 Supabase CDN（根因：`getClient()` 抛错 → 永远「加载中」）；
+    补 CDN + boot 加 15s 超时与错误提示（console + 表内错误行），查询全部失败安全。
+  - **主页问候缩进**：`h1/.lead` 的内联 margin 简写会清掉 atmosphere 的 margin-left，
+    theme.css 用 `.hero.hero-atmosphere > h1/.lead`（更高特异性）收回 48px，与渐变错开。
+  - **主页改版**：hero 不再放「权限管理」按钮 → 移入功能入口磁贴（管理员可见，`admin.html#perm-card`）；
+    「个人资料」整栏替换为 **消息（通知列表）**：展示全部通知（未读高亮）、点击标记已读并跳转、「全部已读」。
+  - **头像菜单（layout 全局）**：右上角头像由跳转链接改为按钮，弹出下拉：
+    **头像 / 账号 / 编辑资料 / 重置密码 / 退出登录**（顺序固定，不再跳个人主页）。
+    四个弹框（`hw-av/hw-acct/hw-prof/hw-pwd-modal`）注入 layout，仅手动 × 关闭；
+    头像=URL 设置（updateProfile 允许 avatar 字段）、账号=只读信息、编辑资料保存后派发 `hw:profile`（index 重渲染）、
+    重置密码=原密码+新密码（`HWAuth.changePassword`）。
+  - **页首渐变**：theme.css 给所有 `.page-header` 加同款 radial 渐变（`width+96/margin-left-48` 比内容更宽），
+    活动/数据中心/报名/审核/赛程/竞猜/比赛/后台等页首自动获得。
+  - **管理后台**：移除「选手账号（头像管理）」整卡（`loadSiteUsers` 一并删除；改身份走权限管理卡）。
+  - **活动抽奖（lottery.html?event=）**：活动空间新增「抽奖」入口（所有人可见）。
+    - 名单来源：**勾选活动赛季下的比赛记录 → 自动统计出场名单**（权重=场次），或 **导入名单**（每行一个、自动去重）/ **导出名单**（TXT 下载）；
+    - 抽取方式：**随机抽取 / 按场次加权随机**；执行方式：**自动停止 / 手动停止**；
+    - 种子：**默认当前时间**，可手动输入（同种子同结果，xmur3+mulberry32）；
+    - 滚筒动画：炉石式名单滚筒，快转→缓停→轻微回弹落定；手动模式点「停止」后仍**惯性多滚约 1.2 圈再落定**（防指定）；
+    - 中奖名单展示在右侧，**本次名单内不重复抽取**；「提交结果」→ 写 `event_lottery_results` → 清轮次并刷新历史；
+    - **历史中奖记录**卡：时间/方式/种子/中奖者。
+  - schema 第 12 节：`event_lottery_results` 表（event_id/mode/exec_mode/seed/winners jsonb/drawn_by，RLS）。
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
   （幂等）：已建过的 cover/event_captains 若在则跳过；
   **Phase 7 新增** `events.teams` / `events.group_count` 两列（赛制存既有 `format` 列）；
@@ -295,7 +318,8 @@ s6_betting_groups` + RPC `check_admin_password`。
   **Phase 9 新增** `site_users.avatar` + `reg_profiles` 表 + `reg-docs` 存储桶 ——
   不建则通知/自动队长、报名页截图上传与头像功能不生效（老报名流程有回退）；
   **Phase 10 新增** `reg_profiles.shots_verified` + `shots_verified_at`（截图人工核对标记）；
-  **Phase 11 新增** `events.organizer_id` + `organizer_requests` 表（活动组织者申请/审核）。
+  **Phase 11 新增** `events.organizer_id` + `organizer_requests` 表（活动组织者申请/审核）；
+  **Phase 12 新增** `event_lottery_results` 表（活动抽奖中奖记录）—— 不建则抽奖页历史/提交不生效。
 
 ## 8. 功能保留清单
 
