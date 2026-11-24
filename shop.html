@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>积分商店 · HWVCTS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+  <link rel="stylesheet" href="css/theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/layout.js"></script>
+  <style>
+    .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+    .shop-card { cursor: pointer; display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+    .shop-card .shop-thumb { height: 132px; background: var(--graphite); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .shop-card .shop-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .shop-card .shop-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .shop-title { font-size: 15px; font-weight: 600; color: var(--pure-white); }
+    .shop-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .shop-cost { color: var(--coral-pulse); font-weight: 700; font-family: var(--font-mono); }
+    .shop-card.out .shop-thumb { opacity: 0.45; filter: grayscale(1); }
+    .shop-card.out .shop-title { color: var(--smoke); }
+    .shop-detail-img { width: 100%; height: 240px; object-fit: cover; border-radius: 10px; background: var(--graphite); display: block; margin-top: 12px; }
+    .cond-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .cond-row .select { flex: 1; }
+    .cond-row .input { width: 90px; }
+    .rec-table td, .rec-table th { padding: 9px 10px; }
+  </style>
+</head>
+<body data-page="shop">
+  <main class="page"><div class="container">
+    <header class="page-header flex-between">
+      <div>
+        <span class="eyebrow">Shop</span>
+        <h1 class="page-title">积 分 商 店</h1>
+        <p class="page-sub">用竞猜积分兑换奖励</p>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <button class="btn btn-primary" id="shop-new" type="button" hidden>新增商品</button>
+      </div>
+    </header>
+
+    <div id="event-bar" hidden></div>
+
+    <div class="filter-bar" style="margin-bottom:22px;">
+      <div class="seg" id="shop-tabs">
+        <button class="active" data-tab="goods" type="button">商品</button>
+        <button data-tab="records" type="button">兑换记录</button>
+      </div>
+      <span id="shop-balance" class="page-sub" style="margin:0;"></span>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" id="shop-csv" type="button" hidden>导出 CSV</button>
+    </div>
+
+    <section id="tab-goods">
+      <div id="shop-grid" class="shop-grid"><div class="empty-state">加载中…</div></div>
+      <div id="shop-empty" class="empty-state" hidden><strong>暂无商品</strong><p>组织者可以新增商品供兑换。</p></div>
+    </section>
+
+    <section id="tab-records" hidden>
+      <div class="table-wrap">
+        <table class="data-table rec-table" id="rec-table">
+          <thead><tr><th>时间</th><th>商品</th><th>用户</th><th>消耗积分</th></tr></thead>
+          <tbody id="rec-tbody"><tr><td colspan="4">加载中…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="rec-empty" class="empty-state" hidden><strong>暂无兑换记录</strong></div>
+    </section>
+  </div></main>
+
+  <!-- 商品详情（×-only） -->
+  <div id="goods-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-panel" style="max-width:560px;">
+      <button class="modal-close" id="gm-close" type="button">&times;</button>
+      <span class="eyebrow">Goods</span>
+      <h2 id="gm-title" style="margin:6px 0 0; font-size:19px; color:var(--pure-white);"></h2>
+      <img id="gm-img" class="shop-detail-img" alt="" hidden>
+      <p id="gm-desc" class="smoke" style="margin:12px 0 0; line-height:1.7;"></p>
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-cell"><div class="k">兑换积分</div><div class="v" id="gm-cost"></div></div>
+        <div class="meta-cell"><div class="k">库存</div><div class="v" id="gm-stock"></div></div>
+        <div class="meta-cell"><div class="k">我的余额</div><div class="v" id="gm-balance"></div></div>
+      </div>
+      <div id="gm-conds" style="margin-top:14px;"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="gm-edit" type="button" hidden>编辑</button>
+        <button class="btn btn-ghost" id="gm-toggle" type="button" hidden>下架</button>
+        <button class="btn btn-primary" id="gm-redeem" type="button">兑 换</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增/编辑商品（×-only） -->
+  <div id="goods-form-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-panel" style="max-width:560px;">
+      <button class="modal-close" id="gf-close" type="button">&times;</button>
+      <span class="eyebrow">Editor</span>
+      <h2 id="gf-title" style="margin:6px 0 14px; font-size:18px; color:var(--pure-white);">新增商品</h2>
+      <label class="form-label" for="gf-name">名称</label>
+      <input class="input" id="gf-name" maxlength="40" placeholder="例如：定制鼠标垫">
+      <label class="form-label" for="gf-desc" style="margin-top:10px;">描述</label>
+      <textarea class="textarea" id="gf-desc" rows="3" maxlength="300" placeholder="商品介绍"></textarea>
+      <label class="form-label" for="gf-img" style="margin-top:10px;">图片（≤5MB，PNG/JPG/WebP）</label>
+      <input class="input" id="gf-img" type="file" accept="image/png,image/jpeg,image/webp" style="padding:8px 10px;">
+      <div style="display:flex; gap:12px; margin-top:10px;">
+        <div style="flex:1">
+          <label class="form-label" for="gf-cost">兑换积分</label>
+          <input class="input" id="gf-cost" type="number" min="0" step="1" value="50">
+        </div>
+        <div style="flex:1">
+          <label class="form-label" for="gf-stock">库存数量</label>
+          <input class="input" id="gf-stock" type="number" min="0" step="1" value="1">
+        </div>
+      </div>
+      <div class="form-label" style="margin-top:12px;">兑换条件（无条件 = 人人可兑）</div>
+      <div id="gf-conds"></div>
+      <button class="btn btn-ghost btn-sm" id="gf-cond-add" type="button" style="margin-top:8px;">＋ 添加条件</button>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="gf-cancel" type="button">取消</button>
+        <button class="btn btn-primary" id="gf-save" type="button">保存</button>
+      </div>
+      <p class="smoke" id="gf-status" style="font-size:13px; min-height:16px; margin:8px 0 0;"></p>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function sb() { return HWAuth.getClient(); }
+  function me() { return HWAuth.getSession(); }
+  function isStaff() { return typeof HWLayout !== 'undefined' && HWLayout.atLeast('organizer'); }
+  function isAdmin() { return typeof HWLayout !== 'undefined' && HWLayout.isAdminNow(); }
+  function toast(m, t) { HWLayout.toast(m, t); }
+
+  var state = { tab: 'goods', goods: [], records: [], editing: null, viewing: null, conds: [] };
+
+  var COND_TYPES = {
+    event_any: { label: '参与过活动', hasValue: false },
+    reg_min:   { label: '报名人数 ≥', hasValue: true },
+    match_min: { label: '比赛场次 ≥', hasValue: true },
+    balance_min: { label: '余额 ≥', hasValue: true }
+  };
+
+  /* ---------- 余额 ---------- */
+  function loadMyBalance() {
+    var u = me();
+    var el = document.getElementById('shop-balance');
+    if (!u) { el.textContent = ''; return Promise.resolve(null); }
+    return HWLayout.recalcBalance(u.id).then(function (b) {
+      var v = b;
+      if (v == null) {
+        return sb().from('site_users').select('balance').eq('id', u.id).maybeSingle()
+          .then(function (r) { return r && !r.error && r.data ? r.data.balance : null; })
+          .catch(function () { return null; });
+      }
+      return v;
+    }).then(function (v) {
+      el.textContent = v == null ? '' : ('我的积分：' + v);
+      return v;
+    });
+  }
+
+  /* ---------- 商品列表 ---------- */
+  function canManage(g) {
+    var u = me();
+    if (!u) return false;
+    if (isAdmin()) return true;
+    return g && g.created_by != null && String(g.created_by) === String(u.id);
+  }
+  function loadGoods() {
+    var host = document.getElementById('shop-grid');
+    return sb().from('goods').select('*').order('id', { ascending: false }).then(function (r) {
+      var rows = (r && !r.error && r.data) || [];
+      var u = me();
+      state.goods = rows.filter(function (g) {
+        if (g.status === 'active') return true;
+        /* 草稿：创建者/管理员可见（标记下架） */
+        return canManage(g);
+      });
+      if (!state.goods.length) {
+        host.innerHTML = '';
+        document.getElementById('shop-empty').hidden = false;
+        return;
+      }
+      document.getElementById('shop-empty').hidden = true;
+      host.innerHTML = state.goods.map(function (g) {
+        var out = g.status !== 'active' || g.stock <= 0;
+        var thumb = g.image_url
+          ? '<img src="' + esc(g.image_url) + '" alt="">'
+          : HWLayout.ico('gift', 34);
+        return '<div class="card card-hover shop-card' + (out ? ' out' : '') + '" data-goods="' + g.id + '">' +
+          '<div class="shop-thumb">' + thumb + '</div>' +
+          '<div class="shop-body">' +
+          '  <div class="shop-title">' + esc(g.title) + '</div>' +
+          '  <div class="shop-meta">' +
+          '    <span class="shop-cost">' + g.cost + ' 积分</span>' +
+          '    <span class="badge ' + (g.stock > 0 ? 'badge-green' : 'badge-quiet') + '">' + (g.stock > 0 ? ('库存 ' + g.stock) : '已售罄') + '</span>' +
+          (g.status !== 'active' ? '<span class="badge badge-quiet">已下架</span>' : '') +
+          '  </div>' +
+          '</div></div>';
+      }).join('');
+      host.querySelectorAll('[data-goods]').forEach(function (el) {
+        el.addEventListener('click', function () { openDetail(parseInt(el.dataset.goods, 10)); });
+      });
+    }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; });
+  }
+
+  /* ---------- 条件 ---------- */
+  function condsHtml(conds, editable, prefix) {
+    if (!conds || !conds.length) return editable ? '' : '<div class="smoke" style="font-size:13px;">无条件限制</div>';
+    return conds.map(function (c, i) {
+      var t = COND_TYPES[c.type] || COND_TYPES.reg_min;
+      var text = t.label + (t.hasValue ? ' ' + (c.value != null ? c.value : 0) : '');
+      if (editable) {
+        var typeOpts = Object.keys(COND_TYPES).map(function (k) {
+          return '<option value="' + k + '"' + (c.type === k ? ' selected' : '') + '>' + COND_TYPES[k].label + '</option>';
+        }).join('');
+        return '<div class="cond-row" data-cond="' + i + '">' +
+          (i > 0
+            ? '<select class="select" data-cond-conn="' + i + '" style="width:70px;"><option value="and"' + (c.conn !== 'or' ? ' selected' : '') + '>且</option><option value="or"' + (c.conn === 'or' ? ' selected' : '') + '>或</option></select>'
+            : '') +
+          '<select class="select" data-cond-type="' + i + '">' + typeOpts + '</select>' +
+          (t.hasValue ? '<input class="input" type="number" min="0" step="1" data-cond-val="' + i + '" value="' + (c.value != null ? c.value : 1) + '">' : '') +
+          '<button class="btn btn-ghost btn-sm" data-cond-del="' + i + '" type="button">×</button>' +
+          '</div>';
+      }
+      return '<div class="badge badge-blue" style="margin:0 6px 6px 0;">' + esc(text) + (i > 0 ? ('（' + (c.conn === 'or' ? '或' : '且') + '）') : '') + '</div>';
+    }).join('');
+  }
+  function syncCondsFromDom() {
+    var host = document.getElementById('gf-conds');
+    var rows = Array.prototype.slice.call(host.querySelectorAll('[data-cond]'));
+    state.conds = rows.map(function (row, i) {
+      var typeSel = row.querySelector('[data-cond-type="' + i + '"]');
+      var connSel = row.querySelector('[data-cond-conn="' + i + '"]');
+      var valEl = row.querySelector('[data-cond-val="' + i + '"]');
+      var type = typeSel ? typeSel.value : 'reg_min';
+      return {
+        type: type,
+        conn: connSel ? connSel.value : 'and',
+        value: valEl ? (parseInt(valEl.value, 10) || 0) : 0
+      };
+    });
+  }
+  function renderCondEditor() {
+    document.getElementById('gf-conds').innerHTML = condsHtml(state.conds, true);
+    document.getElementById('gf-conds').querySelectorAll('[data-cond-del]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        syncCondsFromDom();
+        state.conds.splice(parseInt(b.dataset.condDel, 10), 1);
+        renderCondEditor();
+      });
+    });
+    document.getElementById('gf-conds').querySelectorAll('[data-cond-type]').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        syncCondsFromDom();
+        renderCondEditor();
+      });
+    });
+  }
+
+  /* ---------- 条件校验（客户端；库存/余额由 RPC 原子兜底） ---------- */
+  function evalConds(conds, facts) {
+    if (!conds || !conds.length) return { ok: true, reasons: [] };
+    var reasons = [];
+    var results = conds.map(function (c) {
+      var ok = true, why = '';
+      if (c.type === 'event_any') { ok = facts.participated; why = '需参与过活动'; }
+      else if (c.type === 'reg_min') { ok = facts.regCount >= (c.value || 0); why = '报名需 ≥ ' + (c.value || 0); }
+      else if (c.type === 'match_min') { ok = facts.matchCount >= (c.value || 0); why = '比赛需 ≥ ' + (c.value || 0); }
+      else if (c.type === 'balance_min') { ok = (facts.balance || 0) >= (c.value || 0); why = '余额需 ≥ ' + (c.value || 0); }
+      if (!ok) reasons.push(why);
+      return ok;
+    });
+    var acc = results[0];
+    for (var i = 1; i < results.length; i++) {
+      acc = (conds[i].conn === 'or') ? (acc || results[i]) : (acc && results[i]);
+    }
+    return { ok: acc, reasons: reasons };
+  }
+  function gatherFacts(conds, u) {
+    var needReg = conds.some(function (c) { return c.type === 'event_any' || c.type === 'reg_min'; });
+    var needMatch = conds.some(function (c) { return c.type === 'match_min'; });
+    var needBal = conds.some(function (c) { return c.type === 'balance_min'; });
+    var facts = { participated: false, regCount: 0, matchCount: 0, balance: 0 };
+    var pRegs = needReg
+      ? sb().from('event_registrations').select('status').eq('user_id', u.id).then(function (r) {
+          var rows = (r && !r.error && r.data) || [];
+          var live = rows.filter(function (x) { return x.status !== 'rejected' && x.status !== 'cancelled'; });
+          facts.regCount = live.length;
+          facts.participated = live.length > 0;
+        }).catch(function () {})
+      : Promise.resolve();
+    var pMatch = needMatch
+      ? (function () {
+          var cols = ['id'];
+          ['team_a', 'team_b'].forEach(function (tk) {
+            for (var i = 1; i <= 5; i++) cols.push(tk + '_player' + i + '_id');
+          });
+          var gid = String(u.game_id || '');
+          if (!gid) { facts.matchCount = 0; return Promise.resolve(); }
+          return sb().from('s6_matches').select(cols.join(',')).then(function (r) {
+            var rows = (r && !r.error && r.data) || [];
+            facts.matchCount = rows.filter(function (m) {
+              return cols.slice(1).some(function (c) { return String(m[c] || '') === gid; });
+            }).length;
+          }).catch(function () {});
+        })()
+      : Promise.resolve();
+    var pBal = needBal
+      ? HWLayout.recalcBalance(u.id).then(function (b) { facts.balance = b || 0; }).catch(function () {})
+      : Promise.resolve();
+    return Promise.all([pRegs, pMatch, pBal]).then(function () { return facts; });
+  }
+
+  /* ---------- 详情 ---------- */
+  function openDetail(id) {
+    var g = state.goods.filter(function (x) { return x.id === id; })[0];
+    if (!g) return;
+    state.viewing = g;
+    document.getElementById('gm-title').textContent = g.title;
+    var img = document.getElementById('gm-img');
+    if (g.image_url) { img.src = g.image_url; img.hidden = false; } else { img.hidden = true; }
+    document.getElementById('gm-desc').textContent = g.description || '（暂无描述）';
+    document.getElementById('gm-cost').textContent = g.cost + ' 积分';
+    document.getElementById('gm-stock').textContent = g.stock > 0 ? String(g.stock) : '0（已售罄）';
+    document.getElementById('gm-balance').textContent = '…';
+    document.getElementById('gm-conds').innerHTML = condsHtml(g.conditions, false);
+    var staff = isStaff();
+    var mine = canManage(g);
+    document.getElementById('gm-edit').hidden = !mine;
+    document.getElementById('gm-toggle').hidden = !mine;
+    document.getElementById('gm-toggle').textContent = g.status === 'active' ? '下架' : '上架';
+    document.getElementById('gm-redeem').hidden = !me();
+    document.getElementById('goods-modal').style.display = 'flex';
+    loadMyBalance().then(function (b) {
+      document.getElementById('gm-balance').textContent = b == null ? '—' : b;
+    });
+  }
+
+  function doRedeem() {
+    var g = state.viewing;
+    var u = me();
+    if (!g || !u) return;
+    if (g.status !== 'active' || g.stock <= 0) { toast('该商品不可兑换', 'err'); return; }
+    var btn = document.getElementById('gm-redeem');
+    btn.disabled = true;
+    gatherFacts(g.conditions || [], u).then(function (facts) {
+      var chk = evalConds(g.conditions, facts);
+      if (!chk.ok) throw new Error('未满足兑换条件：' + (chk.reasons[0] || '不满足'));
+      return sb().rpc('redeem_goods', { p_goods_id: g.id, p_user_id: u.id });
+    }).then(function (r) {
+      if (r && r.error) throw new Error(r.error.message || '兑换失败');
+      var out = r.data || {};
+      if (out.error) throw new Error(out.error);
+      toast('兑换成功！剩余积分 ' + out.balance);
+      if (g.created_by && String(g.created_by) !== String(u.id)) {
+        HWLayout.notifyUser(g.created_by, '商品被兑换',
+          '「' + g.title + '」被 ' + (u.nickname || u.username) + ' 兑换，剩余库存 ' + out.stock, 'shop.html');
+      }
+      document.getElementById('goods-modal').style.display = 'none';
+      return Promise.all([loadGoods(), loadMyBalance()]);
+    }).catch(function (e) { toast(e.message || '兑换失败', 'err'); })
+      .finally(function () { btn.disabled = false; });
+  }
+
+  /* ---------- 新增 / 编辑 ---------- */
+  function openForm(g) {
+    state.editing = g || null;
+    state.conds = (g && g.conditions ? JSON.parse(JSON.stringify(g.conditions)) : []);
+    document.getElementById('gf-title').textContent = g ? '编辑商品' : '新增商品';
+    document.getElementById('gf-name').value = g ? (g.title || '') : '';
+    document.getElementById('gf-desc').value = g ? (g.description || '') : '';
+    document.getElementById('gf-cost').value = g ? g.cost : 50;
+    document.getElementById('gf-stock').value = g ? g.stock : 1;
+    document.getElementById('gf-img').value = '';
+    document.getElementById('gf-status').textContent = '';
+    renderCondEditor();
+    document.getElementById('goods-form-modal').style.display = 'flex';
+  }
+  function saveForm() {
+    var u = me();
+    if (!u) { toast('请先登录', 'err'); return; }
+    var title = document.getElementById('gf-name').value.trim();
+    var desc = document.getElementById('gf-desc').value.trim();
+    var cost = parseInt(document.getElementById('gf-cost').value, 10);
+    var stock = parseInt(document.getElementById('gf-stock').value, 10);
+    if (!title) { toast('请填写名称', 'err'); return; }
+    if (isNaN(cost) || cost < 0) { toast('积分需为非负整数', 'err'); return; }
+    if (isNaN(stock) || stock < 0) { toast('库存需为非负整数', 'err'); return; }
+    syncCondsFromDom();
+    var st = document.getElementById('gf-status');
+    var btn = document.getElementById('gf-save');
+    btn.disabled = true; st.textContent = '保存中…';
+    var file = document.getElementById('gf-img').files && document.getElementById('gf-img').files[0];
+    var finish = function (imageUrl) {
+      var payload = {
+        title: title, description: desc, cost: cost, stock: stock,
+        conditions: state.conds, updated_at: new Date().toISOString()
+      };
+      if (imageUrl != null) payload.image_url = imageUrl;
+      var op = state.editing
+        ? sb().from('goods').update(payload).eq('id', state.editing.id)
+        : sb().from('goods').insert([Object.assign({ created_by: u.id, status: 'active', image_url: imageUrl || '' }, payload)]);
+      return op.then(function (r) {
+        if (r && r.error) throw new Error(r.error.message);
+        toast(state.editing ? '商品已更新' : '商品已上架');
+        document.getElementById('goods-form-modal').style.display = 'none';
+        return loadGoods();
+      });
+    };
+    var chain = Promise.resolve(null);
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { toast('图片不能超过 5MB', 'err'); btn.disabled = false; st.textContent = ''; return; }
+      var ext = (String(file.name).match(/\.[a-z0-9]+$/i) || ['.png'])[0].toLowerCase();
+      var path = 'goods-' + Date.now() + ext;
+      chain = sb().storage.from('goods').upload(path, file, { upsert: true, contentType: file.type || 'image/png' })
+        .then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '图片上传失败');
+          var pub = sb().storage.from('goods').getPublicUrl(path);
+          return pub && pub.data && pub.data.publicUrl ? pub.data.publicUrl : '';
+        });
+    }
+    chain.then(finish).catch(function (e) { toast(e.message || '保存失败', 'err'); })
+      .finally(function () { btn.disabled = false; st.textContent = ''; });
+  }
+  function toggleGoods() {
+    var g = state.viewing;
+    if (!g || !canManage(g)) return;
+    var next = g.status === 'active' ? 'draft' : 'active';
+    sb().from('goods').update({ status: next, updated_at: new Date().toISOString() }).eq('id', g.id)
+      .then(function (r) {
+        if (r && r.error) throw new Error(r.error.message);
+        toast(next === 'active' ? '已上架' : '已下架');
+        document.getElementById('goods-modal').style.display = 'none';
+        return loadGoods();
+      }).catch(function (e) { toast(e.message || '操作失败', 'err'); });
+  }
+
+  /* ---------- 兑换记录 ---------- */
+  function loadRecords() {
+    var tbody = document.getElementById('rec-tbody');
+    tbody.innerHTML = '<tr><td colspan="4">加载中…</td></tr>';
+    var u = me();
+    if (!u) { tbody.innerHTML = ''; document.getElementById('rec-empty').hidden = false; return Promise.resolve(); }
+    return Promise.all([
+      sb().from('goods_redemptions').select('id, goods_id, user_id, cost, created_at').order('created_at', { ascending: false }).limit(500),
+      sb().from('goods').select('id, title, created_by'),
+      sb().from('site_users').select('id, username, nickname')
+    ]).then(function (rs) {
+      var reds = (rs[0] && !rs[0].error && rs[0].data) || [];
+      var goods = (rs[1] && !rs[1].error && rs[1].data) || [];
+      var users = (rs[2] && !rs[2].error && rs[2].data) || [];
+      var gMap = {}, uMap = {};
+      goods.forEach(function (g) { gMap[g.id] = g; });
+      users.forEach(function (x) { uMap[x.id] = x; });
+      /* 范围：管理员=全部；组织者=自己商品；成员=自己 */
+      var rows = reds.filter(function (r) {
+        if (isAdmin()) return true;
+        var g = gMap[r.goods_id];
+        if (isStaff() && g && g.created_by != null && String(g.created_by) === String(u.id)) return true;
+        return String(r.user_id) === String(u.id);
+      });
+      state.records = rows.map(function (r) {
+        var g = gMap[r.goods_id] || {};
+        var x = uMap[r.user_id] || {};
+        return {
+          time: r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '',
+          goods: g.title || ('商品#' + r.goods_id),
+          user: x.nickname || x.username || ('用户#' + r.user_id),
+          cost: r.cost
+        };
+      });
+      document.getElementById('shop-csv').hidden = !state.records.length;
+      if (!state.records.length) {
+        tbody.innerHTML = '';
+        document.getElementById('rec-empty').hidden = false;
+        return;
+      }
+      document.getElementById('rec-empty').hidden = true;
+      tbody.innerHTML = state.records.map(function (r) {
+        return '<tr><td>' + esc(r.time) + '</td><td>' + esc(r.goods) + '</td><td>' + esc(r.user) + '</td><td>' + r.cost + '</td></tr>';
+      }).join('');
+    }).catch(function () { tbody.innerHTML = '<tr><td colspan="4">加载失败。</td></tr>'; });
+  }
+  function exportRecords() {
+    var header = ['时间', '商品', '用户', '消耗积分'];
+    var body = state.records.map(function (r) { return [r.time, r.goods, r.user, r.cost]; });
+    HWLayout.exportCsv('goods-redemptions.csv', header, body);
+  }
+
+  /* ---------- Tab / 事件 ---------- */
+  function switchTab(name) {
+    state.tab = name;
+    document.querySelectorAll('#shop-tabs button').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.tab === name);
+    });
+    document.getElementById('tab-goods').hidden = name !== 'goods';
+    document.getElementById('tab-records').hidden = name !== 'records';
+    document.getElementById('shop-csv').hidden = name !== 'records' || !state.records.length;
+    if (name === 'records') loadRecords();
+  }
+
+  function bind() {
+    document.getElementById('shop-tabs').addEventListener('click', function (e) {
+      if (e.target.tagName !== 'BUTTON') return;
+      switchTab(e.target.dataset.tab);
+    });
+    document.getElementById('shop-csv').addEventListener('click', exportRecords);
+    document.getElementById('shop-new').addEventListener('click', function () { openForm(null); });
+    [['gm-close', 'goods-modal'], ['gf-close', 'goods-form-modal'], ['gf-cancel', 'goods-form-modal']].forEach(function (p) {
+      document.getElementById(p[0]).addEventListener('click', function () {
+        document.getElementById(p[1]).style.display = 'none';
+      });
+    });
+    document.getElementById('gm-redeem').addEventListener('click', doRedeem);
+    document.getElementById('gm-edit').addEventListener('click', function () {
+      if (state.viewing) { document.getElementById('goods-modal').style.display = 'none'; openForm(state.viewing); }
+    });
+    document.getElementById('gm-toggle').addEventListener('click', toggleGoods);
+    document.getElementById('gf-save').addEventListener('click', saveForm);
+    document.getElementById('gf-cond-add').addEventListener('click', function () {
+      syncCondsFromDom();
+      state.conds.push({ type: 'reg_min', conn: state.conds.length ? 'and' : 'and', value: 1 });
+      renderCondEditor();
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    bind();
+    if (isStaff()) document.getElementById('shop-new').hidden = false;
+    HWLayout.resolveEvent().then(function (ev) { HWLayout.eventBar({ event: ev }); });
+    Promise.all([loadGoods(), loadMyBalance()]).catch(function () {});
+  });
+})();
+</script>
+</body>
+</html>

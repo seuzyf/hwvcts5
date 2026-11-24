@@ -27,12 +27,12 @@
 </head>
 <body data-page="register" data-crumb="events">
   <main class="page"><div class="container">
-    <div id="event-bar" hidden></div>
-
     <header class="page-header">
       <span class="eyebrow">Registration</span>
       <h1 class="page-title">活 动 报 名</h1>
     </header>
+
+    <div id="event-bar" hidden></div>
 
     <div id="reg-loading" class="empty-state">加载中…</div>
 
@@ -164,6 +164,7 @@
       var EV_STATUS = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
 
       var ev = null, profile = null, mine = null, allRegs = [], rosterHit = null, shotUrls = { cur: '', career: '' };
+      var myBan = null, myEventBan = null, waitlistMode = false;   /* P13f/h：封禁 + 候补 */
 
       function sb() { return HWAuth.getClient(); }
 
@@ -383,12 +384,16 @@
         var u = HWAuth.getSession();
         if (!u || !ev) return;
         if (!mine) {
-          /* 提交瞬间再检：截止 / 满员 / 状态变化（打开表单期间活动关闭） */
+          /* P13f：封禁再检（打开表单期间被封） */
+          if (HWLayout.isBannedUser(myBan)) { HWLayout.toast('你已被禁赛，无法报名', 'err'); bootData(); return; }
+          if (myEventBan) { HWLayout.toast('你在本活动被禁赛，无法报名', 'err'); bootData(); return; }
+          /* 提交瞬间再检：截止 / 满员（满员 → 候补）/ 状态变化 */
           var dl = ev.reg_deadline && new Date(ev.reg_deadline) < new Date();
           var act = allRegs.filter(function (r) { return r.event_id === ev.id && (r.status === 'pending' || r.status === 'approved'); }).length;
           var fl = ev.max_slots && act >= ev.max_slots;
-          if (ev.status !== 'registration' || dl || fl) {
-            HWLayout.toast(dl ? '报名已截止' : fl ? '名额已满' : '当前状态不可报名', 'err');
+          waitlistMode = !!fl;
+          if (ev.status !== 'registration' || dl) {
+            HWLayout.toast(dl ? '报名已截止' : '当前状态不可报名', 'err');
             bootData();
             return;
           }
@@ -420,12 +425,17 @@
         }).then(function (res) {
           if (res && res.error) throw new Error(res.error.message);
           var isUpdateOnly = !!mine;
-          HWLayout.toast(isUpdateOnly ? '资料已保存' : '报名已提交，等待审核');
+          HWLayout.toast(isUpdateOnly ? '资料已保存' : (waitlistMode ? '名额已满，已加入候补' : '报名已提交，等待审核'));
           if (!isUpdateOnly) {
             var link = 'register.html?event=' + ev.id;
             var teamName = currentTeamName();
-            HWLayout.notifyUser(u.id, '报名已提交', '「' + ev.title + '」· ' + teamName, link);
-            HWLayout.notifyAdmins('新报名待审核', (u.nickname || u.username || '有人') + ' →「' + ev.title + '」· ' + teamName, 'review.html?event=' + ev.id);
+            if (waitlistMode) {
+              HWLayout.notifyUser(u.id, '已加入候补', '「' + ev.title + '」名额已满，有空位将递补并通知你。· ' + teamName, link);
+              HWLayout.notifyAdmins('新候补待递补', (u.nickname || u.username || '有人') + ' →「' + ev.title + '」候补 · ' + teamName, 'review.html?event=' + ev.id);
+            } else {
+              HWLayout.notifyUser(u.id, '报名已提交', '「' + ev.title + '」· ' + teamName, link);
+              HWLayout.notifyAdmins('新报名待审核', (u.nickname || u.username || '有人') + ' →「' + ev.title + '」· ' + teamName, 'review.html?event=' + ev.id);
+            }
           }
           return bootData();
         }).catch(function (err) {
@@ -486,7 +496,7 @@
         var members = val('rp-members') ? val('rp-members').split('\n').map(function (s) { return s.trim(); }).filter(Boolean) : [];
         var payload = {
           team_name: teamName, members: members, contact: val('rp-contact'), note: val('rp-note'),
-          status: 'pending', updated_at: new Date().toISOString()
+          status: waitlistMode ? 'waitlist' : 'pending', updated_at: new Date().toISOString()
         };
         if (newTeam) payload.new_team = true;
         var runOp = function (pl, allowFallback) {
@@ -510,6 +520,7 @@
           .then(function (res) {
             if (res.error) { HWLayout.toast('撤回失败: ' + res.error.message, 'err'); return; }
             HWLayout.toast('报名已撤回，可重新报名');
+            HWLayout.promoteWaitlist(ev);
             bootData();
           });
       }
@@ -632,21 +643,34 @@
           prefill();
           return;
         }
-        var canReg = ev.status === 'registration' && !deadlinePassed && !full && u;
+        /* P13f：封禁拦截（全局 / 本活动） */
+        if (u && (HWLayout.isBannedUser(myBan) || myEventBan)) {
+          form.hidden = true;
+          var banNone = document.getElementById('reg-none');
+          banNone.hidden = false;
+          banNone.textContent = HWLayout.isBannedUser(myBan) ? '你已被禁赛，暂时无法报名。' : '你在本活动被禁赛，无法报名。';
+          return;
+        }
+        var canReg = ev.status === 'registration' && !deadlinePassed && u;
         if (!canReg) {
           form.hidden = true;
           var none = document.getElementById('reg-none');
           none.hidden = false;
           none.textContent = !u ? '登录后可报名。'
             : ev.status !== 'registration' ? '当前状态（' + (EV_STATUS[ev.status] || ev.status) + '）不可报名。'
-            : deadlinePassed ? '报名已截止。'
-            : full ? '名额已满。' : '暂不可报名。';
+            : deadlinePassed ? '报名已截止。' : '暂不可报名。';
           return;
         }
         form.hidden = false;
         document.getElementById('rp-team-sec').hidden = false;
-        document.getElementById('reg-form-title').textContent = '填写报名信息';
-        document.getElementById('rp-submit').textContent = '提交报名';
+        /* P13h：满员 → 候补表单 */
+        if (full) {
+          document.getElementById('reg-form-title').textContent = '名额已满 · 加入候补';
+          document.getElementById('rp-submit').textContent = '提交候补';
+        } else {
+          document.getElementById('reg-form-title').textContent = '填写报名信息';
+          document.getElementById('rp-submit').textContent = '提交报名';
+        }
         renderTeamPool();
         prefill();
       }
@@ -723,7 +747,11 @@
           } else {
             HWLayout.eventBar({ event: null });
           }
-          bootData();
+          /* P13f：先取封禁状态再渲染（全局 + 本活动） */
+          var u0 = HWAuth.getSession();
+          var pBan = u0 ? HWLayout.myBanState().then(function (d) { myBan = d; }) : Promise.resolve();
+          var pEBan = (u0 && ev) ? HWLayout.fetchEventBan(ev.id, u0.id).then(function (d) { myEventBan = d; }) : Promise.resolve();
+          Promise.all([pBan, pEBan]).catch(function () {}).then(function () { bootData(); });
         });
       });
     })();

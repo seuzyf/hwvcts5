@@ -63,6 +63,7 @@
         .team-name { font-size: 15px; font-weight: 600; color: var(--pure-white); }
         .team-odds { font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; color: var(--smoke); }
         .team-odds.high-odds { color: var(--success-green); font-weight: 700; }
+        .team-share { font-size: 11px; color: var(--ash); margin-left: 5px; font-weight: 400; }
         .betting-card hr, hr { border: none; border-top: 1px solid var(--border); margin: 6px 0; opacity: 0.6; }
         .roster-btn {
             width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
@@ -143,8 +144,6 @@
 <body data-page="betting" data-crumb="events">
     <main class="page">
         <div class="container">
-            <div id="event-bar" hidden></div>
-
             <header class="page-header flex-between">
                 <div>
                     <span class="eyebrow">Betting</span>
@@ -157,7 +156,7 @@
                         <span class="sep">|</span>
                         余额 <span class="bal" id="user-balance"></span>
                         <button id="logout-btn" class="btn btn-ghost btn-sm" type="button">登出</button>
-                        <button id="welfare-btn" class="btn btn-ghost btn-sm" type="button" style="display:none;">低保 +5 分</button>
+                        <button id="welfare-btn" class="btn btn-ghost btn-sm" type="button" style="display:none;">每日签到 +5</button>
                     </div>
                     <div class="bet-actions">
                         <button id="login-btn" class="btn btn-ghost" type="button">登录 / 注册</button>
@@ -166,6 +165,8 @@
                     </div>
                 </div>
             </header>
+
+            <div id="event-bar" hidden></div>
 
             <div id="main-content"></div>
 
@@ -216,6 +217,7 @@
                         <button id="bet-team-b-btn" class="btn btn-primary" type="button"></button>
                     </div>
                     <input class="input" type="number" id="bet-amount-input" min="1" placeholder="支持分数（最小 1）">
+                    <div id="bet-preview" class="smoke" style="font-size:13px; margin-top:8px; min-height:20px;">选择队伍与分数后显示支持比与预计赢利</div>
                 </div>
                 <div id="existing-bets-section">
                     <h4>本场所有预测记录</h4>
@@ -256,6 +258,7 @@
 <script>
 
 document.addEventListener('DOMContentLoaded', () => {
+    var boundEv = null;   /* P13f：绑定活动（活动封禁判定） */
     const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
     const { createClient } = supabase;
@@ -266,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allBetsData = [];
     let allUsersData = [];
     let allWelfareData = [];
+    let allLedgerData = [];
     let allPlayersData = []; 
     let bettingGroupStatus = {};
     let currentSeason = 's6'; // 默认 S6 赛季
@@ -327,22 +331,25 @@ document.addEventListener('DOMContentLoaded', () => {
             historyBtn.style.display = 'inline-flex';
             usernameDisplay.textContent = currentUser.username;
             userBalance.textContent = typeof currentUser.balance === 'number' ? Math.round(currentUser.balance) : '100';
-            
-            if (currentUser.balance === 0) {
-                const userBets = allBetsData.filter(b => b.user_id === currentUser.id);
-                const hasPendingBets = userBets.some(bet => {
-                    const match = allMatchesData.find(m => m.id === bet.match_id);
-                    return match && (match.score_a === null || match.score_b === null || match.score_a === match.score_b);
+            /* P13e：权威余额（含积分流水）覆盖 */
+            if (currentUser.id && typeof HWLayout !== 'undefined' && HWLayout.recalcBalance) {
+                HWLayout.recalcBalance(currentUser.id).then(function (b) {
+                    if (b == null) return;
+                    currentUser.balance = b;
+                    var el = document.getElementById('user-balance');
+                    if (el) el.textContent = Math.round(b);
                 });
-
-                if (!hasPendingBets) {
-                    const today = new Date().toISOString().slice(0, 10);
-                    const hasClaimedToday = allWelfareData.some(claim => {
-                        return claim.user_id === currentUser.id && new Date(claim.claimed_at).toISOString().slice(0, 10) === today;
-                    });
-                    if (!hasClaimedToday) {
-                        welfareBtn.style.display = 'inline-flex';
-                    }
+            }
+            
+            /* P13e：每日签到（并入低保）—— 登录即可，每天一次 */
+            {
+                const today = new Date().toISOString().slice(0, 10);
+                const hasClaimedToday = allWelfareData.some(claim => {
+                    var ts = claim.claimed_at || claim.created_at;
+                    return claim.user_id === currentUser.id && ts && new Date(ts).toISOString().slice(0, 10) === today;
+                });
+                if (!hasClaimedToday) {
+                    welfareBtn.style.display = 'inline-flex';
                 }
             }
         } else {
@@ -359,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { data: bets, error: bError }, 
             { data: users, error: uError },
             { data: welfare, error: wError },
+            { data: ledger, error: ledgerErr },
             { data: groupsStatus, error: gError },
             { data: players, error: pError }
         ] = await Promise.all([
@@ -366,10 +374,12 @@ document.addEventListener('DOMContentLoaded', () => {
             supabaseClient.from('s6_bet_bets').select('*'),
             supabaseClient.from(HWAuth.accountTable()).select('id, username, balance'),
             supabaseClient.from('s6_bet_welfare_claims').select('*'),
+            supabaseClient.from('points_ledger').select('user_id, delta'),
             supabaseClient.from('s6_betting_groups').select('group_name, is_locked'),
             supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, team, "group"')
         ]);
 
+        /* points_ledger 缺表不致命（§13 未执行时按无流水处理） */
         if (mError || bError || uError || wError || gError || pError) {
             console.error("加载数据失败:", mError || bError || uError || wError || gError || pError);
             mainContent.innerHTML = '<p style="color:var(--coral-pulse); text-align:center; width:100%;">加载数据失败，请刷新页面重试。</p>';
@@ -381,6 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
         allUsersData = users;
         allWelfareData = welfare;
         allPlayersData = players;
+        allLedgerData = ledger || [];
         bettingGroupStatus = groupsStatus.reduce((acc, group) => {
             acc[group.group_name] = group.is_locked;
             return acc;
@@ -434,7 +445,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             const welfareClaims = allWelfareData.filter(c => c.user_id === user.id).length;
-            user.balance = Math.round(100 - totalStaked + totalWinnings + (welfareClaims * 5));
+            const ledgerNet = (allLedgerData || []).filter(l => l.user_id === user.id).reduce((sum, l) => sum + (l.delta || 0), 0);
+            user.balance = Math.round(100 - totalStaked + totalWinnings + (welfareClaims * 5) + ledgerNet);
         });
     }
 
@@ -485,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span class="team-name">${match.team_a}</span>
                                 <button class="roster-btn" data-team-name="${match.team_a}" data-group-name="${match.group}">?</button>
                             </div>
-                            <span class="team-odds ${oddsA > oddsB ? 'high-odds' : ''}">${oddsA.toFixed(2)}</span>
+                            <span class="team-odds ${oddsA > oddsB ? 'high-odds' : ''}">${oddsA.toFixed(2)}<span class="team-share">${Math.round(poolA / (poolA + poolB) * 100)}%</span></span>
                         </div>
                         <hr>
                         <div class="team">
@@ -493,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span class="team-name">${match.team_b}</span>
                                 <button class="roster-btn" data-team-name="${match.team_b}" data-group-name="${match.group}">?</button>
                             </div>
-                            <span class="team-odds ${oddsB > oddsA ? 'high-odds' : ''}">${oddsB.toFixed(2)}</span>
+                            <span class="team-odds ${oddsB > oddsA ? 'high-odds' : ''}">${oddsB.toFixed(2)}<span class="team-share">${Math.round(poolB / (poolA + poolB) * 100)}%</span></span>
                         </div>`;
                     
                     if (!isFinished && !isGroupLocked) {
@@ -571,14 +583,47 @@ document.addEventListener('DOMContentLoaded', () => {
         loadAndRenderExistingBets(match.id, match.group);
         
         let selectedTeam = null;
-        teamABtn.onclick = () => { selectedTeam = match.team_a; teamABtn.style.borderColor = 'var(--success-green)'; teamBBtn.style.borderColor = 'var(--border)'; };
-        teamBBtn.onclick = () => { selectedTeam = match.team_b; teamBBtn.style.borderColor = 'var(--success-green)'; teamABtn.style.borderColor = 'var(--border)'; };
+        teamABtn.onclick = () => { selectedTeam = match.team_a; teamABtn.style.borderColor = 'var(--success-green)'; teamBBtn.style.borderColor = 'var(--border)'; updPreview(); };
+        teamBBtn.onclick = () => { selectedTeam = match.team_b; teamBBtn.style.borderColor = 'var(--success-green)'; teamABtn.style.borderColor = 'var(--border)'; updPreview(); };
+
+        /* P13h：支持比 + 预计赢利 实时预览 */
+        const betAmtEl = document.getElementById('bet-amount-input');
+        function updPreview() {
+            const el = document.getElementById('bet-preview');
+            if (!el) return;
+            const amt = parseInt(betAmtEl.value, 10);
+            if (!selectedTeam || isNaN(amt) || amt < 1) {
+                el.textContent = '选择队伍与分数后显示支持比与预计赢利';
+                return;
+            }
+            const betsFor = allBetsData.filter(b => b.match_id === match.id);
+            const bA = betsFor.filter(b => b.predicted_winner === match.team_a).reduce((s, b) => s + b.amount, 0);
+            const bB = betsFor.filter(b => b.predicted_winner === match.team_b).reduce((s, b) => s + b.amount, 0);
+            const pA = 100 + bA, pB = 100 + bB;
+            const onA = selectedTeam === match.team_a;
+            const share = Math.round((onA ? pA : pB) / (pA + pB) * 100);
+            const wPool = onA ? pA : pB;
+            const lPool = onA ? pB : pA;
+            const win = amt + Math.ceil((amt / wPool) * lPool);
+            el.textContent = '支持比 ' + share + '% · 猜对预计赢利 +' + win;
+        }
+        betAmtEl.oninput = updPreview;
+        updPreview();
 
         betConfirmBtn.onclick = async () => {
             const amount = parseInt(document.getElementById('bet-amount-input').value);
             if (!selectedTeam || isNaN(amount) || amount < 1 || amount > Math.round(currentUser.balance)) {
                 HWLayout.toast("请选择队伍并输入有效的分数（不能超过您的余额）");
                 return;
+            }
+
+            /* P13f：封禁拦截（全局 + 比赛所属活动） */
+            var gBan = await HWLayout.myBanState();
+            if (HWLayout.isBannedUser(gBan)) { HWLayout.toast('你已被禁赛，无法下注', 'err'); return; }
+            var banEvId = match.event_id || (boundEv && boundEv.id);
+            if (banEvId) {
+                var eBan = await HWLayout.fetchEventBan(banEvId, currentUser.id);
+                if (eBan) { HWLayout.toast('你在该活动被禁赛，无法下注', 'err'); return; }
             }
             
             const { data: groupStatus, error: groupError } = await supabaseClient
@@ -737,20 +782,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function handleWelfareClaim() {
-        if (!currentUser || currentUser.balance !== 0) return;
+        if (!currentUser) return;
         welfareBtn.disabled = true;
-        welfareBtn.textContent = '领取中...';
-        
+        welfareBtn.textContent = '签到中...';
+
         const { error } = await supabaseClient.from('s6_bet_welfare_claims').insert([{ user_id: currentUser.id }]);
-        
+
         if (error) {
-            HWLayout.toast('领取失败: ' + error.message);
+            HWLayout.toast('签到失败: ' + error.message);
             welfareBtn.disabled = false;
-            welfareBtn.textContent = '领 取 低 保 (+5分)';
+            welfareBtn.textContent = '每 日 签 到 (+5分)';
             return;
         }
-        
-        HWLayout.toast('低保领取成功，获得5分！');
+
+        HWLayout.toast('每日签到成功，+5 积分！');
+        if (typeof HWLayout !== 'undefined' && HWLayout.recalcBalance) {
+            await HWLayout.recalcBalance(currentUser.id);
+        }
         await initializePage();
     }
 
@@ -866,6 +914,7 @@ document.addEventListener('DOMContentLoaded', () => {
     HWAuth.detectAccountSource().catch(() => {}).finally(() => {
         // 活动上下文：先于首屏加载解析（赛季随之锁定），再初始化页面
         HWLayout.resolveEvent().then(function (ev) {
+            boundEv = ev;
             if (ev) {
                 var key = HWLayout.seasonKey(ev);
                 currentSeason = key;

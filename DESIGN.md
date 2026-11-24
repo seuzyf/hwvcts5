@@ -86,6 +86,24 @@ event_registrations   -- ③ 报名信息（只通过 event_id 关联赛事）
 s6_comments / s6_match_schedule / s5_matches / s6_matches / s6_bet_* /
 s6_betting_groups` + RPC `check_admin_password`。
 
+**Phase 13 新增（schema 第 13 节）**：
+
+```sql
+site_users  += balance_synced_at, banned, banned_reason, banned_until   -- 全局封禁
+events      += stream_url                                               -- 直播链接
+s5/s6_matches += event_id（DO 保护回填该赛季主活动）                     -- 赛事两级筛选
+points_ledger      -- 积分流：delta / balance_after / reason / operator_id / source
+event_bans         -- 活动封禁：event_id + user_id + reason + until（组织者限自己活动）
+goods              -- 商品：title / image_url / stock / cost / conditions(jsonb) / status
+goods_redemptions  -- 兑换记录
+RPC redeem_goods(goods_id, user_id) -- 原子：库存+余额校验 → 扣减 → 流水+记录
+存储桶 avatars / goods（public）
+```
+
+**积分权威模型**：`site_users.balance` 为权威列（默认 100）；任何余额变化都由
+`HWLayout.recalcBalance(userId)` 从事实重算：`100 - 投注 + 赛果派彩 + 每日签到×5 + points_ledger 净额`，
+禁止撤销式回滚。写点：下注/签到/调分/赛果录入（manage 三处 → `recalcAfterScoreChange` 重算所有有投注用户）。
+
 ## 5. 关键流程
 
 ### 5.1 登录
@@ -117,6 +135,18 @@ s6_betting_groups` + RPC `check_admin_password`。
 | **成员 member**（默认） | 登录普通账号 | 顶部「管理后台」= 个人信息编辑（资料/密码/退出/快捷入口）；无分队/管理工具入口；draft 直开显示锁定屏 |
 
 口令验证入口统一：活动创建/审核、赛程提交、管理后台 —— 任一处验证成功即全站生效 15 分钟。
+
+**Phase 13 角色秩（`HWLayout.roleRank`）**：`guest 0 < member 1 < organizer 2 < admin 3 < superadmin 4`；
+`isAdminNow = 秩≥admin`（临时口令会话按 admin 计，永不升 superadmin）。
+
+| 规则 | 实现 |
+|---|---|
+| 仅 superadmin 可设 admin/superadmin | admin.html 权限卡下拉按**操作者秩截断**（admin 最高设 organizer；目标高于操作者 → 只读 chip） |
+| 首个 superadmin | 手动 SQL：`update site_users set role='superadmin' where username='…';`（见 PR 说明） |
+| organizer 后台裁剪视图 | 路由 `atLeast('organizer')` 进入；隐藏举办申请/权限卡/广播；活动列表仅自己；新增「我的报名用户」（调分 + 活动封禁） |
+| 调分 | `points_ledger` 插入 ±N + `recalcBalance` + 通知「X（身份）为你调整积分 +N，原因：…，当前余额 M」 |
+| 封禁 = A 方案 | 全局（admin+，`site_users.banned*`）与活动（组织者限自己活动，`event_bans`）：可登录，禁报名/下注/抽奖池；头像角标 + 数据中心/审核/报名页「已禁赛」徽章 |
+| 全员广播 | admin → `HWLayout.broadcastNotifications(scope)`（全员/仅成员/组织者及以上）→ 通知中心 |
 
 **现状安全模型**（与站点既有模型一致）：publishable/anon key + 宽松 RLS，管理动作靠
 `check_admin_password` RPC 前端把关。已做改进：密码 SHA-256 存储（历史明文迁移时摘要）、
@@ -311,6 +341,25 @@ s6_betting_groups` + RPC `check_admin_password`。
     - 中奖名单展示在右侧，**本次名单内不重复抽取**；「提交结果」→ 写 `event_lottery_results` → 清轮次并刷新历史；
     - **历史中奖记录**卡：时间/方式/种子/中奖者。
   - schema 第 12 节：`event_lottery_results` 表（event_id/mode/exec_mode/seed/winners jsonb/drawn_by，RLS）。
+- **Phase 13（积分商店 + 超级管理员 + 动态赛制 + 全站数据/封禁体系）**：
+  - **头像改上传**：账号菜单「头像」弹框由 URL 输入改为**文件上传**（`avatars` 桶，≤5MB，预览 + 清除）。
+  - **页首渐变对齐主页**：`.page-header::before/after` 完全复制 `.hero-atmosphere` 的 radial+linear+光束公式（含浅色主题覆盖）。
+  - **活动导航条统一**： betting/matches/register/review/schedule/summary 全部改为 **页首 → event-bar → 内容**（与 draft 一致）。
+  - **超级管理员**：见 §6；管理后台 organizer+ 裁剪视图、我的报名用户、全员广播、调分/封禁弹框（×-only）。
+  - **数据中心**：赛季→赛事两级筛选（`?season=`/`?event=` 深链 + `event_id` 过滤）、全量名册 ∪ 报名未上场 0 场行、
+    计数「N 名选手（已报名 X）」、报名列、封禁徽章、CSV 导出（`HWLayout.exportCsv`）、队伍列 → `team.html` 互链。
+  - **赛程动态化**：分组按钮按活动 `group_count/format` 生成（3 组沿用 传奇/中坚/挑战 兼容旧数据）；
+    首版 5 赛制生成器（单循环/双循环/分组循环/单败/分组+淘汰，双败走旧逻辑）；有赛果的组不可重生成；
+    通用对阵图渲染器（`B-R*` 单败树 + `RR-*` 动态循环布局）；随机生成仍 admin-only；导出 .ics。
+  - **积分商店**：导航「管理后台」旁；卡片流 → ×-only 详情（大图/介绍/库存/条件）；组织者+ 新增/编辑/下架
+    （`goods` 桶图片 + 4 类条件 参与过活动/报名≥N/比赛≥N/余额≥N 且/或）；`redeem_goods` 原子兑换；兑换记录 + CSV。
+  - **每日签到**：并入低保（同 `s6_bet_welfare_claims`，每日一次，文案「每日签到 +5」）。
+  - **候补**：名额满 → `status='waitlist'`；撤回/取消 → `HWLayout.promoteWaitlist` 递补 pending 并双向通知。
+  - **今明提醒卡**（主页：今明活动/赛程/下注锁定）、**竞猜支持比% + 预计赢利**（卡片与下注弹窗）。
+  - **数据中心互链**：summary 增「排行榜（积分/胜场/胜率）」「交手记录 H2H」页签；player 近 N 场 ACS sparkline；
+    `team.html?name=&season=` 战队页（阵容/战绩/近期）；`events.stream_url` 创建表单 + 详情展示 + 后台编辑。
+  - schema 第 13 节：上表全部 + `redeem_goods` grant + `avatars/goods` 桶。
+
 - **待你操作**：请把 `supabase/schema.sql` 在 Supabase SQL Editor **重跑一次**
   （幂等）：已建过的 cover/event_captains 若在则跳过；
   **Phase 7 新增** `events.teams` / `events.group_count` 两列（赛制存既有 `format` 列）；
@@ -319,7 +368,11 @@ s6_betting_groups` + RPC `check_admin_password`。
   不建则通知/自动队长、报名页截图上传与头像功能不生效（老报名流程有回退）；
   **Phase 10 新增** `reg_profiles.shots_verified` + `shots_verified_at`（截图人工核对标记）；
   **Phase 11 新增** `events.organizer_id` + `organizer_requests` 表（活动组织者申请/审核）；
-  **Phase 12 新增** `event_lottery_results` 表（活动抽奖中奖记录）—— 不建则抽奖页历史/提交不生效。
+  **Phase 12 新增** `event_lottery_results` 表（活动抽奖中奖记录）—— 不建则抽奖页历史/提交不生效；
+  **Phase 13 新增** `points_ledger` / `event_bans` / `goods` / `goods_redemptions` 四表 + `site_users.banned*`、
+  `events.stream_url`、`s5/s6_matches.event_id`（回填）+ RPC `redeem_goods` + `avatars`/`goods` 桶 ——
+  不建则积分存库/封禁/商店不生效。首个超级管理员（执行一次）：
+  `update public.site_users set role = 'superadmin' where username = '你的用户名';`
 
 ## 8. 功能保留清单
 

@@ -172,6 +172,7 @@ button, input, select, textarea { font-family: inherit; }
 .nav-auth { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
 .nav-user {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -339,10 +340,27 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
   position: absolute;
   z-index: 0;
   pointer-events: none;
-  inset: -64px -10% auto;
-  height: 340px;
+  /* P13a：与主页 Personal Home（.hero-atmosphere::before）完全同款 */
+  inset: -80px -20% auto;
+  height: 480px;
   background:
-    radial-gradient(ellipse 60% 55% at 50% 26%, rgba(4, 63, 150, 0.5), rgba(6, 18, 37, 0.16) 60%, transparent 78%);
+    radial-gradient(ellipse 60% 55% at 50% 26%, rgba(4, 63, 150, 0.55), rgba(6, 18, 37, 0.18) 60%, transparent 78%),
+    linear-gradient(115deg, transparent 30%, rgba(255, 99, 99, 0.16) 46%, rgba(255, 99, 99, 0.05) 54%, transparent 66%);
+  filter: blur(6px);
+}
+.page-header::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  /* P13a：同款光束（.hero-atmosphere::after） */
+  top: 40px;
+  left: 50%;
+  width: 420px;
+  height: 180px;
+  transform: translateX(-60%) rotate(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 99, 99, 0.35), transparent);
+  filter: blur(48px);
 }
 .page-header > * { position: relative; z-index: 1; }
 
@@ -398,6 +416,30 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
 .badge-green { background: rgba(89, 212, 153, 0.12); color: var(--success-green); }
 .badge-blue { background: rgba(86, 194, 255, 0.12); color: var(--info-blue); }
 .badge-gold { background: rgba(255, 215, 0, 0.1); color: #ffd700; }
+/* P13f：已禁赛角标 */
+.badge-ban {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef6b6b;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+[data-theme="light"] .badge-ban { color: #c62828; }
+.nav-user .ban-dot {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--void-black, #061225);
+}
 .badge-quiet { background: transparent; border: 1px solid var(--border); color: var(--ash); }
 
 .chip {
@@ -855,6 +897,14 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
     linear-gradient(115deg, transparent 30%, rgba(255, 99, 99, 0.2) 46%, rgba(255, 99, 99, 0.07) 54%, transparent 66%);
 }
 [data-theme="light"] .hero-atmosphere::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 99, 99, 0.28), transparent);
+}
+[data-theme="light"] .page-header::before {
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 26%, rgba(56, 130, 250, 0.22), rgba(56, 130, 250, 0.07) 60%, transparent 78%),
+    linear-gradient(115deg, transparent 30%, rgba(255, 99, 99, 0.2) 46%, rgba(255, 99, 99, 0.07) 54%, transparent 66%);
+}
+[data-theme="light"] .page-header::after {
   background: linear-gradient(90deg, transparent, rgba(255, 99, 99, 0.28), transparent);
 }
 [data-theme="light"] .notice { background: var(--ink); }

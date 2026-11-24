@@ -43,13 +43,13 @@
 </head>
 <body data-page="review" data-crumb="events">
   <main class="page"><div class="container">
-    <div id="event-bar" hidden></div>
-
     <header class="page-header">
       <span class="eyebrow">Review</span>
       <h1 class="page-title">报 名 审 核</h1>
       <p class="page-sub" id="rv-sub" hidden></p>
     </header>
+
+    <div id="event-bar" hidden></div>
 
     <div id="rv-gate" class="card" hidden>
       <span class="eyebrow">Admin</span>
@@ -93,8 +93,8 @@
           return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
         });
       }
-      var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回' };
-      var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet' };
+      var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回', waitlist: '候补中' };
+      var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet', waitlist: 'badge-coral' };
 
       var ev = null, regs = [], userMap = {}, profMap = {};
       var rvSel = {}; /* 批量勾选：regId -> true */
@@ -140,7 +140,7 @@
       function loadAll() {
         return Promise.all([
           sb().from('event_registrations').select('*').order('created_at', { ascending: false }),
-          sb().from('site_users').select('id, username, nickname, game_id, avatar'),
+          sb().from('site_users').select('id, username, nickname, game_id, avatar, banned, banned_until'),
           sb().from('reg_profiles').select('*')
         ]).then(function (rs) {
           regs = (rs[0] && !rs[0].error && rs[0].data) || [];
@@ -227,6 +227,7 @@
             '    <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
             '    <span class="badge badge-quiet">' + esc(r.team_name || '待分队') + '</span>' +
             (r.new_team ? '<span class="badge badge-blue">新建队伍</span>' : '') +
+            (HWLayout.isBannedUser(u) ? '<span class="badge badge-ban">' + HWLayout.ico('ban', 12) + '已禁赛</span>' : '') +
             (!p ? '<span class="badge badge-gold">无资料档案</span>' : '') +
             (p && p.shots_verified ? '<span class="badge badge-green rv-verified">' + HWLayout.ico('badge-check', 12) + '已核对</span>' : '') +
             '  </span>' +

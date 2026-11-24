@@ -786,7 +786,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             const matchData = dbData[0];
             const { error } = await supabaseClient.from(getSeasonTableName('matches')).update(matchData).eq('id', matchId);
             if (error) { alert('更新赛果失败: ' + error.message); console.error(error); } 
-            else { alert('赛果更新成功！'); document.getElementById('edit-match-form-container').innerHTML = ''; document.getElementById('update-match').style.display = 'none'; await loadMatchesForEditing(getCurrentGroup()); }
+            else { alert('赛果更新成功！'); if (typeof HWLayout !== 'undefined' && HWLayout.recalcAfterScoreChange) HWLayout.recalcAfterScoreChange(); document.getElementById('edit-match-form-container').innerHTML = ''; document.getElementById('update-match').style.display = 'none'; await loadMatchesForEditing(getCurrentGroup()); }
         });
     }
     
@@ -824,7 +824,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         };
         const { data, error } = await supabaseClient.from('s6_match_schedule').update(dataToUpdate).eq('id', matchId).select();
         if (error) { alert('错误：更新赛程失败！\n' + error.message); console.error(error); } 
-        else if (data && data.length > 0) { alert('赛程比分已成功写入数据库！'); await loadScheduleForGroup(getCurrentGroup()); } 
+        else if (data && data.length > 0) { alert('赛程比分已成功写入数据库！'); if (typeof HWLayout !== 'undefined' && HWLayout.recalcAfterScoreChange) HWLayout.recalcAfterScoreChange(); await loadScheduleForGroup(getCurrentGroup()); } 
         else { alert('更新失败：未找到匹配的比赛记录。请检查数据库的行级安全(RLS)策略是否允许本次更新操作。'); }
     }
 
@@ -1113,6 +1113,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             }
 
             showToast('已保存：大比分 ' + bigA + ':' + bigB + '，新增 ' + saved + ' 图 / 更新 ' + updated + ' 图');
+            if (typeof HWLayout !== 'undefined' && HWLayout.recalcAfterScoreChange) HWLayout.recalcAfterScoreChange();
             closeMergeForm();
             await loadScheduleForGroup(group);
             await loadMatchesForEditing(group);

@@ -216,7 +216,7 @@
         var state = {
             ev: null, key: 's6',
             matches: [], roster: {}, selected: {},
-            source: 'matches', importPool: [], pool: [],
+            source: 'matches', importPool: [], pool: [], bannedKeys: {},
             mode: 'random', exec: 'auto',
             winners: [], lastSeed: '', lastMode: '',
             spinning: false, manualRunning: false, pending: [],
@@ -410,6 +410,35 @@
             });
         }
 
+        function notBannedLabel(p) {
+            var keys = state.bannedKeys || {};
+            if (!Object.keys(keys).length) return true;
+            var l = String(p.label || '').toLowerCase();
+            var g = String(p.gid || '').toLowerCase();
+            return !keys[l] && !keys[g];
+        }
+
+        /* P13f：被封禁用户不进入抽奖池 */
+        function loadBannedKeys() {
+            try {
+                HWAuth.getClient().from('site_users')
+                    .select('username, nickname, game_id, banned_until')
+                    .eq('banned', true)
+                    .then(function (r) {
+                        var rows = (r && !r.error && r.data) || [];
+                        var set = {};
+                        rows.forEach(function (u) {
+                            if (u.banned_until && new Date(u.banned_until) < new Date()) return;
+                            [u.username, u.nickname, u.game_id].forEach(function (k) {
+                                if (k) set[String(k).toLowerCase()] = 1;
+                            });
+                        });
+                        state.bannedKeys = set;
+                        rebuildPool();
+                    }).catch(function () {});
+            } catch (e) { /* ignore */ }
+        }
+
         function rebuildPool() {
             if (state.source === 'matches') {
                 var tally = {};
@@ -427,9 +456,9 @@
                 });
                 state.pool = Object.keys(tally).map(function (k) {
                     return { label: state.roster[k] || k, gid: k, weight: tally[k].weight };
-                }).sort(function (a, b) { return b.weight - a.weight; });
+                }).sort(function (a, b) { return b.weight - a.weight; }).filter(notBannedLabel);
             } else {
-                state.pool = state.importPool.slice();
+                state.pool = state.importPool.slice().filter(notBannedLabel);
             }
             renderPool();
             renderWinners();
@@ -735,6 +764,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            loadBannedKeys();
             segWire('lt-source-seg', function (v) { state.source = v; syncSourceSeg(); rebuildPool(); });
             segWire('lt-mode-seg', function (v) { state.mode = v; renderPool(); });
             segWire('lt-exec-seg', function (v) {
