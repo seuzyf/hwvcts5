@@ -9,8 +9,8 @@
  *     旧的 public.s6_bet_users（竞猜账号表），保证现有功能可用
  *
  * 密码：
- *   - 新注册统一存 SHA-256 十六进制摘要（64 位）
- *   - 迁移脚本会把旧明文密码也转成摘要；校验时自动识别两种格式
+ *   - 新注册统一存 PBKDF2-SHA-256（12 万轮 + 每用户随机盐）
+ *   - 历史数据（SHA-256 摘要 / 明文）登录时自动校验并升级，用户无感
  *
  * 会话：localStorage `hw_session`；兼容旧的 `betting-user` 键并自动收编。
  */
@@ -54,18 +54,72 @@
     });
   }
 
-  function looksLikeHash(v) {
-    return /^[a-f0-9]{64}$/i.test(v || '');
+  /* ---------------- 密码哈希（PBKDF2-SHA-256，带随机盐） ----------------
+   * 存储格式：pbkdf2$<iter>$<saltB64>$<hashHex>
+   * 兼容历史数据：64 位十六进制 SHA-256、以及更早的明文。
+   * 登录成功后自动把旧格式升级为新格式（用户无感）。
+   */
+  var PBKDF2_ITER = 120000;
+
+  function randomB64(bytes) {
+    var arr = new Uint8Array(bytes);
+    (window.crypto || {}).getRandomValues ? crypto.getRandomValues(arr) : arr.forEach(function (_, i) {
+      arr[i] = Math.floor(Math.random() * 256);
+    });
+    return btoa(String.fromCharCode.apply(null, Array.prototype.slice.call(arr)));
+  }
+
+  function pbkdf2Hex(plain, saltB64, iter) {
+    if (!(window.crypto && window.crypto.subtle)) return Promise.reject(new Error('no-webcrypto'));
+    var enc = new TextEncoder();
+    var salt = Uint8Array.from(atob(saltB64), function (c) { return c.charCodeAt(0); });
+    return crypto.subtle.importKey('raw', enc.encode(plain), 'PBKDF2', false, ['deriveBits'])
+      .then(function (key) {
+        return crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt, iterations: iter, hash: 'SHA-256' }, key, 256);
+      })
+      .then(function (buf) {
+        return Array.from(new Uint8Array(buf)).map(function (b) {
+          return b.toString(16).padStart(2, '0');
+        }).join('');
+      });
+  }
+
+  function hashPassword(plain) {
+    if (!(window.crypto && window.crypto.subtle)) {
+      return Promise.reject(new Error('当前环境不支持安全密码存储（需 HTTPS 或 localhost）'));
+    }
+    var salt = randomB64(16);
+    return pbkdf2Hex(plain, salt, PBKDF2_ITER).then(function (hex) {
+      return 'pbkdf2$' + PBKDF2_ITER + '$' + salt + '$' + hex;
+    });
+  }
+
+  function needsRehash(stored) {
+    return !/^\s*pbkdf2\$/i.test(stored || '');
   }
 
   function verifyPassword(plain, stored) {
-    if (looksLikeHash(stored)) {
-      return sha256Hex(plain).then(function (h) {
-        return h === stored.toLowerCase();
+    stored = stored == null ? '' : String(stored);
+    var m = /^pbkdf2\$(\d+)\$([^$]+)\$([a-f0-9]+)$/i.exec(stored);
+    if (m) {
+      return pbkdf2Hex(plain, m[2], parseInt(m[1], 10)).then(function (h) {
+        return h.toLowerCase() === m[3].toLowerCase();
       });
+    }
+    if (/^[a-f0-9]{64}$/i.test(stored)) {
+      return sha256Hex(plain).then(function (h) { return h === stored.toLowerCase(); });
     }
     // 旧数据为明文
     return Promise.resolve(plain === stored);
+  }
+
+  /** 登录成功后把旧哈希升级为 PBKDF2（失败静默，下次再试） */
+  function upgradeHashIfLegacy(table, row, plain) {
+    if (!row || !row.id || !needsRehash(row.password)) return;
+    if (!(window.crypto && window.crypto.subtle)) return;
+    hashPassword(plain).then(function (next) {
+      return getClient().from(table).update({ password: next }).eq('id', row.id);
+    }).then(function () { /* best effort */ }, function () { /* best effort */ });
   }
 
   function isMissingTable(error) {
@@ -178,7 +232,8 @@
   }
 
   /**
-   * 登录（用户名不存在时自动注册，与旧竞猜页行为一致）
+   * 登录。用户名不存在时**不再自动注册**（安全整改），
+   * 注册必须显式走 register()（登录弹窗的「注册」页签）。
    * @returns {Promise<object>} 用户行
    */
   function login(username, password) {
@@ -192,24 +247,9 @@
         if (res.error) throw res.error;
 
         if (!res.data) {
-          // 自动注册
-          var row = { username: username, password: password };
-          if (table === PRIMARY_TABLE) {
-            row.password = password; // 占位，下面统一哈希
-            row.balance = 100;
-            row.nickname = username;
-            row.role = 'member';
-          }
-          var insertPwd = table === PRIMARY_TABLE ? password : password;
-          var payload = Object.assign({}, row);
-          return sha256Hex(insertPwd).then(function (hash) {
-            payload.password = hash;
-            return sb.from(table).insert([payload]).select().single();
-          }).then(function (ins) {
-            if (ins.error) throw ins.error;
-            saveSession(ins.data);
-            return ins.data;
-          });
+          var err = new Error('用户名不存在，请先注册');
+          err.code = 'USER_NOT_FOUND';
+          throw err;
         }
 
         return verifyPassword(password, res.data.password).then(function (ok) {
@@ -217,9 +257,12 @@
           var patch = {};
           if (table === PRIMARY_TABLE && 'last_login_at' in res.data) {
             patch.last_login_at = new Date().toISOString();
-            sb.from(table).update(patch).eq('id', res.data.id).then(function () { /* best effort */ });
           }
           var merged = Object.assign({}, res.data, patch);
+          if (Object.keys(patch).length) {
+            sb.from(table).update(patch).eq('id', res.data.id).then(function () { /* best effort */ }, function () {});
+          }
+          upgradeHashIfLegacy(table, res.data, password);
           saveSession(merged);
           return merged;
         });
@@ -231,7 +274,7 @@
   function register(username, password, profile) {
     username = (username || '').trim();
     if (!username || !password) return Promise.reject(new Error('请输入姓名和密码'));
-    if (password.length < 4) return Promise.reject(new Error('密码至少 4 位'));
+    if (password.length < 6) return Promise.reject(new Error('密码至少 6 位'));
     if (profile && profile.password2 !== undefined && profile.password2 !== password) {
       return Promise.reject(new Error('两次输入的密码不一致'));
     }
@@ -240,7 +283,7 @@
       return sb.from(table).select('id').eq('username', username).maybeSingle().then(function (res) {
         if (res.error) throw res.error;
         if (res.data) throw new Error('该姓名已注册，请直接登录');
-        return sha256Hex(password).then(function (hash) {
+        return hashPassword(password).then(function (hash) {
           var row = { username: username, password: hash };
           if (table === PRIMARY_TABLE) {
             row.balance = 100;
@@ -283,7 +326,8 @@
       }
       var sb = getClient();
       var allowed = {};
-      ['nickname', 'game_id', 'bio', 'role', 'avatar'].forEach(function (k) {
+      ['nickname', 'game_id', 'bio', 'avatar'].forEach(function (k) {
+        /* role 不允许自助修改：角色变更必须走 promoteRole() 的服务端校验 */
         if (k in patch) allowed[k] = patch[k];
       });
       return sb.from(table).update(allowed).eq('id', session.id).select().single().then(function (res) {
@@ -296,10 +340,26 @@
     });
   }
 
+  /** 管理员重置他人密码：统一走 PBKDF2（旧实现调用了不存在的 sha256Hex） */
+  function resetPassword(userId, newPassword) {
+    if (!userId) return Promise.reject(new Error('缺少用户'));
+    if (!newPassword || newPassword.length < 6) {
+      return Promise.reject(new Error('新密码至少 6 位'));
+    }
+    return detectAccountSource().then(function (table) {
+      return hashPassword(newPassword).then(function (hash) {
+        return getClient().from(table).update({ password: hash }).eq('id', userId);
+      });
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      return true;
+    });
+  }
+
   /** 修改密码（校验旧密码） */
   function changePassword(oldPwd, newPwd) {
     if (!session) return Promise.reject(new Error('请先登录'));
-    if (!newPwd || newPwd.length < 4) return Promise.reject(new Error('新密码至少 4 位'));
+    if (!newPwd || newPwd.length < 6) return Promise.reject(new Error('新密码至少 6 位'));
     var sb = getClient();
     return detectAccountSource().then(function (table) {
       return sb.from(table).select('password').eq('id', session.id).single();
@@ -307,7 +367,7 @@
       if (res.error) throw res.error;
       return verifyPassword(oldPwd || '', res.data.password).then(function (ok) {
         if (!ok) throw new Error('原密码错误');
-        return sha256Hex(newPwd);
+        return hashPassword(newPwd);
       });
     }).then(function (hash) {
       var sb2 = getClient();
@@ -479,9 +539,22 @@
           resolve(user);
         }
       }).catch(function (err) {
-        errEl.textContent = err.message || '操作失败，请重试';
+        /* 系统已经能判断「这个用户名没有账号」：直接切到注册页签，
+           并保留刚输入的用户名/密码，省得用户重新敲一遍 */
+        if (mode === 'login' && err && err.code === 'USER_NOT_FOUND') {
+          mode = 'register';
+          backdrop.querySelectorAll('.hw-auth-tabs button').forEach(function (b) {
+            b.classList.toggle('active', b.dataset.tab === 'register');
+          });
+          document.getElementById('hw-auth-title').textContent = '注 册';
+          submitBtn.textContent = '注 册';
+          setRegisterOnly(true);
+          errEl.textContent = '该用户名还没有账号，已为你切到注册';
+        } else {
+          errEl.textContent = err.message || '操作失败，请重试';
+        }
         submitBtn.disabled = false;
-        submitBtn.textContent = mode === 'login' ? '登 录' : '注 册';
+        if (mode === 'login') submitBtn.textContent = '登 录';
       });
     });
 
@@ -504,6 +577,7 @@
     refresh: refresh,
     updateProfile: updateProfile,
     changePassword: changePassword,
+    resetPassword: resetPassword,
     openModal: openModal,
     requireLogin: requireLogin,
     on: on,

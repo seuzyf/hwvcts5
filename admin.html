@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadOrgRequests() {
         var host = document.getElementById('org-req-list');
         if (!host) return;
-        HWAuth.getClient().from('organizer_requests').select('*').order('created_at', { ascending: false })
+        HWAuth.getClient().from('organizer_requests').select('id, user_id, reason, status, reviewed_by, reviewed_at, created_at').order('created_at', { ascending: false })
             .then(function (res) {
                 var rows = (res && !res.error && res.data) || [];
                 var pending = rows.filter(function (r) { return r.status === 'pending'; }).length;
@@ -406,13 +406,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 host.querySelectorAll('[data-role-reset]').forEach(function (b) {
                     b.addEventListener('click', function () {
                         var id = parseInt(b.dataset.roleReset, 10);
-                        if (!window.confirm('确定将该用户密码重置为 123456？')) return;
-                        sha256Hex('123456').then(function (hash) {
-                            return HWAuth.getClient().from('site_users').update({ password: hash }).eq('id', id);
-                        }).then(function (r) {
-                            if (r.error) throw new Error(r.error.message);
-                            HWLayout.toast('密码已重置为 123456');
-                        }).catch(function (e) { HWLayout.toast('重置失败: ' + (e.message || e), 'err'); });
+                        HWLayout.confirmDialog({
+                            title: '重置密码',
+                            message: '确定将该用户的密码重置为 123456？对方登录后可自行修改。',
+                            okText: '重置', danger: true
+                        }).then(function (ok) {
+                            if (!ok) return;
+                            HWAuth.resetPassword(id, '123456')
+                                .then(function () { HWLayout.toast('密码已重置为 123456'); })
+                                .catch(function (e) { HWLayout.toast('重置失败: ' + (e.message || e), 'err'); });
+                        });
                     });
                 });
             }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; });
@@ -579,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return Promise.all([
                 sb.from('event_registrations').select('id, event_id, user_id, status').in('event_id', evIds),
                 sb.from('site_users').select('id, username, nickname, role, banned, banned_until'),
-                sb.from('event_bans').select('*').in('event_id', evIds)
+                sb.from('event_bans').select('event_id, user_id, reason, until, created_at').in('event_id', evIds)
             ]).then(function (rs) {
                 var regs = (rs[0] && !rs[0].error && rs[0].data) || [];
                 var users = (rs[1] && !rs[1].error && rs[1].data) || [];
@@ -654,32 +657,63 @@ document.addEventListener('DOMContentLoaded', () => {
         var sb = HWAuth.getClient();
         var me = HWAuth.getSession();
         var roleName = ROLE_ZH[HWLayout.getRole()] || HWLayout.getRole();
-        sb.from('site_users').select('balance').eq('id', uid).maybeSingle()
-            .then(function (r0) {
-                var stored = r0 && !r0.error && r0.data && r0.data.balance != null ? r0.data.balance : 100;
-                return HWLayout.recalcBalance(uid).then(function (base) {
-                    var after = (base == null ? stored : base) + delta;
-                    return Promise.all([
-                        sb.from('site_users').update({ balance: after, balance_synced_at: new Date().toISOString() }).eq('id', uid),
-                        sb.from('points_ledger').insert([{
-                            user_id: uid, delta: delta, balance_after: after, reason: reason,
-                            operator_id: me ? me.id : null, source: 'admin'
-                        }])
-                    ]).then(function (rs) {
-                        if (rs[0] && rs[0].error) throw new Error(rs[0].error.message);
-                        if (rs[1] && rs[1].error) throw new Error(rs[1].error.message);
-                        var sign = delta > 0 ? '+' + delta : String(delta);
-                        HWLayout.notifyUser(uid, '积分调整',
-                            ((me && (me.nickname || me.username)) || '管理员') + '（' + roleName + '）为你调整积分 ' + sign +
-                            '，原因：' + reason + '，当前余额 ' + after + '。', 'index.html');
-                        HWLayout.toast('已调整，当前余额 ' + after);
-                        document.getElementById('pts-modal').classList.remove('visible');
-                        if (HWLayout.isAdminNow()) loadPermUsers();
-                        renderMyRegistrants();
+        var btn = document.getElementById('pts-apply');
+        if (btn) { btn.disabled = true; btn.textContent = '处理中…'; }
+        var done = function () {
+            if (btn) { btn.disabled = false; btn.textContent = '确认调整'; }
+        };
+        var afterAction = function (after) {
+            var sign = delta > 0 ? '+' + delta : String(delta);
+            HWLayout.notifyUser(uid, '积分调整',
+                ((me && (me.nickname || me.username)) || '管理员') + '（' + roleName + '）为你调整积分 ' + sign +
+                '，原因：' + reason + '，当前余额 ' + after + '。', 'index.html');
+            HWLayout.toast('已调整，当前余额 ' + after);
+            document.getElementById('pts-modal').classList.remove('visible');
+            if (HWLayout.isAdminNow()) loadPermUsers();
+            renderMyRegistrants();
+        };
+        /* 兼容路径：数据库尚未部署 adjust_points RPC 时 */
+        var legacy = function () {
+            return sb.from('site_users').select('balance').eq('id', uid).maybeSingle()
+                .then(function (r0) {
+                    var stored = r0 && !r0.error && r0.data && r0.data.balance != null ? r0.data.balance : 100;
+                    return HWLayout.recalcBalance(uid).then(function (base) {
+                        var after = (base == null ? stored : base) + delta;
+                        return Promise.all([
+                            sb.from('site_users').update({ balance: after, balance_synced_at: new Date().toISOString() }).eq('id', uid),
+                            sb.from('points_ledger').insert([{
+                                user_id: uid, delta: delta, balance_after: after, reason: reason,
+                                operator_id: me ? me.id : null, source: 'admin'
+                            }])
+                        ]).then(function (rs) {
+                            if (rs[0] && rs[0].error) throw new Error(rs[0].error.message);
+                            if (rs[1] && rs[1].error) throw new Error(rs[1].error.message);
+                            return after;
+                        });
                     });
                 });
-            })
-            .catch(function (e) { HWLayout.toast('调分失败: ' + ((e && e.message) || e), 'err'); });
+        };
+        sb.rpc('adjust_points', {
+            p_operator_id: me ? me.id : null,
+            p_user_id: uid,
+            p_delta: delta,
+            p_reason: reason
+        }).then(function (res) {
+            if (res.error) {
+                var missing = res.error.code === 'PGRST202' ||
+                    /could not find the function/i.test(res.error.message || '');
+                if (!missing) throw new Error(res.error.message);
+                return legacy();
+            }
+            if (res.data && res.data.error) throw new Error(res.data.error);
+            return res.data && res.data.balance;
+        }).then(function (after) {
+            afterAction(after);
+            done();
+        }).catch(function (e) {
+            HWLayout.toast('调分失败: ' + ((e && e.message) || e), 'err');
+            done();
+        });
     }
 
     /* —— 封禁（P13f：全局 / 活动） —— */
@@ -728,15 +762,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function unbanGlobal(uid) {
-        if (!window.confirm('确定解除该用户的全局封禁？')) return;
-        HWAuth.getClient().from('site_users').update({ banned: false, banned_reason: '', banned_until: null }).eq('id', uid)
-            .then(function (r) {
-                if (r.error) throw new Error(r.error.message);
-                HWLayout.notifyUser(uid, '封禁已解除', '你的账号已恢复正常使用。', 'index.html');
-                HWLayout.toast('已解除封禁');
-                if (HWLayout.isAdminNow()) loadPermUsers();
-                renderMyRegistrants();
-            }).catch(function (e) { HWLayout.toast('解除失败: ' + (e.message || e), 'err'); });
+        HWLayout.confirmDialog({
+            title: '解除封禁',
+            message: '确定解除该用户的全局封禁？解除后对方可立即恢复报名与竞猜。',
+            okText: '解除封禁'
+        }).then(function (ok) {
+            if (!ok) return;
+            HWAuth.getClient().from('site_users').update({ banned: false, banned_reason: '', banned_until: null }).eq('id', uid)
+                .then(function (r) {
+                    if (r.error) throw new Error(r.error.message);
+                    HWLayout.notifyUser(uid, '封禁已解除', '你的账号已恢复正常使用。', 'index.html');
+                    HWLayout.toast('已解除封禁');
+                    if (HWLayout.isAdminNow()) loadPermUsers();
+                    renderMyRegistrants();
+                }).catch(function (e) { HWLayout.toast('解除失败: ' + (e.message || e), 'err'); });
+        });
     }
     function unbanEvent(banId) {
         HWAuth.getClient().from('event_bans').delete().eq('id', banId)

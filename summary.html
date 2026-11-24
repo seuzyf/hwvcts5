@@ -213,6 +213,9 @@
                 tablePane.hidden = name !== 'table';
                 comparePane.hidden = name !== 'compare';
                 if (name === 'compare') renderCompareTab();
+                if (window.HWLayout && HWLayout.reveal) {
+                    HWLayout.reveal(name === 'compare' ? comparePane : tablePane);
+                }
                 location.hash = name === 'compare' ? 'compare' : '';
             }
             tabBtns.forEach(function (b) {

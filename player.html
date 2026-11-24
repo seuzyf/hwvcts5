@@ -276,7 +276,17 @@
         };
         commentsList.innerHTML = commentTree.length === 0 ? '<p style="color:var(--text-muted);">暂无评论，快来抢沙发吧！</p>' : commentTree.map(renderComment).join('');
 
-        document.querySelectorAll('.delete-comment-btn').forEach(button => { button.addEventListener('click', (event) => { if (confirm('您确定要删除这条评论吗？')) { handleDeleteComment(event.target.dataset.commentId, uniquePlayerKey); } }); });
+        document.querySelectorAll('.delete-comment-btn').forEach(button => {
+            button.addEventListener('click', (event) => {
+                HWLayout.confirmDialog({
+                    title: '删除评论',
+                    message: '删除后无法恢复，确定删除这条评论吗？',
+                    okText: '删除', danger: true
+                }).then(function (ok) {
+                    if (ok) handleDeleteComment(event.target.dataset.commentId, uniquePlayerKey);
+                });
+            });
+        });
         document.querySelectorAll('.reply-comment-btn').forEach(button => { button.addEventListener('click', (event) => { const commentId = event.target.dataset.commentId; showReplyForm(commentId, uniquePlayerKey); }); });
     }
     

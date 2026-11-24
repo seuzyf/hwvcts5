@@ -16,9 +16,9 @@
 | P0 | 浅色模式积分/次要文字对比度不足 | 可读性 | ✅ 已修 |
 | P1 | 商店详情样式简陋 | 观感 | ✅ 已修 |
 | P1 | 数据中心可选已取消/草稿赛事 | 数据可信度 | ✅ 已修 |
-| P1 | 全站 `select *` / 前端 500 行过滤 | 性能 | ⏳ 见 B-3 |
-| P0 | 全表 RLS `using (true)` + 客户端自提权 | **数据安全** | ⏳ 见 B-1 |
-| P0 | 明文可逆的账号体系（自动注册 + 无盐 SHA-256） | **账号安全** | ⏳ 见 B-1 |
+| P1 | 全站 `select *` / 前端 500 行过滤 | 性能 | 部分 ✅ / 见 B-3 |
+| P0 | 全表 RLS `using (true)` + 客户端自提权 | **数据安全** | ✅ 写路径已收敛 / RLS 待 Auth 迁移 |
+| P0 | 明文可逆的账号体系（自动注册 + 无盐 SHA-256） | **账号安全** | ✅ 已落地 |
 | P2 | 硬编码深色、页面标题不统一、重复样式 | 可维护性 | 部分 ✅ / 见 B-4 |
 
 ---
@@ -125,7 +125,7 @@ node --check <每个 script>            # → ALL OK
 git diff --check                      # → 无输出
 
 # 3) JSDOM 冒烟（stub Supabase + HWAuth/HWLayout）
-node /tmp/smoke3.js $(ls *.html)   # → 19 个页面全部 OK
+node /tmp/smoke3.js $(ls *.html)   # → 21 个页面全部 OK
 node /tmp/players_test.js   # 赛事下拉过滤正确
 node /tmp/shop_test.js      # 详情弹窗字段/状态/余额正确
 node /tmp/schedule_test.js  # 卡片可开、字段回填、只读态正确
@@ -133,6 +133,70 @@ node /tmp/schedule_test.js  # 卡片可开、字段回填、只读态正确
 
 > 说明：早期冒烟脚本在 `index.html` 报 `HWLayout.renderAuth is not a function`，经核对为**测试 stub 未导出该方法**（`js/layout.js:1292` 确有导出），补齐 stub 后 `index.html` 通过。`s5draft.html` 的 "Not implemented: navigation" 是跳转桩的正常行为。
 > **待补**：真实浏览器下的深/浅色视觉走查（见 C）。
+
+### A-9 P0 安全整改（本轮一起进 PR）
+
+**`supabase/hardening.sql`（新增，幂等）**
+
+| 内容 | 说明 |
+| --- | --- |
+| `site_settings` + `check_admin_password` | 站点一直在调这个 RPC，但仓库里**根本没有定义**；补上后管理口令链路才真正可用 |
+| `promote_self_admin(p_pwd, p_user_id)` | 服务端再校验一次口令，替代前端直接 `update role` |
+| `set_user_role(...)` | 只有 admin/superadmin 能改角色，授 `admin` 需 superadmin |
+| `adjust_points(...)` | 原子调分 + 写流水，禁止扣成负数 |
+| `recalc_balance(p_user_id)` | 服务端按同一公式重算，前端不再拉全表 |
+| `s5_bet_bets` | 与 `s5_match_schedule` 对齐的竞猜表 |
+| 8 个索引 | 下注/兑换/流水/比赛按 user_id、match_id、event_id 命中索引 |
+
+> 行级 RLS（`using (auth.uid() = id)`）**没有**在本轮直接打开：站点是自建用户名密码登录，`auth.uid()` 恒为空，强行打开会让所有人无法写入。文件末尾给出了 `AUTH_MIGRATION` 的完整步骤，迁移到 Supabase Auth 后再启用。
+
+**`js/auth.js`**
+
+- 关闭「用户名不存在就自动注册」，注册必须显式走注册页签。
+- 新密码改为 **PBKDF2-SHA-256，12 万轮 + 每用户随机盐**，格式 `pbkdf2$iter$salt$hash`。
+- 兼容历史 SHA-256 与明文：登录校验通过后**后台自动升级**为 PBKDF2，用户无感。
+- 密码最短位数 4 → 6；新增 `HWAuth.resetPassword()`（旧的管理员重置调用了不存在的 `sha256Hex`，实际是坏的）。
+- `updateProfile` 不再允许自助修改 `role`。
+
+**`js/layout.js` / `admin.html` / `betting.html`**
+
+- `promoteRole(pwd)` → `promote_self_admin` RPC，仅函数未部署时回退旧路径。
+- `recalcBalance` → `recalc_balance` RPC，失败回退客户端计算。
+- `admin.html` 调分 → `adjust_points` RPC（原子），带按钮 loading 态。
+- `betting.html` 下注按赛季选 `s5/s6_bet_bets`，旧环境自动回退。
+
+**`supabase/seed.sql`（新增）**
+
+- 12 个账号（密码 `password123`）、5 种赛事状态、25 名选手、8 场赛程、3 场完整赛果、13 条下注、积分流水、5 个商品、6 条兑换、通知/队长/组织者申请/封禁。
+- 幂等，可重复执行；`select * from recalc_balance(...)` 可直接验证公式。
+
+### A-10 交互与动效整改（按「复杂留给我们」八条原则）
+
+| 原则 | 落地 |
+| --- | --- |
+| 系统能判断的，不留给用户 | 首次访问跟随系统深浅色；赛程时间自动换算时区；密码哈希后台自动升级；竞猜状态 30s 自动刷新 |
+| 此刻没用的，就不出现 | 非管理员不显示赛程保存按钮（改为提示）；商品非创建者不显示编辑/下架；记录为空不显示导出 |
+| 能替人做的，就直接做 | 兑换扣库存/扣积分走 `redeem_goods` 原子函数；调分自动记流水；下注自动按赛季选表 |
+| 同一件事，处处一样 | 全站弹窗共用一套 × / Esc / 焦点圈 / 滚动锁；7 处原生 `confirm` 换成同一个 `HWLayout.confirmDialog` |
+| 按下去有回应，再按能收回 | 按钮/卡片 `:active` 按压缩放；撤销预测改为「再点一次确认」两段式，3 秒可反悔 |
+| 不打断人手上的事 | 去掉所有原生 `confirm`；toast 不阻塞；弹窗打开时背景滚动锁定但焦点留在弹窗内 |
+| 常用的好做，会丢东西的难误碰 | 危险操作统一红色主按钮 + 默认聚焦「取消」；删除/撤回需二次确认 |
+| 界面自己说明自己 | 加载态用骨架屏代替「加载中…」；空状态写清下一步；数字变化有上浮提示 |
+
+**动效系统（`css/theme.css`）**
+
+- 统一 token：`--ease-out`（出场）/ `--ease-in-out`（位移）/ `--dur-fast|base|slow`，全站不再各写各的。
+- 弹窗改为 `opacity + visibility` 切换（不再是 `display:none`），**关闭也有真正的退场动画**，沿原路返回。
+- 面板进场 `translateY(14px) scale(.985) → none`，遮罩淡入；退场同一条曲线。
+- 页面进场只做 opacity（不做 transform，避免破坏 `position: sticky` / `fixed` 子元素）。
+- 内容切换 `reveal-in`（4px 上移 + 淡入），数字变化 `num-bump`。
+- 骨架屏 shimmer、toast 滑入淡出，全部走 token。
+- `prefers-reduced-motion` 下所有动画与过渡压到 0.01ms，状态仍由颜色/文字交代。
+
+**性能**
+
+- 只动 `transform` / `opacity`，不触发布局与重绘；骨架屏用伪元素，不增加 DOM 层级。
+- 长列表不做逐项动画（避免上百个动画同时跑）；列表只做一次性容器淡入。
 
 ---
 
@@ -260,7 +324,7 @@ create policy xxx_write on public.xxx for all using (true) with check (true);
 
 - [ ] `node --check` 全绿（已通过）
 - [ ] `git diff --check` 无空白错误（已通过）
-- [ ] JSDOM 冒烟 19 个页面全 OK（已通过）
+- [x] JSDOM 冒烟 21 个页面全 OK（已通过）
 - [ ] 真实 Supabase 环境点一遍"赛程保存 → 竞猜状态变化"（**待做**）
 
 ---
@@ -280,7 +344,12 @@ create policy xxx_write on public.xxx for all using (true) with check (true);
 ## E. 本次改动文件
 
 ```
-admin.html      弹窗 ARIA + 头像裁剪 role
+404.html        新增：统一风格的 404 页
+FEATURE-AUDIT.md 新增：功能盘点与缺口分析
+scripts/check.js 新增：npm run check（脚本语法 + CSS 配对）
+supabase/hardening.sql 新增：P0 安全 RPC / 索引 / S5 竞猜表
+supabase/seed.sql     新增：12 账号 + 5 赛事 + 25 选手 + 13 下注等测试数据
+admin.html      弹窗 ARIA + 头像裁剪 role + 调分走 RPC + 重置密码修复
 betting.html    卡片键盘/ARIA、30s 状态刷新
 css/theme.css   滚动条 token、滚动锁、focus ring、浅色对比度
 draft.html      两个确认面板 × 按钮 + ARIA

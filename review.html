@@ -127,7 +127,7 @@
             if (res.error || res.data !== true) { document.getElementById('rv-gate-msg').textContent = '口令错误。'; return; }
             sessionStorage.setItem('hw_admin_verified_at', String(Date.now()));
             HWLayout.markAdmin(15);
-            HWLayout.promoteRole();
+            HWLayout.promoteRole(pwd);
             document.dispatchEvent(new CustomEvent('hw:admin'));
             boot();
           }).catch(function (e) {

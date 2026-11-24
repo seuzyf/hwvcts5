@@ -893,11 +893,15 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         const playerName = tr.querySelector('input[data-col="name"]').value;
         const isNewRow = tr.dataset.isNew === 'true';
         if (isNewRow || !playerName) { tr.remove(); return; }
-        if (confirm(`您确定要从数据库中永久删除选手 "${playerName}" 吗？此操作不可撤销。`)) {
-            const { error } = await supabaseClient.from(getSeasonTableName('player_ids')).delete().eq('name', playerName);
-            if (error) { toast(`删除失败: ${error.message}`, 'err'); } 
-            else { toast(`选手 "${playerName}" 已删除`); tr.remove(); allPlayersData = allPlayersData.filter(p => p.name !== playerName); }
-        }
+        const ok = await HWLayout.confirmDialog({
+            title: '永久删除选手',
+            message: `确定要从数据库中永久删除选手「${playerName}」吗？此操作不可撤销。`,
+            okText: '永久删除', danger: true
+        });
+        if (!ok) return;
+        const { error } = await supabaseClient.from(getSeasonTableName('player_ids')).delete().eq('name', playerName);
+        if (error) { toast(`删除失败: ${error.message}`, 'err'); }
+        else { toast(`选手 "${playerName}" 已删除`); tr.remove(); allPlayersData = allPlayersData.filter(p => p.name !== playerName); }
     }
     window.handleDeleteId = handleDeleteId;
 

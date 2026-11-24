@@ -234,7 +234,9 @@
       async function loadAll() {
         var tb = document.getElementById('dc-tbody');
         var empty = document.getElementById('dc-empty');
-        tb.innerHTML = '<tr><td colspan="14">加载中…</td></tr>';
+        tb.innerHTML = (window.HWLayout && HWLayout.skeletonRows)
+          ? HWLayout.skeletonRows(14, 6)
+          : '<tr><td colspan="14">加载中…</td></tr>';
         empty.hidden = true;
 
         var prefixes = state.season ? [state.season] : ['s6', 's5'];

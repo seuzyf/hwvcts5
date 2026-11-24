@@ -283,6 +283,7 @@
       return v;
     }).then(function (v) {
       el.innerHTML = v == null ? '' : ('我的积分：<strong>' + esc(String(v)) + '</strong>');
+      if (window.HWLayout && HWLayout.bump) HWLayout.bump(el.querySelector('strong'));
       return v;
     });
   }
@@ -296,6 +297,10 @@
   }
   function loadGoods() {
     var host = document.getElementById('shop-grid');
+    /* 加载态用骨架屏，避免「加载中…」闪一下又跳走 */
+    if (host && !host.dataset.loaded && window.HWLayout && HWLayout.skeletonCards) {
+      host.innerHTML = HWLayout.skeletonCards(6);
+    }
     return sb().from('goods').select('*').order('id', { ascending: false }).then(function (r) {
       var rows = (r && !r.error && r.data) || [];
       var u = me();
@@ -310,6 +315,7 @@
         return;
       }
       document.getElementById('shop-empty').hidden = true;
+      host.dataset.loaded = '1';
       host.innerHTML = state.goods.map(function (g) {
         var out = g.status !== 'active' || g.stock <= 0;
         var thumb = g.image_url
@@ -702,6 +708,9 @@
     document.getElementById('tab-goods').hidden = name !== 'goods';
     document.getElementById('tab-records').hidden = name !== 'records';
     document.getElementById('shop-csv').hidden = name !== 'records' || !state.records.length;
+    if (window.HWLayout && HWLayout.reveal) {
+      HWLayout.reveal(document.getElementById(name === 'goods' ? 'tab-goods' : 'tab-records'));
+    }
     if (name === 'records') loadRecords();
   }
 

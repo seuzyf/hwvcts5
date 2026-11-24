@@ -514,7 +514,16 @@
       }
 
       function cancelReg(regId) {
-        if (!confirm('确定撤回这条报名吗？')) return;
+        HWLayout.confirmDialog({
+          title: '撤回报名',
+          message: '确定撤回这条报名？撤回后可重新报名，名额会释放给候补。',
+          okText: '撤回报名', danger: true
+        }).then(function (ok) {
+          if (!ok) return;
+          doCancelReg(regId);
+        });
+      }
+      function doCancelReg(regId) {
         sb().from('event_registrations').update({ status: 'cancelled', updated_at: new Date().toISOString() })
           .eq('id', regId)
           .then(function (res) {

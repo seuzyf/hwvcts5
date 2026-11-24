@@ -788,9 +788,15 @@
                             }).join('') : '<span class="muted">尚未设置队长。</span>';
                             Array.prototype.forEach.call(capList.querySelectorAll('button[data-cap]'), function (b) {
                                 b.addEventListener('click', function () {
-                                    if (!confirm('移除该活动队长？')) return;
-                                    HWAuth.getClient().from('event_captains').delete().eq('id', b.dataset.cap)
-                                        .then(function (r) { if (r && r.error) { HWLayout.toast(r.error.message); return; } capRefresh(); });
+                                    HWLayout.confirmDialog({
+                                        title: '移除队长',
+                                        message: '确定移除该活动队长？移除后对方在分队页不再拥有队长权限。',
+                                        okText: '移除', danger: true
+                                    }).then(function (ok) {
+                                        if (!ok) return;
+                                        HWAuth.getClient().from('event_captains').delete().eq('id', b.dataset.cap)
+                                            .then(function (r) { if (r && r.error) { HWLayout.toast(r.error.message); return; } capRefresh(); });
+                                    });
                                 });
                             });
                         }).catch(function () { capList.innerHTML = '<span class="muted">队长列表加载失败</span>'; });
@@ -856,7 +862,16 @@
 
         /* ---------- registration ops ---------- */
         function cancelReg(regId, keepDetailEventId) {
-            if (!confirm('确定撤回这条报名吗？')) return;
+            HWLayout.confirmDialog({
+                title: '撤回报名',
+                message: '确定撤回这条报名？撤回后名额会释放给候补，且需要重新报名才能再次参赛。',
+                okText: '撤回报名', danger: true
+            }).then(function (ok) {
+                if (!ok) return;
+                doCancelReg(regId, keepDetailEventId);
+            });
+        }
+        function doCancelReg(regId, keepDetailEventId) {
             HWAuth.getClient().from('event_registrations')
                 .update({ status: 'cancelled', updated_at: new Date().toISOString() })
                 .eq('id', regId)
@@ -895,7 +910,7 @@
                     sessionStorage.setItem('hw_admin_verified_at', String(Date.now()));
                     // 口令正确 → 全站管理会话（15 分钟）+ 尝试把当前账号升级为 admin 角色
                     HWLayout.markAdmin(15);
-                    HWLayout.promoteRole();
+                    HWLayout.promoteRole(pwd);
                     document.dispatchEvent(new CustomEvent('hw:admin'));
                     document.getElementById('admin-modal').classList.remove('visible');
                     updateAdminUI();
