@@ -1,6 +1,11 @@
 {
   "name": "hwvcts5",
   "private": true,
+  "scripts": {
+    "check": "node scripts/check.js",
+    "check:sql": "python3 -c \"from pglast import parse_sql; [parse_sql(open(f,encoding='utf-8').read()) for f in ['supabase/schema.sql','supabase/bootstrap.sql','supabase/hardening.sql','supabase/seed.sql']]; print('SQL OK')\"",
+    "serve": "python3 -m http.server 8080"
+  },
   "dependencies": {
     "jsdom": "^26.0.0",
     "lucide-static": "^0.462.0"

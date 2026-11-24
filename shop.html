@@ -13,32 +13,121 @@
   <script src="js/layout.js"></script>
   <style>
     .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
-    .shop-card { cursor: pointer; display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+    .shop-card {
+      cursor: pointer; display: flex; flex-direction: column; overflow: hidden; padding: 0;
+      transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.15s ease;
+    }
+    .shop-card:hover { transform: translateY(-2px); }
     .shop-card .shop-thumb { height: 132px; background: var(--graphite); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .shop-card .shop-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .shop-card .shop-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.35s ease; }
+    .shop-card:hover .shop-thumb img { transform: scale(1.03); }
     .shop-card .shop-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
     .shop-title { font-size: 15px; font-weight: 600; color: var(--pure-white); }
     .shop-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .shop-cost { color: var(--coral-pulse); font-weight: 700; font-family: var(--font-mono); }
+    #shop-balance { font-variant-numeric: tabular-nums; }
+    #shop-balance strong { color: var(--coral-pulse); font-family: var(--font-mono); font-weight: 700; }
     .shop-card.out .shop-thumb { opacity: 0.45; filter: grayscale(1); }
     .shop-card.out .shop-title { color: var(--smoke); }
     .shop-detail-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .gm-hero { position: relative; height: 220px; background: linear-gradient(135deg, var(--obsidian), var(--graphite)); overflow: hidden; }
-    .gm-hero-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--smoke); }
-    .gm-hero-fallback .ico { width: 56px; height: 56px; opacity: 0.5; }
-    .gm-cost-chip {
-      position: absolute; right: 16px; bottom: 14px; display: flex; align-items: baseline; gap: 5px;
-      background: rgba(4,5,6,0.72); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 999px; padding: 7px 16px; color: var(--pure-white);
-      font-family: var(--font-mono); box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+
+    /* ── 商品详情：完整商品页式弹窗 ───────────────────────────── */
+    .gm-panel { max-width: 640px; padding: 0; overflow: hidden; }
+    .gm-scroll { max-height: 88vh; max-height: min(88vh, 880px); overflow-y: auto; overscroll-behavior: contain; }
+    .gm-scroll::-webkit-scrollbar { width: 8px; }
+    .gm-close {
+      color: var(--pure-white);
+      background: var(--ink); background: color-mix(in srgb, var(--ink) 62%, transparent);
+      border: 1px solid var(--border); backdrop-filter: blur(10px);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
     }
-    .gm-cost-chip span { font-size: 20px; font-weight: 700; color: var(--gold-light); line-height: 1; }
-    .gm-cost-chip small { font-size: 11px; color: var(--mist); letter-spacing: 0.06em; }
-    .gm-body { padding: 20px 24px 24px; }
+    .gm-close:hover { color: var(--void-black); background: var(--mist); }
+    .gm-hero {
+      position: relative; height: 240px; overflow: hidden;
+      background:
+        radial-gradient(ellipse 70% 90% at 30% 10%, var(--ember-hush), transparent 65%),
+        linear-gradient(135deg, var(--obsidian), var(--graphite));
+    }
+    .gm-hero-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--smoke); }
+    .gm-hero-fallback .ico { width: 64px; height: 64px; opacity: 0.45; }
+    .gm-hero-shade {
+      position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 38%, rgba(0, 0, 0, 0.55));
+    }
+    .gm-hero-top { position: absolute; z-index: 2; top: 14px; left: 16px; right: 58px; display: flex; align-items: center; gap: 8px; }
+    .gm-stock-badge {
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em;
+      color: var(--pure-white);
+      background: var(--ink); background: color-mix(in srgb, var(--ink) 72%, transparent);
+      border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+      backdrop-filter: blur(8px);
+    }
+    .gm-cost-chip {
+      position: absolute; z-index: 2; right: 16px; bottom: 14px;
+      display: flex; align-items: baseline; gap: 6px;
+      background: var(--ink); background: color-mix(in srgb, var(--ink) 82%, transparent);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 999px; padding: 8px 18px; color: var(--pure-white);
+      font-family: var(--font-mono); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    }
+    .gm-cost-chip span { font-size: 22px; font-weight: 700; color: var(--coral-pulse); line-height: 1; }
+    .gm-cost-chip small { font-size: 11px; color: var(--ash); letter-spacing: 0.06em; }
+    .gm-body { padding: 22px 26px 4px; }
+    .gm-body h2 { margin: 6px 0 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--pure-white); }
+    .gm-body #gm-desc { margin: 10px 0 0; line-height: 1.75; white-space: pre-line; }
+    .gm-meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+    .gm-meta { background: var(--obsidian); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+    .gm-meta .k {
+      display: block; font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--smoke);
+    }
+    .gm-meta .v { display: block; margin-top: 4px; font-family: var(--font-mono); font-size: 16px; font-weight: 600; color: var(--pure-white); }
+    .gm-conds { margin-top: 20px; }
+    .gm-conds-head {
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--smoke); margin-bottom: 10px;
+    }
+    .gm-conds-count { color: var(--ash); }
+    .gm-cond {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+      padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--obsidian); font-size: 14px; color: var(--mist);
+    }
+    .gm-cond .ico { flex: none; color: var(--success-green); }
+    .gm-cond.fail { border-color: rgba(255, 99, 99, 0.35); }
+    .gm-cond.fail .ico { color: var(--coral-pulse); }
+    .gm-cond .why { margin-left: auto; font-size: 12px; color: var(--smoke); }
+    .gm-cond-conn {
+      flex: none; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em;
+      color: var(--ash); background: var(--graphite); border: 1px solid var(--border);
+      border-radius: 999px; padding: 2px 8px;
+    }
+    .gm-cond-none {
+      display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+      border: 1px dashed var(--border); border-radius: 10px; color: var(--ash); font-size: 14px;
+    }
+    .gm-actions {
+      position: sticky; bottom: 0; z-index: 3;
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 14px 26px 18px; margin-top: 18px;
+      background: var(--ink); border-top: 1px solid var(--border);
+    }
+    .gm-actions-row { display: flex; gap: 8px; }
+    .gm-actions-row:empty { display: none; }
+    .gm-redeem { width: 100%; }
+    .gm-footnote { margin: 0; text-align: center; font-size: 12px; color: var(--smoke); }
     .cond-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
     .cond-row .select { flex: 1; }
     .cond-row .input { width: 90px; }
     .rec-table td, .rec-table th { padding: 9px 10px; }
+    @media (max-width: 560px) {
+      .gm-hero { height: 200px; }
+      .gm-body { padding: 18px 18px 4px; }
+      .gm-meta-grid { grid-template-columns: 1fr; }
+      .gm-actions { padding: 12px 18px 16px; }
+    }
   </style>
 </head>
 <body data-page="shop">
@@ -84,27 +173,40 @@
 
   <!-- 商品详情（×-only） -->
   <div id="goods-modal" class="modal-backdrop">
-    <div class="modal-panel" style="max-width:560px; padding:0; overflow:hidden;">
-      <button class="modal-close" id="gm-close" type="button">&times;</button>
-      <div class="gm-hero" id="gm-hero">
-        <img id="gm-img" class="shop-detail-img" alt="" hidden>
-        <div class="gm-hero-fallback" id="gm-hero-fallback"></div>
-        <div class="gm-cost-chip"><span id="gm-cost-num">0</span><small>积分</small></div>
-      </div>
-      <div class="gm-body">
-        <span class="eyebrow">Goods</span>
-        <h2 id="gm-title" style="margin:4px 0 0; font-size:20px; color:var(--pure-white);"></h2>
-        <p id="gm-desc" class="smoke" style="margin:10px 0 0; line-height:1.7;"></p>
-        <div class="meta-grid" style="margin-top:16px;">
-          <div class="meta-cell"><div class="k">兑换积分</div><div class="v" id="gm-cost"></div></div>
-          <div class="meta-cell"><div class="k">库存</div><div class="v" id="gm-stock"></div></div>
-          <div class="meta-cell"><div class="k">我的余额</div><div class="v" id="gm-balance"></div></div>
+    <div class="modal-panel gm-panel" role="dialog" aria-modal="true" aria-labelledby="gm-title">
+      <button class="modal-close gm-close" id="gm-close" type="button" aria-label="关闭">&times;</button>
+      <div class="gm-scroll">
+        <div class="gm-hero" id="gm-hero">
+          <img id="gm-img" class="shop-detail-img" alt="" hidden>
+          <div class="gm-hero-fallback" id="gm-hero-fallback"></div>
+          <div class="gm-hero-shade"></div>
+          <div class="gm-hero-top">
+            <span class="badge" id="gm-status-badge">兑换中</span>
+            <span class="gm-stock-badge" id="gm-stock-badge">库存 —</span>
+          </div>
+          <div class="gm-cost-chip"><span id="gm-cost-num">0</span><small>积分</small></div>
         </div>
-        <div id="gm-conds" style="margin-top:14px;"></div>
-        <div class="modal-actions">
-          <button class="btn btn-ghost" id="gm-edit" type="button" hidden>编辑</button>
-          <button class="btn btn-ghost" id="gm-toggle" type="button" hidden>下架</button>
-          <button class="btn btn-primary" id="gm-redeem" type="button">兑 换</button>
+        <div class="gm-body">
+          <span class="eyebrow">Goods · 积分商店</span>
+          <h2 id="gm-title"></h2>
+          <p id="gm-desc" class="smoke"></p>
+          <div class="gm-meta-grid">
+            <div class="gm-meta"><span class="k">兑换积分</span><span class="v" id="gm-cost"></span></div>
+            <div class="gm-meta"><span class="k">库存</span><span class="v" id="gm-stock"></span></div>
+            <div class="gm-meta"><span class="k">我的余额</span><span class="v" id="gm-balance">…</span></div>
+          </div>
+          <div class="gm-conds">
+            <div class="gm-conds-head"><span>兑换条件</span><span class="gm-conds-count" id="gm-conds-count"></span></div>
+            <div id="gm-conds"></div>
+          </div>
+        </div>
+        <div class="gm-actions">
+          <div class="gm-actions-row">
+            <button class="btn btn-ghost" id="gm-edit" type="button" hidden>编辑</button>
+            <button class="btn btn-ghost" id="gm-toggle" type="button" hidden>下架</button>
+          </div>
+          <button class="btn btn-primary btn-lg gm-redeem" id="gm-redeem" type="button">兑 换</button>
+          <p class="gm-footnote">兑换后积分立即扣除，记录可在「兑换记录」查看。</p>
         </div>
       </div>
     </div>
@@ -112,8 +214,8 @@
 
   <!-- 新增/编辑商品（×-only） -->
   <div id="goods-form-modal" class="modal-backdrop">
-    <div class="modal-panel" style="max-width:560px;">
-      <button class="modal-close" id="gf-close" type="button">&times;</button>
+    <div class="modal-panel" style="max-width:560px;" role="dialog" aria-modal="true" aria-labelledby="gf-title">
+      <button class="modal-close" id="gf-close" type="button" aria-label="关闭">&times;</button>
       <span class="eyebrow">Editor</span>
       <h2 id="gf-title" style="margin:6px 0 14px; font-size:18px; color:var(--pure-white);">新增商品</h2>
       <label class="form-label" for="gf-name">名称</label>
@@ -180,7 +282,8 @@
       }
       return v;
     }).then(function (v) {
-      el.textContent = v == null ? '' : ('我的积分：' + v);
+      el.innerHTML = v == null ? '' : ('我的积分：<strong>' + esc(String(v)) + '</strong>');
+      if (window.HWLayout && HWLayout.bump) HWLayout.bump(el.querySelector('strong'));
       return v;
     });
   }
@@ -194,6 +297,10 @@
   }
   function loadGoods() {
     var host = document.getElementById('shop-grid');
+    /* 加载态用骨架屏，避免「加载中…」闪一下又跳走 */
+    if (host && !host.dataset.loaded && window.HWLayout && HWLayout.skeletonCards) {
+      host.innerHTML = HWLayout.skeletonCards(6);
+    }
     return sb().from('goods').select('*').order('id', { ascending: false }).then(function (r) {
       var rows = (r && !r.error && r.data) || [];
       var u = me();
@@ -208,12 +315,13 @@
         return;
       }
       document.getElementById('shop-empty').hidden = true;
+      host.dataset.loaded = '1';
       host.innerHTML = state.goods.map(function (g) {
         var out = g.status !== 'active' || g.stock <= 0;
         var thumb = g.image_url
           ? '<img src="' + esc(g.image_url) + '" alt="">'
           : HWLayout.ico('gift', 34);
-        return '<div class="card card-hover shop-card' + (out ? ' out' : '') + '" data-goods="' + g.id + '">' +
+        return '<div class="card card-hover shop-card' + (out ? ' out' : '') + '" data-goods="' + g.id + '" role="button" tabindex="0" aria-label="查看商品 ' + esc(g.title) + '">' +
           '<div class="shop-thumb">' + thumb + '</div>' +
           '<div class="shop-body">' +
           '  <div class="shop-title">' + esc(g.title) + '</div>' +
@@ -226,6 +334,9 @@
       }).join('');
       host.querySelectorAll('[data-goods]').forEach(function (el) {
         el.addEventListener('click', function () { openDetail(parseInt(el.dataset.goods, 10)); });
+        el.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(parseInt(el.dataset.goods, 10)); }
+        });
       });
     }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; });
   }
@@ -303,6 +414,30 @@
     }
     return { ok: acc, reasons: reasons };
   }
+  /* 单条条件判定：详情弹窗用「已满足 / 未满足」行展示，而不是一串徽章 */
+  function condOk(c, facts) {
+    if (!c) return true;
+    if (c.type === 'event_any') return !!facts.participated;
+    if (c.type === 'reg_min') return facts.regCount >= (c.value || 0);
+    if (c.type === 'match_min') return facts.matchCount >= (c.value || 0);
+    if (c.type === 'balance_min') return (facts.balance || 0) >= (c.value || 0);
+    return true;
+  }
+  function condRowsHtml(conds, facts) {
+    if (!conds || !conds.length) {
+      return '<div class="gm-cond-none">' + HWLayout.ico('circle-check', 18) + ' 无条件限制，所有成员均可兑换</div>';
+    }
+    return conds.map(function (c, i) {
+      var t = COND_TYPES[c.type] || COND_TYPES.reg_min;
+      var text = t.label + (t.hasValue ? ' ' + (c.value != null ? c.value : 0) : '');
+      var ok = facts ? condOk(c, facts) : true;
+      var conn = i > 0 ? '<span class="gm-cond-conn">' + (c.conn === 'or' ? '或' : '且') + '</span>' : '';
+      return '<div class="gm-cond' + (ok ? '' : ' fail') + '">' + conn +
+        HWLayout.ico(ok ? 'circle-check' : 'circle-x', 18) +
+        '<span>' + esc(text) + '</span>' +
+        '</div>';
+    }).join('');
+  }
   function gatherFacts(conds, u) {
     var needReg = conds.some(function (c) { return c.type === 'event_any' || c.type === 'reg_min'; });
     var needMatch = conds.some(function (c) { return c.type === 'match_min'; });
@@ -343,33 +478,71 @@
     var g = state.goods.filter(function (x) { return x.id === id; })[0];
     if (!g) return;
     state.viewing = g;
+    state.viewToken = (state.viewToken || 0) + 1;
+    var token = state.viewToken;
+
     document.getElementById('gm-title').textContent = g.title;
     var img = document.getElementById('gm-img');
     var fallback = document.getElementById('gm-hero-fallback');
     if (g.image_url) { img.src = g.image_url; img.hidden = false; fallback.innerHTML = ''; }
     else { img.hidden = true; fallback.innerHTML = HWLayout.ico('gift', 56); }
+
     document.getElementById('gm-desc').textContent = g.description || '（暂无描述）';
     document.getElementById('gm-cost').textContent = g.cost + ' 积分';
     document.getElementById('gm-cost-num').textContent = String(g.cost);
-    document.getElementById('gm-stock').textContent = g.stock > 0 ? String(g.stock) : '0（已售罄）';
-    document.getElementById('gm-balance').textContent = '…';
-    document.getElementById('gm-conds').innerHTML = condsHtml(g.conditions, false);
-    var staff = isStaff();
+    document.getElementById('gm-stock').textContent = g.stock > 0 ? String(g.stock) : '0';
+    document.getElementById('gm-stock-badge').textContent = g.stock > 0 ? ('库存 ' + g.stock) : '已售罄';
+
+    var out = g.status !== 'active' || g.stock <= 0;
+    var statusBadge = document.getElementById('gm-status-badge');
+    statusBadge.className = 'badge ' + (g.status !== 'active' ? 'badge-quiet' : (g.stock <= 0 ? 'badge-gold' : 'badge-green'));
+    statusBadge.textContent = g.status !== 'active' ? '已下架' : (g.stock <= 0 ? '已售罄' : '兑换中');
+
+    var conds = g.conditions || [];
+    document.getElementById('gm-conds-count').textContent = conds.length ? (conds.length + ' 项') : '—';
+    document.getElementById('gm-conds').innerHTML = condRowsHtml(conds, null);
+
     var mine = canManage(g);
     document.getElementById('gm-edit').hidden = !mine;
     document.getElementById('gm-toggle').hidden = !mine;
     document.getElementById('gm-toggle').textContent = g.status === 'active' ? '下架' : '上架';
-    document.getElementById('gm-redeem').hidden = !me();
+
+    var redeem = document.getElementById('gm-redeem');
+    redeem.hidden = false;
+    redeem.onclick = null;
+    if (out) {
+      redeem.disabled = true;
+      redeem.textContent = g.stock <= 0 ? '已售罄' : '已下架';
+    } else if (!me()) {
+      redeem.disabled = false;
+      redeem.textContent = '登录后兑换';
+    } else {
+      redeem.disabled = false;
+      redeem.textContent = '兑换 · ' + g.cost + ' 积分';
+    }
+
+    document.getElementById('gm-balance').textContent = me() ? '…' : '—';
     document.getElementById('goods-modal').classList.add('visible');
-    loadMyBalance().then(function (b) {
-      document.getElementById('gm-balance').textContent = b == null ? '—' : b;
-    });
+
+    if (me()) {
+      loadMyBalance().then(function (b) {
+        if (state.viewing !== g || token !== state.viewToken) return;
+        document.getElementById('gm-balance').textContent = b == null ? '—' : b;
+      });
+      if (conds.length) {
+        gatherFacts(conds, me()).then(function (facts) {
+          if (state.viewing !== g || token !== state.viewToken) return;
+          document.getElementById('gm-conds').innerHTML = condRowsHtml(conds, facts);
+        });
+      }
+    }
   }
 
   function doRedeem() {
     var g = state.viewing;
+    if (!g) return;
     var u = me();
-    if (!g || !u) return;
+    if (!u) { HWAuth.openModal().catch(function () {}); return; }
     if (g.status !== 'active' || g.stock <= 0) { toast('该商品不可兑换', 'err'); return; }
     var btn = document.getElementById('gm-redeem');
     btn.disabled = true;
@@ -474,8 +647,14 @@
     tbody.innerHTML = '<tr><td colspan="4">加载中…</td></tr>';
     var u = me();
     if (!u) { tbody.innerHTML = ''; document.getElementById('rec-empty').hidden = false; return Promise.resolve(); }
+    var adminView = isAdmin();
+    var staffView = isStaff();
+    var redsQuery = sb().from('goods_redemptions').select('id, goods_id, user_id, cost, created_at')
+      .order('created_at', { ascending: false });
+    /* 普通成员只拉自己的记录；管理员/组织者才需要全量再按商品归属过滤 */
+    if (!adminView && !staffView) redsQuery = redsQuery.eq('user_id', u.id);
     return Promise.all([
-      sb().from('goods_redemptions').select('id, goods_id, user_id, cost, created_at').order('created_at', { ascending: false }).limit(500),
+      redsQuery.limit(500),
       sb().from('goods').select('id, title, created_by'),
       sb().from('site_users').select('id, username, nickname')
     ]).then(function (rs) {
@@ -487,9 +666,9 @@
       users.forEach(function (x) { uMap[x.id] = x; });
       /* 范围：管理员=全部；组织者=自己商品；成员=自己 */
       var rows = reds.filter(function (r) {
-        if (isAdmin()) return true;
+        if (adminView) return true;
         var g = gMap[r.goods_id];
-        if (isStaff() && g && g.created_by != null && String(g.created_by) === String(u.id)) return true;
+        if (staffView && g && g.created_by != null && String(g.created_by) === String(u.id)) return true;
         return String(r.user_id) === String(u.id);
       });
       state.records = rows.map(function (r) {
@@ -529,6 +708,9 @@
     document.getElementById('tab-goods').hidden = name !== 'goods';
     document.getElementById('tab-records').hidden = name !== 'records';
     document.getElementById('shop-csv').hidden = name !== 'records' || !state.records.length;
+    if (window.HWLayout && HWLayout.reveal) {
+      HWLayout.reveal(document.getElementById(name === 'goods' ? 'tab-goods' : 'tab-records'));
+    }
     if (name === 'records') loadRecords();
   }
 

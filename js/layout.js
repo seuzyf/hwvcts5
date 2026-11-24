@@ -31,8 +31,16 @@
   var THEME_EVENT = 'hw:theme';
 
   function getTheme() {
-    try { return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark'; }
-    catch (e) { return 'dark'; }
+    var stored = null;
+    try { stored = localStorage.getItem(THEME_KEY); } catch (e) { /* private mode */ }
+    if (stored === 'light' || stored === 'dark') return stored;
+    /* 首次访问跟随系统深浅色：系统能判断的，不问用户 */
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+      }
+    } catch (e) { /* 老浏览器 */ }
+    return 'dark';
   }
   function setTheme(mode) {
     var t = mode === 'light' ? 'light' : 'dark';
@@ -132,6 +140,24 @@
     var page = document.body.dataset.page || '';
     var crumb = document.body.dataset.crumb || '';
 
+    /* 键盘用户的第一站：跳到主内容（屏幕阅读器同样受益） */
+    if (!document.getElementById('hw-skip-link')) {
+      var skip = document.createElement('a');
+      skip.id = 'hw-skip-link';
+      skip.className = 'skip-link';
+      skip.href = '#hw-main';
+      skip.textContent = '跳到主内容';
+      skip.addEventListener('click', function (e) {
+        var mainEl = document.querySelector('main') || document.getElementById('hw-main');
+        if (!mainEl) return;
+        e.preventDefault();
+        if (!mainEl.id) mainEl.id = 'hw-main';
+        mainEl.setAttribute('tabindex', '-1');
+        mainEl.focus();
+      });
+      document.body.insertBefore(skip, document.body.firstChild);
+    }
+
     var evCtx = null;
     try {
       var qpNav = new URLSearchParams(window.location.search);
@@ -198,6 +224,8 @@
     if (!host) {
       host = document.createElement('div');
       host.id = 'hw-toasts';
+      host.setAttribute('role', 'status');
+      host.setAttribute('aria-live', 'polite');
       document.body.appendChild(host);
     }
     if (!type) {
@@ -214,6 +242,45 @@
       t.classList.add('out');
       setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 320);
     }, 3000);
+  }
+
+  /** 内容切换时轻微淡入，交代「这一块换了」 */
+  function reveal(el) {
+    if (!el) return;
+    el.classList.remove('reveal-in');
+    void el.offsetWidth;
+    el.classList.add('reveal-in');
+    setTimeout(function () { el.classList.remove('reveal-in'); }, 300);
+  }
+
+  /** 数字/内容变化时轻微上浮一下，交代「这里变了」 */
+  function bump(el) {
+    if (!el) return;
+    el.classList.remove('num-bump');
+    void el.offsetWidth; /* 重启动画 */
+    el.classList.add('num-bump');
+    setTimeout(function () { el.classList.remove('num-bump'); }, 300);
+  }
+
+  /** 骨架屏片段：加载中用占位块代替「加载中…」文字 */
+  function skeletonRows(cols, rows) {
+    cols = cols || 4; rows = rows || 5;
+    var cells = '';
+    for (var c = 0; c < cols; c++) cells += '<td><div class="skeleton skeleton-line w60"></div></td>';
+    var tr = '<tr>' + cells + '</tr>', out = '';
+    for (var r = 0; r < rows; r++) out += tr;
+    return out;
+  }
+  function skeletonCards(count) {
+    var out = '';
+    for (var i = 0; i < (count || 6); i++) {
+      out += '<div class="card skeleton-card" aria-hidden="true">' +
+        '<div class="skeleton skeleton-line w60"></div>' +
+        '<div class="skeleton skeleton-line"></div>' +
+        '<div class="skeleton skeleton-line w40"></div>' +
+        '</div>';
+    }
+    return out;
   }
 
   /** 给某位用户写站内通知（右上角铃铛） */
@@ -244,8 +311,26 @@
    * P13c/e/f/g：积分重算 / 导出 / 封禁 / 候补递补 / 广播
    * =================================================================== */
 
-  /** 积分权威重算：100 - 投注 + 赢利 + 签到×5 + 积分流水净额 → 写回 balance */
+  /**
+   * 积分权威重算（优先服务端 RPC，避免把全部下注拉到浏览器）。
+   * 公式：100 − 投注 + 赢利 + 积分流水净额 − 商城兑换
+   */
   function recalcBalance(userId) {
+    var sb = supa();
+    if (!sb || !userId) return Promise.resolve(null);
+    return sb.rpc('recalc_balance', { p_user_id: userId }).then(function (res) {
+      if (res.error) {
+        var missing = res.error.code === 'PGRST202' ||
+          /could not find the function/i.test(res.error.message || '');
+        if (missing) return recalcBalanceClient(userId);
+        return null;
+      }
+      return res.data == null ? recalcBalanceClient(userId) : res.data;
+    }).catch(function () { return recalcBalanceClient(userId); });
+  }
+
+  /** 旧版客户端重算：仅在 recalc_balance RPC 未部署时兜底 */
+  function recalcBalanceClient(userId) {
     var sb = supa();
     if (!sb || !userId) return Promise.resolve(null);
     return Promise.all([
@@ -601,21 +686,39 @@
   }
 
   /** Best-effort: promote the logged-in account to role='admin' after a password verify. */
-  function promoteRole() {
+  /**
+   * 口令验证通过后把当前账号升为 admin。
+   * 优先走服务端 RPC（promote_self_admin，服务端再校验一次口令）；
+   * 仅当数据库尚未部署 supabase/hardening.sql（PGRST202 函数不存在）时，
+   * 才回退到旧的前端直写，避免升级期间管理员功能整体失效。
+   */
+  function promoteRole(pwd) {
     var sb = supa();
     var u = typeof HWAuth !== 'undefined' ? HWAuth.getSession() : null;
     if (!sb || !u || u.role === 'admin') return Promise.resolve(false);
-    return sb.from('site_users').update({ role: 'admin' }).eq('id', u.id)
+    var apply = function (ok) {
+      if (!ok) return false;
+      u.role = 'admin';
+      try {
+        var raw = localStorage.getItem('hw_session');
+        if (raw) { var s = JSON.parse(raw); s.role = 'admin'; localStorage.setItem('hw_session', JSON.stringify(s)); }
+      } catch (e) {}
+      renderAuth();
+      return true;
+    };
+    return sb.rpc('promote_self_admin', { p_pwd: pwd || '', p_user_id: u.id })
       .then(function (res) {
-        if (res.error) return false;
-        u.role = 'admin';
-        try {
-          var raw = localStorage.getItem('hw_session');
-          if (raw) { var s = JSON.parse(raw); s.role = 'admin'; localStorage.setItem('hw_session', JSON.stringify(s)); }
-        } catch (e) {}
-        renderAuth();
-        return true;
-      }).catch(function () { return false; });
+        if (res.error) {
+          var missing = res.error.code === 'PGRST202' || /could not find the function/i.test(res.error.message || '');
+          if (!missing) return false;
+          console.warn('[HWLayout] promote_self_admin 未部署，回退旧路径；请执行 supabase/hardening.sql');
+          return sb.from('site_users').update({ role: 'admin' }).eq('id', u.id)
+            .then(function (r) { return !r.error; });
+        }
+        return !!res.data;
+      })
+      .then(apply)
+      .catch(function () { return false; });
   }
 
   var accessCache = {};
@@ -812,9 +915,9 @@
     m.style.opacity = '1';
     m.style.visibility = 'visible';
     m.innerHTML =
-      '<div class="modal-panel" style="position:relative;">' +
+      '<div class="modal-panel" style="position:relative;" role="dialog" aria-modal="true">' +
       cover +
-      '<button class="modal-close" data-ov-close type="button">&times;</button>' +
+      '<button class="modal-close" data-ov-close type="button" aria-label="关闭">&times;</button>' +
       '<span class="modal-eyebrow">Overview</span>' +
       '<h2 style="margin:8px 0 6px;font-size:20px;font-weight:600;color:var(--pure-white);">' + esc(ev.title) + '</h2>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">' +
@@ -1073,7 +1176,7 @@
       /* 头像 */
       '<div class="modal-backdrop" id="hw-av-modal">' +
       '  <div class="modal-panel" style="max-width:430px;">' +
-      '    <button class="modal-close" id="hw-av-close" type="button">&times;</button>' +
+      '    <button class="modal-close" id="hw-av-close" type="button" aria-label="关闭">&times;</button>' +
       '    <span class="eyebrow">Avatar</span>' +
       '    <h3 class="modal-title" style="margin-top:8px;">头像</h3>' +
       '    <div style="display:flex; gap:16px; align-items:center; margin-top:18px;">' +
@@ -1092,7 +1195,7 @@
       /* 账号 */
       '<div class="modal-backdrop" id="hw-acct-modal">' +
       '  <div class="modal-panel" style="max-width:430px;">' +
-      '    <button class="modal-close" id="hw-acct-close" type="button">&times;</button>' +
+      '    <button class="modal-close" id="hw-acct-close" type="button" aria-label="关闭">&times;</button>' +
       '    <span class="eyebrow">Account</span>' +
       '    <h3 class="modal-title" style="margin-top:8px;">账号</h3>' +
       '    <div id="hw-acct-rows" style="margin-top:16px;"></div>' +
@@ -1102,7 +1205,7 @@
       /* 编辑资料 */
       '<div class="modal-backdrop" id="hw-prof-modal">' +
       '  <div class="modal-panel" style="max-width:430px;">' +
-      '    <button class="modal-close" id="hw-prof-close" type="button">&times;</button>' +
+      '    <button class="modal-close" id="hw-prof-close" type="button" aria-label="关闭">&times;</button>' +
       '    <span class="eyebrow">Profile</span>' +
       '    <h3 class="modal-title" style="margin-top:8px;">编辑资料</h3>' +
       '    <form id="hw-prof-form" style="margin-top:14px;">' +
@@ -1122,7 +1225,7 @@
       /* 重置密码 */
       '<div class="modal-backdrop" id="hw-pwd-modal">' +
       '  <div class="modal-panel" style="max-width:430px;">' +
-      '    <button class="modal-close" id="hw-pwd-close" type="button">&times;</button>' +
+      '    <button class="modal-close" id="hw-pwd-close" type="button" aria-label="关闭">&times;</button>' +
       '    <span class="eyebrow">Security</span>' +
       '    <h3 class="modal-title" style="margin-top:8px;">重置密码</h3>' +
       '    <form id="hw-pwd-form" style="margin-top:14px;">' +
@@ -1204,6 +1307,121 @@
     });
   }
 
+  /* ---------------- 统一确认弹窗（替代原生 confirm） ----------------
+   * 原生 confirm 会冻结页面、样式与站点割裂；这里用同一套弹窗语言，
+   * 默认聚焦「取消」，危险操作用红色主按钮。Promise 化，调用方 .then(ok => ...)。
+   */
+  function confirmDialog(opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var existing = document.getElementById('hw-confirm');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+      var bd = document.createElement('div');
+      bd.className = 'modal-backdrop';
+      bd.id = 'hw-confirm';
+      bd.innerHTML =
+        '<div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="hw-confirm-title" style="max-width:420px;">' +
+        '  <button class="modal-close" id="hw-confirm-x" type="button" aria-label="关闭">&times;</button>' +
+        '  <span class="eyebrow">Confirm</span>' +
+        '  <h3 id="hw-confirm-title" class="modal-title" style="margin:8px 0 10px;font-size:18px;">' +
+              esc(opts.title || '确认操作') + '</h3>' +
+        '  <p style="margin:0 0 20px;color:var(--ash);font-size:14px;line-height:1.7;">' +
+              esc(opts.message || '') + '</p>' +
+        '  <div style="display:flex;gap:10px;justify-content:flex-end;">' +
+        '    <button class="btn btn-ghost" id="hw-confirm-no" type="button">' +
+              esc(opts.cancelText || '取消') + '</button>' +
+        '    <button class="btn ' + (opts.danger ? 'btn-danger' : 'btn-primary') + '" id="hw-confirm-yes" type="button">' +
+              esc(opts.okText || '确认') + '</button>' +
+        '  </div>' +
+        '</div>';
+      document.body.appendChild(bd);
+
+      var settled = false;
+      function finish(ok) {
+        if (settled) return;
+        settled = true;
+        bd.classList.remove('visible');
+        setTimeout(function () {
+          if (bd.parentNode) bd.parentNode.removeChild(bd);
+        }, 320);
+        resolve(ok);
+      }
+      document.getElementById('hw-confirm-yes').addEventListener('click', function () { finish(true); });
+      document.getElementById('hw-confirm-no').addEventListener('click', function () { finish(false); });
+      document.getElementById('hw-confirm-x').addEventListener('click', function () { finish(false); });
+
+      /* 下一帧再加 visible，保证进场动画一定播得出来 */
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          bd.classList.add('visible');
+          var no = document.getElementById('hw-confirm-no');
+          if (no) no.focus();
+        });
+      });
+    });
+  }
+
+  /* ---------------- Global modal behaviour ----------------
+   * 所有页面共用：打开弹窗时锁定背景滚动、Esc 关闭、Tab 焦点圈在弹窗内。
+   * 关闭仍然只认 × / 取消按钮，不恢复「点空白关闭」。
+   */
+  function topModal() {
+    /* .hw-auth-backdrop 是 js/auth.js 注入的登录框，同样纳入滚动锁 / Esc / 焦点圈 */
+    var all = document.querySelectorAll('.modal-backdrop.visible, .hw-auth-backdrop.visible');
+    return all.length ? all[all.length - 1] : null;
+  }
+  function modalFocusables(root) {
+    if (!root) return [];
+    var sel = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+      'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    return Array.prototype.slice.call(root.querySelectorAll(sel)).filter(function (el) {
+      return !el.hidden && el.getClientRects().length > 0;
+    });
+  }
+  function syncModalState() {
+    var open = topModal();
+    var hasLock = document.body.classList.contains('modal-open');
+    if (!!open !== hasLock) document.body.classList.toggle('modal-open', !!open);
+    if (open && !open.contains(document.activeElement)) {
+      var f = modalFocusables(open);
+      if (f.length) {
+        setTimeout(function () {
+          if (topModal() === open && !open.contains(document.activeElement)) f[0].focus();
+        }, 30);
+      }
+    }
+  }
+  function initModalBehaviour() {
+    if (typeof MutationObserver === 'undefined') return;
+    var obs = new MutationObserver(syncModalState);
+    obs.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    syncModalState();
+    document.addEventListener('keydown', function (e) {
+      var m = topModal();
+      if (!m) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        /* 优先触发弹窗自带的关闭按钮，保留页面各自的清理逻辑（表单重置、revokeObjectURL 等） */
+        var closer = m.querySelector('.modal-close, [data-ov-close], .gm-close, .hw-auth-close');
+        if (closer) closer.click();
+        else m.classList.remove('visible');
+        syncModalState();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      var f = modalFocusables(m);
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      var inside = m.contains(document.activeElement);
+      if (e.shiftKey && (!inside || document.activeElement === first)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+        e.preventDefault(); first.focus();
+      }
+    });
+  }
+
   /* ---------------- boot ---------------- */
   var layoutInited = false;
   function init() {
@@ -1215,6 +1433,7 @@
     buildNav();
     buildFooter();
     renderAuth();
+    initModalBehaviour();
     if (typeof HWAuth !== 'undefined' && HWAuth.on) {
       HWAuth.on(function (evt) {
         if (evt === 'login' || evt === 'logout') renderAuth();
@@ -1231,6 +1450,11 @@
 
   window.HWLayout = {
     renderAuth: renderAuth,
+    bump: bump,
+    reveal: reveal,
+    confirmDialog: confirmDialog,
+    skeletonRows: skeletonRows,
+    skeletonCards: skeletonCards,
     NAV: NAV,
     FOOTER_LINKS: FOOTER_LINKS,
     getTheme: getTheme,

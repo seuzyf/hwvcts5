@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS6 - 赛事预测</title>
+    <title>赛事预测 · HWVCTS</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/auth.js"></script>
@@ -124,6 +124,21 @@
             cursor: pointer; transition: 0.15s; font-family: inherit;
         }
         .bet-record .cancel-bet-btn:hover { background: rgba(255, 99, 99, 0.1); }
+        /* 快捷分数：常用金额一键填入，省去手机上打字 */
+        .bet-quick { display: flex; gap: 8px; margin-top: 8px; }
+        .bet-quick button {
+            flex: 1; height: 30px; border-radius: var(--r-btn);
+            border: 1px solid var(--border); background: var(--obsidian);
+            color: var(--ash); font-family: var(--font-mono); font-size: 13px;
+            cursor: pointer; transition: background var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+        }
+        .bet-quick button:hover { background: var(--graphite); color: var(--pure-white); border-color: var(--smoke); }
+        .bet-quick button:active { transform: scale(0.96); }
+        .bet-record .cancel-bet-btn.confirming {
+            color: #ffbe3c; border-color: rgba(255, 190, 60, 0.55);
+            background: rgba(255, 190, 60, 0.12);
+        }
         #existing-bets-section { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px; }
         #existing-bets-section h4 {
             margin: 0 0 10px; font-family: var(--font-mono); font-size: 11px;
@@ -234,6 +249,12 @@
                         <button id="bet-team-b-btn" class="btn btn-primary" type="button"></button>
                     </div>
                     <input class="input" type="number" id="bet-amount-input" min="1" placeholder="支持分数（最小 1）">
+                    <div class="bet-quick" id="bet-quick" role="group" aria-label="快捷选择分数">
+                        <button type="button" data-amt="10">10</button>
+                        <button type="button" data-amt="25">25</button>
+                        <button type="button" data-amt="50">50</button>
+                        <button type="button" data-amt="all">全部</button>
+                    </div>
                     <div id="bet-preview" class="smoke" style="font-size:13px; margin-top:8px; min-height:20px;">选择队伍与分数后显示支持比与预计赢利</div>
                 </div>
                 <div id="existing-bets-section">
@@ -282,7 +303,7 @@
     </div>
 
     <div id="roster-modal" class="modal-backdrop">
-        <div class="modal-panel" id="roster-modal-content"></div>
+        <div class="modal-panel" id="roster-modal-content" role="dialog" aria-modal="true"></div>
     </div>
 
 <script>
@@ -301,6 +322,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let allLedgerData = [];
     let allPlayersData = [];
     let currentSeason = 's6'; // 默认 S6 赛季
+    /* 竞猜表按赛季选表；s5 表缺失（未执行 hardening.sql）时由调用方回退 s6 */
+    const betsTable = () => currentSeason === 's5' ? 's5_bet_bets' : 's6_bet_bets';
+    const BET_COLUMNS = 'id, user_id, match_id, amount, predicted_winner, created_at';
 
     const loginBtn = document.getElementById('login-btn');
     const historyBtn = document.getElementById('history-btn');
@@ -373,7 +397,13 @@ document.addEventListener('DOMContentLoaded', () => {
             { data: players, error: pError }
         ] = await Promise.all([
             supabaseClient.from(currentSeason === 's5' ? 's5_match_schedule' : 's6_match_schedule').select('*').order('id'),
-            supabaseClient.from('s6_bet_bets').select('*'),
+            supabaseClient.from(betsTable()).select(BET_COLUMNS).then(r => {
+                /* S5 竞猜表尚未创建时回退 S6 表（升级期兼容） */
+                if (r && r.error && currentSeason === 's5') {
+                    return supabaseClient.from('s6_bet_bets').select(BET_COLUMNS);
+                }
+                return r;
+            }),
             supabaseClient.from(HWAuth.accountTable()).select('id, username, balance'),
             supabaseClient.from('points_ledger').select('user_id, delta'),
             supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, team, "group"')
@@ -453,9 +483,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const STATE_ZH = { bettable: '可竞猜', 'locked-pending': '已锁定 · 待结算', settled: '已结算' };
 
+    /* 状态签名：比赛时间跨过「开赛」时自动刷新卡片，不必手动刷新页面 */
+    let lastStateSig = '';
+    function stateSignature() {
+        return allMatchesData.map(m => m.id + ':' + matchBetState(m)).join('|');
+    }
+
     function renderMatches() {
         mainContent.innerHTML = '';
-        const groups = ['传奇组', '中坚组', '挑战组'];
+        /* 分组从数据推导，避免活动使用自定义组名时整组比赛消失 */
+        const preferred = ['传奇组', '中坚组', '挑战组'];
+        const seen = {};
+        allMatchesData.forEach(m => { if (m.group) seen[m.group] = 1; });
+        const groups = preferred.filter(g => seen[g])
+            .concat(Object.keys(seen).filter(g => preferred.indexOf(g) === -1));
         groups.forEach(group => {
             const groupMatches = allMatchesData.filter(m => m.group === group && m.team_a && m.team_b);
             if (groupMatches.length === 0) return;
@@ -482,6 +523,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.className = 'betting-card ' + state;
                 card.dataset.matchId = match.id;
                 card.setAttribute('tabindex', '0');
+                card.setAttribute('role', 'button');
+                card.setAttribute('aria-label', match.team_a + ' vs ' + match.team_b + '，' + STATE_ZH[state]);
                 card.innerHTML = `
                     <div class="bc-head">
                         <span class="bc-state">${STATE_ZH[state]}</span>
@@ -505,12 +548,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
                 const open = () => openMatchDetail(match.id);
                 card.addEventListener('click', open);
-                card.addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
+                card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
                 grid.appendChild(card);
             });
             mainContent.appendChild(section);
         });
+        lastStateSig = stateSignature();
     }
+
+    /* 开赛时间到达后，卡片状态自动从「可竞猜」切到「已锁定 · 待结算」 */
+    setInterval(function () {
+        if (document.visibilityState !== 'visible' || !allMatchesData.length) return;
+        if (stateSignature() !== lastStateSig) renderMatches();
+    }, 30000);
 
     /* ---------- 比赛详情：双方名单 + 生涯/本次排名与 ACS ---------- */
     function aggPlayerStats(matchRows) {
@@ -645,6 +695,19 @@ document.addEventListener('DOMContentLoaded', () => {
             el.textContent = '支持比 ' + share + '% · 猜对预计赢利 +' + win;
         }
         betAmtEl.oninput = updPreview;
+        /* 快捷分数：常用金额一键填入；「全部」按当前余额取整 */
+        var quick = document.getElementById('bet-quick');
+        if (quick) {
+            quick.onclick = function (e) {
+                var b = e.target.closest('button[data-amt]');
+                if (!b) return;
+                var v = b.dataset.amt === 'all'
+                    ? Math.max(1, Math.floor(currentUser.balance || 0))
+                    : parseInt(b.dataset.amt, 10);
+                betAmtEl.value = v;
+                updPreview();
+            };
+        }
         updPreview();
 
         betConfirmBtn.onclick = async () => {
@@ -673,7 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             betConfirmBtn.disabled = true; betConfirmBtn.textContent = '提交中...';
-            const { error } = await supabaseClient.from('s6_bet_bets').insert([{ user_id: currentUser.id, match_id: match.id, amount, predicted_winner: selectedTeam }]);
+            const { error } = await supabaseClient.from(betsTable()).insert([{ user_id: currentUser.id, match_id: match.id, amount, predicted_winner: selectedTeam }]);
             betConfirmBtn.disabled = false; betConfirmBtn.textContent = '确 认 预 测';
 
             if (error) {
@@ -718,8 +781,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 1. 查本场预测记录
         const { data: bets, error } = await supabaseClient
-            .from('s6_bet_bets')
-            .select('*')
+            .from(betsTable())
+            .select(BET_COLUMNS)
             .eq('match_id', matchId)
             .order('created_at', { ascending: false });
 
@@ -783,9 +846,24 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        if (!confirm(`您确定要撤销这笔预测吗？`)) return;
+        /* 两段式确认：第一次点变「再点一次确认」，3 秒内再点才真正撤销；
+           不弹原生 confirm，不打断手上的操作 */
+        const btn = event.target;
+        if (btn.dataset.confirming !== '1') {
+            btn.dataset.confirming = '1';
+            btn.dataset.origText = btn.textContent;
+            btn.textContent = '再点一次确认';
+            btn.classList.add('confirming');
+            setTimeout(function () {
+                if (!btn.isConnected) return;
+                btn.dataset.confirming = '0';
+                btn.textContent = btn.dataset.origText || '撤销';
+                btn.classList.remove('confirming');
+            }, 3000);
+            return;
+        }
 
-        const { error } = await supabaseClient.from('s6_bet_bets').delete().eq('id', betId);
+        const { error } = await supabaseClient.from(betsTable()).delete().eq('id', betId);
         if (error) { HWLayout.toast('撤销失败: ' + error.message); return; }
         
         HWLayout.toast('撤销成功！');
