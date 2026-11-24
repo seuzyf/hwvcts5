@@ -13,7 +13,6 @@
         /* ═════════ 管理后台 · 重构版（纯 theme 组件语言 · 无 legacy 别名 · 无全局元素选择器） ═════════ */
         body { padding-top: 80px; }
 
-        #password-modal h2 { margin: 6px 0 14px; font-size: 17px; font-weight: 500; color: var(--pure-white); }
 
         /* 活动管理行 */
         .adm-ev-row {
@@ -40,17 +39,8 @@
 </head>
 <body data-page="admin">
 
-    <div id="password-modal" class="modal-backdrop">
-        <div class="modal-panel" style="max-width:440px;">
-            <span class="modal-eyebrow">Admin Gate</span>
-            <h2>管理员验证</h2>
-            <input class="input" type="password" id="password-input" autofocus placeholder="输入管理口令" style="margin:10px 0 16px;">
-            <button class="btn btn-primary" id="password-submit" style="width:100%;">验 证 权 限</button>
-        </div>
-    </div>
-
     <!-- P13：调分（×-only） -->
-    <div id="pts-modal" class="modal-backdrop" style="display:none;">
+    <div id="pts-modal" class="modal-backdrop">
         <div class="modal-panel" style="max-width:440px;">
             <button class="modal-close" id="pts-close" type="button">&times;</button>
             <span class="eyebrow">Points</span>
@@ -67,7 +57,7 @@
         </div>
     </div>
     <!-- P13：封禁（×-only） -->
-    <div id="ban-modal" class="modal-backdrop" style="display:none;">
+    <div id="ban-modal" class="modal-backdrop">
         <div class="modal-panel" style="max-width:440px;">
             <button class="modal-close" id="ban-close" type="button">&times;</button>
             <span class="eyebrow">Ban</span>
@@ -88,7 +78,7 @@
     <!--═════════════════════════════════════════════════════════════
          管理后台 · 双角色界面
            游客 → 登录 CTA / 口令验证入口
-           成员 → 修改个人信息与密码（普通权限）
+           成员 → 修改个人信息与密码、申请权限
            管理员 → 举办与管理活动、设置活动队长（赛事数据台在活动详情进入）
          ═════════════════════════════════════════════════════════════ -->
     <div id="manage-shell" class="container">
@@ -110,7 +100,6 @@
                 </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <button class="btn btn-primary" id="guest-login" type="button">登录 / 注册</button>
-                    <button class="btn btn-ghost" id="guest-admin-pwd" type="button">管理员口令验证</button>
                 </div>
             </div>
         </section>
@@ -125,8 +114,19 @@
                     <input class="input" id="pv-nickname" maxlength="24" placeholder="显示用昵称">
                     <label class="form-label" for="pv-gameid">游戏内 ID</label>
                     <input class="input" id="pv-gameid" maxlength="30" placeholder="对局中使用的 ID">
-                    <label class="form-label" for="pv-avatar">头像图片 URL</label>
-                    <input class="input" id="pv-avatar" type="url" maxlength="400" placeholder="https://…（右上角头像展示）">
+                    <label class="form-label">头像</label>
+                    <div style="display:flex; align-items:center; gap:16px; margin-bottom:4px;">
+                        <button type="button" id="pv-avatar-preview" title="点击更换头像"
+                            style="width:72px; height:72px; border-radius:50%; border:2px solid var(--border); background:var(--graphite); color:var(--mist); font-size:26px; font-weight:700; cursor:pointer; overflow:hidden; padding:0; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <span id="pv-avatar-initial">?</span>
+                            <img id="pv-avatar-img" alt="" style="width:100%; height:100%; object-fit:cover; display:none;">
+                        </button>
+                        <div>
+                            <button type="button" class="btn btn-ghost btn-sm" id="pv-avatar-pick">更换头像</button>
+                            <p class="smoke" style="margin:6px 0 0; font-size:12px;">点击圆形预览或按钮上传，可拖动、缩放调整</p>
+                        </div>
+                        <input type="file" id="pv-avatar-file" accept="image/png,image/jpeg,image/webp" hidden>
+                    </div>
                     <label class="form-label" for="pv-bio">个人简介</label>
                     <textarea class="textarea" id="pv-bio" rows="3" maxlength="120" placeholder="一句话介绍自己"></textarea>
                     <div class="modal-actions">
@@ -146,8 +146,9 @@
                         <button class="btn btn-danger-ghost" id="pv-logout" type="button">退出登录</button>
                         <button class="btn btn-ghost" id="pw-change" type="button">修改密码</button>
                     </div>
-                    <div class="notice" style="margin-top:16px;">
-                        本站管理员？<button class="btn btn-ghost btn-sm" id="member-admin-pwd" type="button" style="margin-left:8px;">口令验证进入管理模式</button>
+                    <div class="notice" style="margin-top:16px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                        <span id="apply-hint">需要更高权限？提交申请，由上一级身份的用户收到通知。</span>
+                        <button class="btn btn-ghost btn-sm" id="apply-role-btn" type="button">申请权限</button>
                     </div>
                 </div>
             </div>
@@ -254,35 +255,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const { createClient } = supabase;
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const passwordModal = document.getElementById('password-modal');
-    const passwordInput = document.getElementById('password-input');
-    const passwordSubmit = document.getElementById('password-submit');
 
     let currentSeason = 's6'; // 默认 S6 赛季
 
 
-    async function checkPassword() {
-        const inputPassword = passwordInput.value;
-        if (!inputPassword) { HWLayout.toast('请输入口令！'); return; }
-        try {
-            const { data: isCorrect, error } = await supabaseClient.rpc('check_admin_password', { input_pwd: inputPassword });
-            if (error) throw error;
-            if (isCorrect === true) {
-                // 口令正确 → 全站管理会话（15 分钟）+ 尝试把当前账号升级为 admin 角色
-                HWLayout.markAdmin(15);
-                HWLayout.promoteRole();
-                document.dispatchEvent(new CustomEvent('hw:admin'));
-                enterAdminMode();
-            } else { HWLayout.toast('口令错误！'); }
-        } catch (error) { console.error('验证口令时出错:', error); HWLayout.toast('验证失败，请检查数据库连接。'); }
-    }
-    passwordSubmit.addEventListener('click', checkPassword);
-    passwordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') checkPassword(); });
 
     /* ── 双角色路由 + 活动上下文 ─────────────────────────────────────
-       游客 → 登录 CTA / 口令入口；成员 → 修改个人信息；
+       游客 → 登录 CTA；成员 → 修改个人信息 + 申请权限；
        管理员 → 举办与管理活动、设置活动队长。
-       ?event= 锁定赛季并渲染活动栏；口令验证见 checkPassword → enterAdminMode。 */
+       ?event= 锁定赛季并渲染活动栏。 */
     var boundEvent = null;
     var EV_BADGE = { draft: 'badge-quiet', registration: 'badge-coral', ongoing: 'badge-green', finished: '', cancelled: 'badge-quiet' };
     var EV_STATUS_ZH = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
@@ -457,10 +438,22 @@ document.addEventListener('DOMContentLoaded', () => {
             : '登录以修改个人信息；管理员可在此举办与管理活动。';
     }
 
+    var pvAvatarUrl = '';
+    function paintAvatarPreview(url, name) {
+        var img = document.getElementById('pv-avatar-img');
+        var ini = document.getElementById('pv-avatar-initial');
+        if (!img || !ini) return;
+        if (url) { img.src = url; img.style.display = 'block'; ini.style.display = 'none'; }
+        else {
+            img.style.display = 'none'; ini.style.display = 'block';
+            ini.textContent = ((name || '?').trim().charAt(0) || '?').toUpperCase();
+        }
+    }
     function fillProfileView(u) {
         document.getElementById('pv-nickname').value = u.nickname || '';
         document.getElementById('pv-gameid').value = u.game_id || '';
-        document.getElementById('pv-avatar').value = u.avatar || '';
+        pvAvatarUrl = u.avatar || '';
+        paintAvatarPreview(pvAvatarUrl, u.nickname || u.username);
         document.getElementById('pv-bio').value = u.bio || '';
         document.getElementById('pv-chips').innerHTML =
             '<span class="chip mono">@' + esc(u.username) + '</span>' +
@@ -535,7 +528,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function enterAdminMode() {
         showView('admin');
-        passwordModal.style.display = 'none';
         renderAdmEvents();
     }
 
@@ -650,7 +642,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('pts-info').textContent = '目标用户 #' + uid;
         document.getElementById('pts-delta').value = '';
         document.getElementById('pts-reason').value = '';
-        document.getElementById('pts-modal').style.display = 'flex';
+        document.getElementById('pts-modal').classList.add('visible');
     }
     function applyPoints() {
         var uid = ptsTarget;
@@ -681,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ((me && (me.nickname || me.username)) || '管理员') + '（' + roleName + '）为你调整积分 ' + sign +
                             '，原因：' + reason + '，当前余额 ' + after + '。', 'index.html');
                         HWLayout.toast('已调整，当前余额 ' + after);
-                        document.getElementById('pts-modal').style.display = 'none';
+                        document.getElementById('pts-modal').classList.remove('visible');
                         if (HWLayout.isAdminNow()) loadPermUsers();
                         renderMyRegistrants();
                     });
@@ -697,7 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
             (scope === 'global' ? '全局封禁' : '活动封禁 · ' + (evTitle || ('活动#' + evId))) + ' · 用户 #' + uid;
         document.getElementById('ban-reason').value = '';
         document.getElementById('ban-until').value = '';
-        document.getElementById('ban-modal').style.display = 'flex';
+        document.getElementById('ban-modal').classList.add('visible');
     }
     function applyBan() {
         var uid = banTarget;
@@ -710,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var done = function (msg, note) {
             HWLayout.notifyUser(uid, msg, note, 'index.html');
             HWLayout.toast(msg);
-            document.getElementById('ban-modal').style.display = 'none';
+            document.getElementById('ban-modal').classList.remove('visible');
             if (HWLayout.isAdminNow()) loadPermUsers();
             renderMyRegistrants();
         };
@@ -758,7 +750,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /* —— 弹窗关闭（×-only） —— */
     [['pts-close', 'pts-modal'], ['pts-cancel', 'pts-modal'], ['ban-close', 'ban-modal'], ['ban-cancel', 'ban-modal']].forEach(function (pair) {
         var el = document.getElementById(pair[0]);
-        if (el) el.addEventListener('click', function () { document.getElementById(pair[1]).style.display = 'none'; });
+        if (el) el.addEventListener('click', function () { document.getElementById(pair[1]).classList.remove('visible'); });
     });
     var ptsApplyBtn = document.getElementById('pts-apply');
     if (ptsApplyBtn) ptsApplyBtn.addEventListener('click', applyPoints);
@@ -787,13 +779,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /* 成员/游客视图交互 */
-    function openPwdGate() { passwordModal.style.display = 'flex'; passwordInput.focus(); }
     document.getElementById('guest-login').addEventListener('click', function () {
         if (typeof HWAuth === 'undefined') return;
         HWAuth.openModal({ stay: true }).then(function () { route(); }).catch(function () {});
     });
-    document.getElementById('guest-admin-pwd').addEventListener('click', openPwdGate);
-    document.getElementById('member-admin-pwd').addEventListener('click', openPwdGate);
 
     document.getElementById('pv-save').addEventListener('click', function () {
         var btn = this, st = document.getElementById('pv-status');
@@ -803,7 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nickname: document.getElementById('pv-nickname').value.trim(),
             game_id: document.getElementById('pv-gameid').value.trim(),
             bio: document.getElementById('pv-bio').value.trim(),
-            avatar: document.getElementById('pv-avatar').value.trim()
+            avatar: pvAvatarUrl
         }).then(function (s) {
             st.textContent = '已保存 ✓';
             fillProfileView(s);
@@ -829,7 +818,205 @@ document.addEventListener('DOMContentLoaded', () => {
         route();
     });
 
-    passwordModal.style.display = 'none'; // 默认关闭口令门，按需打开
+    /* ── 头像：圆形预览 → 上传 → 拖动/缩放裁剪 → 存 avatars 桶 ── */
+    (function () {
+        var pick = document.getElementById('pv-avatar-pick');
+        var preview = document.getElementById('pv-avatar-preview');
+        var fileInput = document.getElementById('pv-avatar-file');
+        if (!pick || !preview || !fileInput) return;
+        function openPicker() { fileInput.value = ''; fileInput.click(); }
+        pick.addEventListener('click', openPicker);
+        preview.addEventListener('click', openPicker);
+
+        var cropState = { img: null, scale: 1, minScale: 1, x: 0, y: 0, drag: false, lx: 0, ly: 0 };
+        function ensureCropModal() {
+            if (document.getElementById('av-crop-modal')) return;
+            var wrap = document.createElement('div');
+            wrap.innerHTML =
+                '<div id="av-crop-modal" class="modal-backdrop">' +
+                '  <div class="modal-panel" style="max-width:420px;">' +
+                '    <button class="modal-close" id="av-crop-close" type="button">&times;</button>' +
+                '    <span class="eyebrow">Avatar</span>' +
+                '    <h3 style="margin:6px 0 12px; font-size:16px; color:var(--pure-white);">调整头像</h3>' +
+                '    <div id="av-crop-stage" style="position:relative; width:260px; height:260px; margin:0 auto; border-radius:50%; overflow:hidden; border:2px solid var(--border); background:var(--graphite); cursor:grab; touch-action:none;">' +
+                '      <img id="av-crop-img" alt="" style="position:absolute; left:0; top:0; transform-origin:0 0; user-select:none; -webkit-user-drag:none; pointer-events:none; max-width:none;">' +
+                '    </div>' +
+                '    <label class="form-label" for="av-crop-zoom" style="margin-top:14px;">缩放</label>' +
+                '    <input type="range" id="av-crop-zoom" min="1" max="3" step="0.01" value="1" style="width:100%;">' +
+                '    <div class="modal-actions" style="margin-top:16px;">' +
+                '      <button class="btn btn-ghost" id="av-crop-cancel" type="button">取消</button>' +
+                '      <button class="btn btn-primary" id="av-crop-ok" type="button">使用这张</button>' +
+                '    </div>' +
+                '  </div>' +
+                '</div>';
+            document.body.appendChild(wrap.firstChild);
+            var modal = document.getElementById('av-crop-modal');
+            var stage = document.getElementById('av-crop-stage');
+            var img = document.getElementById('av-crop-img');
+            var zoom = document.getElementById('av-crop-zoom');
+            function close() { modal.classList.remove('visible'); }
+            document.getElementById('av-crop-close').addEventListener('click', close);
+            document.getElementById('av-crop-cancel').addEventListener('click', close);
+            stage.addEventListener('pointerdown', function (e) {
+                cropState.drag = true; cropState.lx = e.clientX; cropState.ly = e.clientY;
+                stage.setPointerCapture(e.pointerId); stage.style.cursor = 'grabbing';
+            });
+            stage.addEventListener('pointermove', function (e) {
+                if (!cropState.drag) return;
+                cropState.x += e.clientX - cropState.lx;
+                cropState.y += e.clientY - cropState.ly;
+                cropState.lx = e.clientX; cropState.ly = e.clientY;
+                applyTransform();
+            });
+            stage.addEventListener('pointerup', function () { cropState.drag = false; stage.style.cursor = 'grab'; });
+            stage.addEventListener('pointercancel', function () { cropState.drag = false; });
+            zoom.addEventListener('input', function () {
+                var old = cropState.scale;
+                cropState.scale = parseFloat(zoom.value);
+                /* 缩放围绕视口中心，保持抓取点连续 */
+                var cx = 130, cy = 130;
+                cropState.x = cx - (cx - cropState.x) * (cropState.scale / old);
+                cropState.y = cy - (cy - cropState.y) * (cropState.scale / old);
+                clampPos(); applyTransform();
+            });
+            function clampPos() {
+                var w = cropState.nw * cropState.scale, h = cropState.nh * cropState.scale;
+                cropState.x = Math.min(0, Math.max(260 - w, cropState.x));
+                cropState.y = Math.min(0, Math.max(260 - h, cropState.y));
+                if (w < 260) cropState.x = (260 - w) / 2;
+                if (h < 260) cropState.y = (260 - h) / 2;
+            }
+            function applyTransform() {
+                img.style.transform = 'translate(' + cropState.x + 'px,' + cropState.y + 'px) scale(' + cropState.scale + ')';
+            }
+            document.getElementById('av-crop-ok').addEventListener('click', function () {
+                try {
+                    var S = 512;
+                    var canvas = document.createElement('canvas');
+                    canvas.width = S; canvas.height = S;
+                    var ctx = canvas.getContext('2d');
+                    /* 舞台 260 → 输出 512 的映射 */
+                    var k = S / 260;
+                    ctx.drawImage(cropState.img,
+                        cropState.x * k, cropState.y * k,
+                        cropState.nw * cropState.scale * k, cropState.nh * cropState.scale * k,
+                        0, 0, S, S);
+                    canvas.toBlob(function (blob) {
+                        if (!blob) { HWLayout.toast('裁剪失败，请换张图', 'err'); return; }
+                        uploadAvatarBlob(blob);
+                        close();
+                    }, 'image/png');
+                } catch (err) {
+                    HWLayout.toast('裁剪失败: ' + err.message, 'err');
+                }
+            });
+        }
+        function uploadAvatarBlob(blob) {
+            if (typeof HWAuth === 'undefined') return;
+            var u = HWAuth.getSession();
+            if (!u) { HWLayout.toast('请先登录', 'err'); return; }
+            var sb = HWAuth.getClient();
+            var ext = blob.type === 'image/jpeg' ? 'jpg' : 'png';
+            var path = 'u' + u.id + '-' + Date.now() + '.' + ext;
+            HWLayout.toast('上传头像中…', 'info');
+            sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType: blob.type || 'image/png' })
+                .then(function (r) {
+                    if (r.error) throw r.error;
+                    var pub = sb.storage.from('avatars').getPublicUrl(path);
+                    var url = pub.data.publicUrl;
+                    return HWAuth.updateProfile({ avatar: url }).then(function () {
+                        pvAvatarUrl = url;
+                        paintAvatarPreview(url, u.nickname || u.username);
+                        HWLayout.renderAuth();
+                        HWLayout.toast('头像已更新');
+                    });
+                })
+                .catch(function (e) { HWLayout.toast('上传失败: ' + (e && e.message ? e.message : e), 'err'); });
+        }
+        fileInput.addEventListener('change', function (e) {
+            var f = e.target.files && e.target.files[0];
+            if (!f) return;
+            if (f.size > 5 * 1024 * 1024) { HWLayout.toast('图片不能超过 5MB', 'err'); return; }
+            if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { HWLayout.toast('仅支持 PNG/JPG/WebP', 'err'); return; }
+            var reader = new FileReader();
+            reader.onload = function () {
+                var im = new Image();
+                im.onload = function () {
+                    ensureCropModal();
+                    cropState.img = im;
+                    cropState.nw = im.naturalWidth; cropState.nh = im.naturalHeight;
+                    /* 初始：铺满圆形视口 */
+                    var base = Math.max(260 / im.naturalWidth, 260 / im.naturalHeight);
+                    cropState.scale = base; cropState.minScale = base;
+                    cropState.x = (260 - im.naturalWidth * base) / 2;
+                    cropState.y = (260 - im.naturalHeight * base) / 2;
+                    var imgEl = document.getElementById('av-crop-img');
+                    imgEl.src = reader.result;
+                    var zoom = document.getElementById('av-crop-zoom');
+                    zoom.min = base; zoom.max = base * 3; zoom.value = base;
+                    document.getElementById('av-crop-modal').classList.add('visible');
+                    /* transform 需在 src 设置后按 natural 尺寸计算 */
+                    imgEl.style.width = im.naturalWidth + 'px';
+                    imgEl.style.height = im.naturalHeight + 'px';
+                    imgEl.style.transform = 'translate(' + cropState.x + 'px,' + cropState.y + 'px) scale(' + cropState.scale + ')';
+                };
+                im.src = reader.result;
+            };
+            reader.readAsDataURL(f);
+        });
+    })();
+
+    /* ── 申请权限：通知上一级身份的用户（member→organizer 走既有审批流） ── */
+    document.getElementById('apply-role-btn').addEventListener('click', function () {
+        if (typeof HWAuth === 'undefined') return;
+        var u = HWAuth.getSession();
+        if (!u) { HWLayout.toast('请先登录', 'err'); return; }
+        var role = (u.role || 'member');
+        var NEXT = { member: 'organizer', organizer: 'admin', admin: 'superadmin' };
+        var nextRole = NEXT[role];
+        if (!nextRole) { HWLayout.toast('你已是最高身份', 'info'); return; }
+        var NEXT_ZH = { organizer: '活动组织者', admin: '管理员', superadmin: '超级管理员' };
+        var btn = this;
+        btn.disabled = true; btn.textContent = '提交中…';
+        var sb = HWAuth.getClient();
+        var notifyHigher = function () {
+            /* 通知上一级（含更高级兜底）的全部用户 */
+            var RANK = ['member', 'organizer', 'admin', 'superadmin'];
+            var minIdx = RANK.indexOf(nextRole);
+            var roles = RANK.slice(minIdx);
+            return sb.from('site_users').select('id').in('role', roles)
+                .then(function (res) {
+                    var ids = ((res && !res.data) ? [] : ((res && res.data) || [])).map(function (x) { return x.id; })
+                        .filter(function (id) { return id !== u.id; });
+                    if (!ids.length) return null;
+                    return sb.from('notifications').insert(ids.map(function (id) {
+                        return {
+                            user_id: id, title: '权限申请',
+                            body: (u.nickname || u.username) + ' 申请成为「' + NEXT_ZH[nextRole] + '」，请在管理后台处理。',
+                            link: 'admin.html'
+                        };
+                    }));
+                }).catch(function () { return null; });
+        };
+        var done = function (msg) {
+            btn.disabled = false; btn.textContent = '申请权限';
+            HWLayout.toast(msg);
+        };
+        if (role === 'member') {
+            /* 与活动页「申请举办」同流：写申请表 + 通知 */
+            sb.from('organizer_requests').select('id').eq('user_id', u.id).eq('status', 'pending').limit(1)
+                .then(function (res) {
+                    if (res && !res.error && res.data && res.data.length) { done('已有一条待审核申请，请耐心等待'); return null; }
+                    return sb.from('organizer_requests').insert([{ user_id: u.id, reason: '在管理后台申请成为活动组织者' }]).select()
+                        .then(function () { return notifyHigher(); })
+                        .then(function () { done('申请已提交，上一级用户将收到通知'); });
+                })
+                .catch(function (e) { done('提交失败: ' + (e && e.message ? e.message : e)); });
+        } else {
+            notifyHigher().then(function () { done('申请已提交，上一级用户将收到通知'); })
+                .catch(function (e) { done('提交失败: ' + (e && e.message ? e.message : e)); });
+        }
+    });
 
     HWLayout.resolveEvent().then(function (ev) {
         boundEvent = ev;

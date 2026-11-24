@@ -24,40 +24,59 @@
         #user-display .bal { font-family: var(--font-mono); font-weight: 700; color: var(--coral-pulse); }
         #user-display .sep { color: var(--iron); }
         .bet-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-        #welfare-btn { border-color: rgba(89, 212, 153, 0.5); color: var(--success-green); }
-        #welfare-btn:hover { background: rgba(89, 212, 153, 0.12); border-color: var(--success-green); color: var(--success-green); }
 
-        /* 分组区（JS 注入 group-section） */
-        #main-content { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-        .group-section {
-            flex: 1 1 340px; box-sizing: border-box;
-            background: var(--ink); border: 1px solid var(--border);
-            border-radius: var(--r-card); padding: 20px;
-        }
+        /* 活动页同款卡片信息流 */
+        #main-content { display: flex; flex-direction: column; gap: 22px; }
+        .group-section { display: flex; flex-direction: column; gap: 12px; }
         .group-header {
             display: flex; align-items: center; justify-content: space-between; gap: 12px;
-            margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
-            font-size: 16px; font-weight: 500; color: var(--pure-white); letter-spacing: 0;
+            margin: 0; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+            font-size: 16px; font-weight: 600; color: var(--pure-white); letter-spacing: 0;
         }
-        .lock-btn {
-            height: 28px; padding: 0 12px; border-radius: var(--r-btn);
-            background: transparent; border: 1px solid var(--border); color: var(--ash);
-            font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.15s;
-            font-family: inherit; letter-spacing: 0;
+        .betting-matches-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;
         }
-        .lock-btn:hover { border-color: var(--smoke); color: var(--pure-white); }
-        .lock-btn.locked { border-color: rgba(255, 99, 99, 0.45); color: #ff8f8f; background: rgba(255, 99, 99, 0.06); }
-        .lock-btn.locked:hover { background: rgba(255, 99, 99, 0.12); }
-
-        .betting-matches-grid { display: flex; flex-direction: column; gap: 10px; }
         .betting-card {
-            background: var(--obsidian); border: 1px solid transparent; border-radius: 12px;
-            padding: 12px 14px; transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+            background: var(--ink); border-radius: var(--r-card); overflow: hidden;
+            border: 1px solid var(--border); cursor: pointer;
+            box-shadow: var(--key-shadow);
+            transition: box-shadow var(--dur-base, 0.2s) var(--ease-out, ease), transform var(--dur-base, 0.2s) var(--ease-out, ease), border-color 0.15s ease;
+            position: relative;
         }
-        .betting-card.bettable { cursor: pointer; border-color: var(--border); }
-        .betting-card.bettable:hover { border-color: var(--smoke); background: var(--graphite); transform: translateY(-1px); }
-        .betting-card.not-bettable { opacity: 0.5; }
-        .betting-card.group-locked { opacity: 0.38; cursor: not-allowed; }
+        .betting-card:hover { box-shadow: var(--key-shadow-hover); transform: translateY(-3px); }
+        /* 状态色：可竞猜（绿） / 已锁定待结算（琥珀） / 已结算（灰） */
+        .betting-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+        .betting-card.bettable { border-color: rgba(89, 212, 153, 0.35); }
+        .betting-card.bettable::before { background: var(--success-green); }
+        .betting-card.locked-pending { border-color: rgba(255, 190, 60, 0.35); cursor: pointer; }
+        .betting-card.locked-pending::before { background: #ffbe3c; }
+        .betting-card.settled { border-color: var(--border); cursor: pointer; opacity: 0.72; }
+        .betting-card.settled::before { background: var(--iron); }
+        .bc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px 0; }
+        .bc-state { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+        .bettable .bc-state { color: var(--success-green); }
+        .locked-pending .bc-state { color: #ffbe3c; }
+        .settled .bc-state { color: var(--smoke); }
+        .bc-date { font-size: 12px; color: var(--smoke); font-family: var(--font-mono); }
+        .bc-teams { padding: 10px 14px 4px; }
+        .bc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; }
+        .bc-row + .bc-row { border-top: 1px dashed rgba(255,255,255,0.06); }
+        .bc-team { font-size: 15px; font-weight: 600; color: var(--pure-white); }
+        .bc-score { font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--pure-white); }
+        .bc-odds { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-mono); font-size: 13px; color: var(--ash); }
+        .bc-share { font-size: 11px; color: var(--smoke); }
+        .bc-foot { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px 12px; font-size: 12px; color: var(--smoke); }
+        /* 详情弹窗两队名单 */
+        .md-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        @media (max-width: 640px) { .md-teams { grid-template-columns: 1fr; } }
+        .md-team-card { background: var(--obsidian); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+        .md-team-card h4 { margin: 0 0 8px; font-size: 14px; color: var(--pure-white); display: flex; justify-content: space-between; }
+        .md-player { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 8px; align-items: center; padding: 6px 0; font-size: 12.5px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .md-player:first-of-type { border-top: none; }
+        .md-player .nm { color: var(--mist); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .md-player .st { color: var(--smoke); font-family: var(--font-mono); font-size: 11.5px; text-align: right; min-width: 52px; }
+        .md-player .st b { color: var(--mist); font-weight: 600; }
+        .md-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--smoke); margin: 0 0 10px; }
         .team { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; }
         .team-name-container { display: flex; align-items: center; gap: 10px; min-width: 0; }
         .team-name { font-size: 15px; font-weight: 600; color: var(--pure-white); }
@@ -155,8 +174,6 @@
                         <span id="username-display"></span>
                         <span class="sep">|</span>
                         余额 <span class="bal" id="user-balance"></span>
-                        <button id="logout-btn" class="btn btn-ghost btn-sm" type="button">登出</button>
-                        <button id="welfare-btn" class="btn btn-ghost btn-sm" type="button" style="display:none;">每日签到 +5</button>
                     </div>
                     <div class="bet-actions">
                         <button id="login-btn" class="btn btn-ghost" type="button">登录 / 注册</button>
@@ -179,7 +196,7 @@
                     <table class="leaderboard-table">
                         <thead>
                             <tr>
-                                <th>排名</th><th>ID</th><th>当前分数</th><th>预测次数</th><th>正确率</th><th>低保次数</th>
+                                <th>排名</th><th>ID</th><th>当前分数</th><th>预测次数</th><th>正确率</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-table-body"></tbody>
@@ -251,6 +268,19 @@
         </div>
     </div>
 
+    <div id="match-detail-modal" class="modal-backdrop">
+        <div class="modal-panel" style="max-width:720px;">
+            <button class="modal-close" type="button" aria-label="关闭" onclick="document.getElementById('match-detail-modal').classList.remove('visible')">&times;</button>
+            <span class="modal-eyebrow">Match</span>
+            <h3 class="modal-header" id="md-title"></h3>
+            <div id="md-status" style="margin:-6px 0 12px;"></div>
+            <div id="md-body"><p style="color:var(--smoke); text-align:center;">加载中…</p></div>
+            <div class="modal-footer">
+                <button id="md-bet-btn" class="btn btn-primary" type="button" hidden>参与竞猜 →</button>
+            </div>
+        </div>
+    </div>
+
     <div id="roster-modal" class="modal-backdrop">
         <div class="modal-panel" id="roster-modal-content"></div>
     </div>
@@ -268,14 +298,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let allMatchesData = [];
     let allBetsData = [];
     let allUsersData = [];
-    let allWelfareData = [];
     let allLedgerData = [];
-    let allPlayersData = []; 
-    let bettingGroupStatus = {};
+    let allPlayersData = [];
     let currentSeason = 's6'; // 默认 S6 赛季
 
     const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
     const historyBtn = document.getElementById('history-btn');
     const loginModal = document.getElementById('login-modal');
     const loginConfirmBtn = document.getElementById('login-confirm-btn');
@@ -285,14 +312,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleViewBtn = document.getElementById('toggle-view-btn');
     const leaderboardSection = document.getElementById('leaderboard-section');
     const mainTitle = document.getElementById('main-title');
-    const welfareBtn = document.getElementById('welfare-btn');
-    
+
     loginBtn.addEventListener('click', () => loginModal.classList.add('visible'));
     loginConfirmBtn.addEventListener('click', handleLoginOrRegister);
-    logoutBtn.addEventListener('click', handleLogout);
     historyBtn.addEventListener('click', () => showHistory(currentUser.id, "我"));
     toggleViewBtn.addEventListener('click', toggleView);
-    welfareBtn.addEventListener('click', handleWelfareClaim);
 
     async function handleLoginOrRegister() {
         const username = document.getElementById('username-input').value.trim();
@@ -311,20 +335,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleLogout() {
-        HWAuth.logout();
-        currentUser = null;
-        updateUserDisplay();
-        renderMatches();
-    }
 
     function updateUserDisplay() {
         const userDisplay = document.getElementById('user-display');
         const usernameDisplay = document.getElementById('username-display');
         const userBalance = document.getElementById('user-balance');
         
-        welfareBtn.style.display = 'none';
-
         if (currentUser) {
             userDisplay.style.display = 'flex';
             loginBtn.style.display = 'none';
@@ -340,18 +356,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (el) el.textContent = Math.round(b);
                 });
             }
-            
-            /* P13e：每日签到（并入低保）—— 登录即可，每天一次 */
-            {
-                const today = new Date().toISOString().slice(0, 10);
-                const hasClaimedToday = allWelfareData.some(claim => {
-                    var ts = claim.claimed_at || claim.created_at;
-                    return claim.user_id === currentUser.id && ts && new Date(ts).toISOString().slice(0, 10) === today;
-                });
-                if (!hasClaimedToday) {
-                    welfareBtn.style.display = 'inline-flex';
-                }
-            }
         } else {
             userDisplay.style.display = 'none';
             loginBtn.style.display = 'inline-flex';
@@ -362,26 +366,22 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initializePage() {
         mainContent.innerHTML = '<p style="color:var(--smoke); text-align:center; width:100%;">正在加载最新赛程和预测数据...</p>';
         const [
-            { data: matches, error: mError }, 
-            { data: bets, error: bError }, 
+            { data: matches, error: mError },
+            { data: bets, error: bError },
             { data: users, error: uError },
-            { data: welfare, error: wError },
             { data: ledger, error: ledgerErr },
-            { data: groupsStatus, error: gError },
             { data: players, error: pError }
         ] = await Promise.all([
             supabaseClient.from(currentSeason === 's5' ? 's5_match_schedule' : 's6_match_schedule').select('*').order('id'),
             supabaseClient.from('s6_bet_bets').select('*'),
             supabaseClient.from(HWAuth.accountTable()).select('id, username, balance'),
-            supabaseClient.from('s6_bet_welfare_claims').select('*'),
             supabaseClient.from('points_ledger').select('user_id, delta'),
-            supabaseClient.from('s6_betting_groups').select('group_name, is_locked'),
             supabaseClient.from(currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids').select('id, name, team, "group"')
         ]);
 
         /* points_ledger 缺表不致命（§13 未执行时按无流水处理） */
-        if (mError || bError || uError || wError || gError || pError) {
-            console.error("加载数据失败:", mError || bError || uError || wError || gError || pError);
+        if (mError || bError || uError || pError) {
+            console.error("加载数据失败:", mError || bError || uError || pError);
             mainContent.innerHTML = '<p style="color:var(--coral-pulse); text-align:center; width:100%;">加载数据失败，请刷新页面重试。</p>';
             return;
         }
@@ -389,13 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
         allMatchesData = matches;
         allBetsData = bets;
         allUsersData = users;
-        allWelfareData = welfare;
         allPlayersData = players;
         allLedgerData = ledger || [];
-        bettingGroupStatus = groupsStatus.reduce((acc, group) => {
-            acc[group.group_name] = group.is_locked;
-            return acc;
-        }, {});
 
         await calculateAllUserBalances();
 
@@ -444,116 +439,160 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
-            const welfareClaims = allWelfareData.filter(c => c.user_id === user.id).length;
             const ledgerNet = (allLedgerData || []).filter(l => l.user_id === user.id).reduce((sum, l) => sum + (l.delta || 0), 0);
-            user.balance = Math.round(100 - totalStaked + totalWinnings + (welfareClaims * 5) + ledgerNet);
+            user.balance = Math.round(100 - totalStaked + totalWinnings + ledgerNet);
         });
     }
+
+    /* 比赛状态：bettable 可竞猜 / locked-pending 已锁定待结算 / settled 已结算 */
+    function matchBetState(m) {
+        const hasScore = m.score_a != null && m.score_b != null && (m.score_a > 0 || m.score_b > 0);
+        if (hasScore) return 'settled';
+        if (m.match_date && new Date(m.match_date).getTime() < Date.now()) return 'locked-pending';
+        return 'bettable';
+    }
+    const STATE_ZH = { bettable: '可竞猜', 'locked-pending': '已锁定 · 待结算', settled: '已结算' };
 
     function renderMatches() {
         mainContent.innerHTML = '';
         const groups = ['传奇组', '中坚组', '挑战组'];
         groups.forEach(group => {
             const groupMatches = allMatchesData.filter(m => m.group === group && m.team_a && m.team_b);
-            if (groupMatches.length > 0) {
-                const section = document.createElement('section');
-                section.className = 'group-section';
-                const isGroupLocked = bettingGroupStatus[group];
-                
-                section.innerHTML = `
-                    <h2 class="group-header">
-                        ${group}
-                        <button class="lock-btn ${isGroupLocked ? 'locked' : ''}" data-group="${group}">${isGroupLocked ? '解除锁定' : '锁定竞猜'}</button>
-                    </h2>
-                    <div class="betting-matches-grid"></div>`;
-                
-                const grid = section.querySelector('.betting-matches-grid');
+            if (groupMatches.length === 0) return;
+            const section = document.createElement('section');
+            section.className = 'group-section';
+            section.innerHTML = `<h2 class="group-header">${group}<span class="eyebrow">${groupMatches.length} 场</span></h2>
+                <div class="betting-matches-grid"></div>`;
+            const grid = section.querySelector('.betting-matches-grid');
 
-                groupMatches.forEach(match => {
-                    const betsForMatch = allBetsData.filter(b => b.match_id === match.id);
-                    const betsOnA = betsForMatch.filter(b => b.predicted_winner === match.team_a).reduce((sum, b) => sum + b.amount, 0);
-                    const betsOnB = betsForMatch.filter(b => b.predicted_winner === match.team_b).reduce((sum, b) => sum + b.amount, 0);
-                    const poolA = 100 + betsOnA;
-                    const poolB = 100 + betsOnB;
-                    const oddsA = poolA > 0 ? (poolA + poolB) / poolA : 1.00;
-                    const oddsB = poolB > 0 ? (poolA + poolB) / poolB : 1.00;
-                    const isFinished = match.score_a !== null && match.score_b !== null && (match.score_a > 0 || match.score_b > 0);
+            groupMatches.forEach(match => {
+                const state = matchBetState(match);
+                const betsForMatch = allBetsData.filter(b => b.match_id === match.id);
+                const betsOnA = betsForMatch.filter(b => b.predicted_winner === match.team_a).reduce((sum, b) => sum + b.amount, 0);
+                const betsOnB = betsForMatch.filter(b => b.predicted_winner === match.team_b).reduce((sum, b) => sum + b.amount, 0);
+                const poolA = 100 + betsOnA, poolB = 100 + betsOnB;
+                const shareA = Math.round(poolA / (poolA + poolB) * 100);
+                const dateStr = match.match_date
+                    ? new Date(match.match_date).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    : '时间待定';
+                const scoreA = (state === 'settled') ? match.score_a : '–';
+                const scoreB = (state === 'settled') ? match.score_b : '–';
 
-                    const card = document.createElement('div');
-                    let cardClass = 'betting-card';
-                    if(isGroupLocked) {
-                        cardClass += ' group-locked';
-                    } else if (!isFinished) {
-                        cardClass += ' bettable';
-                    } else {
-                        cardClass += ' not-bettable';
-                    }
-
-                    card.className = cardClass;
-                    card.dataset.matchId = match.id;
-                    card.innerHTML = `
-                        <div class="team">
-                            <div class="team-name-container">
-                                <span class="team-name">${match.team_a}</span>
-                                <button class="roster-btn" data-team-name="${match.team_a}" data-group-name="${match.group}">?</button>
-                            </div>
-                            <span class="team-odds ${oddsA > oddsB ? 'high-odds' : ''}">${oddsA.toFixed(2)}<span class="team-share">${Math.round(poolA / (poolA + poolB) * 100)}%</span></span>
+                const card = document.createElement('div');
+                card.className = 'betting-card ' + state;
+                card.dataset.matchId = match.id;
+                card.setAttribute('tabindex', '0');
+                card.innerHTML = `
+                    <div class="bc-head">
+                        <span class="bc-state">${STATE_ZH[state]}</span>
+                        <span class="bc-date">${dateStr}</span>
+                    </div>
+                    <div class="bc-teams">
+                        <div class="bc-row">
+                            <span class="bc-team">${match.team_a}</span>
+                            <span class="bc-odds">${(poolA / (poolA + poolB) * 100).toFixed(0)}%<span class="bc-share">支持比</span></span>
+                            <span class="bc-score">${scoreA}</span>
                         </div>
-                        <hr>
-                        <div class="team">
-                            <div class="team-name-container">
-                                <span class="team-name">${match.team_b}</span>
-                                <button class="roster-btn" data-team-name="${match.team_b}" data-group-name="${match.group}">?</button>
-                            </div>
-                            <span class="team-odds ${oddsB > oddsA ? 'high-odds' : ''}">${oddsB.toFixed(2)}<span class="team-share">${Math.round(poolB / (poolA + poolB) * 100)}%</span></span>
-                        </div>`;
-                    
-                    if (!isFinished && !isGroupLocked) {
-                        card.addEventListener('click', (e) => {
-                            if (!e.target.classList.contains('roster-btn')) {
-                                openBetModal(match.id);
-                            }
-                        });
-                    }
-                    grid.appendChild(card);
-                });
-                mainContent.appendChild(section);
-            }
+                        <div class="bc-row">
+                            <span class="bc-team">${match.team_b}</span>
+                            <span class="bc-odds">${(poolB / (poolA + poolB) * 100).toFixed(0)}%<span class="bc-share">支持比</span></span>
+                            <span class="bc-score">${scoreB}</span>
+                        </div>
+                    </div>
+                    <div class="bc-foot">
+                        <span>点开查看双方名单与数据</span>
+                        <span>${betsForMatch.length} 人已预测</span>
+                    </div>`;
+                const open = () => openMatchDetail(match.id);
+                card.addEventListener('click', open);
+                card.addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
+                grid.appendChild(card);
+            });
+            mainContent.appendChild(section);
         });
-
-        document.querySelectorAll('.lock-btn').forEach(btn => btn.addEventListener('click', handleLockGroup));
-        document.querySelectorAll('.roster-btn').forEach(btn => btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const teamName = e.target.dataset.teamName;
-            const groupName = e.target.dataset.groupName;
-            showTeamRoster(teamName, groupName);
-        }));
     }
-    
-    async function handleLockGroup(event) {
-        const groupName = event.target.dataset.group;
-        const currentStatus = bettingGroupStatus[groupName];
-        const action = currentStatus ? '解除锁定' : '锁定';
 
-        const adminPassword = prompt(`请输入管理员密码以"${action}"该组别的竞猜:`);
-        if (adminPassword === null) return;
+    /* ---------- 比赛详情：双方名单 + 生涯/本次排名与 ACS ---------- */
+    function aggPlayerStats(matchRows) {
+        const byId = {};
+        matchRows.forEach(m => {
+            ['team_a', 'team_b'].forEach(tk => {
+                for (let i = 1; i <= 5; i++) {
+                    const gid = m[tk + '_player' + i + '_id'];
+                    const ds = m[tk + '_player' + i + '_data'];
+                    if (!gid || !ds) continue;
+                    const st = String(ds).split('/').map(Number);
+                    if (st.length < 4 || st.some(isNaN)) continue;
+                    const rec = byId[gid] || (byId[gid] = { acsSum: 0, acsN: 0, matches: 0 });
+                    rec.matches++;
+                    if (st[0] > 0) { rec.acsSum += st[0]; rec.acsN++; }
+                }
+            });
+        });
+        Object.keys(byId).forEach(k => {
+            byId[k].acs = byId[k].acsN > 0 ? byId[k].acsSum / byId[k].acsN : 0;
+        });
+        return byId;
+    }
 
-        const { data: manageData, error: manageError } = await supabaseClient.from('manage').select('password').limit(1).single();
-        if(manageError || manageData.password !== adminPassword) {
-            HWLayout.toast('管理员密码错误！');
-            return;
-        }
+    async function openMatchDetail(matchId) {
+        const match = allMatchesData.find(m => m.id === matchId);
+        if (!match) return;
+        const state = matchBetState(match);
+        document.getElementById('md-title').textContent = `${match.team_a} vs ${match.team_b}`;
+        document.getElementById('md-status').innerHTML =
+            `<span class="badge ${state === 'bettable' ? 'badge-green' : state === 'locked-pending' ? 'badge-gold' : 'badge-quiet'}">${STATE_ZH[state]}</span>` +
+            (match.match_date ? `<span class="smoke" style="margin-left:8px; font-size:12px;">${new Date(match.match_date).toLocaleString('zh-CN')}</span>` : '');
+        const body = document.getElementById('md-body');
+        body.innerHTML = '<p style="color:var(--smoke); text-align:center;">加载中…</p>';
+        const betBtn = document.getElementById('md-bet-btn');
+        betBtn.hidden = state !== 'bettable';
+        betBtn.onclick = () => {
+            document.getElementById('match-detail-modal').classList.remove('visible');
+            openBetModal(matchId);
+        };
+        document.getElementById('match-detail-modal').classList.add('visible');
 
-        const { error: updateError } = await supabaseClient
-            .from('s6_betting_groups')
-            .update({ is_locked: !currentStatus })
-            .eq('group_name', groupName);
+        try {
+            const seasonTables = ['s6_matches', 's5_matches'];
+            const results = await Promise.all(seasonTables.map(t =>
+                supabaseClient.from(t).select('*').catch(() => ({ data: [] }))));
+            const allRows = results.flatMap(r => (r && r.data) || []);
+            const evId = match.event_id || (boundEv && boundEv.id) || null;
+            const careerAgg = aggPlayerStats(allRows);
+            const eventAgg = evId ? aggPlayerStats(allRows.filter(m2 => String(m2.event_id) === String(evId))) : careerAgg;
 
-        if (updateError) {
-            HWLayout.toast(`${action}失败: ${updateError.message}`);
-        } else {
-            HWLayout.toast(`"${groupName}" 已成功${action}！`);
-            await initializePage();
+            const careerRank = {}; /* gid → 名次（按生涯 ACS） */
+            Object.keys(careerAgg).sort((a, b) => careerAgg[b].acs - careerAgg[a].acs)
+                .forEach((gid, i) => { careerRank[gid] = i + 1; });
+            const eventRank = {};
+            Object.keys(eventAgg).sort((a, b) => eventAgg[b].acs - eventAgg[a].acs)
+                .forEach((gid, i) => { eventRank[gid] = i + 1; });
+
+            const rosterOf = team => (allPlayersData || []).filter(p => p.team === team && (!match.group || p.group === match.group));
+            const renderTeam = team => {
+                const roster = rosterOf(team);
+                if (!roster.length) return `<div class="md-team-card"><h4>${team}</h4><p class="smoke" style="font-size:12.5px; margin:0;">暂无名单</p></div>`;
+                return `<div class="md-team-card"><h4><span>${team}</span><span class="smoke" style="font-weight:400;">${roster.length} 人</span></h4>` +
+                    roster.map(p => {
+                        const c = careerAgg[p.id] || null;
+                        const e = eventAgg[p.id] || null;
+                        return `<div class="md-player">
+                            <span class="nm">${p.name || p.id}</span>
+                            <span class="st" title="生涯比赛排名">${careerRank[p.id] ? '#' + careerRank[p.id] : '—'}</span>
+                            <span class="st" title="本次比赛排名">${eventRank[p.id] ? '#' + eventRank[p.id] : '—'}</span>
+                            <span class="st" title="生涯 ACS">${c && c.acs > 0 ? '<b>' + c.acs.toFixed(1) + '</b>' : '—'}</span>
+                            <span class="st" title="比赛 ACS">${e && e.acs > 0 ? '<b>' + e.acs.toFixed(1) + '</b>' : '—'}</span>
+                        </div>`;
+                    }).join('') + '</div>';
+            };
+            body.innerHTML = `
+                <div class="md-legend">
+                    <span>列：</span><span>生涯排名</span><span>本次排名</span><span>生涯 ACS</span><span>比赛 ACS</span>
+                </div>
+                <div class="md-teams">${renderTeam(match.team_a)}${renderTeam(match.team_b)}</div>`;
+        } catch (e) {
+            body.innerHTML = '<p style="color:var(--coral-pulse); text-align:center;">名单数据加载失败</p>';
         }
     }
 
@@ -564,11 +603,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const match = allMatchesData.find(m => m.id === matchId);
-        
-        if (bettingGroupStatus[match.group]) {
-            HWLayout.toast(`"${match.group}" 的竞猜已被管理员锁定，无法进行操作。`);
-            return;
-        }
+        const st = matchBetState(match);
+        if (st === 'settled') { HWLayout.toast('该场比赛已结算，不再接受预测'); return; }
+        if (st === 'locked-pending') { HWLayout.toast('比赛时间已过，预测已锁定，等待结算'); return; }
 
         document.getElementById('bet-modal-header').textContent = `${match.team_a} vs ${match.team_b}`;
         document.getElementById('modal-user-balance').textContent = Math.round(currentUser.balance);
@@ -626,21 +663,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (eBan) { HWLayout.toast('你在该活动被禁赛，无法下注', 'err'); return; }
             }
             
-            const { data: groupStatus, error: groupError } = await supabaseClient
-                .from('s6_betting_groups')
-                .select('is_locked')
-                .eq('group_name', match.group)
-                .single();
-
-            if (groupError) {
-                HWLayout.toast("错误：无法验证竞猜状态，请重试。" + groupError.message);
-                return;
-            }
-            if (groupStatus.is_locked) {
-                HWLayout.toast(`"${match.group}"的竞猜已被锁定，无法提交新的预测。`);
-                betModal.classList.remove('visible');
-                await initializePage();
-                return;
+            {
+                const stC = matchBetState(match);
+                if (stC !== 'bettable') {
+                    HWLayout.toast('比赛时间已过或已结算，无法提交预测', 'err');
+                    betModal.classList.remove('visible');
+                    return;
+                }
             }
             
             betConfirmBtn.disabled = true; betConfirmBtn.textContent = '提交中...';
@@ -720,13 +749,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. 构建映射并渲染
         const userMap = {};
         (users || []).forEach(u => { userMap[u.id] = u.username; });
-        const isGroupLocked = bettingGroupStatus[groupName] || false;
+        const mRef = bets.length ? allMatchesData.find(m => m.id === bets[0].match_id) : null;
+        const canCancel = mRef ? matchBetState(mRef) === 'bettable' : false;
 
         listContainer.innerHTML = bets.map(bet => `
             <div class="bet-record">
                 <span>${userMap[bet.user_id] || '匿名'}</span>
                 <span style="color:var(--mist);">支持 ${bet.predicted_winner} <strong>${bet.amount}</strong> 分</span>
-                ${(currentUser && bet.user_id === currentUser.id && !isGroupLocked) ? `<button class="cancel-bet-btn" data-bet-id="${bet.id}">撤销</button>` : '<span></span>'}
+                ${(currentUser && bet.user_id === currentUser.id && canCancel) ? `<button class="cancel-bet-btn" data-bet-id="${bet.id}">撤销</button>` : '<span></span>'}
             </div>`).join('');
 
         document.querySelectorAll('.cancel-bet-btn').forEach(btn => btn.addEventListener('click', handleCancelBet));
@@ -746,18 +776,8 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
 
-        const { data: groupStatus, error: groupError } = await supabaseClient
-            .from('s6_betting_groups')
-            .select('is_locked')
-            .eq('group_name', matchOfBet.group)
-            .single();
-
-        if (groupError) {
-            HWLayout.toast("错误：无法验证竞猜状态，请重试。" + groupError.message);
-            return;
-        }
-        if (groupStatus.is_locked) {
-            HWLayout.toast(`"${matchOfBet.group}"的竞猜已被锁定，无法撤销预测。`);
+        if (matchBetState(matchOfBet) !== 'bettable') {
+            HWLayout.toast('比赛已开始或已结算，无法撤销预测', 'err');
             betModal.classList.remove('visible');
             await initializePage();
             return;
@@ -781,26 +801,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    async function handleWelfareClaim() {
-        if (!currentUser) return;
-        welfareBtn.disabled = true;
-        welfareBtn.textContent = '签到中...';
-
-        const { error } = await supabaseClient.from('s6_bet_welfare_claims').insert([{ user_id: currentUser.id }]);
-
-        if (error) {
-            HWLayout.toast('签到失败: ' + error.message);
-            welfareBtn.disabled = false;
-            welfareBtn.textContent = '每 日 签 到 (+5分)';
-            return;
-        }
-
-        HWLayout.toast('每日签到成功，+5 积分！');
-        if (typeof HWLayout !== 'undefined' && HWLayout.recalcBalance) {
-            await HWLayout.recalcBalance(currentUser.id);
-        }
-        await initializePage();
-    }
 
     function showHistory(userId, username) {
         const historyModal = document.getElementById('history-modal');
@@ -855,7 +855,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalPredictions = userBets.length;
             let correctPredictions = 0;
             let settledPredictions = 0;
-            const welfareCount = allWelfareData.filter(c => c.user_id === user.id).length;
 
             userBets.forEach(bet => {
                 const match = allMatchesData.find(m => m.id === bet.match_id);
@@ -869,7 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const accuracy = settledPredictions > 0 ? ((correctPredictions / settledPredictions) * 100) : 0;
-            return { ...user, predictionCount: totalPredictions, accuracy, welfareCount };
+            return { ...user, predictionCount: totalPredictions, accuracy };
         });
 
         leaderboardBody.innerHTML = usersWithStats.map((user, index) => `
@@ -879,7 +878,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="color:var(--mist); font-weight:700;">${Math.round(user.balance)}</td>
                 <td>${user.predictionCount}</td>
                 <td style="color:var(--success-green); font-weight:700;">${user.accuracy.toFixed(1)}%</td>
-                <td>${user.welfareCount}</td>
             </tr>
         `).join('');
 

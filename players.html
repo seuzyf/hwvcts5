@@ -14,7 +14,6 @@
   <style>
     #dc-season { width: 320px; }
     #dc-search { width: 260px; }
-    #dc-count { margin-left: auto; white-space: nowrap; }
     #dc-table tbody tr { cursor: default; }
     #dc-table a {
       color: var(--pure-white);
@@ -40,8 +39,7 @@
       <select id="dc-season" class="select" aria-label="按赛季筛选"></select>
       <label class="form-label" for="dc-event" style="margin:0;">赛事</label>
       <select id="dc-event" class="select" aria-label="按赛事筛选" style="width:260px;"></select>
-      <input id="dc-search" class="input" type="search" placeholder="搜索选手 / 游戏ID / 分组…" aria-label="搜索选手">
-      <span id="dc-count" class="page-sub" style="margin:0;">加载中…</span>
+      <input id="dc-search" class="input" type="search" placeholder="搜索选手 / 游戏ID / 分组…" aria-label="搜索选手" style="margin-left:auto;">
       <button class="btn btn-ghost btn-sm" id="dc-csv" type="button">导出 CSV</button>
       <a class="btn btn-ghost btn-sm" href="summary.html">数据汇总 →</a>
     </div>
@@ -50,6 +48,7 @@
       <table class="data-table" id="dc-table">
         <thead>
           <tr>
+            <th style="width:44px;">#</th>
             <th class="sortable" data-sort="gid">游戏ID<span class="sort-ind"></span></th>
             <th class="sortable" data-sort="name">真名<span class="sort-ind"></span></th>
             <th>分组</th>
@@ -62,10 +61,10 @@
             <th class="sortable" data-sort="kd">K/D<span class="sort-ind"></span></th>
             <th class="sortable" data-sort="kda">KDA<span class="sort-ind"></span></th>
             <th class="sortable" data-sort="acs">ACS<span class="sort-ind"></span></th>
-            <th>报名</th>
+            <th>状态</th>
           </tr>
         </thead>
-        <tbody id="dc-tbody"><tr><td colspan="13">加载中…</td></tr></tbody>
+        <tbody id="dc-tbody"><tr><td colspan="14">加载中…</td></tr></tbody>
       </table>
     </div>
 
@@ -223,9 +222,8 @@
       async function loadAll() {
         var tb = document.getElementById('dc-tbody');
         var empty = document.getElementById('dc-empty');
-        tb.innerHTML = '<tr><td colspan="13">加载中…</td></tr>';
+        tb.innerHTML = '<tr><td colspan="14">加载中…</td></tr>';
         empty.hidden = true;
-        document.getElementById('dc-count').textContent = '加载中…';
 
         var prefixes = state.season ? [state.season] : ['s6', 's5'];
         var r = null;
@@ -290,6 +288,11 @@
         roster.forEach(function (p) {
           var gid = String(p.id == null ? '' : p.id);
           if (!gid) return;
+          /* 赛事筛选：只显示 报名该赛事 ∪ 该赛事有出场 的选手 */
+          if (state.event) {
+            var inScope = !!(regGids[gid] || (p.name && regNames[p.name]) || byId[gid]);
+            if (!inScope) return;
+          }
           seen[gid] = true;
           var agg = byId[gid] || { matches: 0, kills: 0, deaths: 0, assists: 0, acsSum: 0, acsN: 0, rounds: 0, groups: {}, teams: {} };
           rows.push(mkRow(gid, p.name, p.group, p.team, agg));
@@ -328,10 +331,8 @@
           return s.dir * (av - bv);
         });
         state.view = rows;
-        var regN = rows.filter(function (r) { return r.reg; }).length;
 
         var tb = document.getElementById('dc-tbody');
-        document.getElementById('dc-count').textContent = rows.length + ' 名选手（已报名 ' + regN + '）';
         document.querySelectorAll('#dc-table th .sort-ind').forEach(function (el) { el.textContent = ''; });
         var activeTh = document.querySelector('#dc-table th[data-sort="' + s.key + '"] .sort-ind');
         if (activeTh) activeTh.textContent = s.dir === -1 ? '▼' : '▲';
@@ -342,13 +343,16 @@
           return;
         }
         document.getElementById('dc-empty').hidden = true;
-        tb.innerHTML = rows.map(function (r) {
+        tb.innerHTML = rows.map(function (r, idx) {
           var idCell = r.name
             ? '<a href="player.html?name=' + encodeURIComponent(r.name)
               + '&group=' + encodeURIComponent(r.group || '未分组')
               + '&season=' + esc(state.season || 's6') + '">' + esc(r.gid) + '</a>'
             : esc(r.gid);
+          var statusCell = r.reg ? '<span class="badge badge-green">已报名</span>'
+            : (state.event && r.matches > 0 ? '<span class="badge badge-blue">替补</span>' : '—');
           return '<tr>'
+            + '<td class="smoke">' + (idx + 1) + '</td>'
             + '<td>' + idCell + '</td>'
             + '<td>' + esc(r.name || '—') + (r.banned ? ' ' + HWLayout.bannedBadgeHtml() : '') + '</td>'
             + '<td>' + esc(r.group || '—') + '</td>'
@@ -361,7 +365,7 @@
             + '<td>' + r.kd.toFixed(2) + '</td>'
             + '<td>' + r.kda.toFixed(2) + '</td>'
             + '<td>' + (r.acs > 0 ? r.acs.toFixed(1) : '—') + '</td>'
-            + '<td>' + (r.reg ? '<span class="badge badge-green">已报名</span>' : '—') + '</td>'
+            + '<td>' + statusCell + '</td>'
             + '</tr>';
         }).join('');
       }
@@ -369,9 +373,10 @@
       /* —— CSV（P13c） —— */
       function exportCsv() {
         var rows = state.view || [];
-        var header = ['游戏ID', '真名', '分组', '队伍', '角色', '报名', '场次', '击杀', '死亡', '助攻', 'K/D', 'KDA', 'ACS'];
-        var body = rows.map(function (r) {
-          return [r.gid, r.name, r.group, r.team, r.role, r.reg ? '已报名' : '',
+        var header = ['#', '游戏ID', '真名', '分组', '队伍', '角色', '状态', '场次', '击杀', '死亡', '助攻', 'K/D', 'KDA', 'ACS'];
+        var body = rows.map(function (r, i) {
+          return [i + 1, r.gid, r.name, r.group, r.team, r.role,
+            r.reg ? '已报名' : ((state.event && r.matches > 0) ? '替补' : ''),
             r.matches, r.kills, r.deaths, r.assists,
             r.kd.toFixed(2), r.kda.toFixed(2), r.acs > 0 ? r.acs.toFixed(1) : ''];
         });
@@ -431,8 +436,7 @@
         } catch (e) {
           console.error('[players] boot:', e);
           document.getElementById('dc-tbody').innerHTML =
-            '<tr><td colspan="13">加载失败：' + esc(String((e && e.message) || e)) + '（详情见控制台）</td></tr>';
-          document.getElementById('dc-count').textContent = '加载失败';
+            '<tr><td colspan="14">加载失败：' + esc(String((e && e.message) || e)) + '（详情见控制台）</td></tr>';
           document.getElementById('dc-empty').hidden = true;
         }
       });

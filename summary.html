@@ -99,8 +99,6 @@
             <div class="tabs">
                 <button class="tab-btn active" data-tab="table" type="button">数据汇总</button>
                 <button class="tab-btn" data-tab="compare" type="button">多维对比</button>
-                <button class="tab-btn" data-tab="rank" type="button">排行榜</button>
-                <button class="tab-btn" data-tab="h2h" type="button">交手记录</button>
             </div>
 
             <!-- Tab 1: stats table -->
@@ -167,35 +165,6 @@
             </section>
         </div>
 
-            <!-- Tab 3: 排行榜（P13i） -->
-            <section id="rank-pane" hidden>
-                <div class="filter-bar">
-                    <div class="seg" id="rank-metric">
-                        <button class="active" data-m="balance" type="button">积分</button>
-                        <button data-m="wins" type="button">胜场</button>
-                        <button data-m="wr" type="button">胜率</button>
-                    </div>
-                    <span id="rank-count" class="smoke" style="font-size:13px;"></span>
-                </div>
-                <div class="table-card">
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead><tr><th>#</th><th>选手</th><th>队伍</th><th id="rank-metric-th">积分</th></tr></thead>
-                            <tbody id="rank-tbody"><tr><td colspan="4">加载中…</td></tr></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Tab 4: 交手记录（P13i） -->
-            <section id="h2h-pane" hidden>
-                <div class="filter-bar">
-                    <select class="select" id="h2h-a" style="min-width:200px;"><option value="">选择选手 A</option></select>
-                    <span class="smoke">VS</span>
-                    <select class="select" id="h2h-b" style="min-width:200px;"><option value="">选择选手 B</option></select>
-                </div>
-                <div id="h2h-result"><div class="empty-state">选择两名不同选手查看交手记录</div></div>
-            </section>
     </main>
 
     <script>
@@ -238,175 +207,19 @@
             var tablePane = document.getElementById('table-pane');
             var comparePane = document.getElementById('compare-pane');
 
-            var rankPane = document.getElementById('rank-pane');
-            var h2hPane = document.getElementById('h2h-pane');
-
             function switchTab(name) {
+                if (name === 'rank' || name === 'h2h') name = 'table'; /* 页签已下线 */
                 tabBtns.forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
                 tablePane.hidden = name !== 'table';
                 comparePane.hidden = name !== 'compare';
-                if (rankPane) rankPane.hidden = name !== 'rank';
-                if (h2hPane) h2hPane.hidden = name !== 'h2h';
                 if (name === 'compare') renderCompareTab();
-                if (name === 'rank') renderRankTab();
-                if (name === 'h2h') renderH2hTab();
                 location.hash = name === 'compare' ? 'compare' : '';
             }
             tabBtns.forEach(function (b) {
                 b.addEventListener('click', function () { switchTab(b.dataset.tab); });
             });
 
-            /* ================= 排行榜 / 交手记录（P13i） ================= */
-            var rankCache = null;
-            var rankMetric = 'balance';
-            function loadRankData() {
-                if (rankCache) return Promise.resolve(rankCache);
-                var sb = HWAuth.getClient();
-                var mT = currentSeason === 's5' ? 's5_matches' : 's6_matches';
-                var pT = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
-                return Promise.all([
-                    sb.from('site_users').select('id, username, nickname, balance'),
-                    sb.from(pT).select('id, name, team, "group"'),
-                    sb.from(mT).select('*')
-                ]).then(function (rs) {
-                    rankCache = {
-                        users: (rs[0] && !rs[0].error && rs[0].data) || [],
-                        roster: (rs[1] && !rs[1].error && rs[1].data) || [],
-                        matches: (rs[2] && !rs[2].error && rs[2].data) || []
-                    };
-                    return rankCache;
-                });
-            }
-            function computePlayerWins(d) {
-                var byId = {};
-                d.roster.forEach(function (p) {
-                    var id = String(p.id);
-                    byId[id] = { id: id, name: p.name, team: p.team, group: p.group, played: 0, wins: 0 };
-                });
-                d.matches.forEach(function (m) {
-                    var sc = String(m.score || '').split(/[/:：]/).map(Number);
-                    if (sc.length !== 2 || isNaN(sc[0]) || isNaN(sc[1]) || sc[0] === sc[1]) return;
-                    var wTeam = sc[0] > sc[1] ? m.team_a : m.team_b;
-                    ['team_a', 'team_b'].forEach(function (tk) {
-                        for (var i = 1; i <= 5; i++) {
-                            var pid = m[tk + '_player' + i + '_id'];
-                            if (!pid) continue;
-                            var id = String(pid);
-                            if (!byId[id]) byId[id] = { id: id, name: '', team: m[tk], group: m.group || '', played: 0, wins: 0 };
-                            byId[id].played++;
-                            if (m[tk] === wTeam) byId[id].wins++;
-                        }
-                    });
-                });
-                return Object.keys(byId).map(function (k) { return byId[k]; });
-            }
-            function renderRankTab() {
-                loadRankData().then(function (d) {
-                    var tbody = document.getElementById('rank-tbody');
-                    var th = document.getElementById('rank-metric-th');
-                    if (!tbody) return;
-                    if (rankMetric === 'balance') {
-                        th.textContent = '积分';
-                        var users = d.users.slice().sort(function (a, b) { return (b.balance == null ? 100 : b.balance) - (a.balance == null ? 100 : a.balance); });
-                        document.getElementById('rank-count').textContent = users.length + ' 个账号';
-                        tbody.innerHTML = users.length ? users.map(function (u, i) {
-                            return '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(u.nickname || u.username) + '</td><td>—</td>' +
-                                '<td style="color:var(--coral-pulse); font-weight:700;">' + (u.balance == null ? 100 : u.balance) + '</td></tr>';
-                        }).join('') : '<tr><td colspan="4">暂无数据</td></tr>';
-                        return;
-                    }
-                    var rows = computePlayerWins(d).filter(function (r) { return r.played > 0; });
-                    rows.forEach(function (r) { r.wr = r.played ? r.wins / r.played : 0; });
-                    rows.sort(function (a, b) {
-                        return rankMetric === 'wins'
-                            ? (b.wins - a.wins) || (b.played - a.played)
-                            : (b.wr - a.wr) || (b.played - a.played);
-                    });
-                    th.textContent = rankMetric === 'wins' ? '胜场' : '胜率';
-                    document.getElementById('rank-count').textContent = rows.length + ' 名选手（已上场）';
-                    tbody.innerHTML = rows.length ? rows.slice(0, 50).map(function (r, i) {
-                        return '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(r.name || r.id) + '</td><td>' + escapeHtml(r.team || '—') + '</td><td>' +
-                            (rankMetric === 'wins' ? r.wins : Math.round(r.wr * 100) + '%') + '</td></tr>';
-                    }).join('') : '<tr><td colspan="4">暂无数据</td></tr>';
-                }).catch(function () {});
-            }
-            document.getElementById('rank-metric').addEventListener('click', function (e) {
-                if (e.target.tagName !== 'BUTTON') return;
-                document.querySelectorAll('#rank-metric button').forEach(function (b) { b.classList.toggle('active', b === e.target); });
-                rankMetric = e.target.dataset.m;
-                renderRankTab();
-            });
-
-            var h2hBound = false;
-            function renderH2hTab() {
-                loadRankData().then(function (d) {
-                    var selA = document.getElementById('h2h-a');
-                    var selB = document.getElementById('h2h-b');
-                    if (!selA || selA.options.length > 1) { renderH2hMatch(); return; }
-                    var opts = d.roster.map(function (p) {
-                        return '<option value="' + escapeHtml(String(p.id)) + '">' + escapeHtml((p.name || p.id) + (p.team ? '（' + p.team + '）' : '')) + '</option>';
-                    }).join('');
-                    selA.innerHTML = '<option value="">选择选手 A</option>' + opts;
-                    selB.innerHTML = '<option value="">选择选手 B</option>' + opts;
-                    if (!h2hBound) {
-                        h2hBound = true;
-                        selA.addEventListener('change', renderH2hMatch);
-                        selB.addEventListener('change', renderH2hMatch);
-                    }
-                    renderH2hMatch();
-                }).catch(function () {});
-            }
-            function renderH2hMatch() {
-                var a = document.getElementById('h2h-a').value;
-                var b = document.getElementById('h2h-b').value;
-                var out = document.getElementById('h2h-result');
-                if (!out) return;
-                if (!a || !b || a === b) {
-                    out.innerHTML = '<div class="empty-state">选择两名不同选手查看交手记录</div>';
-                    return;
-                }
-                loadRankData().then(function (d) {
-                    var games = [], winsA = 0, winsB = 0, draws = 0;
-                    d.matches.forEach(function (m) {
-                        var sideOf = function (pid) {
-                            for (var i = 1; i <= 5; i++) {
-                                if (String(m['team_a_player' + i + '_id'] || '') === pid) return 'team_a';
-                                if (String(m['team_b_player' + i + '_id'] || '') === pid) return 'team_b';
-                            }
-                            return null;
-                        };
-                        var sa = sideOf(a), sbb = sideOf(b);
-                        if (!sa || !sbb) return;
-                        var sc = String(m.score || '').split(/[/:：]/).map(Number);
-                        var valid = sc.length === 2 && !isNaN(sc[0]) && !isNaN(sc[1]) && sc[0] !== sc[1];
-                        var aWin = null;
-                        if (valid) {
-                            var wTeam = sc[0] > sc[1] ? m.team_a : m.team_b;
-                            aWin = m[sa] === wTeam;
-                            if (sa === sbb) draws++;
-                            else if (aWin) winsA++; else winsB++;
-                        }
-                        games.push({ date: m.match_date, a: m.team_a, b: m.team_b, score: m.score || '—', group: m.group || '', aWin: sa === sbb ? null : aWin, sameTeam: sa === sbb });
-                    });
-                    games.sort(function (x, y) { return new Date(y.date || 0) - new Date(x.date || 0); });
-                    var head = '<div class="notice" style="margin-bottom:14px;"><strong>' +
-                        (winsA > winsB ? 'A 领先' : winsB > winsA ? 'B 领先' : '双方战平') + '</strong> · 交手 ' + games.length +
-                        ' 场：A 胜 ' + winsA + ' · B 胜 ' + winsB + (draws ? ' · 同队 ' + draws : '') + '</div>';
-                    if (!games.length) {
-                        out.innerHTML = head + '<div class="empty-state">两人暂无共同出场的比赛</div>';
-                        return;
-                    }
-                    out.innerHTML = head + '<div class="table-card"><div class="table-container"><table class="data-table">' +
-                        '<thead><tr><th>日期</th><th>对阵</th><th>比分</th><th>组别</th><th>结果</th></tr></thead><tbody>' +
-                        games.slice(0, 12).map(function (g) {
-                            var res = g.sameTeam ? '同队' : (g.aWin == null ? '未定' : (g.aWin ? 'A 胜' : 'B 胜'));
-                            return '<tr><td>' + escapeHtml(g.date ? String(g.date).slice(0, 10) : '—') + '</td>' +
-                                '<td>' + escapeHtml(g.a) + ' vs ' + escapeHtml(g.b) + '</td>' +
-                                '<td>' + escapeHtml(g.score) + '</td><td>' + escapeHtml(g.group) + '</td>' +
-                                '<td>' + res + '</td></tr>';
-                        }).join('') + '</tbody></table></div></div>';
-                }).catch(function () {});
-            }
+            /* 排行榜 / 交手记录已按需求下线 */
 
             /* ================= Data loading ================= */
             function initializePlayerIds() {

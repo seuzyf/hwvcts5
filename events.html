@@ -408,6 +408,7 @@
             function paint(perms) {
                 perms = perms || {};
                 var entries = [
+                    ['register.html?event=' + ev.id, 'clipboard-list', '报名'],
                     ['schedule.html?event=' + ev.id, 'calendar', '赛程'],
                     ['matches.html?event=' + ev.id, 'gamepad', '比赛'],
                     ['summary.html?event=' + ev.id, 'chart-column', '数据'],
@@ -512,7 +513,8 @@
         function renderHall() {
             if (tableMissing) { renderMissing(); return; }
             var list = allEvents.filter(function (ev) {
-                if (ev.status === 'draft' && !canManageEv(ev)) return false;
+                /* 草稿 / 已取消：任何人在赛事中心都不展示（管理入口在管理后台） */
+                if (ev.status === 'draft' || ev.status === 'cancelled') return false;
                 return currentFilter === 'all' || ev.status === currentFilter;
             });
             if (list.length === 0) {
@@ -662,7 +664,7 @@
             } else if (!mine) {
                 registerHtml = '<div class="notice">' +
                     (ev.status !== 'registration' ? '当前状态（' + (EV_STATUS[ev.status] || ev.status) + '）不可报名。'
-                     : deadlinePassed ? '报名已截止。'
+                     : deadlinePassed ? ('报名已于 ' + fmtTime(ev.reg_deadline) + ' 截止。')
                      : full ? '名额已满。' : '暂不可报名。') + '</div>';
             } else registerHtml = '';
 
@@ -979,6 +981,11 @@
             e.preventDefault();
             var title = document.getElementById('cf-title').value.trim();
             if (!title) return;
+            var _dl = document.getElementById('cf-deadline').value;
+            if (_dl && new Date(_dl).getTime() < Date.now()) {
+                HWLayout.toast('报名截止时间不能早于现在', 'err');
+                return;
+            }
             var row = {
                 title: title,
                 event_type: document.getElementById('cf-type').value,
@@ -987,7 +994,8 @@
                 max_slots: document.getElementById('cf-slots').value ? parseInt(document.getElementById('cf-slots').value, 10) : null,
                 start_time: document.getElementById('cf-start').value ? new Date(document.getElementById('cf-start').value).toISOString() : null,
                 end_time: document.getElementById('cf-end').value ? new Date(document.getElementById('cf-end').value).toISOString() : null,
-                reg_deadline: document.getElementById('cf-deadline').value ? new Date(document.getElementById('cf-deadline').value).toISOString() : null,
+                reg_deadline: document.getElementById('cf-deadline').value
+                    ? new Date(document.getElementById('cf-deadline').value).toISOString() : null,
                 format: document.getElementById('cf-format').value.trim(),
                 group_count: parseInt(document.getElementById('cf-groups').value, 10) || 1,
                 venue: document.getElementById('cf-venue').value.trim(),

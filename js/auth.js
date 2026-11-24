@@ -230,13 +230,16 @@
   /** 显式注册（用户名已存在时报错，不静默覆盖） */
   function register(username, password, profile) {
     username = (username || '').trim();
-    if (!username || !password) return Promise.reject(new Error('请输入用户名和密码'));
+    if (!username || !password) return Promise.reject(new Error('请输入姓名和密码'));
     if (password.length < 4) return Promise.reject(new Error('密码至少 4 位'));
+    if (profile && profile.password2 !== undefined && profile.password2 !== password) {
+      return Promise.reject(new Error('两次输入的密码不一致'));
+    }
     var sb = getClient();
     return detectAccountSource().then(function (table) {
       return sb.from(table).select('id').eq('username', username).maybeSingle().then(function (res) {
         if (res.error) throw res.error;
-        if (res.data) throw new Error('用户名已存在，请直接登录');
+        if (res.data) throw new Error('该姓名已注册，请直接登录');
         return sha256Hex(password).then(function (hash) {
           var row = { username: username, password: hash };
           if (table === PRIMARY_TABLE) {
@@ -249,8 +252,19 @@
           return sb.from(table).insert([row]).select().single();
         }).then(function (ins) {
           if (ins.error) throw ins.error;
-          saveSession(ins.data);
-          return ins.data;
+          /* 工号/真名写入选手档案（reg_profiles 已有 staff_no 列，无需迁移） */
+          var staffNo = (profile && profile.staff_no || '').trim();
+          var profileWrite = (table === PRIMARY_TABLE)
+            ? sb.from('reg_profiles').upsert({
+                user_id: ins.data.id,
+                real_name: username,
+                staff_no: staffNo
+              }).then(function () { /* best-effort：档案表异常不阻断注册 */ }, function () {})
+            : Promise.resolve();
+          return profileWrite.then(function () {
+            saveSession(ins.data);
+            return ins.data;
+          });
         });
       });
     });
@@ -328,9 +342,11 @@
     '      <button data-tab="register" type="button">注 册</button>',
     '    </div>',
     '    <form id="hw-auth-form" autocomplete="off">',
-    '      <input type="text" id="hw-auth-username" placeholder="用户名（建议使用真名）" required>',
+    '      <input type="text" id="hw-auth-username" placeholder="姓名" required>',
     '      <input type="password" id="hw-auth-password" placeholder="密码" required>',
-    '      <input type="text" id="hw-auth-nickname" placeholder="昵称（注册时可选）" style="display:none">',
+    '      <label class="hw-auth-plain"><input type="checkbox" id="hw-auth-plain-toggle"><span>明文显示</span></label>',
+    '      <input type="text" id="hw-auth-staff" placeholder="工号" style="display:none" autocomplete="off">',
+    '      <input type="password" id="hw-auth-password2" placeholder="确认密码" style="display:none">',
     '      <div class="hw-auth-error" id="hw-auth-error"></div>',
     '      <button type="submit" class="hw-auth-submit" id="hw-auth-submit">确 认</button>',
     '    </form>',
@@ -354,6 +370,8 @@
     '.hw-auth-tabs button.active{background:var(--graphite,#1b1c1e);color:var(--pure-white,#fff);box-shadow:rgba(255,255,255,.06) 0 1px 0 0 inset}',
     '.hw-auth-card input{width:100%;height:38px;margin-bottom:12px;padding:0 12px;background:rgba(255,255,255,.05);border:1px solid var(--border,#363739);border-radius:8px;color:var(--pure-white,#fff);font-size: 15px;outline:none;box-sizing:border-box;font-family:inherit;transition:border-color .15s}',
     '.hw-auth-card input:focus{border-color:var(--smoke,#6a6b6c)}',
+    '.hw-auth-plain{display:flex;align-items:center;gap:7px;margin:-4px 0 10px;font-size:13px;color:var(--smoke,#6a6b6c);cursor:pointer;user-select:none;width:fit-content}',
+    '.hw-auth-plain input{width:14px;height:14px;margin:0;accent-color:var(--mist,#e6e6e6);cursor:pointer}',
     '.hw-auth-error{min-height:18px;font-size: 13px;color:#ff8f8f;margin-bottom:6px;text-align:left}',
     '.hw-auth-submit{width:100%;height:38px;background:var(--mist,#e6e6e6);border:none;border-radius:8px;color:var(--iron,#454647);font-size: 15px;letter-spacing:.02em;cursor:pointer;transition:background .15s,color .15s;font-family:inherit;font-weight:500}',
     '.hw-auth-submit:hover{background:var(--pure-white,#fff);color:var(--void-black,#040506)}',
@@ -385,8 +403,25 @@
     var form = document.getElementById('hw-auth-form');
     var errEl = document.getElementById('hw-auth-error');
     var submitBtn = document.getElementById('hw-auth-submit');
-    var nickInput = document.getElementById('hw-auth-nickname');
+    var staffInput = document.getElementById('hw-auth-staff');
+    var pw2Input = document.getElementById('hw-auth-password2');
+    var plainToggle = document.getElementById('hw-auth-plain-toggle');
     var mode = 'login';
+
+    function setRegisterOnly(visible) {
+      staffInput.style.display = visible ? 'block' : 'none';
+      pw2Input.style.display = visible ? 'block' : 'none';
+      pw2Input.required = !!visible;
+      if (!visible) { staffInput.value = ''; pw2Input.value = ''; plainToggle.checked = false; }
+      syncPlain();
+    }
+    function syncPlain() {
+      var plain = plainToggle.checked;
+      document.getElementById('hw-auth-password').type = plain ? 'text' : 'password';
+      pw2Input.type = plain ? 'text' : 'password';
+    }
+    plainToggle.addEventListener('change', syncPlain);
+    setRegisterOnly(false);   /* 初始登录态：注册专属字段不参与校验 */
 
     function close(rej) {
       backdrop.classList.remove('visible');
@@ -403,7 +438,7 @@
         mode = btn.dataset.tab;
         document.getElementById('hw-auth-title').textContent = mode === 'login' ? '登 录' : '注 册';
         submitBtn.textContent = mode === 'login' ? '登 录' : '注 册';
-        nickInput.style.display = mode === 'register' ? 'block' : 'none';
+        setRegisterOnly(mode === 'register');
         errEl.textContent = '';
       });
     });
@@ -418,9 +453,23 @@
       submitBtn.disabled = true;
       submitBtn.textContent = '处理中...';
 
-      var action = mode === 'login'
-        ? login(username, password)
-        : register(username, password, { nickname: nickInput.value.trim() || username });
+      var action;
+      if (mode === 'login') {
+        action = login(username, password);
+      } else {
+        var pw2 = pw2Input.value;
+        if (password !== pw2) {
+          errEl.textContent = '两次输入的密码不一致';
+          submitBtn.disabled = false;
+          submitBtn.textContent = '注 册';
+          return;
+        }
+        action = register(username, password, {
+          nickname: username,
+          staff_no: staffInput.value.trim(),
+          password2: pw2
+        });
+      }
 
       action.then(function (user) {
         close();
