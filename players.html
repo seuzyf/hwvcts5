@@ -46,7 +46,6 @@
       <select id="dc-event" class="select" aria-label="按赛事筛选" style="width:260px;"></select>
       <input id="dc-search" class="input" type="search" placeholder="搜索选手 / 游戏ID / 分组…" aria-label="搜索选手" style="margin-left:auto;">
       <button class="btn btn-ghost btn-sm" id="dc-csv" type="button">导出 CSV</button>
-      <a class="btn btn-ghost btn-sm" href="summary.html">数据汇总 →</a>
     </div>
 
     <div class="table-wrap">
@@ -102,7 +101,7 @@
             .order('created_at', { ascending: false });
           if (res && !res.error && res.data) {
             return res.data.filter(function (ev) {
-              return ev.status !== 'draft' && ev.status !== 'cancelled';
+              return ev.status !== 'draft' && ev.status !== 'cancelled' && ev.status !== 'deleted';
             });
           }
         } catch (e) { /* 回退 */ }
@@ -260,6 +259,23 @@
           if (r[base + 2] && !r[base + 2].error) stats = stats.concat(r[base + 2].data || []);
         });
 
+        /* 待确认结果不计入统计（result_status='pending' 的对阵整场剔除；列未就绪跳过） */
+        try {
+          var schCalls = prefixes.map(function (p) { return sb.from(p + '_match_schedule').select('"group", team_a, team_b, match_date, result_status').eq('result_status', 'pending'); });
+          var schRes = await Promise.all(schCalls);
+          var pendingKeys = {};
+          (schRes || []).forEach(function (r) {
+            ((r && r.data) || []).forEach(function (x) {
+              pendingKeys[[x.group || '', x.team_a || '', x.team_b || '', String(x.match_date || '').slice(0, 10)].join('|')] = 1;
+            });
+          });
+          if (Object.keys(pendingKeys).length) {
+            matches = matches.filter(function (m) {
+              return !pendingKeys[[m.group || '', m.team_a || '', m.team_b || '', String(m.match_date || '').slice(0, 10)].join('|')];
+            });
+          }
+        } catch (e) { /* migration_v3 未执行：不过滤 */ }
+
         /* 赛事筛选：event_id 存在则按赛事过滤（无列/全空 → 退回赛季全量） */
         if (state.event) {
           var scoped = matches.filter(function (m) { return m.event_id != null && String(m.event_id) === String(state.event); });
@@ -344,6 +360,7 @@
           }
           return s.dir * (av - bv);
         });
+        rows.sort(function (a, b) { return (a.matches > 0 ? 0 : 1) - (b.matches > 0 ? 0 : 1); });
         state.view = rows;
 
         var tb = document.getElementById('dc-tbody');
@@ -358,8 +375,9 @@
         }
         document.getElementById('dc-empty').hidden = true;
         tb.innerHTML = rows.map(function (r, idx) {
-          var idCell = r.name
-            ? '<a href="player.html?name=' + encodeURIComponent(r.name)
+          var idCell = r.gid
+            ? '<a href="player.html?id=' + encodeURIComponent(r.gid)
+              + '&name=' + encodeURIComponent(r.name || '')
               + '&group=' + encodeURIComponent(r.group || '未分组')
               + '&season=' + esc(state.season || 's6') + '">' + esc(r.gid) + '</a>'
             : esc(r.gid);
@@ -373,11 +391,10 @@
             + '<td>' + (r.team ? '<a href="team.html?name=' + encodeURIComponent(r.team) + '&season=' + esc(state.season || 's6') + '">' + esc(r.team) + '</a>' : '—') + '</td>'
             + '<td>' + esc(r.role || '—') + '</td>'
             + '<td>' + r.matches + '</td>'
-            + '<td>' + r.kills + '</td>'
-            + '<td>' + r.deaths + '</td>'
-            + '<td>' + r.assists + '</td>'
-            + '<td>' + r.kd.toFixed(2) + '</td>'
-            + '<td>' + r.kda.toFixed(2) + '</td>'
+            + (r.matches > 0
+                ? '<td>' + r.kills + '</td><td>' + r.deaths + '</td><td>' + r.assists + '</td>'
+                  + '<td>' + r.kd.toFixed(2) + '</td><td>' + r.kda.toFixed(2) + '</td>'
+                : '<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>')
             + '<td>' + (r.acs > 0 ? r.acs.toFixed(1) : '—') + '</td>'
             + '<td>' + statusCell + '</td>'
             + '</tr>';

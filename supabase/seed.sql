@@ -113,7 +113,7 @@ select name, team, "group", honor from public.s6_player_ids
 where not exists (select 1 from public.s5_player_ids s where s.name = s6_player_ids.name);
 
 insert into public.s5_player_stats (player_name, game_id, team, "group", pre_group, role)
-select name, game_id, team, "group", pre_group, role from public.s6_player_stats
+select player_name, game_id, team, "group", pre_group, role from public.s6_player_stats
 where not exists (select 1 from public.s5_player_stats s where s.player_name = s6_player_stats.player_name);
 
 -- ---------------------------------------------------------------------
