@@ -273,7 +273,7 @@
   /** 显式注册（用户名已存在时报错，不静默覆盖） */
   function register(username, password, profile) {
     username = (username || '').trim();
-    if (!username || !password) return Promise.reject(new Error('请输入姓名和密码'));
+    if (!username || !password) return Promise.reject(new Error('请输入账户名和密码'));
     if (password.length < 6) return Promise.reject(new Error('密码至少 6 位'));
     if (profile && profile.password2 !== undefined && profile.password2 !== password) {
       return Promise.reject(new Error('两次输入的密码不一致'));
@@ -282,13 +282,13 @@
     return detectAccountSource().then(function (table) {
       return sb.from(table).select('id').eq('username', username).maybeSingle().then(function (res) {
         if (res.error) throw res.error;
-        if (res.data) throw new Error('该姓名已注册，请直接登录');
+        if (res.data) throw new Error('该账户名已注册，请直接登录');
         return hashPassword(password).then(function (hash) {
           var row = { username: username, password: hash };
           if (table === PRIMARY_TABLE) {
             row.balance = 100;
             row.role = 'member';
-            row.nickname = (profile && profile.nickname) || username;
+            row.nickname = (profile && (profile.realName || profile.nickname)) || username;
             row.game_id = (profile && profile.game_id) || '';
             row.bio = (profile && profile.bio) || '';
           }
@@ -297,10 +297,11 @@
           if (ins.error) throw ins.error;
           /* 工号/真名写入选手档案（reg_profiles 已有 staff_no 列，无需迁移） */
           var staffNo = (profile && profile.staff_no || '').trim();
+          var realName = ((profile && (profile.realName || profile.nickname)) || username).trim();
           var profileWrite = (table === PRIMARY_TABLE)
             ? sb.from('reg_profiles').upsert({
                 user_id: ins.data.id,
-                real_name: username,
+                real_name: realName,
                 staff_no: staffNo
               }).then(function () { /* best-effort：档案表异常不阻断注册 */ }, function () {})
             : Promise.resolve();
@@ -402,11 +403,17 @@
     '      <button data-tab="register" type="button">注 册</button>',
     '    </div>',
     '    <form id="hw-auth-form" autocomplete="off">',
-    '      <input type="text" id="hw-auth-username" placeholder="姓名" required>',
-    '      <input type="password" id="hw-auth-password" placeholder="密码" required>',
+    '      <label class="hw-auth-label" for="hw-auth-username">账户名（登录用）</label>',
+    '      <input type="text" id="hw-auth-username" placeholder="账户名" autocomplete="username" required>',
+    '      <label class="hw-auth-label" for="hw-auth-realname" id="hw-auth-realname-label" style="display:none">真实姓名</label>',
+    '      <input type="text" id="hw-auth-realname" placeholder="真实姓名（同事间显示）" style="display:none" autocomplete="name">',
+    '      <div class="hw-auth-pwrow">',
+    '        <div class="hw-auth-pwcol"><label class="hw-auth-label" for="hw-auth-password">密码</label><input type="password" id="hw-auth-password" placeholder="密码" autocomplete="current-password" required></div>',
+    '        <div class="hw-auth-pwcol" id="hw-auth-pw2col" style="display:none"><label class="hw-auth-label" for="hw-auth-password2">确认密码</label><input type="password" id="hw-auth-password2" placeholder="确认密码" autocomplete="new-password"></div>',
+    '      </div>',
     '      <label class="hw-auth-plain"><input type="checkbox" id="hw-auth-plain-toggle"><span>明文显示</span></label>',
+    '      <label class="hw-auth-label" for="hw-auth-staff" id="hw-auth-staff-label" style="display:none">工号（选填）</label>',
     '      <input type="text" id="hw-auth-staff" placeholder="工号" style="display:none" autocomplete="off">',
-    '      <input type="password" id="hw-auth-password2" placeholder="确认密码" style="display:none">',
     '      <div class="hw-auth-error" id="hw-auth-error"></div>',
     '      <button type="submit" class="hw-auth-submit" id="hw-auth-submit">确 认</button>',
     '    </form>',
@@ -428,6 +435,9 @@
     '.hw-auth-tabs{display:flex;gap:6px;margin-bottom:16px;padding:3px;background:var(--obsidian,#111214);border:1px solid var(--border,#363739);border-radius:8px}',
     '.hw-auth-tabs button{flex:1;height:30px;border:none;background:transparent;color:var(--ash,#9c9c9d);border-radius:6px;cursor:pointer;font-size: 14px;letter-spacing:.02em;transition:.15s;font-family:inherit;font-weight:500}',
     '.hw-auth-tabs button.active{background:var(--graphite,#1b1c1e);color:var(--pure-white,#fff);box-shadow:rgba(255,255,255,.06) 0 1px 0 0 inset}',
+    '.hw-auth-label{display:block;font-size:12px;color:var(--smoke,#6a6b6c);margin:0 0 5px;letter-spacing:.02em}',
+    '.hw-auth-pwrow{display:flex;gap:10px}.hw-auth-pwrow .hw-auth-pwcol{flex:1;min-width:0}',
+    '@media (max-width:480px){.hw-auth-pwrow{flex-direction:column;gap:0}}',
     '.hw-auth-card input{width:100%;height:38px;margin-bottom:12px;padding:0 12px;background:rgba(255,255,255,.05);border:1px solid var(--border,#363739);border-radius:8px;color:var(--pure-white,#fff);font-size: 15px;outline:none;box-sizing:border-box;font-family:inherit;transition:border-color .15s}',
     '.hw-auth-card input:focus{border-color:var(--smoke,#6a6b6c)}',
     '.hw-auth-plain{display:flex;align-items:center;gap:7px;margin:-4px 0 10px;font-size:13px;color:var(--smoke,#6a6b6c);cursor:pointer;user-select:none;width:fit-content}',
@@ -464,15 +474,20 @@
     var errEl = document.getElementById('hw-auth-error');
     var submitBtn = document.getElementById('hw-auth-submit');
     var staffInput = document.getElementById('hw-auth-staff');
+    var realNameInput = document.getElementById('hw-auth-realname');
     var pw2Input = document.getElementById('hw-auth-password2');
     var plainToggle = document.getElementById('hw-auth-plain-toggle');
     var mode = 'login';
 
     function setRegisterOnly(visible) {
       staffInput.style.display = visible ? 'block' : 'none';
-      pw2Input.style.display = visible ? 'block' : 'none';
+      document.getElementById('hw-auth-staff-label').style.display = visible ? 'block' : 'none';
+      realNameInput.style.display = visible ? 'block' : 'none';
+      document.getElementById('hw-auth-realname-label').style.display = visible ? 'block' : 'none';
+      realNameInput.required = !!visible;
+      document.getElementById('hw-auth-pw2col').style.display = visible ? 'block' : 'none';
       pw2Input.required = !!visible;
-      if (!visible) { staffInput.value = ''; pw2Input.value = ''; plainToggle.checked = false; }
+      if (!visible) { staffInput.value = ''; realNameInput.value = ''; pw2Input.value = ''; plainToggle.checked = false; }
       syncPlain();
     }
     function syncPlain() {
@@ -522,10 +537,11 @@
           errEl.textContent = '两次输入的密码不一致';
           submitBtn.disabled = false;
           submitBtn.textContent = '注 册';
+          pw2Input.focus();
           return;
         }
         action = register(username, password, {
-          nickname: username,
+          realName: realNameInput.value.trim(),
           staff_no: staffInput.value.trim(),
           password2: pw2
         });

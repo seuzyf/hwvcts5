@@ -169,8 +169,8 @@
 
     <div id="merged-tab" class="tab-content active">
         <div class="data-section">
-            <h3>结 果 录 入（赛程大比分 + 每图比分 + 选手数据）</h3>
-            <p class="merge-hint">选择对阵 → 逐图录入比分 → 大比分由图胜自动识别，一次保存写入赛程与赛果；每图选手数据在本页下方编辑并提交。</p>
+            <h3>结 果 录 入（一场比赛一次录完）</h3>
+            <p class="merge-hint">选对阵（队名已锁定）→ 逐图填比分与选手数据 → 大比分自动计算 → 点「保存全部」一次写完。普通选手提交后待对方队长确认，队长以上直接生效。</p>
             <div class="admin-row" style="justify-content:space-between; margin-bottom:12px;">
                 <div class="seg" id="mf-scope" style="display:none;">
                     <button data-scope="mine" class="active" type="button">我的比赛</button>
@@ -207,15 +207,17 @@
                     <button class="btn btn-ghost" id="mf-add-map">+ 加一图</button>
                 </div>
                 <div class="mf-big">
-                    <span>大比分（自动识别）：</span>
+                    <span>大比分（按每图胜负自动计算）：</span>
                     <span class="score" id="mf-big">– : –</span>
-                    <span style="opacity:.65; font-weight:600;">（无图数据时手动填）</span>
-                    <input type="number" min="0" max="9" id="mf-big-a" placeholder="A">
-                    <span>:</span>
-                    <input type="number" min="0" max="9" id="mf-big-b" placeholder="B">
+                    <span style="opacity:.65; font-weight:600;" id="mf-big-note">录入每图比分后自动得出，无需手填</span>
+                    <span id="mf-big-manual" style="display:none;">
+                        <input type="number" min="0" max="9" id="mf-big-a" placeholder="A">
+                        <span>:</span>
+                        <input type="number" min="0" max="9" id="mf-big-b" placeholder="B">
+                    </span>
                 </div>
                 <div class="admin-row" style="margin-top: 18px;">
-                    <button class="btn btn-primary" id="mf-save">保存（写入赛程 + 赛果）</button>
+                    <button class="btn btn-primary" id="mf-save">保存全部（比分 + 选手数据）</button>
                     <button class="btn btn-ghost" id="mf-cancel">取消</button>
                 </div>
             </div>
@@ -256,6 +258,7 @@
                     </table>
                 </div>
                 <button class="success" style="margin-top: 20px;" id="update-ids">同 步 选 手 数 据</button>
+                <button class="btn btn-ghost" style="margin-top: 20px; margin-left: 8px;" id="resync-player-pages" type="button">重新同步选手页</button>
             </div>
         </div>
     </div>
@@ -319,6 +322,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         document.getElementById('update-match').addEventListener('click', updateMatch);
         document.getElementById('edit-match-selector').addEventListener('change', displayMatchForEditing);
         document.getElementById('update-ids').addEventListener('click', updateIds);
+        document.getElementById('resync-player-pages').addEventListener('click', resyncPlayerPages);
     }
     
     async function loadInitialData() {
@@ -888,6 +892,36 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         else { toast('选手数据更新成功！'); await loadInitialData(); loadIdsData(getCurrentGroup()); }
     }
     
+    /* 重新同步选手页：花名册 → 选手档案（只补缺失/更新队伍组别角色，不覆盖赛果派生字段） */
+    async function resyncPlayerPages() {
+        var idsTable = getSeasonTableName('player_ids');
+        var statsTable = getSeasonTableName('player_stats');
+        var rosterRes = await supabaseClient.from(idsTable).select('name, id, team, "group"');
+        if (rosterRes.error) { toast('读取花名册失败: ' + rosterRes.error.message, 'err'); return; }
+        var roster = rosterRes.data || [];
+        var captainRes = await supabaseClient.from(statsTable).select('player_name, role');
+        var roleMap = {};
+        ((captainRes && captainRes.data) || []).forEach(function (r) { roleMap[r.player_name] = r.role; });
+        var ok = 0, failed = 0;
+        for (var i = 0; i < roster.length; i++) {
+            var p = roster[i];
+            try {
+                var ex = await supabaseClient.from(statsTable).select('player_name').eq('player_name', p.name).maybeSingle();
+                var payload = { game_id: String(p.id || ''), team: p.team || '', group: p.group || '', role: roleMap[p.name] || '队员' };
+                var r2 = (ex && ex.data)
+                    ? await supabaseClient.from(statsTable).update(payload).eq('player_name', p.name)
+                    : await supabaseClient.from(statsTable).insert([Object.assign({ player_name: p.name, pre_group: p.group || '' }, payload)]);
+                if (r2 && r2.error) throw r2.error;
+                ok++;
+            } catch (e) { failed++; }
+        }
+        toast('选手页同步完成：成功 ' + ok + ' 人' + (failed ? '，失败 ' + failed + ' 人' : ''));
+        try {
+            var me = (typeof HWAuth !== 'undefined' && HWAuth.getSession()) || null;
+            await supabaseClient.from('audit_log').insert([{ actor_id: me ? me.id : null, actor_role: me ? me.role : '', action: 'player.resync', target_type: 'season', target_id: currentSeason, detail: { ok: ok, failed: failed } }]);
+        } catch (e) { /* 审计未就绪不阻断 */ }
+    }
+
     async function handleDeleteId(deleteBtn) {
         const tr = deleteBtn.closest('tr');
         const playerName = tr.querySelector('input[data-col="name"]').value;
@@ -1101,9 +1135,17 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
 
         var wa = 0, wb = 0;
         maps.forEach(function (m) { if (Number(m.a) > Number(m.b)) wa++; else if (Number(m.b) > Number(m.a)) wb++; });
-        var bigA = maps.length ? wa : parseInt(document.getElementById('mf-big-a').value, 10);
-        var bigB = maps.length ? wb : parseInt(document.getElementById('mf-big-b').value, 10);
-        if (isNaN(bigA) || isNaN(bigB)) { toast('请先录入每图比分（或手动填写大比分）。', 'err'); return; }
+        var bigA = maps.length ? wa : NaN;
+        var bigB = maps.length ? wb : NaN;
+        if (isNaN(bigA) || isNaN(bigB)) {
+            /* 管理员纠错通道：已有赛程大比分且未改图时允许原样保存时间/链接 */
+            var fx = mfState.fixtureId ? currentScheduleData.find(function (m) { return m.id === mfState.fixtureId; }) : null;
+            if (window.__mfCanEditAll && fx && fx.score_a != null && fx.score_b != null) {
+                bigA = fx.score_a; bigB = fx.score_b;
+            } else {
+                toast('请先录入至少一图的比分——大比分会按图胜负自动计算。', 'err'); return;
+            }
+        }
 
         var teamA, teamB, fixtureId = mfState.fixtureId;
         if (fixtureId) {
@@ -1153,7 +1195,24 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
                 }
             }
 
-            showToast('已保存：大比分 ' + bigA + ':' + bigB + '，新增 ' + saved + ' 图 / 更新 ' + updated + ' 图');
+            /* 结果状态机：队长以上提交直接 confirmed；普通选手提交 pending（不计入统计） */
+            try {
+                var meU = (typeof HWAuth !== 'undefined' && HWAuth.getSession()) || null;
+                var statusPatch = window.__mfCanConfirm
+                    ? { result_status: 'confirmed', submitted_by: meU ? meU.id : null, confirmed_by: meU ? meU.id : null, confirmed_at: new Date().toISOString() }
+                    : { result_status: 'pending', submitted_by: meU ? meU.id : null };
+                if (mfState.fixtureId) {
+                    await supabaseClient.from(mfSeasonSchedule()).update(statusPatch).eq('id', mfState.fixtureId);
+                }
+                if (window.__mfCanConfirm) {
+                    showToast('已保存并生效：大比分 ' + bigA + ':' + bigB + '，新增 ' + saved + ' 图 / 更新 ' + updated + ' 图');
+                } else {
+                    showToast('已提交待确认：大比分 ' + bigA + ':' + bigB + '，对方队长确认后计入统计');
+                    notifyCaptainsForFixture_(teamA, teamB, bigA, bigB);
+                }
+            } catch (eStatus) {
+                showToast('已保存：大比分 ' + bigA + ':' + bigB + '，新增 ' + saved + ' 图 / 更新 ' + updated + ' 图');
+            }
             if (typeof HWLayout !== 'undefined' && HWLayout.recalcAfterScoreChange) HWLayout.recalcAfterScoreChange();
             closeMergeForm();
             await loadScheduleForGroup(group);
@@ -1162,6 +1221,38 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             console.error('合并保存失败:', e);
             toast('保存失败：' + (e && e.message ? e.message : e), 'err');
         }
+    }
+
+    function notifyCaptainsForFixture_(teamA, teamB, bigA, bigB) {
+        try {
+            if (typeof HWLayout === 'undefined' || !HWLayout.notifyUser) return;
+            var evId = boundEvent && boundEvent.id;
+            if (!evId) return;
+            supabaseClient.from('event_captains').select('player_name, game_id').eq('event_id', evId)
+                .then(function (r) {
+                    var caps = (r && r.data) || [];
+                    if (!caps.length) return;
+                    supabaseClient.from(getSeasonTableName('player_ids')).select('name, id, team')
+                        .then(function (pr) {
+                            var roster = (pr && pr.data) || [];
+                            var gids = [];
+                            caps.forEach(function (c) {
+                                var row = roster.find(function (x) { return x.name === c.player_name; });
+                                if (row && (row.team === teamA || row.team === teamB)) gids.push(String(row.id));
+                                else if (c.game_id) gids.push(String(c.game_id));
+                            });
+                            if (!gids.length) return;
+                            supabaseClient.from('site_users').select('id, game_id').in('game_id', gids)
+                                .then(function (ur) {
+                                    ((ur && ur.data) || []).forEach(function (u) {
+                                        HWLayout.notifyUser(u.id, '比赛结果待确认',
+                                            teamA + ' ' + bigA + ':' + bigB + ' ' + teamB + '（点此去确认）',
+                                            'manage.html?event=' + evId);
+                                    });
+                                }).catch(function () {});
+                        }).catch(function () {});
+                }).catch(function () {});
+        } catch (e) { /* 通知失败不阻断保存 */ }
     }
 
     /* ---------- toast ---------- */
@@ -1189,25 +1280,44 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
 
         HWLayout.access(currentSeason, ev).then(function (perms) {
             HWLayout.eventBar({ event: ev, perms: perms });
-            var allowed = perms.isAdmin || perms.isEventCaptain;
-            if (!allowed) {
-                gateMsg('<h3>无访问权限</h3><p style="margin-top:12px; color:var(--mist);">数据台仅对本活动的 <b>管理员</b> 与 <b>活动队长</b> 开放。如需权限，请联系管理员在活动详情页授予。</p>');
+            var staff = perms.isAdmin || perms.isEventCaptain || perms.isOrganizer;
+            var logged = typeof HWAuth !== 'undefined' && !!HWAuth.getSession();
+            if (!staff && !logged) {
+                gateMsg('<h3>需要登录</h3><p style="margin-top:12px; color:var(--mist);">登录后可录入本队比赛结果；队长与管理员可管理全部数据。</p>');
                 return;
             }
+            perms.__staff = staff;
             startManageConsole(perms);
         });
     });
 
     async function startManageConsole(perms) {
         perms = perms || {};
+        window.__mfCanEditAll = !!(perms.isAdmin || perms.isOrganizer);
+        window.__mfCanConfirm = !!(perms.isAdmin || perms.isOrganizer || perms.isEventCaptain || perms.isCaptain);
         document.getElementById('manage-shell').style.display = 'block';
+        if (!perms.__staff) {
+            /* 普通参赛者：只开放结果录入本队比赛，成员维护与新建对阵不出现 */
+            var tf = document.getElementById('tab-filters'); if (tf) tf.style.display = 'none';
+            var nf = document.getElementById('merge-new-fixture'); if (nf) nf.style.display = 'none';
+            var idsTab = document.getElementById('ids-tab'); if (idsTab) idsTab.style.display = 'none';
+            ['submit-matches'].forEach(function (id) { /* 选手数据与比分同表单保存，按钮保留 */ });
+        }
         try {
             await initializeAdminPanel();
         } catch (e) { console.error('数据台初始化失败:', e); }
         // 结果录入绑定
         document.getElementById('merge-new-fixture').addEventListener('click', function () { openMergeForm(null); });
         document.getElementById('mf-add-map').addEventListener('click', addMergeMapRow);
-        document.getElementById('mf-save').addEventListener('click', saveMerged);
+        document.getElementById('mf-save').addEventListener('click', async function () {
+            await saveMerged();
+            /* 选手数据若已填写（预填名单 + 任意 ACS），随本次保存一并提交，不再分两步 */
+            try {
+                var box = document.getElementById('matches-form-container');
+                var hasStats = box && Array.prototype.some.call(box.querySelectorAll('input[data-col$="_acs"]'), function (i) { return i.value.trim() !== ''; });
+                if (hasStats) await submitMatches();
+            } catch (e) { console.warn('选手数据随存失败，可单独点下方提交按钮重试', e); }
+        });
         document.getElementById('mf-cancel').addEventListener('click', closeMergeForm);
         ['mf-big-a', 'mf-big-b'].forEach(function (id) {
             document.getElementById(id).addEventListener('input', updateBigScore);
@@ -1230,8 +1340,11 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             if (note) note.textContent = '管理员：可录入全部比赛';
         } else {
             resolveCaptainScope(perms).then(function (info) {
+                if (!info || !info.teams.length) return resolveMyTeamByRoster_();
+                return info;
+            }).then(function (info) {
                 if (!info || !info.teams.length) {
-                    if (note) note.textContent = '';
+                    if (note) note.textContent = perms.__staff ? '' : '未找到你所在的队伍：请先在报名页绑定游戏 ID 并完成分队，即可录入本队比赛。';
                     renderMergeFixtures();
                     return;
                 }
@@ -1252,6 +1365,22 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             });
         }
         renderMergeFixtures();
+    }
+
+    /* 普通参赛者 → 花名册按本人游戏 ID / 真名解析所在队伍 */
+    function resolveMyTeamByRoster_() {
+        var u = (typeof HWAuth !== 'undefined' && HWAuth.getSession()) || null;
+        if (!u) return Promise.resolve({ teams: [], group: '' });
+        return supabaseClient.from(getSeasonTableName('player_ids')).select('name, id, team, "group"')
+            .then(function (r) {
+                var rows = (r && r.data) || [];
+                var hit = rows.find(function (x) {
+                    return (u.game_id && String(x.id) === String(u.game_id)) ||
+                           (u.nickname && x.name === u.nickname) || (u.username && x.name === u.username);
+                });
+                if (!hit || !hit.team) return { teams: [], group: '' };
+                return { teams: [hit.team], group: hit.group || '' };
+            }).catch(function () { return { teams: [], group: '' }; });
     }
 
     /* 队长 → 本队队伍与分组（赛季队长用 captainTeams；活动队长用 event_captains 反查花名册） */

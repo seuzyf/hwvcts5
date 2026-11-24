@@ -71,7 +71,7 @@
     { page: 'summary',  href: 'summary.html?event={id}',  label: '数据' },
     { page: 'betting',  href: 'betting.html?event={id}',  label: '竞猜' },
     { page: 'draft',    href: 'draft.html?event={id}',    label: '分队', need: 'staff' },
-    { page: 'manage',   href: 'manage.html?event={id}',   label: '管理', need: 'manage' },
+    { page: 'manage',   href: 'manage.html?event={id}',   label: '数据录入', need: 'manage' },
     { page: 'review',   href: 'review.html?event={id}',   label: '审核', need: 'admin' }
   ];
 
@@ -693,33 +693,38 @@
    * 才回退到旧的前端直写，避免升级期间管理员功能整体失效。
    */
   function promoteRole(pwd) {
-    var sb = supa();
-    var u = typeof HWAuth !== 'undefined' ? HWAuth.getSession() : null;
-    if (!sb || !u || u.role === 'admin') return Promise.resolve(false);
-    var apply = function (ok) {
-      if (!ok) return false;
-      u.role = 'admin';
-      try {
-        var raw = localStorage.getItem('hw_session');
-        if (raw) { var s = JSON.parse(raw); s.role = 'admin'; localStorage.setItem('hw_session', JSON.stringify(s)); }
-      } catch (e) {}
-      renderAuth();
-      return true;
-    };
-    return sb.rpc('promote_self_admin', { p_pwd: pwd || '', p_user_id: u.id })
-      .then(function (res) {
-        if (res.error) {
-          var missing = res.error.code === 'PGRST202' || /could not find the function/i.test(res.error.message || '');
-          if (!missing) return false;
-          console.warn('[HWLayout] promote_self_admin 未部署，回退旧路径；请执行 supabase/hardening.sql');
-          return sb.from('site_users').update({ role: 'admin' }).eq('id', u.id)
-            .then(function (r) { return !r.error; });
-        }
-        return !!res.data;
-      })
-      .then(apply)
-      .catch(function () { return false; });
+    /* Phase 14（V3 权限地基）：管理口令不再把账号永久提升为 admin。
+       角色只认 site_users.role（由超管/管理员在权限管理里授予）；
+       口令验证通过仅写 15 分钟二次确认会话（调用方 markAdmin），不再回写任何角色。
+       保留函数名兼容既有调用方（events/review 口令门禁）。 */
+    return Promise.resolve(false);
   }
+
+  /**
+   * 五层权限 → 能力集（V3 唯一口径，见 DESIGN.md 14.2）。
+   * 旧字段（isAdmin 等）保留兼容；新代码一律查 caps.xxx，不再自拼角色判断。
+   * caps 的范围语义：captain=本活动本队，organizer=本活动，admin/superadmin=全站。
+   */
+  function buildCaps(perms, ev, u) {
+    var globalAdmin = !!perms.isAdmin;              /* admin/superadmin（含口令二次确认会话） */
+    var organizerHere = !!perms.isOrganizer;        /* 本活动组织者 */
+    var captainHere = !!(perms.isCaptain || perms.isEventCaptain);
+    var logged = !!u;
+    return {
+      logged: logged,
+      globalAdmin: globalAdmin,
+      'event.manage': globalAdmin || organizerHere,
+      'event.review': globalAdmin || organizerHere,
+      'event.delete': globalAdmin,                  /* 软删对管理员开放；组织者删自己草稿单独判断 */
+      'honor.award': globalAdmin || organizerHere,  /* 组织者限本活动、管理员全站 */
+      'draft.manage': globalAdmin || organizerHere || captainHere,
+      'result.submit': logged,                      /* 范围（本队）在录入页内再收窄 */
+      'result.confirm': globalAdmin || organizerHere || captainHere,
+      'result.editAll': globalAdmin || organizerHere,
+      'members.manage': globalAdmin || organizerHere || captainHere
+    };
+  }
+  function can(perms, cap) { return !!(perms && perms.caps && perms.caps[cap]); }
 
   var accessCache = {};
   /**
@@ -789,16 +794,18 @@
         isOrganizer: false
       };
       return attachEventCaptain(result).then(function (r2) {
-        /* 活动组织者：在本活动下等同管理员（不授予全局 admin） */
+        /* 活动组织者：只获得「本活动」能力组，不再等同全站 isAdmin（V3 五层权限）。
+           isEventCaptain 保留置真，兼容活动栏/数据台等按活动口径的入口判断。 */
         if (ev && u && ev.organizer_id != null && String(ev.organizer_id) === String(u.id)) {
-          r2.isAdmin = true;
           r2.isOrganizer = true;
           r2.isEventCaptain = true;
         }
+        r2.caps = buildCaps(r2, ev, u);
         return r2;
       });
     }).catch(function () {
-      var fallback = { isAdmin: admin, isCaptain: false, captainTeams: [], isEventCaptain: admin };
+      var fallback = { isAdmin: admin, isCaptain: false, captainTeams: [], isEventCaptain: admin, isOrganizer: false };
+      fallback.caps = buildCaps(fallback, ev, (typeof HWAuth !== 'undefined' ? HWAuth.getSession() : null));
       accessCache[cacheKey] = fallback;
       return fallback;
     });
@@ -854,9 +861,9 @@
     var perms = opts.perms || {};
     var id = ev.id;
     var tabs = EV_TABS.filter(function (t) {
-      if (t.need === 'staff') return perms.isCaptain || perms.isAdmin;
-      if (t.need === 'manage') return perms.isAdmin || perms.isEventCaptain;
-      if (t.need === 'admin') return perms.isAdmin;
+      if (t.need === 'staff') return can(perms, 'draft.manage') || perms.isCaptain || perms.isAdmin;
+      if (t.need === 'manage') return can(perms, 'result.submit') || perms.isAdmin || perms.isEventCaptain;
+      if (t.need === 'admin') return can(perms, 'event.review') || perms.isAdmin;
       return true;
     }).map(function (t) {
       if (t.page === 'events') return '<a class="ev-tab" href="#" data-ev-ov="1">概况</a>';
@@ -1168,6 +1175,54 @@
   }
 
   var modalsInjected = false;
+  /**
+   * 更换游戏 ID（V3 阶段 2）：账号 + 报名档案原子更新，花名册/别名 best-effort，
+   * 历史 matches 的 ID 快照不回写（解析时靠别名归一）。新 ID 被占用直接拦截。
+   */
+  function changeGameId(user, newId) {
+    var sb = supa();
+    if (!sb) return Promise.reject(new Error('数据连接不可用'));
+    var oldId = user.game_id || '';
+    var lower = String(newId).toLowerCase();
+    var occupied = function (rows, key) {
+      return (rows || []).some(function (r) {
+        return r && String(r[key] || '').toLowerCase() === lower && String(r.id) !== String(user.id);
+      });
+    };
+    var checks = [
+      sb.from('site_users').select('id, game_id').eq('game_id', newId).limit(5)
+        .then(function (r) { return occupied(r.data, 'game_id'); }).catch(function () { return false; }),
+      sb.from('player_id_aliases').select('game_id').eq('game_id', newId).limit(1)
+        .then(function (r) { return !!(r.data && r.data.length); }).catch(function () { return false; })
+    ];
+    return Promise.all(checks).then(function (flags) {
+      if (flags[0]) throw new Error('该游戏 ID 已被其他账号绑定，如有问题请联系管理员');
+      /* flags[1] 别名占用：可能正是本人历史 ID，允许继续（管理员合并场景走后台） */
+      return HWAuth.updateProfile({ game_id: newId });
+    }).then(function () {
+      var writes = [
+        sb.from('reg_profiles').update({ game_id: newId }).eq('user_id', user.id)
+          .then(function () {}, function () {}),
+        /* 身份与别名：migration_v3 未执行时静默降级 */
+        sb.from('player_identities').upsert({
+          user_id: user.id, real_name: user.nickname || user.username || '', current_game_id: newId
+        }, { onConflict: 'user_id' }).then(function () {}, function () {}),
+        sb.from('player_id_aliases').insert([{ game_id: newId, is_current: true }])
+          .then(function () {}, function () {}),
+        sb.from('audit_log').insert([{
+          actor_id: user.id, actor_role: (user.role || 'member'), action: 'gameid.change',
+          target_type: 'user', target_id: String(user.id),
+          detail: { old: oldId, next: newId }
+        }]).then(function () {}, function () {})
+      ];
+      if (oldId) {
+        writes.push(sb.from('player_id_aliases').insert([{ game_id: oldId, is_current: false }])
+          .then(function () {}, function () {}));
+      }
+      return Promise.all(writes).then(function () { return { ok: true }; });
+    });
+  }
+
   function ensureAccountModals() {
     if (modalsInjected && document.getElementById('hw-av-modal')) return;
     modalsInjected = true;
@@ -1211,8 +1266,12 @@
       '    <form id="hw-prof-form" style="margin-top:14px;">' +
       '      <label class="form-label" for="hw-prof-nickname">昵称</label>' +
       '      <input class="input" id="hw-prof-nickname" maxlength="20" placeholder="展示用昵称">' +
-      '      <label class="form-label" for="hw-prof-gameid">无畏契约游戏 ID</label>' +
-      '      <input class="input" id="hw-prof-gameid" maxlength="30" placeholder="例如 Player#CN1">' +
+      '      <label class="form-label">无畏契约游戏 ID</label>' +
+      '      <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">' +
+      '        <input class="input" id="hw-prof-gameid" maxlength="30" readonly style="flex:1;" placeholder="未填写">' +
+      '        <button class="btn btn-ghost btn-sm" type="button" id="hw-prof-gameid-change">更换</button>' +
+      '      </div>' +
+      '      <p class="smoke" style="font-size:12px; margin:-4px 0 10px;">游戏 ID 是选手页地址，改名走「更换」流程（历史数据自动跟随，旧地址跳转）。</p>' +
       '      <label class="form-label" for="hw-prof-bio">个人简介</label>' +
       '      <textarea class="textarea" id="hw-prof-bio" rows="3" maxlength="120" placeholder="常玩位置 / 段位 / 想组队的队友…"></textarea>' +
       '      <div class="modal-actions">' +
@@ -1239,13 +1298,32 @@
       '      </div>' +
       '    </form>' +
       '  </div>' +
+      '</div>' +
+      /* 更换游戏 ID */
+      '<div class="modal-backdrop" id="hw-gameid-modal">' +
+      '  <div class="modal-panel" style="max-width:430px;">' +
+      '    <button class="modal-close" id="hw-gameid-close" type="button" aria-label="关闭">&times;</button>' +
+      '    <span class="eyebrow">Game ID</span>' +
+      '    <h3 class="modal-title" style="margin-top:8px;">更换游戏 ID</h3>' +
+      '    <p class="smoke" style="font-size:13px; line-height:1.6;">当前 ID：<strong id="hw-gameid-old" style="color:var(--mist);">—</strong><br>改名后选手页、评论与队长权限会自动跟随，旧地址会跳转到新地址；历史比赛记录保留当时 ID。</p>' +
+      '    <form id="hw-gameid-form" style="margin-top:12px;">' +
+      '      <label class="form-label" for="hw-gameid-new">新游戏 ID</label>' +
+      '      <input class="input" id="hw-gameid-new" maxlength="30" placeholder="例如 Player#CN1">' +
+      '      <div class="modal-note" id="hw-gameid-msg" style="text-align:left; min-height:16px;"></div>' +
+      '      <div class="modal-actions">' +
+      '        <button class="btn btn-ghost" type="button" id="hw-gameid-cancel">取消</button>' +
+      '        <button class="btn btn-primary" type="submit" id="hw-gameid-save">确认更换</button>' +
+      '      </div>' +
+      '    </form>' +
+      '  </div>' +
       '</div>';
     while (hostEl.firstChild) document.body.appendChild(hostEl.firstChild);
 
     /* 关闭：仅手动 ×/取消（Phase 11） */
     [['hw-av-close', 'hw-av-modal'], ['hw-acct-close', 'hw-acct-modal'], ['hw-acct-close-btn', 'hw-acct-modal'],
      ['hw-prof-close', 'hw-prof-modal'], ['hw-prof-cancel', 'hw-prof-modal'],
-     ['hw-pwd-close', 'hw-pwd-modal'], ['hw-pwd-cancel', 'hw-pwd-modal']].forEach(function (pair) {
+     ['hw-pwd-close', 'hw-pwd-modal'], ['hw-pwd-cancel', 'hw-pwd-modal'],
+     ['hw-gameid-close', 'hw-gameid-modal'], ['hw-gameid-cancel', 'hw-gameid-modal']].forEach(function (pair) {
       var el = document.getElementById(pair[0]);
       if (el) el.addEventListener('click', function () { closeModalById(pair[1]); });
     });
@@ -1286,12 +1364,54 @@
       e.preventDefault();
       HWAuth.updateProfile({
         nickname: document.getElementById('hw-prof-nickname').value.trim(),
-        game_id: document.getElementById('hw-prof-gameid').value.trim(),
         bio: document.getElementById('hw-prof-bio').value.trim()
       }).then(function () {
         renderAuth(); toast('资料已保存'); closeModalById('hw-prof-modal');
         try { document.dispatchEvent(new CustomEvent('hw:profile')); } catch (err) { /* ignore */ }
       }).catch(function (err) { toast((err && err.message) || '保存失败', 'err'); });
+    });
+    var changeBtn = document.getElementById('hw-prof-gameid-change');
+    if (changeBtn) changeBtn.addEventListener('click', function () {
+      var u = HWAuth.getSession();
+      document.getElementById('hw-gameid-old').textContent = (u && u.game_id) || '（未填写）';
+      document.getElementById('hw-gameid-new').value = '';
+      document.getElementById('hw-gameid-msg').textContent = '';
+      closeModalById('hw-prof-modal');
+      openModalById('hw-gameid-modal');
+    });
+    var gameForm = document.getElementById('hw-gameid-form');
+    if (gameForm) gameForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var u = HWAuth.getSession();
+      if (!u) { toast('请先登录', 'err'); return; }
+      var newId = document.getElementById('hw-gameid-new').value.trim();
+      var msg = document.getElementById('hw-gameid-msg');
+      var saveBtn = document.getElementById('hw-gameid-save');
+      if (!newId) { msg.textContent = '请输入新游戏 ID'; return; }
+      if (newId === (u.game_id || '')) { msg.textContent = '与当前 ID 相同，无需更换'; return; }
+      /* 频率限制：非管理员 30 天一次 */
+      try {
+        var last = +(localStorage.getItem('hw_gameid_changed_at') || 0);
+        if (!isAdminNow() && last && Date.now() - last < 30 * 864e5) {
+          msg.textContent = '自助改名 30 天内只能更换一次，如需再次更换请联系管理员';
+          return;
+        }
+      } catch (err) { /* ignore */ }
+      saveBtn.disabled = true; msg.textContent = '校验中…';
+      changeGameId(u, newId).then(function (res) {
+        saveBtn.disabled = false;
+        renderAuth();
+        document.getElementById('hw-prof-gameid').value = newId;
+        msg.textContent = '';
+        try { localStorage.setItem('hw_gameid_changed_at', String(Date.now())); } catch (err) { /* ignore */ }
+        toast(res && res.warning ? res.warning : '游戏 ID 已更换，选手页已同步');
+        closeModalById('hw-gameid-modal');
+        openModalById('hw-prof-modal');
+        try { document.dispatchEvent(new CustomEvent('hw:profile')); } catch (err) { /* ignore */ }
+      }).catch(function (err) {
+        saveBtn.disabled = false;
+        msg.textContent = (err && err.message) || '更换失败，请重试';
+      });
     });
     document.getElementById('hw-pwd-form').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -1461,8 +1581,10 @@
     setTheme: setTheme,
     access: access,
     isAdminNow: isAdminNow,
+    can: can,
     markAdmin: markAdmin,
     promoteRole: promoteRole,
+    changeGameId: changeGameId,
     resolveEvent: resolveEvent,
     seasonKey: seasonKey,
     eventBar: eventBar,

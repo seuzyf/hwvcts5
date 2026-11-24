@@ -58,7 +58,7 @@
             display: block; font-family: var(--font-mono); font-size: 13px;
             color: var(--smoke); letter-spacing: 0.06em; margin-bottom: 2px;
         }
-        .player-real-name { color: var(--pure-white); font-size: 34px; font-weight: 700; letter-spacing: 1px; }
+        .player-real-name { color: var(--pure-white); font-size: 28px; font-weight: 700; letter-spacing: .01em; }
         
         #player-honors { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px 20px; }
         .honor-item { display: inline-flex; align-items: center; gap: 10px; padding: 5px 12px; position: relative; }
@@ -147,6 +147,30 @@
         [data-theme="light"] .settings-form button { color: #f6f6f7; }
         [data-theme="light"] .settings-form button:hover { background: #101113; color: #f6f6f7; }
 
+        /* 成就墙（Phase 14）：封面缩略图 + 荣誉名 + 赛事 + 时间 */
+        #honors-section { margin: 18px 0 6px; }
+        .honors-head { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--smoke); margin-bottom: 10px; }
+        .honors-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+        .honor-card { display: flex; gap: 12px; align-items: center; text-align: left; padding: 10px 12px; background: var(--ink); border: 1px solid var(--border); border-radius: var(--r-card); cursor: pointer; color: var(--mist); font-family: inherit; transition: transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out); }
+        .honor-card:hover { transform: translateY(-2px); box-shadow: var(--key-shadow-hover); }
+        .honor-card:active { transform: scale(.98); }
+        .honor-thumb { width: 64px; height: 40px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: var(--graphite); }
+        .honor-thumb-fb { width: 64px; height: 40px; border-radius: 6px; flex-shrink: 0; background: var(--graphite); display:flex; align-items:center; justify-content:center; color: var(--gold-color, #ffd700); }
+        .honor-meta { min-width: 0; }
+        .honor-name { font-size: 14px; font-weight: 700; color: var(--pure-white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .honor-sub { font-size: 12px; color: var(--smoke); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* 赛事数据：表格/折线图 */
+        .ev-view-bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; }
+        .ev-metric-chips { display:flex; flex-wrap:wrap; gap:6px; }
+        .ev-metric-chips .chip-btn { padding:5px 12px; border-radius:999px; border:1px solid var(--border); background:transparent; color:var(--ash); font-size:13px; cursor:pointer; font-family:inherit; }
+        .ev-metric-chips .chip-btn.active { background: var(--mist); color: var(--iron, #16171a); border-color: transparent; font-weight:600; }
+        #ev-chart-wrap { position: relative; height: 320px; }
+        .ev-avg-table { width:100%; border-collapse: collapse; font-size: 14px; }
+        .ev-avg-table th { font-family: var(--font-mono); font-size: 11px; letter-spacing:.05em; text-transform: uppercase; color: var(--smoke); text-align:left; padding:10px 8px; border-bottom:1px solid var(--border); white-space:nowrap; }
+        .ev-avg-table td { padding:10px 8px; border-bottom:1px solid rgba(54,55,57,.45); white-space:nowrap; color: var(--mist); }
+        .radar-empty { text-align:center; color: var(--text-muted); font-size: 13px; padding: 26px 10px; border:1px dashed var(--border-color); border-radius: 8px; }
+        .empty-block { text-align:center; color: var(--text-muted); padding: 26px 12px; }
+        .empty-block .btn { margin-top: 12px; }
         .tooltip { position: relative; display: inline-flex; justify-content: center; align-items: center; cursor: help; border: 1px solid var(--text-muted); border-radius: 50%; width: 16px; height: 16px; font-size: 12px; }
         .tooltip .tooltiptext { visibility: hidden; width: 260px; background: var(--graphite, #151520); color: var(--pure-white, #fff); text-align: left; border-radius: 4px; border: 1px solid var(--border-color); padding: 10px; position: absolute; z-index: 10; bottom: 150%; left: 50%; margin-left: -130px; opacity: 0; transition: opacity 0.3s; font-size: 13px; line-height: 1.5; font-weight: normal; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         [data-theme="light"] .tooltip .tooltiptext { background-color: #fff; color: #333; }
@@ -170,7 +194,6 @@
                 <div class="player-head-text">
                     <span class="player-id" id="player-game-id">…</span>
                     <h1 id="player-id-header" class="page-title" style="margin:0;">Loading...</h1>
-                    <div id="player-honors"></div>
                 </div>
             </div>
         </header>
@@ -182,9 +205,21 @@
                 <div class="summary-list" id="summary-list-content"><p style="color:var(--text-muted);">正在计算数据...</p></div>
             </section>
             <div id="right-column">
+                <section id="honors-section" hidden>
+                    <div class="honors-head">成就 · <span id="honors-count">0</span></div>
+                    <div class="honors-wall" id="honors-wall"></div>
+                </section>
                 <section class="data-section" id="event-stats-section">
                     <h2>赛 事 数 据</h2>
+                    <div class="ev-view-bar">
+                        <div class="seg" role="group" aria-label="赛事数据视图">
+                            <button type="button" class="active" data-evview="table">表格</button>
+                            <button type="button" data-evview="chart">折线图</button>
+                        </div>
+                        <div class="ev-metric-chips" id="ev-metric-chips" aria-label="选择指标"></div>
+                    </div>
                     <div id="event-stats-content"><p style="color:var(--text-muted);">正在加载…</p></div>
+                    <div id="ev-chart-wrap" hidden><canvas id="ev-chart"></canvas></div>
                 </section>
                 <section class="data-section" id="character-stats-section">
                     <h2>各 角 色 平 均 数 据</h2>
@@ -359,7 +394,7 @@
     let radarChartInstance = null;
     function drawRadarChart(percentileData) {
         const ctx = document.getElementById('player-radar-chart').getContext('2d');
-        const isLightTheme = document.body.classList.contains('light-theme');
+        const isLightTheme = document.documentElement.dataset.theme === 'light';
         const gridColor = isLightTheme ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
         const angleLinesColor = isLightTheme ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
         const pointLabelsColor = isLightTheme ? '#666' : '#aaa';
@@ -383,9 +418,49 @@
         });
     }
 
+    /* 已报名未上场：从报名档案/账号解析出选手壳，让页面正常打开（数据全空） */
+    async function resolveRegistrant_(playerName, idParam) {
+        try {
+            let prof = null;
+            if (playerName) {
+                const r = await supabaseClient.from('reg_profiles').select('user_id, real_name, game_id')
+                    .eq('real_name', playerName).maybeSingle();
+                if (r && !r.error) prof = r.data;
+            }
+            if (!prof && idParam) {
+                const r2 = await supabaseClient.from('reg_profiles').select('user_id, real_name, game_id')
+                    .eq('game_id', idParam).maybeSingle();
+                if (r2 && !r2.error) prof = r2.data;
+            }
+            if (!prof) return null;
+            return { name: prof.real_name || playerName || '', id: prof.game_id || idParam || '', __registrant: true };
+        } catch (e) { return null; }
+    }
+
+    function emptySections_(msg) {
+        document.getElementById('summary-list-content').innerHTML = '<div class="empty-block">' + msg + '<br><a class="btn btn-ghost btn-sm" href="schedule.html">查看赛程</a> <a class="btn btn-ghost btn-sm" href="players.html">返回数据中心</a></div>';
+        document.getElementById('character-stats-body').innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--text-muted);">暂无比赛数据</td></tr>';
+        document.getElementById('event-stats-content').innerHTML = '<div class="empty-block">' + msg + '</div>';
+        var rc = document.getElementById('radar-chart-container');
+        if (rc) rc.innerHTML = '<div class="radar-empty">暂无比赛数据，暂无法生成雷达图</div>';
+    }
+    function renderSoftMissing_(who) {
+        document.getElementById('player-id-header').textContent = '未找到该选手';
+        document.getElementById('player-game-id').textContent = who ? String(who) : '';
+        var av = document.getElementById('player-avatar-container');
+        if (av) av.innerHTML = '<div class="player-avatar-fallback">?</div>';
+        emptySections_('没有找到这位选手的报名或比赛记录。');
+    }
+    function renderLoadError_(msg) {
+        document.getElementById('player-id-header').textContent = '加载失败';
+        document.getElementById('summary-list-content').innerHTML =
+            '<div class="empty-block">数据加载失败：' + escapeHTML(String(msg || '')) + '<br><button class="btn btn-ghost btn-sm" type="button" onclick="location.reload()">重试</button></div>';
+    }
+
     async function main() {
         const params = new URLSearchParams(window.location.search);
-        const playerName = params.get('name');
+        const idParam = params.get('id');
+        let playerName = params.get('name');
         let groupName = params.get('group');
         if (!groupName || groupName === 'null' || groupName === 'undefined') {
             groupName = '';   /* 留空：加载选手数据后按真实分组回填（雷达图 key 依赖它） */
@@ -395,27 +470,42 @@
         // 将赛季存入全局变量，供表单处理函数使用
         window.currentSeason = currentSeason;
 
-        if (!playerName) { 
-            document.body.innerHTML = '<h1 style="text-align:center; margin-top:50px; color:var(--primary-color);">错误：缺少选手真名信息</h1>'; 
-            return; 
+        if (!playerName && !idParam) {
+            renderSoftMissing_('缺少选手参数');
+            return;
         }
         
         setupStarRating();
 
         const matchesTable = currentSeason === 's5' ? 's5_matches' : 's6_matches';
         const playersTable = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
-        
-        const [{ data: matches, error: matchesError }, { data: idData, error: idError }] = await Promise.all([ 
-            supabaseClient.from(matchesTable).select('*').order('match_date', { ascending: true }), 
-            supabaseClient.from(playersTable).select('*') 
+
+        const [{ data: matchesRaw, error: matchesError }, { data: idData, error: idError }] = await Promise.all([
+            supabaseClient.from(matchesTable).select('*').order('match_date', { ascending: true }),
+            supabaseClient.from(playersTable).select('*')
         ]);
-        if(matchesError || idError) { document.body.innerHTML = `<h1 style="text-align:center; color:var(--primary-color);">错误：加载数据失败</h1><p style="text-align:center;">${(matchesError || idError).message}</p>`; return; }
+        if (matchesError || idError) { renderLoadError_((matchesError || idError).message); return; }
 
-        const nameMap = idData.reduce((map, row) => { map[row.name] = row; return map; }, {});
+        /* 待确认结果不计入统计：按赛程 result_status='pending' 的对阵过滤（列未就绪时跳过） */
+        let matches = matchesRaw || [];
+        try {
+            const sch = await supabaseClient.from(currentSeason + '_match_schedule')
+                .select('"group", team_a, team_b, match_date, result_status').eq('result_status', 'pending');
+            if (sch && !sch.error && sch.data && sch.data.length) {
+                const pk = new Set(sch.data.map(r => [r.group || '', r.team_a || '', r.team_b || '', String(r.match_date || '').slice(0, 10)].join('|')));
+                matches = matches.filter(m => !pk.has([m.group || '', m.team_a || '', m.team_b || '', String(m.match_date || '').slice(0, 10)].join('|')));
+            }
+        } catch (e) { /* migration_v3 未执行：不过滤 */ }
+
+        const nameMap = (idData || []).reduce((map, row) => { map[row.name] = row; return map; }, {});
         const allPlayerData = processAllPlayerData(matches);
-        const currentPlayerInfo = nameMap[playerName];
-
-        if(!currentPlayerInfo) { document.body.innerHTML = `<h1 style="text-align:center; color:var(--primary-color);">错误：未找到选手 ${playerName} 的信息</h1>`; return; }
+        /* 身份三层解析：花名册（id 优先，其次真名）→ 比赛记录 → 报名档案 */
+        let currentPlayerInfo = null;
+        if (idParam) currentPlayerInfo = (idData || []).find(r => String(r.id) === String(idParam)) || null;
+        if (!currentPlayerInfo && playerName) currentPlayerInfo = nameMap[playerName] || null;
+        if (!currentPlayerInfo) currentPlayerInfo = await resolveRegistrant_(playerName, idParam);
+        if (!currentPlayerInfo) { renderSoftMissing_(playerName || idParam); return; }
+        if (!playerName) playerName = currentPlayerInfo.name || '';
 
         const playerId = currentPlayerInfo.id || '暂无ID';
         /* 雷达图/汇总 key：URL 分组缺失或对不上时，用选手真实分组（数据里出现过的） */
@@ -441,14 +531,7 @@
         document.getElementById('player-game-id').textContent = playerId;
         document.getElementById('player-id-header').textContent = realName || playerId;
 
-        const honors = currentPlayerInfo?.honor;
-        if (honors) {
-            document.getElementById('player-honors').innerHTML = honors.split('、').map((h, i) => {
-                const honorText = escapeHTML(h);
-                if (honorText.includes('冠军')) { return `<span class="honor-item"><span class="crown-icon">${HWLayout.ico('crown', 14)}</span><span class="honor-text champion" style="--i: ${i}">${honorText}</span></span>`; } 
-                else { return `<span class="honor-item"><span class="honor-text cool-gradient" style="--i: ${i}">${honorText}</span></span>`; }
-            }).join('');
-        }
+        renderHonors_(currentPlayerInfo, playerId);
 
         const uniquePlayerKeyForStats = `${playerId}::${groupName}`;
         const playerDataForStats = allPlayerData[uniquePlayerKeyForStats];
@@ -456,7 +539,8 @@
         if (!playerDataForStats) { 
             document.getElementById('summary-list-content').innerHTML = '<p style="color:var(--text-muted); text-align:center;">暂无比赛数据</p>';
             document.getElementById('character-stats-body').innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--text-muted);">暂无比赛数据</td></tr>';
-            document.getElementById('radar-chart-container').style.display = 'none';
+            var rc = document.getElementById('radar-chart-container');
+            rc.innerHTML = '<div class="radar-empty">暂无比赛数据，暂无法生成雷达图</div>';
         } else {
             const { groupPlayersForRank, statsByCharacter } = calculateGroupRanks(allPlayerData, groupName);
             const currentPlayerStats = groupPlayersForRank.find(p => p.id === playerId);
@@ -470,52 +554,126 @@
         renderEventStats(matches, playerId);
     }
 
+    /* ---------- 成就墙：结构化荣誉优先，兼容旧 honor 文本 ---------- */
+    async function renderHonors_(info, playerId) {
+        const sec = document.getElementById('honors-section');
+        const wall = document.getElementById('honors-wall');
+        if (!sec || !wall) return;
+        let rows = [];
+        try {
+            let q = supabaseClient.from('player_honors').select('*').order('awarded_at', { ascending: false });
+            if (info && info.name) q = q.eq('player_name', info.name);
+            const r = await q;
+            if (r && !r.error) rows = r.data || [];
+        } catch (e) { rows = []; }
+        if (!rows.length && info && info.honor) {
+            rows = String(info.honor).split('、').filter(Boolean).map(t => ({
+                title: t, description: '', awarded_at: '', event_id: null, __legacy: true
+            }));
+        }
+        if (!rows.length) { sec.hidden = true; return; }
+        let evMap = {};
+        try {
+            const ids = [...new Set(rows.map(r => r.event_id).filter(Boolean))];
+            if (ids.length) {
+                const er = await supabaseClient.from('events').select('id, title, cover_image').in('id', ids);
+                (er && er.data || []).forEach(e => { evMap[String(e.id)] = e; });
+            }
+        } catch (e) { /* 封面取不到时用占位 */ }
+        document.getElementById('honors-count').textContent = rows.length;
+        sec.hidden = false;
+        const showAll = rows.length > 6;
+        wall.innerHTML = rows.map((h, i) => {
+            const ev = h.event_id != null ? evMap[String(h.event_id)] : null;
+            const thumb = ev && ev.cover_image
+                ? '<img class="honor-thumb" src="' + escapeHTML(ev.cover_image) + '" alt="">'
+                : '<span class="honor-thumb-fb">' + (window.HWLayout ? HWLayout.ico('crown', 18) : '★') + '</span>';
+            return '<button type="button" class="honor-card" data-honor="' + i + '"' + (showAll && i >= 6 ? ' hidden' : '') + '>' +
+                thumb +
+                '<span class="honor-meta"><span class="honor-name">' + escapeHTML(h.title || '') + '</span>' +
+                '<span class="honor-sub">' + escapeHTML((ev && ev.title) || (h.__legacy ? '历史荣誉' : '赛事荣誉')) +
+                (h.awarded_at ? ' · ' + escapeHTML(String(h.awarded_at).slice(0, 10)) : '') + '</span></span></button>';
+        }).join('') + (showAll ? '<button type="button" class="honor-card" id="honors-more"><span class="honor-meta"><span class="honor-name">查看全部 ' + rows.length + ' 条</span><span class="honor-sub">展开成就墙</span></span></button>' : '');
+        const more = document.getElementById('honors-more');
+        if (more) more.addEventListener('click', () => {
+            wall.querySelectorAll('[data-honor]').forEach(el => { el.hidden = false; });
+            more.remove();
+        });
+        wall.querySelectorAll('[data-honor]').forEach(el => {
+            el.addEventListener('click', () => showHonorDetail_(rows[Number(el.dataset.honor)], evMap));
+        });
+    }
+
+    function showHonorDetail_(h, evMap) {
+        const old = document.getElementById('honor-detail-modal');
+        if (old) old.remove();
+        const ev = h.event_id != null ? (evMap || {})[String(h.event_id)] : null;
+        const bd = document.createElement('div');
+        bd.className = 'modal-backdrop visible';
+        bd.id = 'honor-detail-modal';
+        bd.innerHTML = '<div class="modal-panel" style="max-width:520px;" role="dialog" aria-modal="true">' +
+            '<button class="modal-close" type="button" aria-label="关闭">&times;</button>' +
+            (ev && ev.cover_image ? '<div class="detail-cover" style="margin:-28px -28px 16px; overflow:hidden; border-radius:20px 20px 0 0;"><img src="' + escapeHTML(ev.cover_image) + '" alt="" style="width:100%; height:210px; object-fit:cover; display:block;"></div>' : '') +
+            '<span class="eyebrow">Honor</span>' +
+            '<h3 class="modal-title" style="font-size:20px;">' + escapeHTML(h.title || '') + '</h3>' +
+            '<p style="color:var(--ash); font-size:14px; line-height:1.7; margin-top:10px;">' + escapeHTML(h.description || '暂无详细介绍。') + '</p>' +
+            '<p style="color:var(--smoke); font-size:13px; margin-top:12px;">' +
+            (ev ? '所属赛事：' + escapeHTML(ev.title || '') + '<br>' : '') +
+            (h.awarded_at ? '获得时间：' + escapeHTML(String(h.awarded_at).slice(0, 10)) : '获得时间：—') + '</p>' +
+            (h.event_id != null ? '<div class="modal-actions"><a class="btn btn-primary" href="events.html?open=' + encodeURIComponent(h.event_id) + '">查看该活动 →</a></div>' : '') +
+            '</div>';
+        document.body.appendChild(bd);
+        bd.querySelector('.modal-close').addEventListener('click', () => bd.remove());
+    }
+
     /* ---------- 赛事数据：不同赛事下的平均数据 + 对战记录 ---------- */
-    async function renderEventStats(matches, playerId) {
-        const host = document.getElementById('event-stats-content');
-        if (!host) return;
+    /* ---------- 赛事数据：每赛事平均（按时间从早到晚）+ 可选指标折线图 ---------- */
+    var EV_METRICS = [
+        { key: 'acs', label: 'ACS' }, { key: 'kd', label: 'K/D' }, { key: 'kda', label: 'KDA' },
+        { key: 'k_map', label: '每局击杀' }, { key: 'a_map', label: '每局助攻' }, { key: 'winRate', label: '胜率%' }
+    ];
+    var evSeries = [];        /* 与表格同源同序的每赛事聚合 */
+    var evChart = null;
+    var evSelectedMetrics = ['acs'];
+
+    function aggregateByEvent_(matches, playerId, evInfo) {
         const mine = matches.filter(m => {
             for (const tk of ['team_a', 'team_b']) {
                 for (let i = 1; i <= 5; i++) {
-                    if (m[tk + '_player' + i + '_id'] === playerId) return true;
+                    if (String(m[tk + '_player' + i + '_id']) === String(playerId)) return true;
                 }
             }
             return false;
         });
-        if (!mine.length) {
-            host.innerHTML = '<p style="color:var(--text-muted);">该选手暂无按赛事归档的比赛记录。</p>';
-            return;
-        }
-        let evTitles = {};
-        try {
-            const { data: evs } = await supabaseClient.from('events').select('id, title');
-            (evs || []).forEach(e => { evTitles[String(e.id)] = e.title; });
-        } catch (e) { /* 缺表不影响 */ }
-
         const byEvent = {};
         mine.forEach(m => {
             const k = m.event_id != null ? String(m.event_id) : '';
             (byEvent[k] = byEvent[k] || []).push(m);
         });
-
-        const fmtRow = (label, val) => '<div><strong>' + label + '</strong><span>' + val + '</span></div>';
-        const sections = Object.keys(byEvent).sort().map(evKey => {
-            const rows = byEvent[evKey].slice().sort((a, b) => String(b.match_date || '').localeCompare(String(a.match_date || '')));
-            let kills = 0, deaths = 0, assists = 0, acsSum = 0, acsN = 0, wins = 0, losses = 0;
+        const series = Object.keys(byEvent).map(evKey => {
+            const rows = byEvent[evKey];
+            let kills = 0, deaths = 0, assists = 0, acsSum = 0, acsN = 0, wins = 0, losses = 0, rounds = 0;
+            const teams = {};
+            let firstDate = '';
             rows.forEach(m => {
+                if (m.match_date && (!firstDate || String(m.match_date) < firstDate)) firstDate = String(m.match_date);
                 const score = String(m.score || '').split(/[/:：]/).map(Number);
                 const mySide = ['team_a', 'team_b'].find(tk => {
-                    for (let i = 1; i <= 5; i++) if (m[tk + '_player' + i + '_id'] === playerId) return true;
+                    for (let i = 1; i <= 5; i++) if (String(m[tk + '_player' + i + '_id']) === String(playerId)) return true;
                     return false;
                 });
-                if (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1]) && mySide && score[0] !== score[1]) {
-                    const myScore = mySide === 'team_a' ? score[0] : score[1];
-                    const opScore = mySide === 'team_a' ? score[1] : score[0];
-                    if (myScore > opScore) wins++; else losses++;
+                if (mySide && m[mySide]) teams[m[mySide]] = (teams[m[mySide]] || 0) + 1;
+                if (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1])) {
+                    rounds += score[0] + score[1];
+                    if (mySide && score[0] !== score[1]) {
+                        const my = mySide === 'team_a' ? score[0] : score[1];
+                        const op = mySide === 'team_a' ? score[1] : score[0];
+                        if (my > op) wins++; else losses++;
+                    }
                 }
                 ['team_a', 'team_b'].forEach(tk => {
                     for (let i = 1; i <= 5; i++) {
-                        if (m[tk + '_player' + i + '_id'] !== playerId) continue;
+                        if (String(m[tk + '_player' + i + '_id']) !== String(playerId)) continue;
                         const ds = m[tk + '_player' + i + '_data'];
                         if (!ds) continue;
                         const st = String(ds).split('/').map(Number);
@@ -525,41 +683,170 @@
                     }
                 });
             });
-            const avgAcs = acsN > 0 ? (acsSum / acsN).toFixed(1) : '—';
-            const kd = deaths > 0 ? (kills / deaths).toFixed(2) : String(kills);
-            const title = evKey ? (evTitles[evKey] || ('活动 #' + evKey)) : '未关联赛事';
-            const recent = rows.slice(0, 8).map(m => {
-                const score = String(m.score || '–').replace(/[：]/g, ':');
-                const opp = (function () {
-                    const myTk = ['team_a', 'team_b'].find(tk => {
-                        for (let i = 1; i <= 5; i++) if (m[tk + '_player' + i + '_id'] === playerId) return true;
-                        return false;
-                    });
-                    if (!myTk) return '';
-                    return myTk === 'team_a' ? (m.team_b || '') : (m.team_a || '');
-                })();
-                const date = m.match_date ? String(m.match_date).slice(5, 10) : '';
-                return '<div style="display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid rgba(255,255,255,0.05); font-size:13px;">' +
-                    '<span class="smoke" style="font-family:var(--font-mono);">' + escapeHTML(date) + '</span>' +
-                    '<span style="color:var(--mist);">vs ' + escapeHTML(opp) + '</span>' +
-                    '<span style="font-family:var(--font-mono); color:var(--pure-white); font-weight:700;">' + escapeHTML(score) + '</span>' +
-                    '</div>';
-            }).join('');
-            return '<div style="background:rgba(0,0,0,0.18); border:1px solid var(--border-color); border-radius:8px; padding:16px 18px; margin-bottom:14px;">' +
-                '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">' +
-                '  <strong style="color:var(--pure-white); font-size:15px;">' + escapeHTML(title) + '</strong>' +
-                '  <span class="smoke" style="font-size:12px;">' + rows.length + ' 场 · 胜 ' + wins + ' / 负 ' + losses + '</span>' +
-                '</div>' +
-                '<div class="summary-list" style="gap:8px;">' +
-                  fmtRow('平均 ACS', avgAcs) +
-                  fmtRow('K / D / A', kills + ' / ' + deaths + ' / ' + assists) +
-                  fmtRow('K/D', kd) +
-                '</div>' +
-                '<div style="margin-top:10px;"><strong style="color:var(--text-muted); font-size:13px; font-weight:600;">对战记录（近 ' + Math.min(8, rows.length) + ' 场）</strong>' +
-                (recent || '<p class="smoke" style="font-size:13px;">暂无</p>') + '</div>' +
-                '</div>';
-        }).join('');
-        host.innerHTML = sections || '<p style="color:var(--text-muted);">该选手暂无按赛事归档的比赛记录。</p>';
+            const ev = evKey ? (evInfo[evKey] || {}) : {};
+            const team = Object.keys(teams).sort((a, b) => teams[b] - teams[a])[0] || '';
+            const decided = wins + losses;
+            return {
+                key: evKey,
+                title: evKey ? (ev.title || ('活动 #' + evKey)) : '未关联赛事',
+                time: ev.start_time || firstDate || '',
+                firstDate: firstDate,
+                team: team,
+                matches: rows.length,
+                wins: wins, losses: losses,
+                winRate: decided ? wins / decided * 100 : 0,
+                acs: acsN ? acsSum / acsN : 0,
+                kd: deaths ? kills / deaths : kills,
+                kda: deaths ? (kills + assists) / deaths : kills + assists,
+                k_map: rows.length ? kills / rows.length : 0,
+                d_map: rows.length ? deaths / rows.length : 0,
+                a_map: rows.length ? assists / rows.length : 0,
+                k_round: rounds ? kills / rounds : 0,
+                d_round: rounds ? deaths / rounds : 0,
+                a_round: rounds ? assists / rounds : 0,
+                unlinked: !evKey
+            };
+        });
+        /* 时间从早到晚；未关联赛事永远置尾 */
+        series.sort((a, b) => {
+            if (a.unlinked !== b.unlinked) return a.unlinked ? 1 : -1;
+            return String(a.time || a.firstDate).localeCompare(String(b.time || b.firstDate));
+        });
+        return series;
+    }
+
+    function renderEvTable_() {
+        const host = document.getElementById('event-stats-content');
+        if (!host) return;
+        if (!evSeries.length) {
+            host.innerHTML = '<div class="empty-block">该选手已报名，尚未出场。比赛数据录入后将自动更新。</div>';
+            return;
+        }
+        const f2 = v => (v == null || isNaN(v)) ? '—' : Number(v).toFixed(2);
+        const f1 = v => (v == null || isNaN(v)) ? '—' : Number(v).toFixed(1);
+        host.innerHTML = '<div style="overflow-x:auto;"><table class="ev-avg-table"><thead><tr>' +
+            '<th>赛事</th><th>时间</th><th>所在队伍</th><th>场次</th><th>胜/负</th><th>胜率</th><th>ACS</th><th>K/D</th><th>KDA</th><th>每局 K/D/A</th><th>每回合 K/D/A</th>' +
+            '</tr></thead><tbody>' +
+            evSeries.map(r => '<tr' + (r.unlinked ? ' style="opacity:.6;"' : '') + '>' +
+                '<td style="color:var(--pure-white); font-weight:600;">' + escapeHTML(r.title) + '</td>' +
+                '<td>' + escapeHTML(String(r.time || r.firstDate || '—').slice(0, 10)) + '</td>' +
+                '<td>' + escapeHTML(r.team || '—') + '</td>' +
+                '<td>' + r.matches + '</td>' +
+                '<td>' + r.wins + ' / ' + r.losses + '</td>' +
+                '<td>' + f1(r.winRate) + '%</td>' +
+                '<td>' + f1(r.acs) + '</td>' +
+                '<td>' + f2(r.kd) + '</td>' +
+                '<td>' + f2(r.kda) + '</td>' +
+                '<td>' + f2(r.k_map) + ' / ' + f2(r.d_map) + ' / ' + f2(r.a_map) + '</td>' +
+                '<td>' + f2(r.k_round) + ' / ' + f2(r.d_round) + ' / ' + f2(r.a_round) + '</td>' +
+                '</tr>').join('') +
+            '</tbody></table></div>';
+    }
+
+    function renderEvChart_() {
+        const wrap = document.getElementById('ev-chart-wrap');
+        const canvas = document.getElementById('ev-chart');
+        if (!wrap || !canvas || typeof Chart === 'undefined') return;
+        if (evChart) { evChart.destroy(); evChart = null; }
+        if (!evSeries.length) { wrap.hidden = true; return; }
+        const isLight = document.documentElement.dataset.theme === 'light';
+        const colors = ['#ff6363', '#59d499', '#6cb8ff', '#ffd700', '#c792ff', '#ff9f6e'];
+        const labels = evSeries.map(r => r.title.length > 10 ? r.title.slice(0, 10) + '…' : r.title);
+        evChart = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: evSelectedMetrics.map((key, i) => {
+                    const meta = EV_METRICS.find(m => m.key === key) || { label: key };
+                    return {
+                        label: meta.label,
+                        data: evSeries.map(r => Number(Number(r[key] || 0).toFixed(2))),
+                        borderColor: colors[i % colors.length],
+                        backgroundColor: colors[i % colors.length],
+                        yAxisID: key === 'acs' ? 'y' : 'y1',
+                        tension: 0.25, pointRadius: 3, borderWidth: 2
+                    };
+                })
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                animation: window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : undefined,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { type: 'linear', position: 'left', title: { display: true, text: 'ACS' }, ticks: { color: isLight ? '#5e6065' : '#9c9c9d' }, grid: { color: isLight ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.08)' } },
+                    y1: { type: 'linear', position: 'right', title: { display: true, text: '其他指标' }, ticks: { color: isLight ? '#5e6065' : '#9c9c9d' }, grid: { drawOnChartArea: false } },
+                    x: { ticks: { color: isLight ? '#5e6065' : '#9c9c9d' }, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { labels: { color: isLight ? '#1b1c1e' : '#e6e6e6' } },
+                    tooltip: { callbacks: { afterBody: (items) => {
+                        const r = evSeries[items[0].dataIndex];
+                        return ['赛事时间：' + String(r.time || r.firstDate || '—').slice(0, 10), '场次：' + r.matches + '，队伍：' + (r.team || '—')];
+                    } } }
+                }
+            }
+        });
+    }
+
+    function wireEvView_() {
+        const chips = document.getElementById('ev-metric-chips');
+        if (chips && !chips.dataset.wired) {
+            chips.dataset.wired = '1';
+            chips.innerHTML = EV_METRICS.map(m =>
+                '<button type="button" class="chip-btn' + (evSelectedMetrics.includes(m.key) ? ' active' : '') + '" data-metric="' + m.key + '">' + m.label + '</button>').join('');
+            chips.querySelectorAll('[data-metric]').forEach(b => b.addEventListener('click', () => {
+                const k = b.dataset.metric;
+                if (evSelectedMetrics.includes(k)) {
+                    if (evSelectedMetrics.length > 1) evSelectedMetrics = evSelectedMetrics.filter(x => x !== k);
+                } else {
+                    if (evSelectedMetrics.length >= 3) { HWLayout.toast('最多同时看 3 个指标'); return; }
+                    evSelectedMetrics.push(k);
+                }
+                chips.querySelectorAll('[data-metric]').forEach(x => x.classList.toggle('active', evSelectedMetrics.includes(x.dataset.metric)));
+                renderEvChart_();
+            }));
+        }
+        document.querySelectorAll('[data-evview]').forEach(b => {
+            if (b.dataset.wired) return;
+            b.dataset.wired = '1';
+            b.addEventListener('click', () => {
+                document.querySelectorAll('[data-evview]').forEach(x => x.classList.toggle('active', x === b));
+                const chart = b.dataset.evview === 'chart';
+                document.getElementById('ev-chart-wrap').hidden = !chart;
+                document.getElementById('event-stats-content').hidden = chart;
+                if (chart) {
+                    renderEvChart_();
+                    if (evSeries.length === 1) HWLayout.toast('只有 1 个赛事数据，再参加一个赛事即可看到趋势');
+                }
+            });
+        });
+    }
+
+    async function renderEventStats(matches, playerId) {
+        const host = document.getElementById('event-stats-content');
+        if (!host) return;
+        let evInfo = {};
+        try {
+            const { data: evs } = await supabaseClient.from('events').select('id, title, start_time, status');
+            (evs || []).forEach(e => {
+                /* 已取消/已删除赛事不计入统计口径 */
+                if (e.status !== 'cancelled' && e.status !== 'deleted') evInfo[String(e.id)] = e;
+            });
+        } catch (e) { /* 缺表不影响 */ }
+        /* 已取消赛事的比赛剔除（event_id 命中的才剔） */
+        let evStatus = {};
+        try {
+            const { data: evs2 } = await supabaseClient.from('events').select('id, status');
+            (evs2 || []).forEach(e => { evStatus[String(e.id)] = e.status; });
+        } catch (e) { /* ignore */ }
+        const scoped = matches.filter(m => {
+            if (m.event_id == null) return true;
+            const st = evStatus[String(m.event_id)];
+            return st !== 'cancelled' && st !== 'deleted';
+        });
+        evSeries = aggregateByEvent_(scoped, playerId, evInfo);
+        renderEvTable_();
+        wireEvView_();
     }
 
     var playerTrendMap = {};   /* P13i：每名选手按时间序的单场 ACS */
@@ -658,9 +945,7 @@
             <div><strong>每回合击杀:</strong> <span>${playerAverages.k_round.toFixed(2)} <span class="rank-top">${getRank(playerId, 'k_round', groupPlayersForRank)}</span></span></div>
             <div><strong>每回合死亡:</strong> <span>${playerAverages.d_round.toFixed(2)} <span class="rank-top">${getRank(playerId, 'd_round', groupPlayersForRank, true)}</span></span></div>
             <div><strong>每回合助攻:</strong> <span>${playerAverages.a_round.toFixed(2)} <span class="rank-top">${getRank(playerId, 'a_round', groupPlayersForRank)}</span></span></div>
-            ${(() => { const tr = (playerTrendMap[playerId] || []).slice(-10); return tr.length >= 2
-                ? `<div style="margin-top:8px;"><strong>近${tr.length}场 ACS:</strong> ${sparklineSvg(tr, 180, 36)} <span class="smoke" style="font-size:12px;">${tr.join(' → ')}</span></div>`
-                : ''; })()}`;
+`;
     }
     
     function renderCharacterTable(playerData, playerId, statsByCharacter) {

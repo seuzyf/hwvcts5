@@ -86,6 +86,7 @@
         .slot-track { height: 4px; background: var(--obsidian); border-radius: 2px; overflow: hidden; }
         .slot-fill { height: 100%; background: var(--mist); border-radius: 2px; transition: width 0.4s ease; }
         .slot-fill.full { background: var(--coral-pulse); }
+        .event-card.ev-dim { opacity: .62; filter: grayscale(.35); }
 
         /* 详情弹窗封面横幅 */
         .detail-cover { margin: -28px -28px 16px; overflow: hidden; border-radius: var(--r-card-lg) var(--r-card-lg) 0 0; }
@@ -147,6 +148,18 @@
         .mini-btn.ok { border-color: rgba(89, 212, 153, 0.4); color: var(--success-green); }
         .mini-btn.no { border-color: rgba(255, 99, 99, 0.4); color: #ff8f8f; }
 
+        .detail-info { display:flex; flex-wrap:wrap; gap:8px 22px; margin:14px 0 4px; font-size:14px; color:var(--ash); }
+        .detail-info b { color:var(--mist); font-weight:600; }
+        .detail-info .slot-mini { display:inline-flex; align-items:center; gap:8px; }
+        .detail-info .slot-mini .slot-track { width:90px; }
+        .detail-tabs { display:flex; gap:6px; margin:18px 0 14px; border-bottom:1px solid var(--border); }
+        .detail-tabs button { padding:9px 14px; background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px; color:var(--ash); font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; }
+        .detail-tabs button.active { color:var(--pure-white); border-bottom-color:var(--coral-pulse); }
+        .dt-pane[hidden] { display:none; }
+        .detail-foot { position:sticky; bottom:-28px; margin:20px -28px -28px; padding:14px 28px calc(14px + env(safe-area-inset-bottom)); background:var(--ink); border-top:1px solid var(--border); }
+        .detail-foot .my-reg-box { margin-top:0; }
+        .teams-chips { display:flex; flex-wrap:wrap; gap:6px; }
+        .teams-chips .chip { font-size:12px; }
         .my-reg-box {
             display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
             padding: 13px 15px; margin-top: 16px;
@@ -362,7 +375,7 @@
     (function () {
         'use strict';
 
-        var EV_STATUS = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
+        var EV_STATUS = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消', deleted: '已删除' };
         var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回', waitlist: '候补中' };
         var TYPE_LABEL = { tournament: '赛事', scrim: '训练赛', showmatch: '表演赛', activity: '活动' };
         var EV_BADGE = { draft: 'badge-quiet', registration: 'badge-coral', ongoing: 'badge-green', finished: 'badge-quiet', cancelled: 'badge-quiet' };
@@ -416,7 +429,8 @@
                     ['lottery.html?event=' + ev.id, 'gift', '抽奖']
                 ];
                 if (perms.isCaptain || perms.isAdmin) entries.push(['draft.html?event=' + ev.id, 'users', '分队']);
-                if (perms.isAdmin || perms.isEventCaptain) entries.push(['manage.html?event=' + ev.id, 'shield-check', '管理']);
+                if (perms.isAdmin || perms.isEventCaptain) entries.push(['manage.html?event=' + ev.id, 'shield-check', '数据录入']);
+                else if (HWAuth.getSession()) entries.push(['manage.html?event=' + ev.id, 'shield-check', '数据录入']);
                 host.innerHTML = entries.map(function (t) {
                     return '<a class="tile" href="' + t[0] + '">' +
                         '<span class="icon-circle" style="width:34px;height:34px;">' + HWLayout.ico(t[1], 17) + '</span>' +
@@ -463,8 +477,28 @@
         }
 
         /* ---------- render ---------- */
+        function syncFilterOptions() {
+            var seg = document.getElementById('status-filter');
+            if (!seg) return;
+            var want = [['all', '全部'], ['registration', '报名中'], ['ongoing', '进行中'], ['finished', '已结束']];
+            var u = HWAuth.getSession();
+            if (u && (isAdmin() || isOrganizerRole())) { want.push(['draft', '草稿'], ['cancelled', '已取消']); }
+            if (typeof HWLayout !== 'undefined' && HWLayout.getRole && HWLayout.getRole() === 'superadmin') want.push(['deleted', '已删除']);
+            var cur = want.map(function (w) { return w[0]; }).join(',');
+            if (seg.dataset.opts === cur) return;
+            seg.dataset.opts = cur;
+            seg.innerHTML = want.map(function (w) {
+                return '<button data-status="' + w[0] + '" type="button"' + (currentFilter === w[0] ? ' class="active"' : '') + '>' + w[1] + '</button>';
+            }).join('');
+            if (want.every(function (w) { return w[0] !== currentFilter; })) {
+                currentFilter = 'all';
+                seg.querySelectorAll('button').forEach(function (x) { x.classList.toggle('active', x.dataset.status === 'all'); });
+            }
+        }
+
         function render() {
             if (typeof HWLayout !== 'undefined') HWLayout.renderAuth();
+            syncFilterOptions();
             updateTabs();
             updateAdminUI();
             if (currentTab === 'mine') renderMine();
@@ -512,9 +546,14 @@
 
         function renderHall() {
             if (tableMissing) { renderMissing(); return; }
+            var superAdmin = typeof HWLayout !== 'undefined' && HWLayout.getRole && HWLayout.getRole() === 'superadmin';
             var list = allEvents.filter(function (ev) {
-                /* 草稿 / 已取消：任何人在赛事中心都不展示（管理入口在管理后台） */
-                if (ev.status === 'draft' || ev.status === 'cancelled') return false;
+                /* 可见性分层（V3 阶段 3）：普通用户只见公开赛事；组织者见自己的草稿/已取消；
+                   管理员见全部；已删除仅超管在选「已删除」时可见（回收站） */
+                if (ev.status === 'deleted') return superAdmin && currentFilter === 'deleted';
+                if (ev.status === 'draft' || ev.status === 'cancelled') {
+                    if (!(isAdmin() || evOrganizer(ev))) return false;
+                }
                 return currentFilter === 'all' || ev.status === currentFilter;
             });
             if (list.length === 0) {
@@ -544,7 +583,7 @@
                     '<span class="badge ' + (EV_BADGE[ev.status] || '') + '">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
                     mineBadge;
 
-                return '<article class="event-card" data-id="' + ev.id + '" tabindex="0">' +
+                return '<article class="event-card' + ((ev.status === 'draft' || ev.status === 'cancelled' || ev.status === 'deleted') ? ' ev-dim' : '') + '" data-id="' + ev.id + '" tabindex="0">' +
                     '<div class="ev-cover ' + ratio + '">' + coverInner +
                     '  <div class="ev-cover-tags">' + tags + '</div>' +
                     '</div>' +
@@ -617,6 +656,130 @@
             main.querySelectorAll('[data-cancel]').forEach(function (b) {
                 b.addEventListener('click', function () { cancelReg(parseInt(b.dataset.cancel, 10)); });
             });
+        }
+
+        /* ---------- 荣誉管理（组织者本活动 / 管理员，见 DESIGN 14.7） ---------- */
+        var HONOR_PRESETS = ['总冠军', '亚军', '季军', 'MVP', 'FMVP', '最佳进步', '最佳新人', '最佳队长'];
+        function canAwardHonor(ev) { return isAdmin() || evOrganizer(ev); }
+        function honorHtml(ev) {
+            if (!canAwardHonor(ev)) return '';
+            return '<div class="section-label">荣誉管理</div>' +
+              '<p class="muted" style="font-size:13px; margin:4px 0 10px;">给本活动选手发放荣誉，选手页成就墙即时展示并发通知本人。</p>' +
+              '<div class="admin-row">' +
+              '  <input class="input" id="honor-player" list="honor-player-list" placeholder="选手真名 / 游戏ID" style="flex:1; min-width:170px;">' +
+              '  <datalist id="honor-player-list"></datalist>' +
+              '  <select class="select" id="honor-title" style="flex:1; min-width:140px;">' +
+                 HONOR_PRESETS.map(function (t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') +
+              '    <option value="__custom">自定义…</option>' +
+              '  </select>' +
+              '  <input class="input" id="honor-title-custom" placeholder="自定义荣誉名称" style="flex:1; min-width:140px; display:none;">' +
+              '  <input class="input" id="honor-date" type="date" style="min-width:150px;">' +
+              '</div>' +
+              '<div class="admin-row" style="margin-top:8px;">' +
+              '  <input class="input" id="honor-desc" placeholder="详细介绍（获奖理由，会展示在荣誉详情里）" style="flex:1; min-width:220px;">' +
+              '  <button class="btn btn-primary" id="honor-award" type="button">发放荣誉</button>' +
+              '</div>' +
+              '<div id="honor-list" style="margin-top:12px;"><span class="muted">加载中…</span></div>';
+        }
+
+        function wireHonors(ev) {
+            var listEl = document.getElementById('honor-list');
+            if (!listEl) return;
+            var sb = HWAuth.getClient();
+            var season = HWLayout.seasonKey(ev);
+            /* 选手候选：本季花名册 ∪ 本活动报名 */
+            sb.from(season + '_player_ids').select('name, id').limit(500).then(function (r) {
+                var dl = document.getElementById('honor-player-list');
+                if (!dl) return;
+                var names = ((r && r.data) || []).map(function (x) { return x.name; }).filter(Boolean);
+                var seen = {};
+                regsOfEvent(ev.id).forEach(function (rg) {
+                    var who = userMap[rg.user_id] || {};
+                    if (who.nickname) names.push(who.nickname);
+                });
+                dl.innerHTML = names.filter(function (n) { if (seen[n]) return false; seen[n] = 1; return true; })
+                    .map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
+            }).catch(function () {});
+            var dateEl = document.getElementById('honor-date');
+            if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+            var titleSel = document.getElementById('honor-title');
+            titleSel.addEventListener('change', function () {
+                document.getElementById('honor-title-custom').style.display = titleSel.value === '__custom' ? 'block' : 'none';
+            });
+            var renderList = function () {
+                sb.from('player_honors').select('id, player_name, game_id, title, description, awarded_at')
+                    .eq('event_id', ev.id).order('awarded_at', { ascending: false })
+                    .then(function (r) {
+                        if (r.error) { listEl.innerHTML = '<span class="muted">荣誉表未就绪：请先执行 supabase/migration_v3.sql。</span>'; return; }
+                        var rows = r.data || [];
+                        if (!rows.length) { listEl.innerHTML = '<span class="muted">本活动暂无已发放荣誉。</span>'; return; }
+                        listEl.innerHTML = rows.map(function (h) {
+                            return '<div class="adm-ev-row"><span class="adm-ev-main"><span class="adm-ev-title">' +
+                                esc(h.title) + ' · ' + esc(h.player_name) + '</span>' +
+                                '<span class="adm-ev-sub">' + esc(h.awarded_at || '') + (h.description ? ' · ' + esc(h.description) : '') + '</span></span>' +
+                                '<button class="btn btn-danger-ghost btn-sm" data-honor-del="' + h.id + '" type="button">撤销</button></div>';
+                        }).join('');
+                        listEl.querySelectorAll('[data-honor-del]').forEach(function (b) {
+                            b.addEventListener('click', function () {
+                                HWLayout.confirmDialog({ title: '撤销荣誉', message: '确定撤销这条荣誉？选手页成就墙会同步移除。', okText: '撤销', danger: true })
+                                    .then(function (ok) {
+                                        if (!ok) return;
+                                        sb.from('player_honors').delete().eq('id', b.dataset.honorDel).then(function (r2) {
+                                            if (r2.error) { HWLayout.toast('撤销失败: ' + r2.error.message, 'err'); return; }
+                                            HWLayout.toast('已撤销');
+                                            renderList();
+                                        });
+                                    });
+                            });
+                        });
+                    }).catch(function () { listEl.innerHTML = '<span class="muted">加载失败。</span>'; });
+            };
+            renderList();
+            document.getElementById('honor-award').addEventListener('click', function () {
+                var playerName = document.getElementById('honor-player').value.trim();
+                var title = titleSel.value === '__custom'
+                    ? document.getElementById('honor-title-custom').value.trim() : titleSel.value;
+                var desc = document.getElementById('honor-desc').value.trim();
+                var date = dateEl.value || new Date().toISOString().slice(0, 10);
+                if (!playerName) { HWLayout.toast('请填写选手真名', 'err'); return; }
+                if (!title) { HWLayout.toast('请填写荣誉名称', 'err'); return; }
+                sb.from('player_honors').select('id').eq('event_id', ev.id)
+                    .eq('player_name', playerName).eq('title', title).limit(1)
+                    .then(function (dup) {
+                        if (dup && !dup.error && dup.data && dup.data.length) {
+                            HWLayout.toast('该选手在本活动已有同名荣誉，已拦截重复发放', 'err');
+                            throw new Error('dup');
+                        }
+                        var me = HWAuth.getSession();
+                        return sb.from(season + '_player_ids').select('id').eq('name', playerName).maybeSingle()
+                            .then(function (pr) {
+                                var gid = (pr && pr.data && pr.data.id) || '';
+                                return sb.from('player_honors').insert([{
+                                    player_name: playerName, game_id: String(gid || ''), event_id: ev.id,
+                                    title: title, description: desc, awarded_at: date,
+                                    awarded_by: me ? me.id : null
+                                }]);
+                            });
+                    })
+                    .then(function (r) {
+                        if (r && r.error) throw new Error(r.error.message);
+                        HWLayout.toast('荣誉已发放：' + title);
+                        renderList();
+                        /* 通知本人（按真名找已绑定账号，找不到等绑定后由选手页展示） */
+                        var target = Object.keys(userMap).map(function (k) { return userMap[k]; })
+                            .find(function (x) { return x && x.nickname === playerName; });
+                        if (target && target.id) {
+                            HWLayout.notifyUser(target.id, '你获得了新荣誉', '「' + title + '」· ' + (ev.title || ''), 'player.html?name=' + encodeURIComponent(playerName));
+                        }
+                        try {
+                            sb.from('audit_log').insert([{ actor_id: (HWAuth.getSession() || {}).id, actor_role: (HWAuth.getSession() || {}).role || '', action: 'honor.award', target_type: 'event', target_id: String(ev.id), detail: { player: playerName, title: title } }]).then(function () {}, function () {});
+                        } catch (e) { /* 审计表未就绪不阻断 */ }
+                    })
+                    .catch(function (e) { if (e.message !== 'dup') HWLayout.toast('发放失败: ' + (e.message || e), 'err'); });
+            });
+        }
+        function regsOfEvent(eventId) {
+            return allRegs.filter(function (r) { return r.event_id === eventId; });
         }
 
         /* ---------- detail ---------- */
@@ -699,6 +862,12 @@
             var coverBanner = ev.cover_image
                 ? '<div class="detail-cover"><img src="' + esc(ev.cover_image) + '" alt=""></div>'
                 : '';
+            var teamsChips = ev.teams
+                ? '<div class="teams-chips">' + String(ev.teams).split(/[,，、]/).map(function (t) { return t.trim(); }).filter(Boolean)
+                    .map(function (t) { return '<span class="chip">' + esc(t) + '</span>'; }).join('') + '</div>'
+                : '';
+            var slotPct = slots ? Math.min(100, Math.round(regs.length / slots * 100)) : 0;
+            var managePane = canManageEv(ev);
             panel.innerHTML =
                 '<button class="modal-close" id="detail-close" type="button" aria-label="关闭">&times;</button>' +
                 coverBanner +
@@ -708,27 +877,40 @@
                 '  <h3 class="modal-title" style="font-size:20px; margin-top:4px;">' + esc(ev.title) + '</h3></div>' +
                 '  <span class="badge ' + (EV_BADGE[ev.status] || '') + '" style="margin-left:auto;">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
                 '</div>' +
-                '<div class="meta-grid">' +
-                '  <div class="meta-cell"><div class="k">开始时间</div><div class="v">' + fmtTime(ev.start_time) + '</div></div>' +
-                '  <div class="meta-cell"><div class="k">报名截止</div><div class="v">' + (ev.reg_deadline ? fmtTime(ev.reg_deadline) : '不限') + '</div></div>' +
-                '  <div class="meta-cell"><div class="k">赛制</div><div class="v">' + esc(ev.format || '—') + '</div></div>' +
-                '  <div class="meta-cell"><div class="k">分组</div><div class="v">' + ((ev.group_count || 1) + ' 组') + '</div></div>' +
-                (ev.stream_url ? '  <div class="meta-cell" style="grid-column:1/-1;"><div class="k">直播</div><div class="v"><a href="' + esc(ev.stream_url) + '" target="_blank" rel="noopener" style="color:var(--info-blue);">进入直播间 →</a></div></div>' : '') +
-                (ev.teams ? '<div class="meta-cell" style="grid-column:1/-1;"><div class="k">参赛队伍</div><div class="v">' + esc(ev.teams) + '</div></div>' : '') +
-                '  <div class="meta-cell"><div class="k">名额</div><div class="v">' + (slots ? regs.length + ' / ' + slots : regs.length + '（不限）') + '</div></div>' +
-                (ev.venue ? '<div class="meta-cell" style="grid-column:1/-1;"><div class="k">地点 / 房间</div><div class="v">' + esc(ev.venue) + '</div></div>' : '') +
+                '<div class="detail-info">' +
+                '  <span>开始 <b>' + fmtTime(ev.start_time) + '</b></span>' +
+                '  <span>报名截止 <b>' + (ev.reg_deadline ? fmtTime(ev.reg_deadline) : '不限') + '</b></span>' +
+                '  <span>赛制 <b>' + esc(ev.format || '—') + '</b> · <b>' + ((ev.group_count || 1) + ' 组') + '</b></span>' +
+                '  <span class="slot-mini">名额 <b>' + (slots ? regs.length + ' / ' + slots : regs.length + '（不限）') + '</b>' +
+                (slots ? '<span class="slot-track"><span class="slot-fill' + (full ? ' full' : '') + '" style="display:block; height:100%; width:' + slotPct + '%;"></span></span>' : '') + '</span>' +
+                (ev.venue ? '  <span>' + HWLayout.ico('map-pin', 13) + ' <b>' + esc(ev.venue) + '</b></span>' : '') +
+                (ev.stream_url ? '  <span><a href="' + esc(ev.stream_url) + '" target="_blank" rel="noopener" style="color:var(--info-blue);">进入直播间 →</a></span>' : '') +
                 '</div>' +
-                (ev.description ? '<div class="desc-block">' + esc(ev.description) + '</div>' : '') +
+                (teamsChips ? '<div style="margin-top:10px;">' + teamsChips + '</div>' : '') +
+                '<div class="detail-tabs" role="tablist">' +
+                '  <button type="button" class="active" data-dtab="overview">概览</button>' +
+                '  <button type="button" data-dtab="roster">报名名单（' + regs.length + '）</button>' +
+                '  <button type="button" data-dtab="space">活动空间</button>' +
+                (managePane ? '  <button type="button" data-dtab="manage">管理</button>' : '') +
+                '</div>' +
+                '<div class="dt-pane" data-pane="overview">' +
+                (ev.description ? '<div class="desc-block">' + esc(ev.description) + '</div>' : '<div class="empty-state" style="padding:16px 0;">暂无活动简介。</div>') +
                 (ev.rules ? '<div class="section-label">赛制 / 规则</div><div class="desc-block">' + esc(ev.rules) + '</div>' : '') +
-                '<div class="section-label">活动空间</div>' +
-                '<div id="ev-workspace" class="tiles" style="margin-bottom:4px;">加载中…</div>' +
-                '<div class="section-label" style="display:flex; align-items:center; gap:10px;">报名名单（' + regs.length + '）' +
-                (isAdmin() ? '<a href="review.html?event=' + ev.id + '" style="font-size:12px; color:var(--info-blue);">审核报名 →</a>' : '') +
-                '</div>' + rosterHtml +
-                myRegHtml +
-                (registerHtml ? '<div style="margin-top:18px;">' + registerHtml + '</div>' : '') +
                 (ev.start_time ? '<div style="margin-top:14px;"><button class="btn btn-ghost btn-sm" id="ev-ics" type="button">导出 .ics 日历</button></div>' : '') +
-                adminHtml;
+                '</div>' +
+                '<div class="dt-pane" data-pane="roster" hidden>' +
+                (isAdmin() || evOrganizer(ev) ? '<div style="margin-bottom:8px;"><a href="review.html?event=' + ev.id + '" style="font-size:12px; color:var(--info-blue);">审核报名 →</a></div>' : '') +
+                rosterHtml +
+                '</div>' +
+                '<div class="dt-pane" data-pane="space" hidden>' +
+                '<div id="ev-workspace" class="tiles" style="margin-bottom:4px;">加载中…</div>' +
+                '</div>' +
+                (managePane ? '<div class="dt-pane" data-pane="manage" hidden>' + adminHtml + honorHtml(ev) +
+                  (isAdmin() ? '<div class="section-label" style="color:#ff8f8f;">危险操作</div>' +
+                    '<p class="muted" style="font-size:13px;">删除后活动对所有人不可见（软删除，数据保留，超管可恢复）。</p>' +
+                    '<button class="btn btn-danger" id="adm-delete-ev" type="button">删除活动</button>' : '') +
+                  '</div>' : '') +
+                '<div class="detail-foot">' + myRegHtml + registerHtml + '</div>';
 
             document.getElementById('detail-modal').classList.add('visible');
             document.getElementById('detail-close').addEventListener('click', closeDetail);
@@ -743,6 +925,52 @@
                 }]);
             });
             renderWorkspace(ev);
+            wireHonors(ev);
+
+            /* 详情页签切换 */
+            panel.querySelectorAll('[data-dtab]').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    panel.querySelectorAll('[data-dtab]').forEach(function (x) { x.classList.toggle('active', x === b); });
+                    panel.querySelectorAll('.dt-pane').forEach(function (p) { p.hidden = p.dataset.pane !== b.dataset.dtab; });
+                    if (typeof HWLayout !== 'undefined' && HWLayout.reveal) HWLayout.reveal(panel.querySelector('.dt-pane[data-pane="' + b.dataset.dtab + '"]'));
+                });
+            });
+
+            /* 删除活动（管理员：软删除，审计 + 通知组织者） */
+            var delBtn = document.getElementById('adm-delete-ev');
+            if (delBtn) delBtn.addEventListener('click', function () {
+                HWLayout.confirmDialog({
+                    title: '删除活动',
+                    message: '确定删除活动「' + (ev.title || '') + '」？删除后活动对所有人不可见，数据保留，超级管理员可恢复。',
+                    okText: '删除活动', danger: true
+                }).then(function (ok) {
+                    if (!ok) return;
+                    var sb = HWAuth.getClient();
+                    var me = HWAuth.getSession();
+                    var patch = { status: 'deleted' };
+                    var done = function () {
+                        try { sb.from('audit_log').insert([{ actor_id: me ? me.id : null, actor_role: me ? me.role : '', action: 'event.delete', target_type: 'event', target_id: String(ev.id), detail: { title: ev.title || '' } }]).then(function () {}, function () {}); } catch (e) {}
+                        if (ev.organizer_id && (!me || String(ev.organizer_id) !== String(me.id))) {
+                            HWLayout.notifyUser(ev.organizer_id, '活动已被管理员删除', '「' + (ev.title || '') + '」已被删除，如有疑问请联系管理员。', 'events.html');
+                        }
+                        HWLayout.toast('活动已删除');
+                        closeDetail();
+                        refresh();
+                    };
+                    sb.from('events').update(Object.assign({}, patch, {
+                        deleted_at: new Date().toISOString(), deleted_by: me ? me.id : null
+                    })).eq('id', ev.id).then(function (r) {
+                        if (r && r.error) {
+                            /* deleted_* 列未就绪时只回退写状态 */
+                            return sb.from('events').update(patch).eq('id', ev.id).then(function (r2) {
+                                if (r2 && r2.error) { HWLayout.toast('删除失败: ' + r2.error.message, 'err'); return; }
+                                done();
+                            });
+                        }
+                        done();
+                    }).catch(function () { HWLayout.toast('删除失败', 'err'); });
+                });
+            });
 
             panel.querySelectorAll('[data-cancel]').forEach(function (b) {
                 b.addEventListener('click', function () { cancelReg(parseInt(b.dataset.cancel, 10), eventId); });

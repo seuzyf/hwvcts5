@@ -443,7 +443,7 @@
                     if (ev) HWLayout.eventBar({ event: ev, perms: perms });
                     else HWLayout.eventBar({ event: null });
 
-                    var ok = perms.isAdmin || perms.isCaptain;
+                    var ok = perms.isAdmin || perms.isCaptain || perms.isOrganizer;
                     if (!ok) {
                         document.querySelectorAll('.page-header, .draft-tabs').forEach(function (el) { el.style.display = 'none'; });
                         var ip = document.getElementById('import-pane'); if (ip) ip.hidden = true;
@@ -1260,7 +1260,42 @@
 
                 await Promise.all(updatePromises);
 
-                HWLayout.toast("所有分队数据及队长信息已成功同步至 player_ids 表！");
+                /* 选手页自动生成（V3 阶段 8）：同步当季花名册 + 选手档案，
+                   选手页即时可达；重提交只更新队伍/组别/角色，不覆盖已录赛果。 */
+                var syncNote = '';
+                try {
+                    var season = (new URLSearchParams(location.search).get('season') || 's6').toLowerCase();
+                    var captainNames = {};
+                    captainsToSubmit.forEach(function (c) { captainNames[c.name] = 1; });
+                    var synced = 0;
+                    for (var ui = 0; ui < uniqueToSubmit.length; ui++) {
+                        var p = uniqueToSubmit[ui];
+                        var raw = (typeof rawData !== 'undefined' ? rawData : []).find(function (x) { return x.player_name === p.name; }) || {};
+                        var gid = raw.game_id || '';
+                        var grp = raw.pre_group || raw.group || currentGroup || '';
+                        var role = captainNames[p.name] ? '队长' : (raw.role === '队长' ? '队长' : '队员');
+                        await supabaseClient.from(season + '_player_ids')
+                            .upsert({ name: p.name, id: gid, team: p.team, group: grp }, { onConflict: 'name' })
+                            .then(function (r) { if (r && r.error) throw r.error; });
+                        var existing = await supabaseClient.from(season + '_player_stats')
+                            .select('player_name').eq('player_name', p.name).maybeSingle();
+                        if (existing && existing.data) {
+                            await supabaseClient.from(season + '_player_stats')
+                                .update({ game_id: gid, team: p.team, group: grp, role: role })
+                                .eq('player_name', p.name);
+                        } else {
+                            await supabaseClient.from(season + '_player_stats')
+                                .insert([{ player_name: p.name, game_id: gid, team: p.team, group: grp, pre_group: grp, role: role }]);
+                        }
+                        synced++;
+                    }
+                    syncNote = '，选手页已同步 ' + synced + ' 人';
+                } catch (eSync) {
+                    console.warn('选手页同步失败（不影响分队结果）', eSync);
+                    syncNote = '（选手页同步失败，可在数据台成员维护里重新同步）';
+                }
+
+                HWLayout.toast("所有分队数据及队长信息已成功同步至 player_ids 表" + syncNote + "！");
                 pendingIdsToSubmit = [];
                 lastDraft = null;
                 updateControls();

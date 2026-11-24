@@ -101,8 +101,8 @@
 
       function sb() { return HWAuth.getClient(); }
       function isAdminNow() {
-        return (typeof HWLayout !== 'undefined' && HWLayout.isAdminNow()) ||
-          HWAuth.getSession() && HWAuth.getSession().role === 'admin';
+        /* 管理员及以上（HWLayout.isAdminNow 按角色秩 >=3，含 superadmin） */
+        return typeof HWLayout !== 'undefined' && HWLayout.isAdminNow();
       }
       function canReview() {
         if (isAdminNow()) return true;
