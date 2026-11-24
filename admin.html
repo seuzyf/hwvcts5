@@ -142,16 +142,6 @@
                 </div>
                 <div id="adm-events-list"><div class="empty-state">正在加载活动…</div></div>
             </div>
-            <div class="card mt-16">
-                <div class="flex-between">
-                    <div>
-                        <span class="eyebrow">Players</span>
-                        <h2 class="section-title" style="margin:8px 0 0;">选手账号（头像管理）</h2>
-                    </div>
-                    <span class="smoke" style="font-size:13px;" id="su-count"></span>
-                </div>
-                <div id="su-list" style=" margin-top:14px;"><div class="empty-state">加载中…</div></div>
-            </div>
             <div class="card mt-16" id="org-req-card">
                 <div class="flex-between">
                     <div>
@@ -245,64 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
         member: document.getElementById('member-view'),
         admin: document.getElementById('admin-view')
     };
-
-    var suLoaded = false;
-    function loadSiteUsers() {
-        if (suLoaded) return;
-        suLoaded = true;
-        var host = document.getElementById('su-list');
-        supabaseClient.from('site_users').select('id, username, nickname, game_id, avatar, role')
-            .order('id').then(function (res) {
-                var rows = (res && !res.error && res.data) || [];
-                document.getElementById('su-count').textContent = rows.length + ' 个账号';
-                if (!rows.length) { host.innerHTML = '<div class="empty-state">暂无账号。</div>'; return; }
-                var me = (typeof HWAuth !== 'undefined' && HWAuth.getSession()) || null;
-                host.innerHTML = '<div class="rv-feed" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:12px;">' +
-                    rows.map(function (u) {
-                        var av = u.avatar
-                            ? '<img src="' + esc(u.avatar) + '" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">'
-                            : '<span class="nav-avatar">' + esc(String(u.nickname || u.username || '?').charAt(0).toUpperCase()) + '</span>';
-                        return '<div class="card" style="padding:14px;">' +
-                            '<div style="display:flex; gap:10px; align-items:center;">' + av +
-                            '<div style="min-width:0;"><div style="font-weight:600; color:var(--pure-white); font-size:14px;">' + esc(u.nickname || u.username) + '</div>' +
-                            '<div class="smoke" style="font-size:12px;">@' + esc(u.username) + (u.game_id ? ' · ' + esc(u.game_id) : '') + (u.role === 'admin' ? ' · 管理员' : '') + '</div></div></div>' +
-                            '<div class="filter-bar" style="margin:10px 0 0;">' +
-                            '<input class="input" type="url" id="su-av-' + u.id + '" value="' + esc(u.avatar || '') + '" placeholder="头像图片 URL" style="flex:1; min-width:140px;">' +
-                            '<button class="btn btn-ghost btn-sm" data-su-save="' + u.id + '" type="button">保存头像</button>' +
-                            '</div></div>';
-                    }).join('') + '</div>';
-                Array.prototype.forEach.call(host.querySelectorAll('[data-su-save]'), function (b) {
-                    b.addEventListener('click', function () {
-                        var id = Number(b.dataset.suSave);
-                        var url = document.getElementById('su-av-' + id).value.trim();
-                        b.disabled = true;
-                        supabaseClient.from('site_users').update({ avatar: url }).eq('id', id).then(function (r) {
-                            b.disabled = false;
-                            if (r.error) { HWLayout.toast('保存失败: ' + r.error.message, 'err'); return; }
-                            HWLayout.toast('头像已保存');
-                            suLoaded = false;
-                            loadSiteUsers();
-                            var sess = (typeof HWAuth !== 'undefined' && HWAuth.getSession()) || null;
-                            if (sess && sess.id === id) {
-                                try {
-                                    var raw = localStorage.getItem('hw_session');
-                                    if (raw) { var sj = JSON.parse(raw); sj.avatar = url; localStorage.setItem('hw_session', JSON.stringify(sj)); }
-                                } catch (e) {}
-                                HWLayout.renderAuth();
-                            }
-                        });
-                    });
-                });
-            }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; suLoaded = false; });
-    }
-
-    function sha256Hex(text) {
-        if (!(window.crypto && window.crypto.subtle)) return Promise.reject(new Error('当前环境不支持 Web Crypto'));
-        var data = new TextEncoder().encode(text);
-        return crypto.subtle.digest('SHA-256', data).then(function (buf) {
-            return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
-        });
-    }
 
     /* —— 举办活动申请（同意 → 赋予活动组织者身份） —— */
     var ORG_REQ_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet' };
@@ -424,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showView(name) {
         Object.keys(views).forEach(function (k) { if (views[k]) views[k].hidden = (k !== name); });
-        if (name === 'admin') { loadSiteUsers(); loadOrgRequests(); loadPermUsers(); }
+        if (name === 'admin') { loadOrgRequests(); loadPermUsers(); }
         if (name === 'admin' && window.location.hash === '#perm-card') {
             setTimeout(function () {
                 var el = document.getElementById('perm-card');

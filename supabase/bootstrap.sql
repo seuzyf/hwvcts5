@@ -174,7 +174,7 @@ do $$ declare t text; begin
     's6_player_ids','s5_player_ids','s6_player_stats','s5_player_stats',
     'player_stats','player_ids','s6_comments',
     's6_bet_bets','s6_bet_welfare_claims','s6_betting_groups','manage',
-    'notifications','event_registrations','event_captains','events','site_users','reg_profiles','organizer_requests'
+    'notifications','event_registrations','event_captains','events','site_users','reg_profiles','organizer_requests','event_lottery_results'
   ] loop
     begin
       execute format('alter table public.%I enable row level security', t);

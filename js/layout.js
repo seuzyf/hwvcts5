@@ -102,7 +102,14 @@
     "search": "<circle cx=\"11\" cy=\"11\" r=\"8\" />\n  <path d=\"m21 21-4.3-4.3\" />",
     "star": "<path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\" />",
     "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\" />\n  <circle cx=\"9\" cy=\"7\" r=\"4\" />\n  <path d=\"M22 21v-2a4 4 0 0 0-3-3.87\" />\n  <path d=\"M16 3.13a4 4 0 0 1 0 7.75\" />",
-    "shield-check": "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\" />\n  <path d=\"m9 12 2 2 4-4\" />"
+    "shield-check": "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\" />\n  <path d=\"m9 12 2 2 4-4\" />",
+    "chevron-down": "<path d=\"m6 9 6 6 6-6\" />",
+    "user": "<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\" />\n  <circle cx=\"12\" cy=\"7\" r=\"4\" />",
+    "key": "<path d=\"m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4\" />\n  <path d=\"m21 2-9.6 9.6\" />\n  <circle cx=\"7.5\" cy=\"15.5\" r=\"5.5\" />",
+    "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\" />\n  <polyline points=\"16 17 21 12 16 7\" />\n  <line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\" />",
+    "gift": "<rect x=\"3\" y=\"8\" width=\"18\" height=\"4\" rx=\"1\" />\n  <path d=\"M12 8v13\" />\n  <path d=\"M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7\" />\n  <path d=\"M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5\" />",
+    "dices": "<rect width=\"12\" height=\"12\" x=\"2\" y=\"10\" rx=\"2\" ry=\"2\" />\n  <path d=\"m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6\" />\n  <path d=\"M6 18h.01\" />\n  <path d=\"M10 14h.01\" />\n  <path d=\"M15 6h.01\" />\n  <path d=\"M18 9h.01\" />",
+    "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" />\n  <polyline points=\"7 10 12 15 17 10\" />\n  <line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\" />"
   };
 
   function ico(name, size) {
@@ -627,12 +634,23 @@
       var admin = isAdminNow();
       var avUrl = user.avatar || '';
       host.innerHTML =
-        '<a class="nav-user" href="index.html" title="个人主页' + (admin ? ' · 管理员' : '') + '">' +
+        '<div class="nav-user-wrap">' +
+        '  <button class="nav-user" id="nav-user-btn" type="button" aria-haspopup="true" aria-expanded="false" title="账号菜单' + (admin ? ' · 管理员' : '') + '">' +
         (avUrl
           ? '<img class="nav-avatar nav-avatar-img' + (admin ? ' is-admin' : '') + '" src="' + esc(avUrl) + '" alt="">'
           : '<span class="nav-avatar' + (admin ? ' is-admin' : '') + '">' + initial + '</span>') +
-        '  <span class="nav-username">' + esc(user.nickname || user.username) + '</span>' +
-        '</a>';
+        '    <span class="nav-username">' + esc(user.nickname || user.username) + '</span>' +
+        '    <span class="nav-caret">' + ico('chevron-down', 14) + '</span>' +
+        '  </button>' +
+        '  <div class="nav-menu" id="nav-menu" hidden>' +
+        '    <button type="button" data-act="avatar">' + ico('image', 15) + '头像</button>' +
+        '    <button type="button" data-act="account">' + ico('user', 15) + '账号</button>' +
+        '    <button type="button" data-act="profile">' + ico('pen-line', 15) + '编辑资料</button>' +
+        '    <button type="button" data-act="password">' + ico('key', 15) + '重置密码</button>' +
+        '    <button type="button" data-act="logout" class="nav-menu-danger">' + ico('log-out', 15) + '退出登录</button>' +
+        '  </div>' +
+        '</div>';
+      wireAvatarMenu();
     } else {
       host.innerHTML = '<button class="btn btn-primary" id="nav-login-btn" type="button">登录 / 注册</button>';
       var btn = document.getElementById('nav-login-btn');
@@ -645,6 +663,221 @@
       }
     }
     refreshBell();
+  }
+
+  /* ---------------- 头像菜单 + 账号弹框 ---------------- */
+  var ROLE_ZH = { guest: '未登录', member: '普通成员', organizer: '活动组织者', admin: '管理员' };
+
+  function wireAvatarMenu() {
+    var btn = document.getElementById('nav-user-btn');
+    var menu = document.getElementById('nav-menu');
+    if (!btn || !menu) return;
+    ensureAccountModals();
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = menu.hidden;
+      menu.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) {
+        var closer = function (ev) {
+          if (menu.hidden) { document.removeEventListener('click', closer); return; }
+          var t = ev.target;
+          if (menu.contains(t) || btn.contains(t)) return;
+          menu.hidden = true;
+          btn.setAttribute('aria-expanded', 'false');
+          document.removeEventListener('click', closer);
+        };
+        document.addEventListener('click', closer);
+      }
+    });
+    menu.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('button[data-act]') : null;
+      if (!b) return;
+      menu.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+      accountAction(b.dataset.act);
+    });
+  }
+
+  function accountAction(act) {
+    var u = HWAuth.getSession();
+    if (!u) return;
+    if (act === 'avatar') {
+      document.getElementById('hw-av-url').value = u.avatar || '';
+      updateAvPreview(u.avatar || '');
+      openModalById('hw-av-modal');
+    } else if (act === 'account') {
+      var rows = [
+        ['头像', u.avatar ? '<img src="' + esc(u.avatar) + '" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;">' : esc(initialOf(u))],
+        ['用户名', esc(u.username || '')],
+        ['昵称', esc(u.nickname || '')],
+        ['账号 ID', '<span class="mono">' + u.id + '</span>'],
+        ['角色', esc(ROLE_ZH[currentRole()] || currentRole())],
+        ['游戏 ID', u.game_id ? esc(u.game_id) : '—'],
+        ['个人简介', u.bio ? esc(u.bio) : '—'],
+        ['注册时间', esc(u.created_at ? String(u.created_at).slice(0, 10) : '—')]
+      ];
+      document.getElementById('hw-acct-rows').innerHTML = rows.map(function (r) {
+        return '<div style="display:flex; justify-content:space-between; gap:12px; font-size:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">' +
+          '<span class="smoke">' + r[0] + '</span><span style="text-align:right; color:var(--mist); min-width:0; word-break:break-all;">' + r[1] + '</span></div>';
+      }).join('');
+      openModalById('hw-acct-modal');
+    } else if (act === 'profile') {
+      document.getElementById('hw-prof-nickname').value = u.nickname || '';
+      document.getElementById('hw-prof-gameid').value = u.game_id || '';
+      document.getElementById('hw-prof-bio').value = u.bio || '';
+      openModalById('hw-prof-modal');
+    } else if (act === 'password') {
+      document.getElementById('hw-pwd-old').value = '';
+      document.getElementById('hw-pwd-new').value = '';
+      openModalById('hw-pwd-modal');
+    } else if (act === 'logout') {
+      try { HWAuth.logout(); } catch (e) { /* ignore */ }
+      renderAuth();
+      toast('已退出登录');
+    }
+  }
+
+  function initialOf(u) {
+    return esc(((u && (u.nickname || u.username)) || '?').charAt(0).toUpperCase());
+  }
+
+  function openModalById(id) {
+    var m = document.getElementById(id);
+    if (m) m.classList.add('visible');
+  }
+  function closeModalById(id) {
+    var m = document.getElementById(id);
+    if (m) m.classList.remove('visible');
+  }
+  function updateAvPreview(url) {
+    var pv = document.getElementById('hw-av-preview');
+    if (!pv) return;
+    if (url) {
+      pv.innerHTML = '<img src="' + esc(url) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+    } else {
+      var u = HWAuth.getSession() || {};
+      pv.textContent = initialOf(u);
+    }
+  }
+
+  var modalsInjected = false;
+  function ensureAccountModals() {
+    if (modalsInjected && document.getElementById('hw-av-modal')) return;
+    modalsInjected = true;
+    var hostEl = document.createElement('div');
+    hostEl.innerHTML =
+      /* 头像 */
+      '<div class="modal-backdrop" id="hw-av-modal">' +
+      '  <div class="modal-panel" style="max-width:430px;">' +
+      '    <button class="modal-close" id="hw-av-close" type="button">&times;</button>' +
+      '    <span class="eyebrow">Avatar</span>' +
+      '    <h3 class="modal-title" style="margin-top:8px;">头像</h3>' +
+      '    <div style="display:flex; gap:16px; align-items:center; margin-top:18px;">' +
+      '      <span id="hw-av-preview" style="width:64px;height:64px;border-radius:50%;background:var(--ember-hush);color:var(--coral-pulse);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:600;flex-shrink:0;overflow:hidden;"></span>' +
+      '      <div style="flex:1; min-width:0;">' +
+      '        <label class="form-label" for="hw-av-url">头像图片 URL</label>' +
+      '        <input class="input" id="hw-av-url" type="url" maxlength="400" placeholder="https://…">' +
+      '      </div>' +
+      '    </div>' +
+      '    <div class="modal-actions">' +
+      '      <button class="btn btn-ghost" id="hw-av-clear" type="button">清除</button>' +
+      '      <button class="btn btn-primary" id="hw-av-save" type="button">保存</button>' +
+      '    </div>' +
+      '  </div>' +
+      '</div>' +
+      /* 账号 */
+      '<div class="modal-backdrop" id="hw-acct-modal">' +
+      '  <div class="modal-panel" style="max-width:430px;">' +
+      '    <button class="modal-close" id="hw-acct-close" type="button">&times;</button>' +
+      '    <span class="eyebrow">Account</span>' +
+      '    <h3 class="modal-title" style="margin-top:8px;">账号</h3>' +
+      '    <div id="hw-acct-rows" style="margin-top:16px;"></div>' +
+      '    <div class="modal-actions"><button class="btn btn-ghost" id="hw-acct-close-btn" type="button">关闭</button></div>' +
+      '  </div>' +
+      '</div>' +
+      /* 编辑资料 */
+      '<div class="modal-backdrop" id="hw-prof-modal">' +
+      '  <div class="modal-panel" style="max-width:430px;">' +
+      '    <button class="modal-close" id="hw-prof-close" type="button">&times;</button>' +
+      '    <span class="eyebrow">Profile</span>' +
+      '    <h3 class="modal-title" style="margin-top:8px;">编辑资料</h3>' +
+      '    <form id="hw-prof-form" style="margin-top:14px;">' +
+      '      <label class="form-label" for="hw-prof-nickname">昵称</label>' +
+      '      <input class="input" id="hw-prof-nickname" maxlength="20" placeholder="展示用昵称">' +
+      '      <label class="form-label" for="hw-prof-gameid">无畏契约游戏 ID</label>' +
+      '      <input class="input" id="hw-prof-gameid" maxlength="30" placeholder="例如 Player#CN1">' +
+      '      <label class="form-label" for="hw-prof-bio">个人简介</label>' +
+      '      <textarea class="textarea" id="hw-prof-bio" rows="3" maxlength="120" placeholder="常玩位置 / 段位 / 想组队的队友…"></textarea>' +
+      '      <div class="modal-actions">' +
+      '        <button class="btn btn-ghost" type="button" id="hw-prof-cancel">取消</button>' +
+      '        <button class="btn btn-primary" type="submit">保存</button>' +
+      '      </div>' +
+      '    </form>' +
+      '  </div>' +
+      '</div>' +
+      /* 重置密码 */
+      '<div class="modal-backdrop" id="hw-pwd-modal">' +
+      '  <div class="modal-panel" style="max-width:430px;">' +
+      '    <button class="modal-close" id="hw-pwd-close" type="button">&times;</button>' +
+      '    <span class="eyebrow">Security</span>' +
+      '    <h3 class="modal-title" style="margin-top:8px;">重置密码</h3>' +
+      '    <form id="hw-pwd-form" style="margin-top:14px;">' +
+      '      <label class="form-label" for="hw-pwd-old">原密码</label>' +
+      '      <input class="input" id="hw-pwd-old" type="password" placeholder="原密码">' +
+      '      <label class="form-label" for="hw-pwd-new">新密码</label>' +
+      '      <input class="input" id="hw-pwd-new" type="password" placeholder="至少 4 位">' +
+      '      <div class="modal-actions">' +
+      '        <button class="btn btn-ghost" type="button" id="hw-pwd-cancel">取消</button>' +
+      '        <button class="btn btn-primary" type="submit">确认修改</button>' +
+      '      </div>' +
+      '    </form>' +
+      '  </div>' +
+      '</div>';
+    while (hostEl.firstChild) document.body.appendChild(hostEl.firstChild);
+
+    /* 关闭：仅手动 ×/取消（Phase 11） */
+    [['hw-av-close', 'hw-av-modal'], ['hw-acct-close', 'hw-acct-modal'], ['hw-acct-close-btn', 'hw-acct-modal'],
+     ['hw-prof-close', 'hw-prof-modal'], ['hw-prof-cancel', 'hw-prof-modal'],
+     ['hw-pwd-close', 'hw-pwd-modal'], ['hw-pwd-cancel', 'hw-pwd-modal']].forEach(function (pair) {
+      var el = document.getElementById(pair[0]);
+      if (el) el.addEventListener('click', function () { closeModalById(pair[1]); });
+    });
+    document.getElementById('hw-av-url').addEventListener('input', function (e) { updateAvPreview(e.target.value.trim()); });
+    document.getElementById('hw-av-save').addEventListener('click', function () {
+      var url = document.getElementById('hw-av-url').value.trim();
+      HWAuth.updateProfile({ avatar: url }).then(function () {
+        renderAuth(); toast('头像已更新'); closeModalById('hw-av-modal');
+      }).catch(function (err) { toast((err && err.message) || '保存失败', 'err'); });
+    });
+    document.getElementById('hw-av-clear').addEventListener('click', function () {
+      HWAuth.updateProfile({ avatar: '' }).then(function () {
+        renderAuth(); toast('头像已清除'); closeModalById('hw-av-modal');
+      }).catch(function (err) { toast((err && err.message) || '保存失败', 'err'); });
+    });
+    document.getElementById('hw-prof-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      HWAuth.updateProfile({
+        nickname: document.getElementById('hw-prof-nickname').value.trim(),
+        game_id: document.getElementById('hw-prof-gameid').value.trim(),
+        bio: document.getElementById('hw-prof-bio').value.trim()
+      }).then(function () {
+        renderAuth(); toast('资料已保存'); closeModalById('hw-prof-modal');
+        try { document.dispatchEvent(new CustomEvent('hw:profile')); } catch (err) { /* ignore */ }
+      }).catch(function (err) { toast((err && err.message) || '保存失败', 'err'); });
+    });
+    document.getElementById('hw-pwd-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      HWAuth.changePassword(
+        document.getElementById('hw-pwd-old').value,
+        document.getElementById('hw-pwd-new').value
+      ).then(function () {
+        toast('密码修改成功');
+        document.getElementById('hw-pwd-old').value = '';
+        document.getElementById('hw-pwd-new').value = '';
+        closeModalById('hw-pwd-modal');
+      }).catch(function (err) { toast((err && err.message) || '修改失败', 'err'); });
+    });
   }
 
   /* ---------------- boot ---------------- */
