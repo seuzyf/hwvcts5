@@ -39,26 +39,32 @@
 
         .container { width: 90%; max-width: 1400px; margin: 0 auto; position: relative; z-index: 10;}
         
-        .top-right-controls { position: absolute; top: 0; right: 0; display: flex; align-items: center; gap: 20px; z-index: 20; }
-        #settings-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); transition: all 0.3s; padding: 5px; display: flex; align-items: center; justify-content: center; }
-        #settings-btn:hover { color: var(--primary-color); transform: scale(1.1) rotate(30deg); }
-        #settings-btn svg { width: 22px; height: 22px; }
-
-        /* 禁用状态样式（赛季滑块已移除） */
-
-        #group-badge-container.unassigned { background: rgba(128, 128, 128, 0.15); color: var(--ash); border-color: var(--border); }
-
-        #player-avatar-container { margin-bottom: 15px; }
-        .player-avatar { width: 100px; height: 100px; border-radius: 6px; border: 2px solid var(--primary-color); object-fit: cover; object-position: center center; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
-        
-        .player-id { color: var(--text-color); }
-        .player-real-name { color: var(--primary-color); font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+        /* 页首：圆形头像 + 游戏ID + 真名 一行排列 */
+        .player-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+        #player-avatar-container { flex-shrink: 0; }
+        .player-avatar {
+            width: 76px; height: 76px; border-radius: 50%;
+            border: 2px solid var(--coral-pulse); object-fit: cover;
+            box-shadow: 0 0 0 4px rgba(255, 99, 99, 0.12);
+        }
+        .player-avatar-fallback {
+            width: 76px; height: 76px; border-radius: 50%;
+            background: var(--graphite); border: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 30px; font-weight: 700; color: var(--coral-pulse);
+        }
+        .player-head-text { min-width: 0; }
+        .player-id {
+            display: block; font-family: var(--font-mono); font-size: 13px;
+            color: var(--smoke); letter-spacing: 0.06em; margin-bottom: 2px;
+        }
+        .player-real-name { color: var(--pure-white); font-size: 34px; font-weight: 700; letter-spacing: 1px; }
         
         #player-honors { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px 20px; }
         .honor-item { display: inline-flex; align-items: center; gap: 10px; padding: 5px 12px; position: relative; }
-        .honor-item .crown-icon { font-size: 1.3em; background: linear-gradient(135deg, var(--gold-light), var(--gold-main), var(--gold-dark)); -webkit-background-clip: text; color: transparent; filter: drop-shadow(0 0 6px var(--gold-glow)); animation: crown-shimmer 3s infinite ease-in-out, subtle-bob 4s infinite ease-in-out 0.2s; display: inline-flex; }
-        .honor-item .crown-icon .ico { color: var(--gold-main); background: none; -webkit-background-clip: border-box; animation: subtle-bob 4s infinite ease-in-out 0.2s; }
-        .honor-text { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-weight: 900; font-size: 24px; letter-spacing: 2px; color: transparent; background-size: 300% 100%; -webkit-background-clip: text; animation: subtle-bob 4s ease-in-out infinite, gradient-flow 8s ease-in-out infinite; }
+        .honor-item .crown-icon { font-size: 1.3em; background: linear-gradient(135deg, var(--gold-light), var(--gold-main), var(--gold-dark)); -webkit-background-clip: text; color: transparent; filter: drop-shadow(0 0 6px var(--gold-glow)); display: inline-flex; }
+        .honor-item .crown-icon .ico { color: var(--gold-main); background: none; -webkit-background-clip: border-box; }
+        .honor-text { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-weight: 900; font-size: 24px; letter-spacing: 2px; color: transparent; background-size: 300% 100%; -webkit-background-clip: text; animation: gradient-flow 8s ease-in-out infinite; }
         .honor-text.champion { background-image: linear-gradient(135deg, var(--gold-light) 10%, var(--gold-main) 30%, var(--gold-medium) 45%, #d4af37 60%, var(--gold-dark) 75%, var(--gold-main) 90%); filter: drop-shadow(0 2px 4px rgba(184, 134, 11, 0.2)); }
         .honor-text.cool-gradient { background-image: linear-gradient(135deg, var(--cool-light) 0%, var(--cool-medium) 40%, var(--cool-main) 70%, var(--cool-dark) 100%); filter: drop-shadow(0 2px 4px rgba(255,255,255,0.12)); }
 
@@ -157,18 +163,16 @@
 </head>
 <body data-page="player" data-crumb="events">
     <div class="container">
-        <header class="page-header" style="position:relative;">
-            <div class="top-right-controls">
-                <button id="settings-btn" title="修改资料" class="btn btn-ghost" style="padding:6px 10px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19.8298 12.1741C19.9363 11.6963 19.9363 11.1963 19.8298 10.7185L21.6569 9.28148C21.8617 9.1237 21.9213 8.84815 21.8024 8.62222L20.0445 5.37778C19.9256 5.15185 19.6582 5.06667 19.4445 5.17037L17.2223 6.0963C16.6371 5.65185 15.9927 5.2963 15.3038 5.03704L14.9334 2.62222C14.9067 2.41481 14.7334 2.25185 14.526 2.25185H10.4741C10.2667 2.25185 10.0934 2.41481 10.0667 2.62222L9.6963 5.03704C8.99824 5.30519 8.36223 5.65185 7.77788 6.0963L5.55565 5.17037C5.34195 5.06667 5.07454 5.15185 4.95565 5.37778L3.19778 8.62222C3.07889 8.84815 3.13843 9.1237 3.34324 9.28148L5.17048 10.7185C5.06399 11.1963 5.06399 11.6963 5.17048 12.1741L3.34324 13.6111C3.13843 13.7689 3.07889 14.0444 3.19778 14.2704L4.95565 17.5148C5.07454 17.7407 5.34195 17.8259 5.55565 17.7222L7.77788 16.7963C8.36223 17.2407 8.99824 17.587 9.6963 17.8552L10.0667 20.27C10.0934 20.4774 10.2667 20.6404 10.4741 20.6404H14.526C14.7334 20.6404 14.9067 20.4774 14.9334 20.27L15.3038 17.8552C15.9927 17.5959 16.6371 17.25 17.2223 16.7963L19.4445 17.7222C19.6582 17.8259 19.9256 17.7407 20.0445 17.5148L21.8024 14.2704C21.9213 14.0444 21.8617 13.7689 21.6569 13.6111L19.8298 12.1741ZM12.5 14.9404C10.8167 14.9404 9.44454 13.5681 9.44454 11.8848C9.44454 10.2015 10.8167 8.82926 12.5 8.82926C14.1834 8.82926 15.5556 10.2015 15.5556 11.8848C15.5556 13.5681 14.1834 14.9404 12.5 14.9404Z"></path></svg>
-                </button>
-            </div>
-            
+        <header class="page-header">
             <span class="eyebrow">Player</span>
-            <div id="player-avatar-container"></div>
-            <div class="badge badge-quiet" id="group-badge-container" style="margin-bottom:10px;">Loading...</div>
-            <h1 id="player-id-header" class="page-title" style="margin:0 0 6px;">Loading...</h1>
-            <div id="player-honors"></div>
+            <div class="player-head">
+                <div id="player-avatar-container"></div>
+                <div class="player-head-text">
+                    <span class="player-id" id="player-game-id">…</span>
+                    <h1 id="player-id-header" class="page-title" style="margin:0;">Loading...</h1>
+                    <div id="player-honors"></div>
+                </div>
+            </div>
         </header>
         
         <main class="main-layout">
@@ -178,6 +182,10 @@
                 <div class="summary-list" id="summary-list-content"><p style="color:var(--text-muted);">正在计算数据...</p></div>
             </section>
             <div id="right-column">
+                <section class="data-section" id="event-stats-section">
+                    <h2>赛 事 数 据</h2>
+                    <div id="event-stats-content"><p style="color:var(--text-muted);">正在加载…</p></div>
+                </section>
                 <section class="data-section" id="character-stats-section">
                     <h2>各 角 色 平 均 数 据</h2>
                     <div style="overflow-x: auto;">
@@ -206,65 +214,6 @@
                 </section>
             </div>
         </main>
-    </div>
-
-    <div id="settings-modal" class="modal-backdrop">
-        <div class="modal-panel" style="max-width:450px;">
-            <div class="modal-close" onclick="document.getElementById('settings-modal').classList.remove('visible')" style="position: absolute; top: 15px; right: 20px; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</div>
-            <span class="modal-eyebrow">Settings</span>
-            <h3 class="modal-header">个 人 设 置</h3>
-            <div class="settings-switch">
-                <input type="radio" id="profile-tab" name="settings-tab" checked>
-                <label for="profile-tab">修改资料</label>
-                <input type="radio" id="password-tab" name="settings-tab">
-                <label for="password-tab">修改密码</label>
-            </div>
-
-            <form id="profile-form" class="settings-form active">
-                <div class="form-group">
-                    <label for="id-input">游戏ID</label>
-                    <input type="text" id="id-input" placeholder="输入新的游戏ID">
-                </div>
-                <div class="form-group">
-                    <label for="image-url-input">
-                        设置头像 URL
-                        <span class="tooltip">?
-                            <span class="tooltiptext">
-                                1. 打开图床网址 https://imgloc.com/ <br>
-                                2. 上传照片后点击图片进入地址详情页 <br>
-                                3. 将第二行的URL地址复制填入
-                            </span>
-                        </span>
-                    </label>
-                    <input type="url" id="image-url-input" placeholder="输入新的图片URL">
-                </div>
-                <div class="form-group">
-                    <label for="honor-input">荣誉称号 (用"、"分割)</label>
-                    <input type="text" id="honor-input" placeholder="例如：S1冠军、S2 FMVP">
-                </div>
-                <div class="form-group">
-                    <label for="profile-password-input">输入密码确认</label>
-                    <input type="password" id="profile-password-input" required placeholder="输入密码以提交修改">
-                </div>
-                <button type="submit">保 存 资 料</button>
-            </form>
-
-            <form id="password-form" class="settings-form">
-                <div class="form-group">
-                    <label for="old-password-input">原密码</label>
-                    <input type="password" id="old-password-input" placeholder="首次设置可不填">
-                </div>
-                <div class="form-group">
-                    <label for="new-password-input">新密码</label>
-                    <input type="password" id="new-password-input" required>
-                </div>
-                <div class="form-group">
-                    <label for="confirm-password-input">确认新密码</label>
-                    <input type="password" id="confirm-password-input" required>
-                </div>
-                <button type="submit">更 新 密 码</button>
-            </form>
-        </div>
     </div>
 
 <script>
@@ -353,7 +302,7 @@
         event.preventDefault();
         const isReply = !!replyData; const form = isReply ? event.target : document.getElementById('comment-form'); const submitButton = form.querySelector('button[type="submit"]');
 
-        if (!isReply) { const ratingInput = document.getElementById('rating-input'); if (!ratingInput.value) { alert('请选择一个评分！'); return; } }
+        if (!isReply) { const ratingInput = document.getElementById('rating-input'); if (!ratingInput.value) { HWLayout.toast('请选择一个评分！', 'err'); return; } }
         submitButton.disabled = true; submitButton.textContent = '提交中...';
 
         const newComment = {
@@ -365,18 +314,18 @@
         const { error } = await supabaseClient.from('s6_comments').insert([newComment]);
 
         if (!error) {
-            alert('提交成功！');
+            HWLayout.toast('评论已提交');
             if (!isReply) { form.reset(); document.getElementById('rating-input').value = ''; setupStarRating(); }
             const updatedComments = await fetchAllComments(uniquePlayerKey);
             displayComments(updatedComments, uniquePlayerKey);
-        } else { console.error('提交失败:', error); alert('提交失败，请稍后再试。'); }
+        } else { console.error('提交失败:', error); HWLayout.toast('提交失败，请稍后再试。', 'err'); }
         submitButton.disabled = false; submitButton.textContent = isReply ? '提交回复' : '提 交 评 论';
     }
 
     async function handleDeleteComment(commentId, uniquePlayerKey) {
         const { error } = await supabaseClient.from('s6_comments').delete().match({ id: commentId, ip: currentUserIP });
-        if (!error) { alert('删除成功！'); const updatedComments = await fetchAllComments(uniquePlayerKey); displayComments(updatedComments, uniquePlayerKey); } 
-        else { console.error('删除失败:', error); alert('删除失败，请稍后再试。'); }
+        if (!error) { HWLayout.toast('评论已删除'); const updatedComments = await fetchAllComments(uniquePlayerKey); displayComments(updatedComments, uniquePlayerKey); } 
+        else { console.error('删除失败:', error); HWLayout.toast('删除失败，请稍后再试。', 'err'); }
     }
 
     function escapeHTML(str) { return str ? str.replace(/[&<>"']/g, match => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[match]) : ''; }
@@ -424,63 +373,12 @@
         });
     }
 
-    function setupSettingsModal(playerData) {
-        const modal = document.getElementById('settings-modal'); const settingsBtn = document.getElementById('settings-btn');
-        const profileForm = document.getElementById('profile-form'); const passwordForm = document.getElementById('password-form');
-        
-        settingsBtn.addEventListener('click', () => {
-            document.getElementById('id-input').value = playerData.id || ''; document.getElementById('image-url-input').value = playerData.image || '';
-            document.getElementById('honor-input').value = playerData.honor || ''; modal.classList.add('visible');
-        });
-        
-        document.querySelectorAll('input[name="settings-tab"]').forEach(radio => {
-            radio.addEventListener('change', (e) => { profileForm.classList.toggle('active', e.target.id === 'profile-tab'); passwordForm.classList.toggle('active', e.target.id === 'password-tab'); });
-        });
-        profileForm.addEventListener('submit', (e) => handleUpdateProfile(e, playerData.name));
-        passwordForm.addEventListener('submit', (e) => handleChangePassword(e, playerData.name));
-    }
-
-    async function handleUpdateProfile(event, playerName) {
-        event.preventDefault();
-        const newId = document.getElementById('id-input').value.trim(); const imageUrl = document.getElementById('image-url-input').value.trim();
-        const honor = document.getElementById('honor-input').value.trim(); const password = document.getElementById('profile-password-input').value;
-        if (!password) { alert('请输入密码以确认修改！'); return; }
-
-        const playersTable = window.currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
-        const { data: playerData, error: fetchError } = await supabaseClient.from(playersTable).select('pwd').eq('name', playerName).single();
-        if (fetchError || !playerData) { alert('获取用户信息失败，请重试。'); console.error(fetchError); return; }
-        if (playerData.pwd && playerData.pwd !== password) { alert('密码错误！'); return; }
-
-        const { error: updateError } = await supabaseClient.from(playersTable).update({ id: newId, image: imageUrl, honor: honor }).eq('name', playerName);
-        if (updateError) { alert('更新资料失败: ' + updateError.message); } 
-        else {
-            try { await supabaseClient.from('site_users').update({ avatar: imageUrl }).eq('nickname', playerName); } catch (e) { /* 站点头像同步尽力而为 */ }
-            alert('资料更新成功！页面将刷新以显示最新信息。'); window.location.reload();
-        }
-    }
-
-    async function handleChangePassword(event, playerName) {
-        event.preventDefault();
-        const oldPassword = document.getElementById('old-password-input').value; const newPassword = document.getElementById('new-password-input').value; const confirmPassword = document.getElementById('confirm-password-input').value;
-        if (newPassword !== confirmPassword) { alert('新密码与确认密码不匹配！'); return; }
-        if (!newPassword) { alert('新密码不能为空！'); return; }
-
-        const playersTable = window.currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
-        const { data: playerData, error: fetchError } = await supabaseClient.from(playersTable).select('pwd').eq('name', playerName).single();
-        if (fetchError) { alert('获取用户信息失败，请重试。'); return; }
-        if (playerData.pwd && playerData.pwd !== oldPassword) { alert('原密码错误！'); return; }
-
-        const { error: updateError } = await supabaseClient.from(playersTable).update({ pwd: newPassword }).eq('name', playerName);
-        if (updateError) { alert('密码更新失败: ' + updateError.message); } 
-        else { alert('密码更新成功！'); document.getElementById('settings-modal').classList.remove('visible'); passwordForm.reset(); }
-    }
-
     async function main() {
         const params = new URLSearchParams(window.location.search);
-        const playerName = params.get('name'); 
+        const playerName = params.get('name');
         let groupName = params.get('group');
         if (!groupName || groupName === 'null' || groupName === 'undefined') {
-            groupName = '未分组';
+            groupName = '';   /* 留空：加载选手数据后按真实分组回填（雷达图 key 依赖它） */
         }
 
         let currentSeason = params.get('season') || 's6';
@@ -508,25 +406,30 @@
         const currentPlayerInfo = nameMap[playerName];
 
         if(!currentPlayerInfo) { document.body.innerHTML = `<h1 style="text-align:center; color:var(--primary-color);">错误：未找到选手 ${playerName} 的信息</h1>`; return; }
-        
+
         const playerId = currentPlayerInfo.id || '暂无ID';
+        /* 雷达图/汇总 key：URL 分组缺失或对不上时，用选手真实分组（数据里出现过的） */
+        if (!groupName) groupName = currentPlayerInfo.group || '';
+        if (!groupName || !allPlayerData[`${playerId}::${groupName}`]) {
+            const hitKey = Object.keys(allPlayerData).find(k => k.startsWith(playerId + '::'));
+            if (hitKey) groupName = hitKey.split('::')[1];
+        }
+        if (!groupName) groupName = currentPlayerInfo.group || '未分组';
         const uniquePlayerKeyForComments = `${playerId}::${groupName}`;
         loadComments(uniquePlayerKeyForComments);
         document.getElementById('comment-form').addEventListener('submit', (event) => handleCommentSubmit(event, uniquePlayerKeyForComments));
-        setupSettingsModal(currentPlayerInfo);
 
-        const realName = currentPlayerInfo?.name || ''; 
-        const imageUrl = currentPlayerInfo?.image; 
-        const header = document.getElementById('player-id-header');
-        
+        const realName = currentPlayerInfo?.name || '';
+        const imageUrl = currentPlayerInfo?.image;
+        /* 页首：圆形头像 + 游戏ID + 真名（组别徽章已去掉） */
+        const avHost = document.getElementById('player-avatar-container');
         if (imageUrl) {
-            const avatarContainer = document.createElement('div'); avatarContainer.id = 'player-avatar-container';
-            const avatar = document.createElement('img'); avatar.src = imageUrl; avatar.className = 'player-avatar';
-            avatarContainer.appendChild(avatar); 
-            header.parentNode.insertBefore(avatarContainer, header);
+            avHost.innerHTML = '<img class="player-avatar" src="' + escapeHTML(imageUrl) + '" alt="">';
+        } else {
+            avHost.innerHTML = '<div class="player-avatar-fallback">' + escapeHTML((realName || playerId || '?').charAt(0)) + '</div>';
         }
-        
-        header.innerHTML = `<span class="player-id">${playerId}</span><span class="player-real-name">${realName}</span>`;
+        document.getElementById('player-game-id').textContent = playerId;
+        document.getElementById('player-id-header').textContent = realName || playerId;
 
         const honors = currentPlayerInfo?.honor;
         if (honors) {
@@ -535,12 +438,6 @@
                 if (honorText.includes('冠军')) { return `<span class="honor-item"><span class="crown-icon">${HWLayout.ico('crown', 14)}</span><span class="honor-text champion" style="--i: ${i}">${honorText}</span></span>`; } 
                 else { return `<span class="honor-item"><span class="honor-text cool-gradient" style="--i: ${i}">${honorText}</span></span>`; }
             }).join('');
-        }
-
-        const badgeContainer = document.getElementById('group-badge-container');
-        badgeContainer.textContent = groupName;
-        if (groupName === '未分组') {
-            badgeContainer.classList.add('unassigned');
         }
 
         const uniquePlayerKeyForStats = `${playerId}::${groupName}`;
@@ -560,6 +457,99 @@
             renderSummaryList(playerDataForStats, playerId, groupPlayersForRank);
             renderCharacterTable(playerDataForStats, playerId, statsByCharacter);
         }
+        renderEventStats(matches, playerId);
+    }
+
+    /* ---------- 赛事数据：不同赛事下的平均数据 + 对战记录 ---------- */
+    async function renderEventStats(matches, playerId) {
+        const host = document.getElementById('event-stats-content');
+        if (!host) return;
+        const mine = matches.filter(m => {
+            for (const tk of ['team_a', 'team_b']) {
+                for (let i = 1; i <= 5; i++) {
+                    if (m[tk + '_player' + i + '_id'] === playerId) return true;
+                }
+            }
+            return false;
+        });
+        if (!mine.length) {
+            host.innerHTML = '<p style="color:var(--text-muted);">该选手暂无按赛事归档的比赛记录。</p>';
+            return;
+        }
+        let evTitles = {};
+        try {
+            const { data: evs } = await supabaseClient.from('events').select('id, title');
+            (evs || []).forEach(e => { evTitles[String(e.id)] = e.title; });
+        } catch (e) { /* 缺表不影响 */ }
+
+        const byEvent = {};
+        mine.forEach(m => {
+            const k = m.event_id != null ? String(m.event_id) : '';
+            (byEvent[k] = byEvent[k] || []).push(m);
+        });
+
+        const fmtRow = (label, val) => '<div><strong>' + label + '</strong><span>' + val + '</span></div>';
+        const sections = Object.keys(byEvent).sort().map(evKey => {
+            const rows = byEvent[evKey].slice().sort((a, b) => String(b.match_date || '').localeCompare(String(a.match_date || '')));
+            let kills = 0, deaths = 0, assists = 0, acsSum = 0, acsN = 0, wins = 0, losses = 0;
+            rows.forEach(m => {
+                const score = String(m.score || '').split(/[/:：]/).map(Number);
+                const mySide = ['team_a', 'team_b'].find(tk => {
+                    for (let i = 1; i <= 5; i++) if (m[tk + '_player' + i + '_id'] === playerId) return true;
+                    return false;
+                });
+                if (score.length === 2 && !isNaN(score[0]) && !isNaN(score[1]) && mySide && score[0] !== score[1]) {
+                    const myScore = mySide === 'team_a' ? score[0] : score[1];
+                    const opScore = mySide === 'team_a' ? score[1] : score[0];
+                    if (myScore > opScore) wins++; else losses++;
+                }
+                ['team_a', 'team_b'].forEach(tk => {
+                    for (let i = 1; i <= 5; i++) {
+                        if (m[tk + '_player' + i + '_id'] !== playerId) continue;
+                        const ds = m[tk + '_player' + i + '_data'];
+                        if (!ds) continue;
+                        const st = String(ds).split('/').map(Number);
+                        if (st.length !== 4 || st.some(isNaN)) continue;
+                        if (st[0] > 0) { acsSum += st[0]; acsN++; }
+                        kills += st[1]; deaths += st[2]; assists += st[3];
+                    }
+                });
+            });
+            const avgAcs = acsN > 0 ? (acsSum / acsN).toFixed(1) : '—';
+            const kd = deaths > 0 ? (kills / deaths).toFixed(2) : String(kills);
+            const title = evKey ? (evTitles[evKey] || ('活动 #' + evKey)) : '未关联赛事';
+            const recent = rows.slice(0, 8).map(m => {
+                const score = String(m.score || '–').replace(/[：]/g, ':');
+                const opp = (function () {
+                    const myTk = ['team_a', 'team_b'].find(tk => {
+                        for (let i = 1; i <= 5; i++) if (m[tk + '_player' + i + '_id'] === playerId) return true;
+                        return false;
+                    });
+                    if (!myTk) return '';
+                    return myTk === 'team_a' ? (m.team_b || '') : (m.team_a || '');
+                })();
+                const date = m.match_date ? String(m.match_date).slice(5, 10) : '';
+                return '<div style="display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid rgba(255,255,255,0.05); font-size:13px;">' +
+                    '<span class="smoke" style="font-family:var(--font-mono);">' + escapeHTML(date) + '</span>' +
+                    '<span style="color:var(--mist);">vs ' + escapeHTML(opp) + '</span>' +
+                    '<span style="font-family:var(--font-mono); color:var(--pure-white); font-weight:700;">' + escapeHTML(score) + '</span>' +
+                    '</div>';
+            }).join('');
+            return '<div style="background:rgba(0,0,0,0.18); border:1px solid var(--border-color); border-radius:8px; padding:16px 18px; margin-bottom:14px;">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">' +
+                '  <strong style="color:var(--pure-white); font-size:15px;">' + escapeHTML(title) + '</strong>' +
+                '  <span class="smoke" style="font-size:12px;">' + rows.length + ' 场 · 胜 ' + wins + ' / 负 ' + losses + '</span>' +
+                '</div>' +
+                '<div class="summary-list" style="gap:8px;">' +
+                  fmtRow('平均 ACS', avgAcs) +
+                  fmtRow('K / D / A', kills + ' / ' + deaths + ' / ' + assists) +
+                  fmtRow('K/D', kd) +
+                '</div>' +
+                '<div style="margin-top:10px;"><strong style="color:var(--text-muted); font-size:13px; font-weight:600;">对战记录（近 ' + Math.min(8, rows.length) + ' 场）</strong>' +
+                (recent || '<p class="smoke" style="font-size:13px;">暂无</p>') + '</div>' +
+                '</div>';
+        }).join('');
+        host.innerHTML = sections || '<p style="color:var(--text-muted);">该选手暂无按赛事归档的比赛记录。</p>';
     }
 
     var playerTrendMap = {};   /* P13i：每名选手按时间序的单场 ACS */

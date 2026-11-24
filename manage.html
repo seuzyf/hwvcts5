@@ -92,7 +92,7 @@
     #merge-fixtures { display: flex; flex-direction: column; gap: 10px; }
     .mf-fixture { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
         background: var(--obsidian); border: 1px solid var(--border); border-radius: 12px;
-        padding: 13px 16px; color: var(--mist); cursor: pointer; transition: 0.16s; font-family: inherit; }
+        padding: 13px 16px; color: var(--mist); cursor: pointer; transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); font-family: inherit; }
     .mf-fixture:hover { border-color: rgba(255,255,255,0.3); transform: translateX(3px); }
     .mf-fid { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; opacity: 0.6; min-width: 118px; }
     .mf-teams { flex: 1; font-size: 15px; font-weight: 600; }
@@ -129,7 +129,7 @@
 
     <datalist id="teams-datalist"></datalist>
 
-<div id="validation-modal" class="modal-backdrop" style="display:none;">
+<div id="validation-modal" class="modal-backdrop">
         <div class="modal-panel" style="max-width: 500px;">
             <span class="modal-eyebrow">Confirm</span>
             <h2>提 交 提 醒</h2>
@@ -145,15 +145,15 @@
 
     <main class="page">
     <div class="container">
-        <div id="event-bar" hidden></div>
-    <div id="manage-gate" class="data-section manage-gate" style="display:none;"></div>
-
-    <div id="manage-shell" style="display:none;">
         <div class="page-header">
             <span class="eyebrow">Console</span>
             <h1 class="page-title">赛事数据台</h1>
             <div class="page-sub" id="mf-event-title"></div>
         </div>
+        <div id="event-bar" hidden></div>
+    <div id="manage-gate" class="data-section manage-gate" style="display:none;"></div>
+
+    <div id="manage-shell" style="display:none;">
         <div class="filter-bar">
             <div class="seg" id="group-filter-buttons">
                 <button data-group="传奇组" class="active">传奇组</button>
@@ -352,6 +352,16 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
     function populateMatchSelector() {
         const selector = document.getElementById('match-selector');
         selector.innerHTML = '<option value="">-- 请选择一场比赛 --</option>';
+        /* 超时未录赛果 → 提醒双方队长（幂等，layout 内按标题查重） */
+        if (boundEvent && typeof HWLayout !== 'undefined' && HWLayout.notifyMatchDue) {
+            var nowT = Date.now();
+            currentScheduleData.forEach(function (m) {
+                var noScore = m.score_a == null || m.score_b == null || (m.score_a === 0 && m.score_b === 0);
+                if (m.match_date && noScore && new Date(m.match_date).getTime() < nowT) {
+                    HWLayout.notifyMatchDue(m, boundEvent.id);
+                }
+            });
+        }
         if (currentScheduleData.length > 0) {
             currentScheduleData.forEach(match => {
                 const option = document.createElement('option');
@@ -538,22 +548,24 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         if (idDatalist) idDatalist.innerHTML = roster.map(p => `<option value="${p.id}"></option>`).join('');
     }
 
+    function fillTeamMembers(table, teamLabel, selectedTeam) {
+        if (!table || !selectedTeam) return;
+        updateDatalists(table, teamLabel, selectedTeam);
+        const currentGroup = getCurrentGroup();
+        const roster = groupData[currentGroup]?.rosters[selectedTeam] || [];
+        for (let i = 1; i <= 5; i++) {
+            const nameInput = table.querySelector(`input[data-col="team_${teamLabel}_player${i}_name"]`);
+            const idInput = table.querySelector(`input[data-col="team_${teamLabel}_player${i}_id"]`);
+            if (nameInput) nameInput.value = roster[i - 1] ? roster[i - 1].name : '';
+            if (idInput) idInput.value = roster[i - 1] ? roster[i - 1].id : '';
+        }
+    }
     function handleTeamChange(e) {
         if (e.target.classList.contains('team-selector')) {
-            const selectedTeam = e.target.value; 
+            const selectedTeam = e.target.value;
             const teamLabel = e.target.dataset.col === 'team_a' ? 'a' : 'b';
             const table = e.target.closest('table');
-            
-            updateDatalists(table, teamLabel, selectedTeam);
-            
-            const currentGroup = getCurrentGroup();
-            const roster = groupData[currentGroup]?.rosters[selectedTeam] || [];
-            for(let i = 1; i <= 5; i++) {
-                const nameInput = table.querySelector(`input[data-col="team_${teamLabel}_player${i}_name"]`);
-                const idInput = table.querySelector(`input[data-col="team_${teamLabel}_player${i}_id"]`);
-                if(nameInput) nameInput.value = roster[i-1] ? roster[i-1].name : '';
-                if(idInput) idInput.value = roster[i-1] ? roster[i-1].id : '';
-            }
+            fillTeamMembers(table, teamLabel, selectedTeam);
         }
     }
     document.getElementById('matches-form-container').addEventListener('change', handleTeamChange);
@@ -593,10 +605,15 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             btn.addEventListener('click', () => {
                 const tableId = btn.dataset.table; let container;
                 if (tableId === 'matches-table-body') {
-                    container = document.getElementById('matches-form-container'); 
-                    // 点击后默认生成3局空表格
-                    for(let i = 0; i < 3; i++) {
-                        container.appendChild(rowTemplates['matches-table-body']());
+                    container = document.getElementById('matches-form-container');
+                    // 点击后默认生成3局空表格，并自动带入已选队伍的双方成员
+                    for (let i = 0; i < 3; i++) {
+                        const rec = rowTemplates['matches-table-body']();
+                        container.appendChild(rec);
+                        ['a', 'b'].forEach(function (lbl) {
+                            var sel = rec.querySelector('select[data-col="team_' + lbl + '"]');
+                            if (sel && sel.value) fillTeamMembers(rec, lbl, sel.value);
+                        });
                     }
                 } else {
                     container = document.getElementById(tableId); container.appendChild(rowTemplates[tableId]());
@@ -728,8 +745,8 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         const confirmBtn = document.getElementById('validation-confirm-btn');
         const cancelBtn = document.getElementById('validation-cancel-btn');
         
-        const onConfirm = () => { modal.style.display = 'none'; proceedCallback(); cleanUp(); };
-        const onCancel = () => { modal.style.display = 'none'; cleanUp(); };
+        const onConfirm = () => { modal.classList.remove('visible'); proceedCallback(); cleanUp(); };
+        const onCancel = () => { modal.classList.remove('visible'); cleanUp(); };
         
         const cleanUp = () => {
             confirmBtn.removeEventListener('click', onConfirm);
@@ -739,13 +756,13 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         confirmBtn.addEventListener('click', onConfirm);
         cancelBtn.addEventListener('click', onCancel);
         
-        modal.style.display = 'flex';
+        modal.classList.add('visible');
     }
 
     async function submitMatches() {
         const rawData = getRawMatchDataFromContainer('matches-form-container');
-        if (rawData.length === 0) return alert('没有要提交的数据。');
-        for (const row of rawData) { if (!row.group || !row.stage || !row.team_a || !row.team_b) return alert('请确保每条记录的赛段和队伍名都已填写！'); }
+        if (rawData.length === 0) return toast('没有要提交的数据。', 'err');
+        for (const row of rawData) { if (!row.group || !row.stage || !row.team_a || !row.team_b) return toast('请确保每条记录的赛段和队伍名都已填写！', 'err'); }
         
         const { warnings, playerUpdates } = await validateMatchData(rawData, false);
         
@@ -760,16 +777,16 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
 
             const dbData = formatMatchDataForDB(rawData);
             const { error } = await supabaseClient.from(getSeasonTableName('matches')).insert(dbData);
-            if (error) { alert('提交赛果失败: ' + error.message); console.error(error); }
-            else { alert('赛果提交成功！'); document.getElementById('matches-form-container').innerHTML = ''; await loadMatchesForEditing(getCurrentGroup()); }
+            if (error) { toast('提交赛果失败: ' + error.message, 'err'); console.error(error); }
+            else { toast('赛果提交成功！'); document.getElementById('matches-form-container').innerHTML = ''; await loadMatchesForEditing(getCurrentGroup()); }
         });
     }
     
     async function updateMatch() {
         const matchId = document.getElementById('edit-match-selector').value;
-        if (!matchId) return alert('未选择任何比赛进行更新。');
+        if (!matchId) return toast('未选择任何比赛进行更新。', 'err');
         const rawData = getRawMatchDataFromContainer('edit-match-form-container');
-        if (rawData.length === 0) return alert('没有要更新的数据。');
+        if (rawData.length === 0) return toast('没有要更新的数据。', 'err');
         
         const { warnings, playerUpdates } = await validateMatchData(rawData, true);
 
@@ -785,8 +802,8 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             const dbData = formatMatchDataForDB(rawData);
             const matchData = dbData[0];
             const { error } = await supabaseClient.from(getSeasonTableName('matches')).update(matchData).eq('id', matchId);
-            if (error) { alert('更新赛果失败: ' + error.message); console.error(error); } 
-            else { alert('赛果更新成功！'); if (typeof HWLayout !== 'undefined' && HWLayout.recalcAfterScoreChange) HWLayout.recalcAfterScoreChange(); document.getElementById('edit-match-form-container').innerHTML = ''; document.getElementById('update-match').style.display = 'none'; await loadMatchesForEditing(getCurrentGroup()); }
+            if (error) { toast('更新赛果失败: ' + error.message, 'err'); console.error(error); } 
+            else { toast('赛果更新成功！'); if (typeof HWLayout !== 'undefined' && HWLayout.recalcAfterScoreChange) HWLayout.recalcAfterScoreChange(); document.getElementById('edit-match-form-container').innerHTML = ''; document.getElementById('update-match').style.display = 'none'; await loadMatchesForEditing(getCurrentGroup()); }
         });
     }
     
@@ -815,7 +832,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
     
     async function submitSchedule() {
         const matchIdString = document.getElementById('match-selector').value;
-        if (!matchIdString) return alert('请先选择一场比赛。');
+        if (!matchIdString) return toast('请先选择一场比赛。', 'err');
         const matchId = parseInt(matchIdString, 10);
         const scoreA = document.getElementById('schedule-score-a').value; const scoreB = document.getElementById('schedule-score-b').value; const scheduleDate = document.getElementById('schedule-date').value;
         const dataToUpdate = {
@@ -823,9 +840,9 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             match_date: scheduleDate ? new Date(scheduleDate).toISOString() : null, link: document.getElementById('schedule-link').value.trim()
         };
         const { data, error } = await supabaseClient.from('s6_match_schedule').update(dataToUpdate).eq('id', matchId).select();
-        if (error) { alert('错误：更新赛程失败！\n' + error.message); console.error(error); } 
-        else if (data && data.length > 0) { alert('赛程比分已成功写入数据库！'); if (typeof HWLayout !== 'undefined' && HWLayout.recalcAfterScoreChange) HWLayout.recalcAfterScoreChange(); await loadScheduleForGroup(getCurrentGroup()); } 
-        else { alert('更新失败：未找到匹配的比赛记录。请检查数据库的行级安全(RLS)策略是否允许本次更新操作。'); }
+        if (error) { toast('更新赛程失败: ' + error.message, 'err'); console.error(error); } 
+        else if (data && data.length > 0) { toast('赛程比分已保存'); if (typeof HWLayout !== 'undefined' && HWLayout.recalcAfterScoreChange) HWLayout.recalcAfterScoreChange(); await loadScheduleForGroup(getCurrentGroup()); } 
+        else { toast('更新失败：未找到匹配的比赛记录。', 'err'); }
     }
 
     function loadIdsData(groupName) {
@@ -853,18 +870,18 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
 
     async function updateIds() {
         const dataToUpsert = getIdsTableData();
-        if (dataToUpsert.length === 0) return alert('没有要更新或添加的数据。');
+        if (dataToUpsert.length === 0) return toast('没有要更新或添加的数据。', 'err');
         const existingNames = new Set(allPlayersData.map(p => p.name));
         for (const row of dataToUpsert) {
             if (row.isNew) {
-                if (!row.name) return alert('新增选手的真名不能为空！');
-                if (existingNames.has(row.name)) return alert(`提交失败：选手真名 "${row.name}" 已存在，不允许添加同名选手。`);
+                if (!row.name) return toast('新增选手的真名不能为空！', 'err');
+                if (existingNames.has(row.name)) return toast(`提交失败：选手真名 "${row.name}" 已存在`, 'err');
             }
         }
         const dbData = dataToUpsert.map(row => { const { isNew, ...dbRow } = row; return dbRow; });
         const { error } = await supabaseClient.from(getSeasonTableName('player_ids')).upsert(dbData, { onConflict: 'name' });
-        if (error) { alert('更新失败: ' + error.message); console.error(error); } 
-        else { alert('选手数据更新成功！'); await loadInitialData(); loadIdsData(getCurrentGroup()); }
+        if (error) { toast('更新失败: ' + error.message, 'err'); console.error(error); } 
+        else { toast('选手数据更新成功！'); await loadInitialData(); loadIdsData(getCurrentGroup()); }
     }
     
     async function handleDeleteId(deleteBtn) {
@@ -874,8 +891,8 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         if (isNewRow || !playerName) { tr.remove(); return; }
         if (confirm(`您确定要从数据库中永久删除选手 "${playerName}" 吗？此操作不可撤销。`)) {
             const { error } = await supabaseClient.from(getSeasonTableName('player_ids')).delete().eq('name', playerName);
-            if (error) { alert(`删除失败: ${error.message}`); } 
-            else { alert(`选手 "${playerName}" 已成功删除。`); tr.remove(); allPlayersData = allPlayersData.filter(p => p.name !== playerName); }
+            if (error) { toast(`删除失败: ${error.message}`, 'err'); } 
+            else { toast(`选手 "${playerName}" 已删除`); tr.remove(); allPlayersData = allPlayersData.filter(p => p.name !== playerName); }
         }
     }
     window.handleDeleteId = handleDeleteId;
@@ -950,6 +967,22 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             document.getElementById('mf-link').value = f.link || '';
             document.getElementById('mf-big-a').value = (f.score_a == null) ? '' : f.score_a;
             document.getElementById('mf-big-b').value = (f.score_b == null) ? '' : f.score_b;
+            /* 自动带入：选手数据录入区预填本对阵双方成员（系统替你做） */
+            try {
+                var mfc = document.getElementById('matches-form-container');
+                if (mfc && !mfc.querySelector('.match-record')) {
+                    var rec0 = rowTemplates['matches-table-body']();
+                    mfc.appendChild(rec0);
+                    [['a', f.team_a], ['b', f.team_b]].forEach(function (pair) {
+                        var sel0 = rec0.querySelector('select[data-col="team_' + pair[0] + '"]');
+                        if (sel0) {
+                            var has = Array.prototype.some.call(sel0.options, function (o) { return o.value === pair[1]; });
+                            if (has) sel0.value = pair[1];
+                            fillTeamMembers(rec0, pair[0], sel0.value);
+                        }
+                    });
+                }
+            } catch (e0) { /* 带入失败不阻断录入 */ }
             // 已有赛图明细预载（重复保存时更新而非重复插入）
             supabaseClient.from(mfSeasonMatches())
                 .select('id, map, score, stage, match_date')
@@ -1062,17 +1095,17 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         maps.forEach(function (m) { if (Number(m.a) > Number(m.b)) wa++; else if (Number(m.b) > Number(m.a)) wb++; });
         var bigA = maps.length ? wa : parseInt(document.getElementById('mf-big-a').value, 10);
         var bigB = maps.length ? wb : parseInt(document.getElementById('mf-big-b').value, 10);
-        if (isNaN(bigA) || isNaN(bigB)) { alert('请先录入每图比分（或手动填写大比分）。'); return; }
+        if (isNaN(bigA) || isNaN(bigB)) { toast('请先录入每图比分（或手动填写大比分）。', 'err'); return; }
 
         var teamA, teamB, fixtureId = mfState.fixtureId;
         if (fixtureId) {
             var f = currentScheduleData.find(function (m) { return m.id === fixtureId; });
-            if (!f) { alert('对阵不存在，请刷新后重试。'); return; }
+            if (!f) { toast('对阵不存在，请刷新后重试。', 'err'); return; }
             teamA = f.team_a; teamB = f.team_b;
         } else {
             teamA = document.getElementById('mf-team-a').value;
             teamB = document.getElementById('mf-team-b').value;
-            if (!teamA || !teamB || teamA === teamB) { alert('请选择两支不同的队伍。'); return; }
+            if (!teamA || !teamB || teamA === teamB) { toast('请选择两支不同的队伍。', 'err'); return; }
         }
 
         try {
@@ -1119,7 +1152,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             await loadMatchesForEditing(group);
         } catch (e) {
             console.error('合并保存失败:', e);
-            alert('保存失败：' + (e && e.message ? e.message : e));
+            toast('保存失败：' + (e && e.message ? e.message : e), 'err');
         }
     }
 
@@ -1127,7 +1160,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
     var _toastTimer = null;
     function showToast(msg) {
         var el = document.getElementById('toast');
-        if (!el) { alert(msg); return; }
+        if (!el) { toast(msg, 'err'); return; }
         el.textContent = msg;
         el.classList.add('show');
         if (_toastTimer) clearTimeout(_toastTimer);

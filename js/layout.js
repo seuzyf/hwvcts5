@@ -252,15 +252,14 @@
       sb.from('site_users').select('id, balance, balance_synced_at').eq('id', userId).maybeSingle(),
       sb.from('s6_bet_bets').select('*'),
       sb.from('s6_match_schedule').select('id, team_a, team_b, score_a, score_b'),
-      sb.from('s6_bet_welfare_claims').select('user_id'),
       sb.from('points_ledger').select('delta').eq('user_id', userId),
       sb.from('goods_redemptions').select('cost').eq('user_id', userId)
     ]).then(function (rs) {
       if (!rs || rs.some(function (r) { return r && r.error; })) return null;
       var me = rs[0] && rs[0].data;
       if (!me) return null;
-      var bets = rs[1].data || [], sched = rs[2].data || [], claims = rs[3].data || [], led = rs[4].data || [];
-      var reds = (rs[5] && rs[5].data) || [];
+      var bets = rs[1].data || [], sched = rs[2].data || [], led = rs[3].data || [];
+      var reds = (rs[4] && rs[4].data) || [];
       var matchMap = {};
       sched.forEach(function (m) { matchMap[m.id] = m; });
       var pools = {};
@@ -285,11 +284,10 @@
           }
         }
       });
-      var mine = claims.filter(function (c) { return c.user_id === userId; }).length;
       var ledgerNet = led.reduce(function (s, r) { return s + (r.delta || 0); }, 0);
       var redeemCost = reds.reduce(function (s, r) { return s + (r.cost || 0); }, 0);
-      /* 权威公式：100 − 投注 + 赢利 + 签到 + 流水 − 商城兑换（redeem_goods 事实） */
-      var bal = Math.round(100 - staked + winnings + mine * 5 + ledgerNet - redeemCost);
+      /* 权威公式：100 − 投注 + 赢利 + 积分流水 − 商城兑换（redeem_goods 事实）；低保已下线 */
+      var bal = Math.round(100 - staked + winnings + ledgerNet - redeemCost);
       return sb.from('site_users')
         .update({ balance: bal, balance_synced_at: new Date().toISOString() })
         .eq('id', userId)
@@ -742,16 +740,13 @@
     if (!host) return;
     opts = opts || {};
     var ev = opts.event;
-    host.hidden = false;
-
     if (!ev) {
-      host.innerHTML =
-        '<div class="event-bar notice">' +
-        '  <span class="ev-note">未绑定活动 — 请从 <a href="events.html">活动大厅</a> 选择一个活动进入，' +
-        '赛程 / 比赛 / 数据 / 竞猜都会跟随该活动的赛季与状态。</span>' +
-        '</div>';
+      /* 无活动：整条隐藏（此刻没用的不出现） */
+      host.hidden = true;
+      host.innerHTML = '';
       return;
     }
+    host.hidden = false;
 
     var perms = opts.perms || {};
     var id = ev.id;
@@ -853,6 +848,46 @@
     });
   }
 
+  /** 赛程时间已过且未录赛果 → 通知双方队长填写（幂等：同场次只发一次） */
+  function notifyMatchDue(match, evId) {
+    var sb = supa();
+    if (!sb || !match) return Promise.resolve(null);
+    var title = '赛果待填写：' + (match.team_a || '') + ' vs ' + (match.team_b || '');
+    var link = 'manage.html?event=' + (evId || '');
+    /* 双方队长 = 该活动下两队报名记录的提交人 + 活动队长表中相关选手 */
+    return Promise.all([
+      sb.from('event_registrations').select('user_id, team_name')
+        .eq('event_id', Number(evId)).in('status', ['approved', 'pending']),
+      sb.from('event_captains').select('game_id').eq('event_id', Number(evId))
+    ]).then(function (rs) {
+      var regs = (rs[0] && !rs[0].error && rs[0].data) || [];
+      var caps = (rs[1] && !rs[1].error && rs[1].data) || [];
+      var ids = {};
+      regs.forEach(function (r) {
+        if (r.team_name === match.team_a || r.team_name === match.team_b) ids[r.user_id] = 1;
+      });
+      var gids = caps.map(function (c) { return c.game_id; }).filter(Boolean);
+      if (!gids.length) return Object.keys(ids).map(Number);
+      return sb.from('site_users').select('id').in('game_id', gids)
+        .then(function (ur) {
+          (ur && !ur.error && ur.data || []).forEach(function (u) {
+            if (u.id) ids[u.id] = 1;
+          });
+          return Object.keys(ids).map(Number);
+        });
+    }).then(function (uids) {
+      if (!uids.length) return null;
+      return sb.from('notifications').select('id')
+        .eq('title', title).in('user_id', uids).limit(1)
+        .then(function (ex) {
+          if (ex && !ex.error && ex.data && ex.data.length) return null; /* 已通知过 */
+          return sb.from('notifications').insert(uids.map(function (id) {
+            return { user_id: id, title: title, body: '预定比赛时间已过，尚未录入赛果，请尽快填写。', link: link };
+          }));
+        });
+    }).catch(function () { return null; });
+  }
+
   /* ---------------- Auth chip ---------------- */
   function currentRole() {
     var u = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
@@ -887,6 +922,10 @@
         '    <span class="nav-caret">' + ico('chevron-down', 14) + '</span>' +
         '  </button>' +
         '  <div class="nav-menu" id="nav-menu" hidden>' +
+        '    <div class="nav-menu-head">' +
+        '      <span class="nav-menu-name">' + esc(user.nickname || user.username) + '</span>' +
+        '      <span class="badge ' + roleBadgeClass(currentRole()) + '">' + esc(ROLE_ZH[currentRole()] || currentRole()) + '</span>' +
+        '    </div>' +
         '    <button type="button" data-act="avatar">' + ico('image', 15) + '头像</button>' +
         '    <button type="button" data-act="account">' + ico('user', 15) + '账号</button>' +
         '    <button type="button" data-act="profile">' + ico('pen-line', 15) + '编辑资料</button>' +
@@ -911,6 +950,12 @@
 
   /* ---------------- 头像菜单 + 账号弹框 ---------------- */
   var ROLE_ZH = { guest: '未登录', member: '普通成员', organizer: '活动组织者', admin: '管理员', superadmin: '超级管理员' };
+  function roleBadgeClass(r) {
+    return r === 'superadmin' ? 'badge-gold'
+         : r === 'admin' ? 'badge-coral'
+         : r === 'organizer' ? 'badge-blue'
+         : 'badge-quiet';
+  }
 
   function wireAvatarMenu() {
     var user = typeof HWAuth !== 'undefined' ? HWAuth.getSession() : null;
@@ -1215,6 +1260,9 @@
     broadcastNotifications: broadcastNotifications,
     notifyUser: notifyUser,
     notifyAdmins: notifyAdmins,
+    notifyMatchDue: notifyMatchDue,
+    roleBadgeClass: roleBadgeClass,
+    ROLE_ZH: ROLE_ZH,
     refreshBell: refreshBell
   };
 })();

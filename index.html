@@ -222,14 +222,12 @@
             var sb = HWAuth.getClient();
             return Promise.all([
                 sb.from('s6_bet_bets').select('*'),
-                sb.from('s6_bet_welfare_claims').select('user_id'),
                 sb.from('s6_match_schedule').select('id, team_a, team_b, score_a, score_b')
             ]).then(function (rs) {
                 if (rs.some(function (r) { return r.error; })) return null;
                 var bets = rs[0].data || [];
-                var welfare = (rs[1].data || []).filter(function (c) { return c.user_id === userId; }).length;
                 var matchMap = {};
-                (rs[2].data || []).forEach(function (m) { matchMap[m.id] = m; });
+                (rs[1].data || []).forEach(function (m) { matchMap[m.id] = m; });
 
                 var pools = {};
                 bets.forEach(function (b) {
@@ -254,7 +252,7 @@
                         }
                     }
                 });
-                return Math.round(100 - staked + winnings + welfare * 5);
+                return Math.round(100 - staked + winnings);
             }).catch(function () { return null; });
         }
 

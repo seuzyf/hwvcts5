@@ -32,7 +32,7 @@
         .match-card {
             background: var(--obsidian); border: 1px solid var(--border); border-radius: 12px;
             padding: 12px; width: 100%; box-sizing: border-box; cursor: pointer;
-            transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+            transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
         }
         .match-card:hover { border-color: var(--smoke); background: var(--graphite); transform: translateY(-2px); }
         .team { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
@@ -117,7 +117,7 @@
 
     <div id="auto-submit-banner"></div>
 
-    <div id="caster-modal" class="modal-backdrop" style="display: none;">
+    <div id="caster-modal" class="modal-backdrop">
         <div class="modal-panel" style="max-width: 600px;">
             <span class="modal-eyebrow">Caster Stats</span>
             <h2>解说统计数据</h2>
@@ -126,7 +126,7 @@
         </div>
     </div>
 
-    <div id="match-detail-modal" class="modal-backdrop" style="display: none;">
+    <div id="match-detail-modal" class="modal-backdrop">
         <div class="modal-panel" style="max-width: 850px;">
             <span class="modal-eyebrow">Match Detail</span>
             <h2 id="modal-match-title" style="margin-bottom: 25px;">比赛详情</h2>
@@ -1439,7 +1439,7 @@
                 document.getElementById('modal-input-link').value = matchData.link || '';
                 renderTeamStats(matchData.team_a, group, 'modal-team-a-stats');
                 renderTeamStats(matchData.team_b, group, 'modal-team-b-stats');
-                matchDetailModal.style.display = 'flex';
+                matchDetailModal.classList.add('visible');
             });
         });
 
@@ -1454,7 +1454,7 @@
                     const { error } = await supabaseClient.from('s6_match_schedule').update({ commentators: newCommentators, link: newLink }).eq('match_id', matchId).eq('group', group);
                     if (error) throw error;
                     HWLayout.toast('更新成功！');
-                    matchDetailModal.style.display = 'none';
+                    matchDetailModal.classList.remove('visible');
                     await loadData();
                 } catch (err) {
                     HWLayout.toast('更新失败: ' + err.message);
@@ -1496,11 +1496,11 @@
                         <h3 class="caster-stat-header">${c} <span>总计: ${stats[c].count} 场</span></h3>
                         <ul class="caster-stat-list">${stats[c].matches.map(m=>`<li>${m}</li>`).join('')}</ul>
                     </div>`).join('');
-            casterModal.style.display = 'flex';
+            casterModal.classList.add('visible');
         });
 
-        modalCloseBtn.addEventListener('click', () => matchDetailModal.style.display = 'none');
-        closeCasterModal.addEventListener('click', () => casterModal.style.display = 'none');
+        modalCloseBtn.addEventListener('click', () => matchDetailModal.classList.remove('visible'));
+        closeCasterModal.addEventListener('click', () => casterModal.classList.remove('visible'));
         randomDrawBtn.addEventListener('click', () => requireAdminAuth(generateAndDisplaySchedule));
 
         groupFilters.addEventListener('click', e => {

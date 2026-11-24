@@ -22,7 +22,19 @@
     .shop-cost { color: var(--coral-pulse); font-weight: 700; font-family: var(--font-mono); }
     .shop-card.out .shop-thumb { opacity: 0.45; filter: grayscale(1); }
     .shop-card.out .shop-title { color: var(--smoke); }
-    .shop-detail-img { width: 100%; height: 240px; object-fit: cover; border-radius: 10px; background: var(--graphite); display: block; margin-top: 12px; }
+    .shop-detail-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gm-hero { position: relative; height: 220px; background: linear-gradient(135deg, var(--obsidian), var(--graphite)); overflow: hidden; }
+    .gm-hero-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--smoke); }
+    .gm-hero-fallback .ico { width: 56px; height: 56px; opacity: 0.5; }
+    .gm-cost-chip {
+      position: absolute; right: 16px; bottom: 14px; display: flex; align-items: baseline; gap: 5px;
+      background: rgba(4,5,6,0.72); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px; padding: 7px 16px; color: var(--pure-white);
+      font-family: var(--font-mono); box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    }
+    .gm-cost-chip span { font-size: 20px; font-weight: 700; color: var(--gold-light); line-height: 1; }
+    .gm-cost-chip small { font-size: 11px; color: var(--mist); letter-spacing: 0.06em; }
+    .gm-body { padding: 20px 24px 24px; }
     .cond-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
     .cond-row .select { flex: 1; }
     .cond-row .input { width: 90px; }
@@ -71,29 +83,35 @@
   </div></main>
 
   <!-- 商品详情（×-only） -->
-  <div id="goods-modal" class="modal-backdrop" style="display:none;">
-    <div class="modal-panel" style="max-width:560px;">
+  <div id="goods-modal" class="modal-backdrop">
+    <div class="modal-panel" style="max-width:560px; padding:0; overflow:hidden;">
       <button class="modal-close" id="gm-close" type="button">&times;</button>
-      <span class="eyebrow">Goods</span>
-      <h2 id="gm-title" style="margin:6px 0 0; font-size:19px; color:var(--pure-white);"></h2>
-      <img id="gm-img" class="shop-detail-img" alt="" hidden>
-      <p id="gm-desc" class="smoke" style="margin:12px 0 0; line-height:1.7;"></p>
-      <div class="meta-grid" style="margin-top:14px;">
-        <div class="meta-cell"><div class="k">兑换积分</div><div class="v" id="gm-cost"></div></div>
-        <div class="meta-cell"><div class="k">库存</div><div class="v" id="gm-stock"></div></div>
-        <div class="meta-cell"><div class="k">我的余额</div><div class="v" id="gm-balance"></div></div>
+      <div class="gm-hero" id="gm-hero">
+        <img id="gm-img" class="shop-detail-img" alt="" hidden>
+        <div class="gm-hero-fallback" id="gm-hero-fallback"></div>
+        <div class="gm-cost-chip"><span id="gm-cost-num">0</span><small>积分</small></div>
       </div>
-      <div id="gm-conds" style="margin-top:14px;"></div>
-      <div class="modal-actions">
-        <button class="btn btn-ghost" id="gm-edit" type="button" hidden>编辑</button>
-        <button class="btn btn-ghost" id="gm-toggle" type="button" hidden>下架</button>
-        <button class="btn btn-primary" id="gm-redeem" type="button">兑 换</button>
+      <div class="gm-body">
+        <span class="eyebrow">Goods</span>
+        <h2 id="gm-title" style="margin:4px 0 0; font-size:20px; color:var(--pure-white);"></h2>
+        <p id="gm-desc" class="smoke" style="margin:10px 0 0; line-height:1.7;"></p>
+        <div class="meta-grid" style="margin-top:16px;">
+          <div class="meta-cell"><div class="k">兑换积分</div><div class="v" id="gm-cost"></div></div>
+          <div class="meta-cell"><div class="k">库存</div><div class="v" id="gm-stock"></div></div>
+          <div class="meta-cell"><div class="k">我的余额</div><div class="v" id="gm-balance"></div></div>
+        </div>
+        <div id="gm-conds" style="margin-top:14px;"></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="gm-edit" type="button" hidden>编辑</button>
+          <button class="btn btn-ghost" id="gm-toggle" type="button" hidden>下架</button>
+          <button class="btn btn-primary" id="gm-redeem" type="button">兑 换</button>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- 新增/编辑商品（×-only） -->
-  <div id="goods-form-modal" class="modal-backdrop" style="display:none;">
+  <div id="goods-form-modal" class="modal-backdrop">
     <div class="modal-panel" style="max-width:560px;">
       <button class="modal-close" id="gf-close" type="button">&times;</button>
       <span class="eyebrow">Editor</span>
@@ -327,9 +345,12 @@
     state.viewing = g;
     document.getElementById('gm-title').textContent = g.title;
     var img = document.getElementById('gm-img');
-    if (g.image_url) { img.src = g.image_url; img.hidden = false; } else { img.hidden = true; }
+    var fallback = document.getElementById('gm-hero-fallback');
+    if (g.image_url) { img.src = g.image_url; img.hidden = false; fallback.innerHTML = ''; }
+    else { img.hidden = true; fallback.innerHTML = HWLayout.ico('gift', 56); }
     document.getElementById('gm-desc').textContent = g.description || '（暂无描述）';
     document.getElementById('gm-cost').textContent = g.cost + ' 积分';
+    document.getElementById('gm-cost-num').textContent = String(g.cost);
     document.getElementById('gm-stock').textContent = g.stock > 0 ? String(g.stock) : '0（已售罄）';
     document.getElementById('gm-balance').textContent = '…';
     document.getElementById('gm-conds').innerHTML = condsHtml(g.conditions, false);
@@ -339,7 +360,7 @@
     document.getElementById('gm-toggle').hidden = !mine;
     document.getElementById('gm-toggle').textContent = g.status === 'active' ? '下架' : '上架';
     document.getElementById('gm-redeem').hidden = !me();
-    document.getElementById('goods-modal').style.display = 'flex';
+    document.getElementById('goods-modal').classList.add('visible');
     loadMyBalance().then(function (b) {
       document.getElementById('gm-balance').textContent = b == null ? '—' : b;
     });
@@ -365,7 +386,7 @@
         HWLayout.notifyUser(g.created_by, '商品被兑换',
           '「' + g.title + '」被 ' + (u.nickname || u.username) + ' 兑换，剩余库存 ' + out.stock, 'shop.html');
       }
-      document.getElementById('goods-modal').style.display = 'none';
+      document.getElementById('goods-modal').classList.remove('visible');
       return Promise.all([loadGoods(), loadMyBalance()]);
     }).catch(function (e) { toast(e.message || '兑换失败', 'err'); })
       .finally(function () { btn.disabled = false; });
@@ -383,11 +404,14 @@
     document.getElementById('gf-img').value = '';
     document.getElementById('gf-status').textContent = '';
     renderCondEditor();
-    document.getElementById('goods-form-modal').style.display = 'flex';
+    document.getElementById('goods-form-modal').classList.add('visible');
   }
   function saveForm() {
     var u = me();
     if (!u) { toast('请先登录', 'err'); return; }
+    /* 门禁：普通权限不能新增商品；编辑须为管理员或商品创建者 */
+    if (!state.editing && !isStaff()) { toast('普通权限不能新增商品，请申请成为组织者', 'err'); return; }
+    if (state.editing && !canManage(state.editing)) { toast('只能编辑自己创建的商品', 'err'); return; }
     var title = document.getElementById('gf-name').value.trim();
     var desc = document.getElementById('gf-desc').value.trim();
     var cost = parseInt(document.getElementById('gf-cost').value, 10);
@@ -412,7 +436,7 @@
       return op.then(function (r) {
         if (r && r.error) throw new Error(r.error.message);
         toast(state.editing ? '商品已更新' : '商品已上架');
-        document.getElementById('goods-form-modal').style.display = 'none';
+        document.getElementById('goods-form-modal').classList.remove('visible');
         return loadGoods();
       });
     };
@@ -439,7 +463,7 @@
       .then(function (r) {
         if (r && r.error) throw new Error(r.error.message);
         toast(next === 'active' ? '已上架' : '已下架');
-        document.getElementById('goods-modal').style.display = 'none';
+        document.getElementById('goods-modal').classList.remove('visible');
         return loadGoods();
       }).catch(function (e) { toast(e.message || '操作失败', 'err'); });
   }
@@ -517,12 +541,12 @@
     document.getElementById('shop-new').addEventListener('click', function () { openForm(null); });
     [['gm-close', 'goods-modal'], ['gf-close', 'goods-form-modal'], ['gf-cancel', 'goods-form-modal']].forEach(function (p) {
       document.getElementById(p[0]).addEventListener('click', function () {
-        document.getElementById(p[1]).style.display = 'none';
+        document.getElementById(p[1]).classList.remove('visible');
       });
     });
     document.getElementById('gm-redeem').addEventListener('click', doRedeem);
     document.getElementById('gm-edit').addEventListener('click', function () {
-      if (state.viewing) { document.getElementById('goods-modal').style.display = 'none'; openForm(state.viewing); }
+      if (state.viewing) { document.getElementById('goods-modal').classList.remove('visible'); openForm(state.viewing); }
     });
     document.getElementById('gm-toggle').addEventListener('click', toggleGoods);
     document.getElementById('gf-save').addEventListener('click', saveForm);
