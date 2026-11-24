@@ -198,6 +198,8 @@
     if (!host) {
       host = document.createElement('div');
       host.id = 'hw-toasts';
+      host.setAttribute('role', 'status');
+      host.setAttribute('aria-live', 'polite');
       document.body.appendChild(host);
     }
     if (!type) {
@@ -812,9 +814,9 @@
     m.style.opacity = '1';
     m.style.visibility = 'visible';
     m.innerHTML =
-      '<div class="modal-panel" style="position:relative;">' +
+      '<div class="modal-panel" style="position:relative;" role="dialog" aria-modal="true">' +
       cover +
-      '<button class="modal-close" data-ov-close type="button">&times;</button>' +
+      '<button class="modal-close" data-ov-close type="button" aria-label="关闭">&times;</button>' +
       '<span class="modal-eyebrow">Overview</span>' +
       '<h2 style="margin:8px 0 6px;font-size:20px;font-weight:600;color:var(--pure-white);">' + esc(ev.title) + '</h2>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">' +
@@ -1073,7 +1075,7 @@
       /* 头像 */
       '<div class="modal-backdrop" id="hw-av-modal">' +
       '  <div class="modal-panel" style="max-width:430px;">' +
-      '    <button class="modal-close" id="hw-av-close" type="button">&times;</button>' +
+      '    <button class="modal-close" id="hw-av-close" type="button" aria-label="关闭">&times;</button>' +
       '    <span class="eyebrow">Avatar</span>' +
       '    <h3 class="modal-title" style="margin-top:8px;">头像</h3>' +
       '    <div style="display:flex; gap:16px; align-items:center; margin-top:18px;">' +
@@ -1092,7 +1094,7 @@
       /* 账号 */
       '<div class="modal-backdrop" id="hw-acct-modal">' +
       '  <div class="modal-panel" style="max-width:430px;">' +
-      '    <button class="modal-close" id="hw-acct-close" type="button">&times;</button>' +
+      '    <button class="modal-close" id="hw-acct-close" type="button" aria-label="关闭">&times;</button>' +
       '    <span class="eyebrow">Account</span>' +
       '    <h3 class="modal-title" style="margin-top:8px;">账号</h3>' +
       '    <div id="hw-acct-rows" style="margin-top:16px;"></div>' +
@@ -1102,7 +1104,7 @@
       /* 编辑资料 */
       '<div class="modal-backdrop" id="hw-prof-modal">' +
       '  <div class="modal-panel" style="max-width:430px;">' +
-      '    <button class="modal-close" id="hw-prof-close" type="button">&times;</button>' +
+      '    <button class="modal-close" id="hw-prof-close" type="button" aria-label="关闭">&times;</button>' +
       '    <span class="eyebrow">Profile</span>' +
       '    <h3 class="modal-title" style="margin-top:8px;">编辑资料</h3>' +
       '    <form id="hw-prof-form" style="margin-top:14px;">' +
@@ -1122,7 +1124,7 @@
       /* 重置密码 */
       '<div class="modal-backdrop" id="hw-pwd-modal">' +
       '  <div class="modal-panel" style="max-width:430px;">' +
-      '    <button class="modal-close" id="hw-pwd-close" type="button">&times;</button>' +
+      '    <button class="modal-close" id="hw-pwd-close" type="button" aria-label="关闭">&times;</button>' +
       '    <span class="eyebrow">Security</span>' +
       '    <h3 class="modal-title" style="margin-top:8px;">重置密码</h3>' +
       '    <form id="hw-pwd-form" style="margin-top:14px;">' +
@@ -1204,6 +1206,66 @@
     });
   }
 
+  /* ---------------- Global modal behaviour ----------------
+   * 所有页面共用：打开弹窗时锁定背景滚动、Esc 关闭、Tab 焦点圈在弹窗内。
+   * 关闭仍然只认 × / 取消按钮，不恢复「点空白关闭」。
+   */
+  function topModal() {
+    /* .hw-auth-backdrop 是 js/auth.js 注入的登录框，同样纳入滚动锁 / Esc / 焦点圈 */
+    var all = document.querySelectorAll('.modal-backdrop.visible, .hw-auth-backdrop.visible');
+    return all.length ? all[all.length - 1] : null;
+  }
+  function modalFocusables(root) {
+    if (!root) return [];
+    var sel = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+      'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    return Array.prototype.slice.call(root.querySelectorAll(sel)).filter(function (el) {
+      return !el.hidden && el.getClientRects().length > 0;
+    });
+  }
+  function syncModalState() {
+    var open = topModal();
+    var hasLock = document.body.classList.contains('modal-open');
+    if (!!open !== hasLock) document.body.classList.toggle('modal-open', !!open);
+    if (open && !open.contains(document.activeElement)) {
+      var f = modalFocusables(open);
+      if (f.length) {
+        setTimeout(function () {
+          if (topModal() === open && !open.contains(document.activeElement)) f[0].focus();
+        }, 30);
+      }
+    }
+  }
+  function initModalBehaviour() {
+    if (typeof MutationObserver === 'undefined') return;
+    var obs = new MutationObserver(syncModalState);
+    obs.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    syncModalState();
+    document.addEventListener('keydown', function (e) {
+      var m = topModal();
+      if (!m) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        /* 优先触发弹窗自带的关闭按钮，保留页面各自的清理逻辑（表单重置、revokeObjectURL 等） */
+        var closer = m.querySelector('.modal-close, [data-ov-close], .gm-close, .hw-auth-close');
+        if (closer) closer.click();
+        else m.classList.remove('visible');
+        syncModalState();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      var f = modalFocusables(m);
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      var inside = m.contains(document.activeElement);
+      if (e.shiftKey && (!inside || document.activeElement === first)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+        e.preventDefault(); first.focus();
+      }
+    });
+  }
+
   /* ---------------- boot ---------------- */
   var layoutInited = false;
   function init() {
@@ -1215,6 +1277,7 @@
     buildNav();
     buildFooter();
     renderAuth();
+    initModalBehaviour();
     if (typeof HWAuth !== 'undefined' && HWAuth.on) {
       HWAuth.on(function (evt) {
         if (evt === 'login' || evt === 'logout') renderAuth();

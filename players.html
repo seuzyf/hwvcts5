@@ -25,6 +25,11 @@
     #dc-table a:hover { color: var(--info-blue); border-bottom-color: currentColor; }
     #dc-table th.sortable:hover { color: var(--pure-white); }
     #dc-table th .sort-ind { margin-left: 4px; font-size: 10px; color: var(--ash); }
+    @media (max-width: 720px) {
+      #dc-season, #dc-event, #dc-search { width: 100%; }
+      .filter-bar { align-items: stretch; }
+      .filter-bar .form-label { width: 100%; }
+    }
   </style>
 </head>
 <body data-page="players">
@@ -86,13 +91,20 @@
 
       function seasonKeyOf(ev) { return String(ev && ev.season ? ev.season : '').trim().toLowerCase(); }
 
-      /* —— 事件源 —— */
+      /* —— 事件源 ——
+       * 数据中心只展示真实存在的赛事：草稿 / 已取消不进入筛选器，
+       * 避免把「还没发布」或「已经作废」的活动当成有效数据口径。
+       */
       async function fetchEvents() {
         try {
           var res = await HWAuth.getClient().from('events')
-            .select('id, code, title, season, created_at')
+            .select('id, code, title, season, status, created_at')
             .order('created_at', { ascending: false });
-          if (res && !res.error && res.data) return res.data;
+          if (res && !res.error && res.data) {
+            return res.data.filter(function (ev) {
+              return ev.status !== 'draft' && ev.status !== 'cancelled';
+            });
+          }
         } catch (e) { /* 回退 */ }
         return [];
       }

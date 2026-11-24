@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS5 - 赛程中心</title>
+    <title>赛程中心 · HWVCTS</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="css/theme.css">
@@ -19,9 +19,10 @@
 
         /* 对阵图 */
         .bracket-container { width: 100%; overflow-x: auto; padding-bottom: 18px; }
-        .bracket-container::-webkit-scrollbar { height: 6px; }
+        .bracket-container::-webkit-scrollbar { height: 8px; }
         .bracket-container::-webkit-scrollbar-track { background: transparent; }
-        .bracket-container::-webkit-scrollbar-thumb { background: var(--graphite); border-radius: 4px; }
+        .bracket-container::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+        .bracket-container::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
         .bracket { display: flex; justify-content: flex-start; gap: 28px; min-width: max-content; padding: 6px 2px; }
         .round { display: flex; flex-direction: column; gap: 14px; width: 216px; flex-shrink: 0; }
         .round-title {
@@ -82,6 +83,22 @@
         }
         .md-edit h3 { margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--coral-pulse); }
         .md-label { display: block; font-size: 12px; color: var(--smoke); margin-bottom: 6px; }
+        .md-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .md-field { min-width: 0; }
+        .md-field.full { grid-column: 1 / -1; }
+        .md-actions { margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px; }
+        .md-note {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+            padding: 9px 12px; border-radius: 10px; font-size: 13px;
+            color: var(--ash); background: var(--obsidian); border: 1px dashed var(--border);
+        }
+        .md-replay { margin-top: 12px; }
+        .md-replay a {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--info-blue); font-size: 14px; font-weight: 600; text-decoration: none;
+        }
+        .md-replay a:hover { text-decoration: underline; }
+        @media (max-width: 620px) { .md-grid { grid-template-columns: 1fr; } }
 
         /* 解说统计 */
         .caster-stat-item {
@@ -118,18 +135,21 @@
     <div id="auto-submit-banner"></div>
 
     <div id="caster-modal" class="modal-backdrop">
-        <div class="modal-panel" style="max-width: 600px;">
+        <div class="modal-panel" style="max-width: 600px;" role="dialog" aria-modal="true" aria-labelledby="caster-title">
+            <button class="modal-close" id="caster-x" type="button" aria-label="关闭">&times;</button>
             <span class="modal-eyebrow">Caster Stats</span>
-            <h2>解说统计数据</h2>
+            <h2 id="caster-title">解说统计数据</h2>
             <div id="caster-stats-container" style="margin-top: 20px;"></div>
             <button class="btn btn-ghost" id="close-caster-modal" style="margin-top: 25px;">关 闭 统 计</button>
         </div>
     </div>
 
     <div id="match-detail-modal" class="modal-backdrop">
-        <div class="modal-panel" style="max-width: 850px;">
+        <div class="modal-panel" style="max-width: 850px;" role="dialog" aria-modal="true" aria-labelledby="modal-match-title">
+            <button class="modal-close" id="modal-x" type="button" aria-label="关闭">&times;</button>
             <span class="modal-eyebrow">Match Detail</span>
-            <h2 id="modal-match-title" style="margin-bottom: 25px;">比赛详情</h2>
+            <h2 id="modal-match-title" style="margin-bottom: 6px;">比赛详情</h2>
+            <div id="modal-match-sub" class="bracket-sub" style="margin: 0 0 20px;"></div>
             <div style="display:flex; gap:16px; text-align:left; flex-wrap:wrap;">
                 <div class="md-box">
                     <h3 id="modal-team-a-name">队伍 A</h3>
@@ -143,17 +163,26 @@
             </div>
             <div class="md-edit">
                 <h3 style="display:flex; align-items:center; gap:8px;"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" /> <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" /></svg> 更新比赛信息</h3>
-                <div style="display:flex; gap:16px; flex-wrap:wrap;">
-                    <div style="flex:1; min-width:220px;">
-                        <label class="md-label">解说席（多人用逗号或空格分隔）</label>
+                <div id="modal-edit-note" class="md-note" hidden>
+                    <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    仅管理员可修改比赛时间、解说与回放链接。
+                </div>
+                <div class="md-grid">
+                    <div class="md-field">
+                        <label class="md-label" for="modal-input-date">比赛预定时间（当地时间）</label>
+                        <input class="input" type="datetime-local" id="modal-input-date">
+                    </div>
+                    <div class="md-field">
+                        <label class="md-label" for="modal-input-commentators">解说席（多人用逗号或空格分隔）</label>
                         <input class="input" type="text" id="modal-input-commentators" placeholder="例如: 解说A, 解说B" style="margin:0;">
                     </div>
-                    <div style="flex:1; min-width:220px;">
-                        <label class="md-label">视频回放链接</label>
+                    <div class="md-field full">
+                        <label class="md-label" for="modal-input-link">视频回放链接</label>
                         <input class="input" type="text" id="modal-input-link" placeholder="输入外部跳转链接" style="margin:0;">
                     </div>
                 </div>
-                <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px;">
+                <div id="modal-replay-link" class="md-replay" hidden></div>
+                <div class="md-actions">
                     <button class="btn btn-ghost" id="modal-close-btn">取 消</button>
                     <button class="btn btn-primary" id="modal-save-btn">保 存 更 新</button>
                 </div>
@@ -223,6 +252,11 @@
         const matchDetailModal     = document.getElementById('match-detail-modal');
         const modalCloseBtn        = document.getElementById('modal-close-btn');
         const modalSaveBtn         = document.getElementById('modal-save-btn');
+        const modalX               = document.getElementById('modal-x');
+        const modalDateInput       = document.getElementById('modal-input-date');
+        const modalMatchSub        = document.getElementById('modal-match-sub');
+        const modalReplayLink      = document.getElementById('modal-replay-link');
+        const modalEditNote        = document.getElementById('modal-edit-note');
         const autoSubmitBanner     = document.getElementById('auto-submit-banner');
 
         let currentEditingMatch  = null;
@@ -238,13 +272,47 @@
         // ── 管理员权限（不再使用口令，按身份区分） ─────────────────────────────
         function isAdminRole() {
             var sess = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
-            return !!(sess && sess.role === 'admin') ||
-                (typeof HWLayout !== 'undefined' && HWLayout.isAdminNow());
+            if (sess && (sess.role === 'admin' || sess.role === 'superadmin')) return true;
+            if (typeof HWLayout !== 'undefined' && HWLayout.isAdminNow()) return true;
+            /* 活动组织者在本活动下等同管理员（与 layout.access 口径一致） */
+            if (sess && EV_CTX && EV_CTX.ev && EV_CTX.ev.organizer_id != null &&
+                String(EV_CTX.ev.organizer_id) === String(sess.id)) return true;
+            return false;
         }
 
         function requireAdminAuth(actionCallback) {
             if (isAdminRole()) { actionCallback(); }
             else { HWLayout.toast('仅管理员可执行此操作', 'err'); }
+        }
+
+        // ── 时间格式 ───────────────────────────────────────────────────────────
+        function toDatetimeLocalValue(iso) {
+            if (!iso) return '';
+            var d = new Date(iso);
+            if (isNaN(d.getTime())) return '';
+            var pad = function (n) { return String(n).padStart(2, '0'); };
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+                'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        }
+        function fmtMatchDate(iso) {
+            if (!iso) return '';
+            var d = new Date(iso);
+            if (isNaN(d.getTime())) return '';
+            try {
+                return d.toLocaleString('zh-CN', {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+                }).replace(/\//g, '-');
+            } catch (e) { return String(iso); }
+        }
+        function escHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+        function safeUrl(u) {
+            var s = String(u == null ? '' : u).trim();
+            return /^(https?:\/\/|\/)/i.test(s) ? s : '';
         }
 
         // ── 赛程布局 ─────────────────────────────────────────────────────────────
@@ -593,32 +661,35 @@
         }
 
         function createMatchCard(data) {
-            const teamA  = data?.team_a  || 'TBD';
-            const teamB  = data?.team_b  || 'TBD';
-            const scoreA = data?.score_a ?? 0;
-            const scoreB = data?.score_b ?? 0;
-            const casters = data?.commentators || '暂无数据';
-            let matchDateStr = '';
-            if (data?.match_date) {
-                try {
-                    const date = new Date(data.match_date);
-                    matchDateStr = date.toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }).replace(/\//g,'-');
-                } catch(e) { matchDateStr = data.match_date; }
-            }
-            const isFinished = typeof scoreA === 'number' && typeof scoreB === 'number' && (scoreA > 0 || scoreB > 0);
-            const winnerA = isFinished && scoreA > scoreB;
-            const winnerB = isFinished && scoreB > scoreA;
+            const teamA  = data?.team_a  || '待定';
+            const teamB  = data?.team_b  || '待定';
+            const scoreA = data?.score_a;
+            const scoreB = data?.score_b;
+            const hasScore = typeof scoreA === 'number' && typeof scoreB === 'number' && (scoreA > 0 || scoreB > 0);
+            const displayA = hasScore ? scoreA : '–';
+            const displayB = hasScore ? scoreB : '–';
+            const casters = (data?.commentators || '').trim() || '待定';
+            const matchDateStr = fmtMatchDate(data?.match_date);
+            const winnerA = hasScore && scoreA > scoreB;
+            const winnerB = hasScore && scoreB > scoreA;
             const card = document.createElement('div');
             card.className = 'match-card';
             card.dataset.matchId = data?.match_id || '';
             card.dataset.group   = data?.group   || '';
+            card.tabIndex = 0;
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-label', (teamA + ' vs ' + teamB + '，点击查看或编辑比赛信息'));
+            card.title = '点击查看 / 编辑比赛信息';
             card.innerHTML = `
-                <div class="match-date">${matchDateStr} ${data?.link ? '（附录像）' : ''}</div>
-                <div class="team ${winnerA?'winner':''} ${winnerB?'loser':''}"><span class="team-name">${teamA}</span><span class="team-score">${scoreA}</span></div>
+                <div class="match-date">${matchDateStr || '时间待定'} ${data?.link ? '<span class="badge badge-quiet" style="margin-left:4px;">录像</span>' : ''}</div>
+                <div class="team ${winnerA?'winner':''} ${winnerB?'loser':''}"><span class="team-name">${escHtml(teamA)}</span><span class="team-score">${displayA}</span></div>
                 <hr>
-                <div class="team ${winnerB?'winner':''} ${winnerA?'loser':''}"><span class="team-name">${teamB}</span><span class="team-score">${scoreB}</span></div>
-                <div class="commentator-info">解说: ${casters}</div>
+                <div class="team ${winnerB?'winner':''} ${winnerA?'loser':''}"><span class="team-name">${escHtml(teamB)}</span><span class="team-score">${displayB}</span></div>
+                <div class="commentator-info">解说: ${escHtml(casters)}</div>
             `;
+            card.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
+            });
             return card;
         }
         
@@ -1414,8 +1485,8 @@
                 const kda = stats ? (stats.deaths > 0 ? ((stats.kills + stats.assists) / stats.deaths).toFixed(2) : (stats.kills + stats.assists)) : '—';
                 const hasData = stats && (stats.kills > 0 || stats.assists > 0 || stats.deaths > 0);
                 html += `<tr>
-                    <td><a href="player.html?name=${encodeURIComponent(p.name)}&group=${encodeURIComponent(groupName)}" target="_blank">${p.id}</a></td>
-                    <td>${p.name}</td>
+                    <td><a href="player.html?name=${encodeURIComponent(p.name)}&group=${encodeURIComponent(groupName)}" target="_blank">${escHtml(p.id)}</a></td>
+                    <td>${escHtml(p.name)}</td>
                     <td style="color:var(--coral-pulse);font-weight:700;">${avg_acs}</td>
                     <td style="font-weight:700;">${hasData ? kda : '—'}</td>
                 </tr>`;
@@ -1429,14 +1500,37 @@
                 if (!card) return;
                 const matchId = card.dataset.matchId, group = card.dataset.group;
                 if (!matchId || !group) return;
-                const matchData = allMatchesData[group]?.[matchId];
-                if (!matchData) return;
+                /* 未录入过赛程行的卡片也要能打开：先给一份空壳，保存时 upsert 建行 */
+                const matchData = allMatchesData[group]?.[matchId] || {
+                    match_id: matchId, group: group,
+                    team_a: '', team_b: '', score_a: null, score_b: null,
+                    match_date: '', commentators: '', link: ''
+                };
                 currentEditingMatch = { matchId, group, raw: matchData };
-                document.getElementById('modal-match-title').textContent = `[${group}] 赛事编号：${matchId}`;
-                document.getElementById('modal-team-a-name').textContent = matchData.team_a || '队伍 A (TBD)';
-                document.getElementById('modal-team-b-name').textContent = matchData.team_b || '队伍 B (TBD)';
+                const canEdit = isAdminRole();
+                const dateStr = fmtMatchDate(matchData.match_date);
+                document.getElementById('modal-match-title').textContent =
+                    (matchData.team_a || '待定') + ' vs ' + (matchData.team_b || '待定');
+                document.getElementById('modal-match-sub').textContent =
+                    '[' + group + '] 赛事编号：' + matchId + (dateStr ? ' · ' + dateStr : ' · 时间待定');
+                document.getElementById('modal-team-a-name').textContent = matchData.team_a || '队伍 A (待定)';
+                document.getElementById('modal-team-b-name').textContent = matchData.team_b || '队伍 B (待定)';
+                modalDateInput.value = toDatetimeLocalValue(matchData.match_date);
                 document.getElementById('modal-input-commentators').value = matchData.commentators || '';
                 document.getElementById('modal-input-link').value = matchData.link || '';
+                modalDateInput.disabled = !canEdit;
+                document.getElementById('modal-input-commentators').disabled = !canEdit;
+                document.getElementById('modal-input-link').disabled = !canEdit;
+                modalSaveBtn.hidden = !canEdit;
+                modalEditNote.hidden = canEdit;
+                var replayUrl = safeUrl(matchData.link);
+                if (replayUrl) {
+                    modalReplayLink.hidden = false;
+                    modalReplayLink.innerHTML = '<a href="' + escHtml(replayUrl) + '" target="_blank" rel="noopener noreferrer">查看视频回放 →</a>';
+                } else {
+                    modalReplayLink.hidden = true;
+                    modalReplayLink.innerHTML = '';
+                }
                 renderTeamStats(matchData.team_a, group, 'modal-team-a-stats');
                 renderTeamStats(matchData.team_b, group, 'modal-team-b-stats');
                 matchDetailModal.classList.add('visible');
@@ -1448,12 +1542,22 @@
             requireAdminAuth(async () => {
                 const newCommentators = document.getElementById('modal-input-commentators').value.trim();
                 const newLink = document.getElementById('modal-input-link').value.trim();
+                const newDate = modalDateInput.value;
                 const { matchId, group } = currentEditingMatch;
+                const table = currentSeason === 's5' ? 's5_match_schedule' : 's6_match_schedule';
                 modalSaveBtn.disabled = true; modalSaveBtn.textContent = '保存中...';
                 try {
-                    const { error } = await supabaseClient.from('s6_match_schedule').update({ commentators: newCommentators, link: newLink }).eq('match_id', matchId).eq('group', group);
+                    const row = {
+                        group: group,
+                        match_id: matchId,
+                        commentators: newCommentators,
+                        link: newLink,
+                        /* datetime-local 是当地时间；存库统一成 ISO（timestamptz） */
+                        match_date: newDate ? new Date(newDate).toISOString() : null
+                    };
+                    const { error } = await supabaseClient.from(table).upsert([row], { onConflict: 'group,match_id' });
                     if (error) throw error;
-                    HWLayout.toast('更新成功！');
+                    HWLayout.toast('更新成功！赛程时间将同步影响竞猜状态');
                     matchDetailModal.classList.remove('visible');
                     await loadData();
                 } catch (err) {
@@ -1500,7 +1604,9 @@
         });
 
         modalCloseBtn.addEventListener('click', () => matchDetailModal.classList.remove('visible'));
+        modalX.addEventListener('click', () => matchDetailModal.classList.remove('visible'));
         closeCasterModal.addEventListener('click', () => casterModal.classList.remove('visible'));
+        document.getElementById('caster-x').addEventListener('click', () => casterModal.classList.remove('visible'));
         randomDrawBtn.addEventListener('click', () => requireAdminAuth(generateAndDisplaySchedule));
 
         groupFilters.addEventListener('click', e => {

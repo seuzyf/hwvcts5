@@ -148,7 +148,7 @@
     </main>
 
     <div id="modal" class="modal-backdrop">
-        <div class="modal-panel wide" id="modal-content-body"></div>
+        <div class="modal-panel wide" id="modal-content-body" role="dialog" aria-modal="true"></div>
     </div>
 
     <script>
@@ -360,6 +360,9 @@
             var stageType = (matchData.stage === '小组赛') ? '小组赛' : '淘汰赛';
             card.className = 'match-card';
             card.dataset.matchIndex = index;
+            card.tabIndex = 0;
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-label', (matchData.team_a || '') + ' vs ' + (matchData.team_b || '') + '，查看比赛详情');
             var score = String(matchData.score).replace(/[/：]/, ' : ');
             var stageBadge = matchData.stage === '决赛' ? '<span class="badge badge-gold m-tag">决赛</span>'
                 : '<span class="badge badge-quiet m-tag">' + esc(stageType) + '</span>';
@@ -370,6 +373,9 @@
                 '  <span class="m-score">' + esc(score) + '</span>' +
                 '  <span>' + esc(matchData.team_b) + '</span>' +
                 '</div>' + stageBadge;
+            card.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
+            });
             return card;
         }
 
@@ -381,7 +387,7 @@
 
         function showModalWithContent(htmlContent) {
             modalContent.innerHTML =
-                '<button class="modal-close" type="button" id="dynamic-close">&times;</button>' + htmlContent;
+                '<button class="modal-close" type="button" id="dynamic-close" aria-label="关闭">&times;</button>' + htmlContent;
             modal.classList.add('visible');
             document.getElementById('dynamic-close').addEventListener('click', function () {
                 modal.classList.remove('visible');

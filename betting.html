@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS6 - 赛事预测</title>
+    <title>赛事预测 · HWVCTS</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/auth.js"></script>
@@ -282,7 +282,7 @@
     </div>
 
     <div id="roster-modal" class="modal-backdrop">
-        <div class="modal-panel" id="roster-modal-content"></div>
+        <div class="modal-panel" id="roster-modal-content" role="dialog" aria-modal="true"></div>
     </div>
 
 <script>
@@ -453,9 +453,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const STATE_ZH = { bettable: '可竞猜', 'locked-pending': '已锁定 · 待结算', settled: '已结算' };
 
+    /* 状态签名：比赛时间跨过「开赛」时自动刷新卡片，不必手动刷新页面 */
+    let lastStateSig = '';
+    function stateSignature() {
+        return allMatchesData.map(m => m.id + ':' + matchBetState(m)).join('|');
+    }
+
     function renderMatches() {
         mainContent.innerHTML = '';
-        const groups = ['传奇组', '中坚组', '挑战组'];
+        /* 分组从数据推导，避免活动使用自定义组名时整组比赛消失 */
+        const preferred = ['传奇组', '中坚组', '挑战组'];
+        const seen = {};
+        allMatchesData.forEach(m => { if (m.group) seen[m.group] = 1; });
+        const groups = preferred.filter(g => seen[g])
+            .concat(Object.keys(seen).filter(g => preferred.indexOf(g) === -1));
         groups.forEach(group => {
             const groupMatches = allMatchesData.filter(m => m.group === group && m.team_a && m.team_b);
             if (groupMatches.length === 0) return;
@@ -482,6 +493,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.className = 'betting-card ' + state;
                 card.dataset.matchId = match.id;
                 card.setAttribute('tabindex', '0');
+                card.setAttribute('role', 'button');
+                card.setAttribute('aria-label', match.team_a + ' vs ' + match.team_b + '，' + STATE_ZH[state]);
                 card.innerHTML = `
                     <div class="bc-head">
                         <span class="bc-state">${STATE_ZH[state]}</span>
@@ -505,12 +518,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
                 const open = () => openMatchDetail(match.id);
                 card.addEventListener('click', open);
-                card.addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
+                card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
                 grid.appendChild(card);
             });
             mainContent.appendChild(section);
         });
+        lastStateSig = stateSignature();
     }
+
+    /* 开赛时间到达后，卡片状态自动从「可竞猜」切到「已锁定 · 待结算」 */
+    setInterval(function () {
+        if (document.visibilityState !== 'visible' || !allMatchesData.length) return;
+        if (stateSignature() !== lastStateSig) renderMatches();
+    }, 30000);
 
     /* ---------- 比赛详情：双方名单 + 生涯/本次排名与 ACS ---------- */
     function aggPlayerStats(matchRows) {

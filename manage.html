@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS5 - 赛事数据台</title>
+    <title>赛事数据台 · HWVCTS</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="css/theme.css">
@@ -130,9 +130,10 @@
     <datalist id="teams-datalist"></datalist>
 
 <div id="validation-modal" class="modal-backdrop">
-        <div class="modal-panel" style="max-width: 500px;">
+        <div class="modal-panel" style="max-width: 500px;" role="dialog" aria-modal="true" aria-labelledby="validation-title">
+            <button class="modal-close" id="validation-x" type="button" aria-label="关闭">&times;</button>
             <span class="modal-eyebrow">Confirm</span>
-            <h2>提 交 提 醒</h2>
+            <h2 id="validation-title">提 交 提 醒</h2>
             <div id="validation-warnings" class="warning-text"></div>
             <p style="color:var(--mist); margin-bottom:20px; font-size: 15px; font-weight: 500;">是否确认继续提交并保存修改？</p>
             <div style="display:flex; justify-content:center; gap: 20px;">
@@ -744,18 +745,21 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         
         const confirmBtn = document.getElementById('validation-confirm-btn');
         const cancelBtn = document.getElementById('validation-cancel-btn');
-        
+        const xBtn = document.getElementById('validation-x');
+
         const onConfirm = () => { modal.classList.remove('visible'); proceedCallback(); cleanUp(); };
         const onCancel = () => { modal.classList.remove('visible'); cleanUp(); };
-        
+
         const cleanUp = () => {
             confirmBtn.removeEventListener('click', onConfirm);
             cancelBtn.removeEventListener('click', onCancel);
+            xBtn.removeEventListener('click', onCancel);
         };
 
         confirmBtn.addEventListener('click', onConfirm);
         cancelBtn.addEventListener('click', onCancel);
-        
+        xBtn.addEventListener('click', onCancel);
+
         modal.classList.add('visible');
     }
 

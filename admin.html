@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWVCTS5 - 管理后台</title>
+    <title>管理后台 · HWVCTS</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="css/theme.css">
@@ -42,7 +42,7 @@
     <!-- P13：调分（×-only） -->
     <div id="pts-modal" class="modal-backdrop">
         <div class="modal-panel" style="max-width:440px;">
-            <button class="modal-close" id="pts-close" type="button">&times;</button>
+            <button class="modal-close" id="pts-close" type="button" aria-label="关闭">&times;</button>
             <span class="eyebrow">Points</span>
             <h2 style="margin:6px 0 14px; font-size:17px; font-weight:500; color:var(--pure-white);">调整积分</h2>
             <div id="pts-info" class="smoke" style="font-size:13px; margin-bottom:12px;"></div>
@@ -59,7 +59,7 @@
     <!-- P13：封禁（×-only） -->
     <div id="ban-modal" class="modal-backdrop">
         <div class="modal-panel" style="max-width:440px;">
-            <button class="modal-close" id="ban-close" type="button">&times;</button>
+            <button class="modal-close" id="ban-close" type="button" aria-label="关闭">&times;</button>
             <span class="eyebrow">Ban</span>
             <h2 style="margin:6px 0 14px; font-size:17px; font-weight:500; color:var(--pure-white);">封禁</h2>
             <div id="ban-info" class="smoke" style="font-size:13px; margin-bottom:12px;"></div>
@@ -834,8 +834,8 @@ document.addEventListener('DOMContentLoaded', () => {
             var wrap = document.createElement('div');
             wrap.innerHTML =
                 '<div id="av-crop-modal" class="modal-backdrop">' +
-                '  <div class="modal-panel" style="max-width:420px;">' +
-                '    <button class="modal-close" id="av-crop-close" type="button">&times;</button>' +
+                '  <div class="modal-panel" style="max-width:420px;" role="dialog" aria-modal="true" aria-label="调整头像">' +
+                '    <button class="modal-close" id="av-crop-close" type="button" aria-label="关闭">&times;</button>' +
                 '    <span class="eyebrow">Avatar</span>' +
                 '    <h3 style="margin:6px 0 12px; font-size:16px; color:var(--pure-white);">调整头像</h3>' +
                 '    <div id="av-crop-stage" style="position:relative; width:260px; height:260px; margin:0 auto; border-radius:50%; overflow:hidden; border:2px solid var(--border); background:var(--graphite); cursor:grab; touch-action:none;">' +

@@ -82,7 +82,7 @@
 
   <!-- 报名详情 -->
   <div class="modal-backdrop" id="rv-detail-modal">
-    <div class="modal-panel wide" id="rv-detail-panel"></div>
+    <div class="modal-panel wide" id="rv-detail-panel" role="dialog" aria-modal="true"></div>
   </div>
 
   <script>
@@ -276,7 +276,7 @@
               : '')
           : '';
         panel.innerHTML =
-          '<button class="modal-close" id="rv-detail-close" type="button">&times;</button>' +
+          '<button class="modal-close" id="rv-detail-close" type="button" aria-label="关闭">&times;</button>' +
           '<span class="eyebrow">Application</span>' +
           '<h3 class="modal-title" style="margin-top:6px;">' + esc((p && p.real_name) || u.nickname || u.username || ('用户#' + r.user_id)) + ' · 报名详情</h3>' +
           '<div class="tags" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">' +

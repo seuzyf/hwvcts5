@@ -333,7 +333,7 @@
 
   var MODAL_HTML = [
     '<div class="hw-auth-backdrop" id="hw-auth-backdrop">',
-    '  <div class="hw-auth-card">',
+    '  <div class="hw-auth-card" role="dialog" aria-modal="true" aria-labelledby="hw-auth-title">',
     '    <button class="hw-auth-close" id="hw-auth-close" aria-label="关闭">&times;</button>',
     '    <div class="hw-auth-badge">HWVCTS ACCOUNT</div>',
     '    <h3 id="hw-auth-title">登 录</h3>',
