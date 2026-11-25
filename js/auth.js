@@ -5,7 +5,7 @@
  *
  * 账号存储：
  *   - 首选 public.site_users（升级后的统一账号表，含资料字段）
- *   - 若尚未执行 supabase/schema.sql（表不存在），自动回退到
+ *   - 若尚未执行 supabase/install.sql（表不存在），自动回退到
  *     旧的 public.s6_bet_users（竞猜账号表），保证现有功能可用
  *
  * 密码：
@@ -17,10 +17,10 @@
 (function () {
   'use strict';
 
-  var SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
-  var SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
-
+  /* Supabase 连接配置已收敛到 js/layout.js 的 HWLayout.supa()（全站唯一出处），
+     本模块不再自带 URL/KEY 副本。 */
   var SESSION_KEY = 'hw_session';
+  var SESSION_META_KEY = 'hw_session_meta';   // {issued_at, last_seen}：7 天滑动 / 30 天强制重登
   var LEGACY_SESSION_KEY = 'betting-user';
   var PRIMARY_TABLE = 'site_users';
   var LEGACY_TABLE = 's6_bet_users';
@@ -34,12 +34,58 @@
 
   function getClient() {
     if (!client) {
-      if (typeof supabase === 'undefined' || !supabase.createClient) {
-        throw new Error('Supabase SDK 未加载，请检查网络或 CDN 引用');
+      if (typeof HWLayout !== 'undefined' && HWLayout.supa) {
+        client = HWLayout.supa();
+      } else if (typeof supabase !== 'undefined' && supabase.createClient && typeof HWLayout !== 'undefined' && HWLayout.SUPABASE_URL) {
+        client = supabase.createClient(HWLayout.SUPABASE_URL, HWLayout.SUPABASE_KEY);
+      } else {
+        throw new Error('Supabase 客户端未就绪（js/layout.js 未加载）');
       }
-      client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     }
     return client;
+  }
+
+  /* ---------------- 登录限流与会话时效 ----------------
+   * login_attempts 表不存在（未执行 install.sql）时静默跳过，不阻断登录。 */
+  function recentLoginFails(sb, username) {
+    try {
+      var since = new Date(Date.now() - 10 * 60000).toISOString();
+      return sb.from('login_attempts').select('id', { count: 'exact', head: true })
+        .eq('scope', 'login').eq('username', username).eq('success', false)
+        .gte('attempted_at', since)
+        .then(function (r) { return r && typeof r.count === 'number' ? r.count : 0; }, function () { return 0; });
+    } catch (e) { return Promise.resolve(0); }
+  }
+  function recordLoginAttempt(sb, username, userId, ok) {
+    try {
+      sb.from('login_attempts').insert([{ username: username, user_id: userId || null, scope: 'login', success: !!ok }])
+        .then(function () {}, function () {});
+      if (ok) {
+        sb.from('login_attempts').delete().eq('scope', 'login').eq('username', username).eq('success', false)
+          .then(function () {}, function () {});
+      }
+    } catch (e) { /* ignore */ }
+  }
+  function sessionMeta() {
+    try { return JSON.parse(localStorage.getItem(SESSION_META_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function writeSessionMeta(issuedAt) {
+    try {
+      var now = Date.now();
+      var meta = sessionMeta() || {};
+      localStorage.setItem(SESSION_META_KEY, JSON.stringify({
+        issued_at: issuedAt || meta.issued_at || now, last_seen: now
+      }));
+    } catch (e) { /* ignore */ }
+  }
+  /* 返回 'ok' | 'expired'（7 天未活动或满 30 天） */
+  function sessionFreshness() {
+    var meta = sessionMeta();
+    if (!meta || !meta.issued_at) return 'ok';  // 旧会话无 meta：从本次起计
+    var now = Date.now();
+    if (now - meta.issued_at > 30 * 86400000) return 'expired';
+    if (meta.last_seen && now - meta.last_seen > 7 * 86400000) return 'expired';
+    return 'ok';
   }
 
   function sha256Hex(text) {
@@ -156,20 +202,26 @@
     return accountSource || PRIMARY_TABLE;
   }
 
-  function saveSession(user) {
+  function saveSession(user, freshLogin) {
     session = user;
     try {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+      /* 只持久化必要字段：绝不把密码哈希写进 localStorage */
+      var pub = Object.assign({}, user);
+      delete pub.password;
+      localStorage.setItem(SESSION_KEY, JSON.stringify(pub));
       localStorage.removeItem(LEGACY_SESSION_KEY); // 收编旧会话
+      writeSessionMeta(freshLogin ? Date.now() : undefined);
     } catch (e) { /* ignore */ }
     emit('login', session);
   }
 
+  var sessionExpiredFlag = false;
   function clearSession() {
     session = null;
     try {
       localStorage.removeItem(SESSION_KEY);
       localStorage.removeItem(LEGACY_SESSION_KEY);
+      localStorage.removeItem(SESSION_META_KEY);
     } catch (e) { /* ignore */ }
     emit('logout', null);
   }
@@ -202,7 +254,12 @@
         return null;
       }
       session = Object.assign({}, res.data);
-      try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch (e) { /* ignore */ }
+      try {
+        var pub2 = Object.assign({}, session);
+        delete pub2.password;
+        localStorage.setItem(SESSION_KEY, JSON.stringify(pub2));
+        writeSessionMeta();
+      } catch (e) { /* ignore */ }
       emit('refresh', session);
       return session;
     });
@@ -212,6 +269,16 @@
 
   function init() {
     var local = readLocalSession();
+    if (local && local.id && sessionFreshness() === 'expired') {
+      /* 7 天未活动或登录满 30 天：强制重登（页面可读 HWAuth.sessionExpired 提示并回跳） */
+      sessionExpiredFlag = true;
+      try {
+        localStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(LEGACY_SESSION_KEY);
+        localStorage.removeItem(SESSION_META_KEY);
+      } catch (e) { /* ignore */ }
+      return null;
+    }
     if (local && local.id) {
       session = local;
       // 静默校验，失败不阻塞页面
@@ -221,6 +288,7 @@
   }
 
   function getSession() { return session; }
+  function wasSessionExpired() { return sessionExpiredFlag; }
   function isLoggedIn() { return !!session; }
 
   function on(cb) {
@@ -242,18 +310,31 @@
       return Promise.reject(new Error('请输入用户名和密码'));
     }
     var sb = getClient();
-    return detectAccountSource().then(function (table) {
+    return recentLoginFails(sb, username).then(function (fails) {
+      if (fails >= 5) {
+        throw new Error('密码错误次数过多，该账号已锁定 10 分钟，请稍后再试');
+      }
+      return detectAccountSource();
+    }).then(function (table) {
       return sb.from(table).select('*').eq('username', username).maybeSingle().then(function (res) {
         if (res.error) throw res.error;
 
         if (!res.data) {
+          recordLoginAttempt(sb, username, null, false);
           var err = new Error('用户名不存在，请先注册');
           err.code = 'USER_NOT_FOUND';
           throw err;
         }
 
         return verifyPassword(password, res.data.password).then(function (ok) {
-          if (!ok) throw new Error('密码错误！');
+          if (!ok) {
+            recordLoginAttempt(sb, username, res.data.id, false);
+            throw new Error('密码错误！');
+          }
+          if (res.data.banned && (!res.data.banned_until || new Date(res.data.banned_until).getTime() > Date.now())) {
+            throw new Error('该账号已被停用' + (res.data.banned_reason ? '：' + res.data.banned_reason : '') + '，请联系管理员');
+          }
+          recordLoginAttempt(sb, username, res.data.id, true);
           var patch = {};
           if (table === PRIMARY_TABLE && 'last_login_at' in res.data) {
             patch.last_login_at = new Date().toISOString();
@@ -263,7 +344,7 @@
             sb.from(table).update(patch).eq('id', res.data.id).then(function () { /* best effort */ }, function () {});
           }
           upgradeHashIfLegacy(table, res.data, password);
-          saveSession(merged);
+          saveSession(merged, true);
           return merged;
         });
       });
@@ -306,7 +387,7 @@
               }).then(function () { /* best-effort：档案表异常不阻断注册 */ }, function () {})
             : Promise.resolve();
           return profileWrite.then(function () {
-            saveSession(ins.data);
+            saveSession(ins.data, true);
             return ins.data;
           });
         });
@@ -318,12 +399,24 @@
     clearSession();
   }
 
+  /** 二次确认：校验当前登录账号自己的密码（生成临时口令等敏感操作用） */
+  function verifyOwnPassword(pwd) {
+    if (!session || !session.id) return Promise.resolve(false);
+    var sb = getClient();
+    return detectAccountSource().then(function (table) {
+      return sb.from(table).select('password').eq('id', session.id).maybeSingle();
+    }).then(function (res) {
+      if (res.error || !res.data) return false;
+      return verifyPassword(pwd || '', res.data.password);
+    }).catch(function () { return false; });
+  }
+
   /** 更新个人资料（仅升级到 site_users 后可用） */
   function updateProfile(patch) {
     if (!session) return Promise.reject(new Error('请先登录'));
     return detectAccountSource().then(function (table) {
       if (table !== PRIMARY_TABLE) {
-        throw new Error('尚未执行账号升级脚本（supabase/schema.sql），暂无法保存资料');
+        throw new Error('尚未执行账号升级脚本（supabase/install.sql），暂无法保存资料');
       }
       var sb = getClient();
       var allowed = {};
@@ -600,6 +693,8 @@
     accountTable: accountTable,
     detectAccountSource: detectAccountSource,
     getClient: getClient,
+    sessionExpired: wasSessionExpired,
+    verifyOwnPassword: verifyOwnPassword,
     isMissingTable: isMissingTable
   };
 })();

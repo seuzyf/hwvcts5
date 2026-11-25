@@ -238,6 +238,19 @@
 
             </div>
 
+    <div class="data-section" id="csv-section">
+        <h3>赛 果 C S V 导 入</h3>
+        <p class="merge-hint">一图一行：组别、阶段、对战时间（北京时间，如 2026-12-01 19:00）、队伍A、队伍B、地图、图比分A、图比分B。先预检逐行报错，确认后整批入库，可按批次撤销。队长仅能导入本队比赛。</p>
+        <div class="admin-row">
+            <button class="btn btn-ghost" id="csv-template" type="button">下载模板</button>
+            <input type="file" id="csv-file" accept=".csv,text/csv" style="max-width:260px;">
+            <button class="btn btn-ghost" id="csv-precheck" type="button">预检</button>
+            <button class="btn btn-primary" id="csv-import" type="button" disabled>确认导入</button>
+        </div>
+        <div id="csv-report" style="margin-top:10px;"></div>
+        <div id="csv-batches" style="margin-top:14px;"></div>
+    </div>
+
 <div id="ids-tab" class="tab-content">
              <div class="data-section">
                 <h3>选 手 信 息 维 护</h3>
@@ -266,10 +279,7 @@
     </main>
     <div id="toast"></div>
 <script>
-const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
-    const { createClient } = supabase;
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabaseClient = HWLayout.supa(); /* 连接配置收敛：js/layout.js 唯一出处 */
 
     let allPlayersData = [];
     let groupData = { '传奇组': { teams: new Set(), rosters: {} }, '中坚组': { teams: new Set(), rosters: {} }, '挑战组': { teams: new Set(), rosters: {} } };
@@ -1306,6 +1316,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
         try {
             await initializeAdminPanel();
         } catch (e) { console.error('数据台初始化失败:', e); }
+        try { initCsvImport(); initTeamMgmt(); applyArchivedGuard(); } catch (e) { console.warn('运营工具初始化失败', e); }
         // 结果录入绑定
         document.getElementById('merge-new-fixture').addEventListener('click', function () { openMergeForm(null); });
         document.getElementById('mf-add-map').addEventListener('click', addMergeMapRow);
@@ -1349,6 +1360,7 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
                     return;
                 }
                 mfMyTeams = info.teams;
+                window.__myTeams = info.teams; /* CSV 导入队长范围校验用 */
                 mfScope = 'mine';
                 if (scopeSeg) scopeSeg.style.display = 'flex';
                 var mine = scopeSeg && scopeSeg.querySelector('[data-scope="mine"]');
@@ -1430,6 +1442,268 @@ const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
             }).catch(function () { return out; });
     }
 
+
+    /* ════ 本轮新增：CSV 导入 / 队伍管理 / 归档只读 ════ */
+    function parseCsv(text) {
+        var rows = [], row = [], cur = '', inQ = false;
+        for (var i = 0; i < text.length; i++) {
+            var c = text[i];
+            if (inQ) {
+                if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+                else cur += c;
+            } else if (c === '"') inQ = true;
+            else if (c === ',') { row.push(cur); cur = ''; }
+            else if (c === '\n' || c === '\r') {
+                if (c === '\r' && text[i + 1] === '\n') i++;
+                row.push(cur); cur = '';
+                if (row.some(function (x) { return String(x).trim() !== ''; })) rows.push(row);
+                row = [];
+            } else cur += c;
+        }
+        row.push(cur);
+        if (row.some(function (x) { return String(x).trim() !== ''; })) rows.push(row);
+        return rows;
+    }
+    var csvChecked = null;
+    function csvTeams() {
+        var set = new Set();
+        (allPlayersData || []).forEach(function (x) { if (x.team) set.add(x.team); });
+        return set;
+    }
+    function initCsvImport() {
+        var sec = document.getElementById('csv-section');
+        if (!sec) return;
+        document.getElementById('csv-template').addEventListener('click', function () {
+            HWLayout.downloadCsv('赛果导入模板.csv',
+                ['组别','阶段','对战时间','队伍A','队伍B','地图','图比分A','图比分B'].map(function (h) { return { key: h, label: h }; }),
+                [{ '组别': '传奇组', '阶段': '小组赛', '对战时间': '2026-12-01 19:00', '队伍A': '示例队A', '队伍B': '示例队B', '地图': '源工重镇', '图比分A': 13, '图比分B': 9 }]);
+        });
+        document.getElementById('csv-precheck').addEventListener('click', function () {
+            var f = document.getElementById('csv-file').files[0];
+            if (!f) { HWLayout.toast('先选择 CSV 文件', 'info'); return; }
+            f.text().then(function (text) {
+                var rows = parseCsv(text);
+                var head = (rows.shift() || []).map(function (h) { return String(h).trim(); });
+                var need = ['组别','阶段','对战时间','队伍A','队伍B','地图','图比分A','图比分B'];
+                var idx = {};
+                var headErr = need.filter(function (h) { idx[h] = head.indexOf(h); return idx[h] < 0; });
+                var report = document.getElementById('csv-report');
+                if (headErr.length) { report.innerHTML = '<p style="color:var(--coral-pulse);">表头缺少列：' + headErr.join('、') + '（请用模板）</p>'; csvChecked = null; document.getElementById('csv-import').disabled = true; return; }
+                if (rows.length > 500) { report.innerHTML = '<p style="color:var(--coral-pulse);">单次最多 500 行，当前 ' + rows.length + ' 行</p>'; return; }
+                var teams = csvTeams();
+                var errors = [], valid = [];
+                rows.forEach(function (r, i) {
+                    var ln = i + 2;
+                    var o = { group: r[idx['组别']].trim(), stage: r[idx['阶段']].trim(), when: r[idx['对战时间']].trim(),
+                              team_a: r[idx['队伍A']].trim(), team_b: r[idx['队伍B']].trim(), map: r[idx['地图']].trim(),
+                              sa: parseInt(r[idx['图比分A']], 10), sb: parseInt(r[idx['图比分B']], 10) };
+                    var errs = [];
+                    if (!o.group || !o.team_a || !o.team_b || !o.map) errs.push('组别/队伍/地图不能为空');
+                    if (isNaN(o.sa) || isNaN(o.sb) || o.sa < 0 || o.sb < 0) errs.push('比分须为非负整数');
+                    if (!o.when || isNaN(new Date(o.when.replace(' ', 'T')).getTime())) errs.push('对战时间格式不对');
+                    if (teams.size && o.team_a && !teams.has(o.team_a)) errs.push('队伍A「' + o.team_a + '」不在花名册');
+                    if (teams.size && o.team_b && !teams.has(o.team_b)) errs.push('队伍B「' + o.team_b + '」不在花名册');
+                    if (!window.__mfCanEditAll) {
+                        /* 队长仅本队（队名集合由 mfScope 队推导：用花名册中本人队伍近似——以锁定赛程队伍为准） */
+                        var myT = (window.__myTeams || []);
+                        if (myT.length && myT.indexOf(o.team_a) < 0 && myT.indexOf(o.team_b) < 0) errs.push('队长仅能导入本队比赛');
+                    }
+                    if (errs.length) errors.push('第 ' + ln + ' 行：' + errs.join('；'));
+                    else valid.push(o);
+                });
+                csvChecked = valid;
+                document.getElementById('csv-import').disabled = !(valid.length && !errors.length);
+                report.innerHTML =
+                    (errors.length ? '<p style="color:var(--coral-pulse); white-space:pre-line;">预检未通过（' + errors.length + ' 行有问题）：\n' + errors.slice(0, 30).join('\n') + '</p>' : '') +
+                    (valid.length ? '<p style="color:var(--success-green);">' + valid.length + ' 行通过预检' + (errors.length ? '，修正错误后才能整批导入' : '，可确认导入') + '</p>' : '');
+            });
+        });
+        document.getElementById('csv-import').addEventListener('click', doCsvImport);
+        loadCsvBatches();
+    }
+    async function doCsvImport() {
+        if (!csvChecked || !csvChecked.length) return;
+        var me = HWAuth.getSession();
+        var batchNo = 'IMP-' + Date.now();
+        var bIns = await supabaseClient.from('import_batches').insert([{
+            batch_no: batchNo, event_id: boundEvent ? boundEvent.id : null, season: currentSeason,
+            imported_by: me ? me.id : null, row_count: csvChecked.length, detail: { rows: csvChecked }
+        }]).select().single();
+        if (bIns.error) { HWLayout.toast('建批次失败（请先执行 install.sql）: ' + bIns.error.message, 'err'); return; }
+        var batchId = bIns.data.id;
+        /* 逐图写入 matches */
+        var mRows = csvChecked.map(function (o) {
+            return { 'group': o.group, stage: o.stage, match_date: HWLayout.fromBJInputValue(o.when.replace(' ', 'T')) || new Date(o.when.replace(' ', 'T')).toISOString(),
+                     map: o.map, score: o.sa + ':' + o.sb, team_a: o.team_a, team_b: o.team_b,
+                     event_id: boundEvent ? boundEvent.id : null, import_batch_id: batchId };
+        });
+        var mIns = await supabaseClient.from(getSeasonTableName('matches')).insert(mRows);
+        if (mIns.error) { HWLayout.toast('写入赛果失败: ' + mIns.error.message, 'err'); return; }
+        /* 按系列赛汇总大比分写赛程行 */
+        var series = {};
+        csvChecked.forEach(function (o) {
+            var k = [o.group, o.stage, o.when, o.team_a, o.team_b].join('|');
+            if (!series[k]) series[k] = { o: o, a: 0, b: 0 };
+            if (o.sa > o.sb) series[k].a++; else if (o.sb > o.sa) series[k].b++;
+        });
+        var sRows = Object.keys(series).map(function (k, i) {
+            var v = series[k];
+            return { 'group': v.o.group, match_id: batchNo + '-' + (i + 1), team_a: v.o.team_a, team_b: v.o.team_b,
+                     score_a: v.a, score_b: v.b,
+                     match_date: HWLayout.fromBJInputValue(v.o.when.replace(' ', 'T')) || new Date(v.o.when.replace(' ', 'T')).toISOString(),
+                     import_batch_id: batchId, result_status: window.__mfCanConfirm ? 'confirmed' : 'pending' };
+        });
+        var sIns = await supabaseClient.from(getSeasonTableName('match_schedule')).insert(sRows);
+        if (sIns.error) HWLayout.toast('赛程行写入失败（赛果已入库）: ' + sIns.error.message, 'err');
+        HWLayout.writeAudit('import.create', 'import_batch', batchId, { rows: csvChecked.length, season: currentSeason });
+        HWLayout.toast('已导入 ' + csvChecked.length + ' 图 / ' + sRows.length + ' 场（批次 ' + batchNo + '）');
+        csvChecked = null;
+        document.getElementById('csv-import').disabled = true;
+        loadCsvBatches();
+    }
+    function loadCsvBatches() {
+        var host = document.getElementById('csv-batches');
+        if (!host) return;
+        supabaseClient.from('import_batches').select('*').eq('season', currentSeason)
+            .order('created_at', { ascending: false }).limit(10)
+            .then(function (r) {
+                var rows = (r && r.data) || [];
+                if (!rows.length) { host.innerHTML = ''; return; }
+                host.innerHTML = '<h4 style="margin:0 0 8px; font-size:14px;">导入批次</h4>' + rows.map(function (b) {
+                    return '<div class="admin-row" style="justify-content:space-between; border-top:1px solid rgba(255,255,255,.08); padding:6px 0;">' +
+                        '<span>' + b.batch_no + ' · ' + b.row_count + ' 行 · ' + (b.status === 'undone' ? '已撤销' : '已导入') + '</span>' +
+                        (b.status !== 'undone' ? '<button class="btn btn-ghost" data-undo="' + b.id + '" type="button">整批撤销</button>' : '') + '</div>';
+                }).join('');
+                host.querySelectorAll('[data-undo]').forEach(function (btn) {
+                    btn.addEventListener('click', function () { undoCsvBatch(parseInt(btn.dataset.undo, 10)); });
+                });
+            }, function () { host.innerHTML = ''; });
+    }
+    async function undoCsvBatch(batchId) {
+        var ok = await HWLayout.confirmDialog({ title: '撤销整批导入', message: '将删除该批次写入的全部赛果行；已确认的赛程行会保留并提示。确定撤销？', okText: '撤销导入', danger: true });
+        if (!ok) return;
+        await supabaseClient.from(getSeasonTableName('matches')).delete().eq('import_batch_id', batchId);
+        var conf = await supabaseClient.from(getSeasonTableName('match_schedule')).select('id')
+            .eq('import_batch_id', batchId).eq('result_status', 'confirmed');
+        await supabaseClient.from(getSeasonTableName('match_schedule')).delete()
+            .eq('import_batch_id', batchId).neq('result_status', 'confirmed');
+        await supabaseClient.from('import_batches').update({ status: 'undone', undone_at: new Date().toISOString() }).eq('id', batchId);
+        HWLayout.writeAudit('import.undo', 'import_batch', batchId, { keptConfirmed: (conf.data || []).length });
+        HWLayout.toast('批次已撤销' + ((conf.data || []).length ? '；' + conf.data.length + ' 场已确认赛程保留，请人工处理' : ''));
+        loadCsvBatches();
+    }
+
+    /* ── 队伍管理 ── */
+    function teamNames() {
+        var set = new Set();
+        (allPlayersData || []).forEach(function (x) { if (x.team) set.add(x.team); });
+        return Array.from(set);
+    }
+    function initTeamMgmt() {
+        var sel = document.getElementById('tm-team');
+        if (!sel) return;
+        var names = teamNames();
+        sel.innerHTML = names.map(function (t) { return '<option>' + t + '</option>'; }).join('');
+        var fillTargets = function () {
+            var team = sel.value;
+            var tg = document.getElementById('tm-target');
+            supabaseClient.from(getSeasonTableName('player_stats')).select('player_name, game_id, role').eq('team', team)
+                .then(function (r) {
+                    tg.innerHTML = ((r && r.data) || []).map(function (x) {
+                        return '<option value="' + (x.game_id || '') + '" data-name="' + x.player_name + '">' + x.player_name + (x.role === '队长' ? '（现队长）' : '') + '</option>';
+                    }).join('');
+                });
+        };
+        sel.addEventListener('change', fillTargets);
+        fillTargets();
+        loadTransferInbox();
+        document.getElementById('tm-rename').addEventListener('click', async function () {
+            var oldName = sel.value, newName = document.getElementById('tm-newname').value.trim();
+            if (!oldName || !newName || oldName === newName) { HWLayout.toast('请选择队伍并填写不同的新队名', 'info'); return; }
+            var ok = await HWLayout.confirmDialog({ title: '队伍改名', message: '将「' + oldName + '」改名为「' + newName + '」？花名册与未开赛赛程会同步，已结算比赛保留旧名快照。', okText: '改名' });
+            if (!ok) return;
+            var stats = getSeasonTableName('player_stats'), ids = getSeasonTableName('player_ids'), sch = getSeasonTableName('match_schedule');
+            await supabaseClient.from(stats).update({ team: newName }).eq('team', oldName);
+            await supabaseClient.from(ids).update({ team: newName }).eq('team', oldName);
+            await supabaseClient.from(sch).update({ team_a: newName }).eq('team_a', oldName).is('score_a', null);
+            await supabaseClient.from(sch).update({ team_b: newName }).eq('team_b', oldName).is('score_b', null);
+            HWLayout.writeAudit('team.rename', 'team', oldName, { next: newName, season: currentSeason });
+            HWLayout.toast('已改名，选手页将随同步更新');
+            loadInitialData().then(function () { initTeamMgmt(); });
+        });
+        document.getElementById('tm-transfer').addEventListener('click', async function () {
+            var me = HWAuth.getSession();
+            var tg = document.getElementById('tm-target');
+            var gid = tg.value, pname = tg.options[tg.selectedIndex] ? tg.options[tg.selectedIndex].dataset.name : '';
+            if (!gid) { HWLayout.toast('目标选手没有绑定游戏 ID，无法发起转让', 'err'); return; }
+            var uRes = await supabaseClient.from('site_users').select('id').eq('game_id', gid).maybeSingle();
+            if (!uRes.data) { HWLayout.toast('目标选手尚未绑定站内账号，无法发起转让', 'err'); return; }
+            var ins = await supabaseClient.from('team_transfer_requests').insert([{
+                season: currentSeason, team_name: sel.value, from_user_id: me ? me.id : null, to_user_id: uRes.data.id
+            }]);
+            if (ins.error) { HWLayout.toast('发起失败（请先执行 install.sql）: ' + ins.error.message, 'err'); return; }
+            HWLayout.notifyUser(uRes.data.id, '队长转让邀请', '「' + sel.value + '」邀请你担任队长，请到活动数据台确认。', 'manage.html');
+            HWLayout.toast('已发起转让，等待 ' + pname + ' 确认');
+        });
+    }
+    function loadTransferInbox() {
+        var host = document.getElementById('transfer-inbox');
+        var me = HWAuth.getSession();
+        if (!host || !me) return;
+        supabaseClient.from('team_transfer_requests').select('*')
+            .eq('to_user_id', me.id).eq('status', 'pending').eq('season', currentSeason)
+            .then(function (r) {
+                var rows = (r && r.data) || [];
+                if (!rows.length) { host.innerHTML = ''; return; }
+                host.innerHTML = rows.map(function (x) {
+                    return '<div class="admin-row" style="justify-content:space-between; background:rgba(255,190,60,.08); padding:8px 10px; border-radius:8px;">' +
+                        '<span>「' + x.team_name + '」邀请你担任队长</span>' +
+                        '<span><button class="btn btn-primary" data-tacc="' + x.id + '" type="button">接受</button> ' +
+                        '<button class="btn btn-ghost" data-trej="' + x.id + '" type="button">拒绝</button></span></div>';
+                }).join('');
+                host.querySelectorAll('[data-tacc]').forEach(function (b) { b.addEventListener('click', function () { decideTransfer(parseInt(b.dataset.tacc, 10), true); }); });
+                host.querySelectorAll('[data-trej]').forEach(function (b) { b.addEventListener('click', function () { decideTransfer(parseInt(b.dataset.trej, 10), false); }); });
+            }, function () { host.innerHTML = ''; });
+    }
+    async function decideTransfer(id, accept) {
+        var me = HWAuth.getSession();
+        var r = await supabaseClient.from('team_transfer_requests').select('*').eq('id', id).maybeSingle();
+        var req = r.data;
+        if (!req) return;
+        await supabaseClient.from('team_transfer_requests')
+            .update({ status: accept ? 'accepted' : 'rejected', decided_at: new Date().toISOString() }).eq('id', id);
+        if (accept && me) {
+            var stats = getSeasonTableName('player_stats');
+            await supabaseClient.from(stats).update({ role: '选手' }).eq('team', req.team_name).eq('role', '队长');
+            await supabaseClient.from(stats).update({ role: '队长' }).eq('team', req.team_name).eq('game_id', me.game_id || '__none__');
+            HWLayout.writeAudit('team.transfer', 'team', req.team_name, { to: me.id, season: currentSeason });
+            HWLayout.toast('你已成为「' + req.team_name + '」队长');
+        } else {
+            HWLayout.toast('已拒绝转让邀请');
+        }
+        loadTransferInbox();
+    }
+
+    /* ── 归档赛季只读 ── */
+    function applyArchivedGuard() {
+        HWLayout.getSeasons().then(function (list) {
+            var row = list.find(function (x) { return x.season_key === currentSeason; });
+            if (!row || row.status !== 'archived') return;
+            var shell = document.getElementById('manage-shell');
+            if (shell && !document.getElementById('archived-banner')) {
+                var b = document.createElement('div');
+                b.id = 'archived-banner';
+                b.className = 'notice';
+                b.style.marginBottom = '14px';
+                b.innerHTML = '<strong>该赛季已归档（只读）。</strong> 如需继续录入，请管理员在管理后台取消归档。';
+                shell.prepend(b);
+            }
+            ['mf-save', 'submit-matches', 'update-match', 'update-ids', 'merge-new-fixture', 'csv-import'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) { el.disabled = true; el.title = '赛季已归档，只读'; }
+            });
+        });
+    }
 </script>
 </body>
 </html>

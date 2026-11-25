@@ -54,9 +54,9 @@
     <div id="rv-gate" class="card" hidden>
       <span class="eyebrow">Admin</span>
       <h2 class="section-title" style="margin-top:8px;">管理员验证</h2>
-      <p class="muted" style="margin:6px 0 14px;">输入管理员口令进入报名审核。</p>
+      <p class="muted" style="margin:6px 0 14px;">输入一次性管理员口令进入报名审核（由超级管理员在管理后台生成，用后即失效）。</p>
       <div class="filter-bar" style="margin-bottom:0;">
-        <input class="input" id="rv-pwd" type="password" placeholder="管理员口令" style="width:240px;">
+        <input class="input" id="rv-pwd" type="password" placeholder="一次性管理员口令" style="width:240px;">
         <button class="btn btn-primary" id="rv-verify" type="button">验证</button>
       </div>
       <p class="smoke" id="rv-gate-msg" style="font-size:13px; min-height:16px; margin-top:10px;"></p>
@@ -75,6 +75,8 @@
         </select>
         <select class="select" id="rv-filter-team"><option value="">全部队伍</option></select>
         <button class="btn btn-primary btn-sm" id="rv-batch-approve" type="button" disabled>批量通过 (0)</button>
+        <button class="btn btn-ghost btn-sm" id="rv-batch-reject" type="button" disabled>批量拒绝 (0)</button>
+        <button class="btn btn-ghost btn-sm" id="rv-promote" type="button" hidden>候补递补</button>
       </div>
       <div id="rv-feed" class="rv-feed"><div class="empty-state">加载中…</div></div>
     </div>
@@ -121,13 +123,11 @@
         if (!pwd) { document.getElementById('rv-gate-msg').textContent = '请输入口令。'; return; }
         var btn = document.getElementById('rv-verify');
         btn.disabled = true; btn.textContent = '验证中…';
-        sb().rpc('check_admin_password', { input_pwd: pwd })
+        HWLayout.redeemAdminCode(pwd)
           .then(function (res) {
             btn.disabled = false; btn.textContent = '验证';
-            if (res.error || res.data !== true) { document.getElementById('rv-gate-msg').textContent = '口令错误。'; return; }
+            if (!res.ok) { document.getElementById('rv-gate-msg').textContent = res.error || '口令无效或已失效。'; return; }
             sessionStorage.setItem('hw_admin_verified_at', String(Date.now()));
-            HWLayout.markAdmin(15);
-            HWLayout.promoteRole(pwd);
             document.dispatchEvent(new CustomEvent('hw:admin'));
             boot();
           }).catch(function (e) {
@@ -135,6 +135,13 @@
             document.getElementById('rv-gate-msg').textContent = '验证失败：' + (e.message || e);
           });
       });
+
+      function waitlistPosOf(r) {
+        var wl = regs.filter(function (x) { return x.status === 'waitlist'; })
+          .sort(function (a, b) { return String(a.created_at || '') < String(b.created_at || '') ? -1 : 1; });
+        var i = wl.findIndex(function (x) { return x.id === r.id; });
+        return i >= 0 ? i + 1 : 1;
+      }
 
       /* ---------- 数据 ---------- */
       function loadAll() {
@@ -196,6 +203,10 @@
         }).length;
         var btn = document.getElementById('rv-batch-approve');
         btn.textContent = '批量通过 (' + n + ')';
+        var rbtn = document.getElementById('rv-batch-reject');
+        if (rbtn) { rbtn.textContent = '批量拒绝 (' + n + ')'; rbtn.disabled = n === 0; }
+        var pbtn = document.getElementById('rv-promote');
+        if (pbtn) pbtn.hidden = !regs.some(function (x) { return x.status === 'waitlist'; });
         btn.disabled = n === 0;
       }
       function renderFeed() {
@@ -224,7 +235,7 @@
             '  <span class="sub">' + esc((p && p.game_id) || u.game_id || u.username || '') +
             (u.username && u.username !== name ? ' · @' + esc(u.username) : '') + '</span>' +
             '  <span class="tags">' +
-            '    <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
+            '    <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' + (r.status === 'waitlist' ? ' <span class="smoke" style="font-size:12px;">第 ' + waitlistPosOf(r) + ' 位</span>' : '') +
             '    <span class="badge badge-quiet">' + esc(r.team_name || '待分队') + '</span>' +
             (r.new_team ? '<span class="badge badge-blue">新建队伍</span>' : '') +
             (HWLayout.isBannedUser(u) ? '<span class="badge badge-ban">' + HWLayout.ico('ban', 12) + '已禁赛</span>' : '') +
@@ -280,7 +291,7 @@
           '<span class="eyebrow">Application</span>' +
           '<h3 class="modal-title" style="margin-top:6px;">' + esc((p && p.real_name) || u.nickname || u.username || ('用户#' + r.user_id)) + ' · 报名详情</h3>' +
           '<div class="tags" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">' +
-          '  <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
+          '  <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' + (r.status === 'waitlist' ? ' <span class="smoke" style="font-size:12px;">候补第 ' + waitlistPosOf(r) + ' 位</span>' : '') +
           '  <span class="badge badge-quiet">提交 ' + fmtTime(r.created_at) + '</span>' +
           (r.new_team ? '<span class="badge badge-blue">新建队伍 → 通过后自动队长</span>' : '') +
           (p && p.shots_verified ? '<span class="badge badge-green rv-verified">' + HWLayout.ico('badge-check', 12) + '截图已核对</span>' : '') +
@@ -351,7 +362,7 @@
         var approved = regs.filter(function (r) { return r.status === 'approved'; }).length;
         return Math.max(0, ev.max_slots - approved);
       }
-      function applyStatus(reg, status) {
+      function applyStatus(reg, status, reason) {
         return sb().from('event_registrations').update({ status: status, updated_at: new Date().toISOString() })
           .eq('id', reg.id)
           .then(function (res) {
@@ -362,7 +373,7 @@
               ? (isCaptainGrant
                   ? '新队伍「' + teamName + '」已通过，你已成为本活动队长。'
                   : '你已加入「' + teamName + '」。')
-              : '报名未通过' + (teamName ? '（' + teamName + '）' : '') + '，如有疑问请联系管理员。';
+              : '报名未通过' + (teamName ? '（' + teamName + '）' : '') + (reason ? '。原因：' + reason : '') + '，如有疑问请联系管理员。';
             HWLayout.notifyUser(reg.user_id, status === 'approved' ? '报名已通过' : '报名未通过', body, 'register.html?event=' + ev.id);
             if (isCaptainGrant) grantEventCaptain(reg);
             return true;
@@ -438,10 +449,36 @@
           });
       }
 
+      function batchReject() {
+        var targets = Object.keys(rvSel).map(function (id) { return parseInt(id, 10); })
+          .map(function (id) { return regs.find(function (x) { return x.id === id; }); })
+          .filter(function (r) { return r && r.status === 'pending'; });
+        if (!targets.length) return;
+        var reason = window.prompt('填写拒绝原因（会通知到报名者，可留空）：', '') || '';
+        var btn = document.getElementById('rv-batch-reject');
+        btn.disabled = true; btn.textContent = '拒绝中…';
+        Promise.all(targets.map(function (r) { return applyStatus(r, 'rejected', reason); }))
+          .then(function (oks) {
+            var n = oks.filter(Boolean).length;
+            rvSel = {};
+            HWLayout.toast('已批量拒绝 ' + n + ' 条报名' + (n < targets.length ? '（' + (targets.length - n) + ' 条失败）' : ''), n === targets.length ? 'ok' : 'info');
+            return loadAll();
+          })
+          .then(function () { renderChips(); renderFeed(); })
+          .catch(function () { renderFeed(); });
+      }
+
       /* ---------- 工具栏事件 ---------- */
       document.getElementById('rv-filter-status').addEventListener('change', renderFeed);
       document.getElementById('rv-filter-team').addEventListener('change', renderFeed);
       document.getElementById('rv-batch-approve').addEventListener('click', batchApprove);
+      document.getElementById('rv-batch-reject').addEventListener('click', batchReject);
+      document.getElementById('rv-promote').addEventListener('click', function () {
+        HWLayout.promoteWaitlist(ev).then(function (n) {
+          HWLayout.toast(n ? ('已递补 ' + n + ' 名候补到待审核') : '暂无可递补名额或候补', n ? 'ok' : 'info');
+          return loadAll();
+        }).then(function () { renderChips(); renderFeed(); });
+      });
       document.getElementById('rv-select-all').addEventListener('change', function () {
         var on = this.checked;
         filteredRegs().forEach(function (r) {

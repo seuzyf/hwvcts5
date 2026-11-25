@@ -153,9 +153,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function () {
-        var SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
-        var SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
-        var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        var supabaseClient = HWLayout.supa(); /* 连接配置收敛：js/layout.js 唯一出处 */
 
         var matchesView = document.getElementById('matches-view');
         var modal = document.getElementById('modal');

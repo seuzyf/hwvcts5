@@ -253,10 +253,7 @@
 
 <script>
 
-    const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
-    const { createClient } = supabase;
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabaseClient = HWLayout.supa(); /* 连接配置收敛：js/layout.js 唯一出处 */
     
     let currentUserIP = null;
 
@@ -267,9 +264,11 @@
     }
     
     async function fetchAllComments(uniquePlayerKey) {
-        const { data, error } = await supabaseClient.from('s6_comments').select('*').eq('player_key', uniquePlayerKey).order('created_at', { ascending: true });
+        let commentQuery = supabaseClient.from('s6_comments').select('*').eq('player_key', uniquePlayerKey).order('created_at', { ascending: true });
+        const { data, error } = await commentQuery;
         if (error) { console.error('获取评论失败:', error); return []; }
-        return data;
+        /* 已隐藏评论不对访客展示（旧数据无 status 列时不过滤） */
+        return (data || []).filter(c => !c.status || c.status === 'visible');
     }
     
     function displayComments(playerComments, uniquePlayerKey) {
@@ -298,6 +297,7 @@
                         ${comment.rating ? `<span class="comment-rating">评分: <span>${comment.rating}</span> / 10</span>` : ''}
                          <div style="margin-left:auto; display:flex; gap:5px;">
                              <button class="reply-comment-btn" data-comment-id="${comment.id}">回复</button>
+                             <button class="reply-comment-btn report-comment-btn" data-comment-id="${comment.id}">举报</button>
                             ${comment.ip === currentUserIP ? `<button class="delete-comment-btn" data-comment-id="${comment.id}">删除</button>` : ''}
                         </div>
                     </div>
@@ -322,7 +322,17 @@
                 });
             });
         });
-        document.querySelectorAll('.reply-comment-btn').forEach(button => { button.addEventListener('click', (event) => { const commentId = event.target.dataset.commentId; showReplyForm(commentId, uniquePlayerKey); }); });
+        document.querySelectorAll('.reply-comment-btn:not(.report-comment-btn)').forEach(button => { button.addEventListener('click', (event) => { const commentId = event.target.dataset.commentId; showReplyForm(commentId, uniquePlayerKey); }); });
+        document.querySelectorAll('.report-comment-btn').forEach(button => { button.addEventListener('click', async (event) => {
+            const commentId = parseInt(event.target.dataset.commentId, 10);
+            const sess = (typeof HWAuth !== 'undefined') ? HWAuth.getSession() : null;
+            if (!sess) { HWLayout.toast('请先登录再举报', 'err'); if (HWAuth.openModal) HWAuth.openModal({ stay: true }).catch(() => {}); return; }
+            const reason = window.prompt('举报原因（必填）：', '') || '';
+            if (!reason.trim()) return;
+            const r = await supabaseClient.from('comment_reports').insert([{ comment_id: commentId, season: 's6', reporter_id: sess.id, reason: reason.trim() }]);
+            if (r.error) { HWLayout.toast('举报失败（请先执行 install.sql）: ' + r.error.message, 'err'); return; }
+            HWLayout.toast('举报已提交，管理员会处理');
+        }); });
     }
     
     function showReplyForm(parentCommentId, uniquePlayerKey) {

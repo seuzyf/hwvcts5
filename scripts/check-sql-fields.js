@@ -1,15 +1,16 @@
 /* 字段契约检查：防止 SQL 语法过但列不存在（seed 116 行事故）。
- * 1) 从 schema/bootstrap/migration_v3 的 create table 提取每张表列名；
- * 2) 核对 seed/hardening/migration_v3 里 `insert into T (a,b,c)` 的列都在 T 中；
- *    表不在 DDL 集合里（如循环建表）时跳过并计数。
+ * 1) 从 install.sql 的 create table / add column 提取每张表列名；
+ * 2) 核对 seed.sql / install.sql 里 `insert into T (a,b,c)` 的列都在 T 中；
+ * 3) 运行时依赖清单：前端依赖的表/列必须能在 install.sql 中找到，
+ *    缺失即报错（防止再次出现 matches.event_id 那类事故）。
  * 用法: npm run check:fields
  */
 const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const DDL_FILES = ['supabase/schema.sql', 'supabase/bootstrap.sql', 'supabase/migration_v3.sql'];
-const CHECK_FILES = ['supabase/seed.sql', 'supabase/hardening.sql', 'supabase/migration_v3.sql'];
+const DDL_FILES = ['supabase/install.sql'];
+const CHECK_FILES = ['supabase/seed.sql', 'supabase/install.sql'];
 
 function read(f) {
   const p = path.join(ROOT, f);
@@ -59,10 +60,16 @@ DDL_FILES.forEach((f) => {
     tables[t].add(m[2].toLowerCase());
   }
 });
-/* 动态 DDL 补列（schema.sql 13.6 用 execute format 给比赛表加 event_id，静态解析不到，显式登记） */
+/* 动态 DDL 补列（install.sql 用 execute format 动态加的列，静态解析不到，显式登记；
+   注意：登记只补解析盲区，下方运行时依赖清单会反过来核对这些列确有保障） */
 ['s5_matches', 's6_matches'].forEach((t) => {
   if (!tables[t]) tables[t] = new Set();
   tables[t].add('event_id');
+  tables[t].add('import_batch_id');
+});
+['s5_match_schedule', 's6_match_schedule'].forEach((t) => {
+  if (!tables[t]) tables[t] = new Set();
+  ['result_status', 'submitted_by', 'confirmed_by', 'confirmed_at', 'import_batch_id'].forEach((c) => tables[t].add(c));
 });
 
 /* s5_* 表多由 (like s6_*) 生成，补齐镜像 */
@@ -70,6 +77,27 @@ Object.keys(tables).filter((t) => t.startsWith('s6_')).forEach((t) => {
   const s5 = 's5_' + t.slice(3);
   if (!tables[s5]) tables[s5] = new Set(tables[t]);
 });
+
+/* 运行时依赖清单：前端代码依赖的表/列，install.sql 必须能保障（建表列或补齐段） */
+const RUNTIME_TABLES = ['admin_access_codes', 'login_attempts', 'seasons', 'registration_revisions',
+  'event_templates', 'import_batches', 'comment_reports', 'team_transfer_requests', 'bet_odds_snapshots'];
+const RUNTIME_COLS = {
+  s5_matches: ['event_id', 'import_batch_id'], s6_matches: ['event_id', 'import_batch_id'],
+  s5_match_schedule: ['result_status', 'import_batch_id'], s6_match_schedule: ['result_status', 'import_batch_id'],
+  s6_comments: ['status', 'hidden_by', 'hidden_at', 'hide_reason'],
+  goods_redemptions: ['status', 'refund_reason', 'refunded_by', 'refunded_at'],
+  events: ['deleted_at', 'organizer_id'],
+};
+let depErrors = 0;
+RUNTIME_TABLES.forEach((t) => {
+  if (!tables[t]) { console.error('运行时依赖缺失：表 ' + t + ' 不在 install.sql 中'); depErrors++; }
+});
+Object.entries(RUNTIME_COLS).forEach(([t, cols]) => {
+  cols.forEach((c) => {
+    if (!tables[t] || !tables[t].has(c)) { console.error('运行时依赖缺失：' + t + '.' + c); depErrors++; }
+  });
+});
+if (depErrors) { console.error('运行时依赖清单核对失败：' + depErrors + ' 项'); process.exit(1); }
 
 let errors = 0;
 let checked = 0;

@@ -1378,3 +1378,12 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
     scroll-behavior: auto !important;
   }
 }
+
+/* ── 打印样式（本轮统一）：浅色、去导航、表格不截断 ───────────────── */
+@media print {
+  body { background: #fff !important; color: #111 !important; }
+  header, footer, .topbar, .nav, .event-bar, .btn, button, .filter-bar, .tabs, .seg { display: none !important; }
+  .card, .data-section, table { box-shadow: none !important; border-color: #ccc !important; break-inside: avoid; }
+  a { color: #111 !important; text-decoration: none !important; }
+  main, .container { max-width: none !important; padding: 0 !important; }
+}

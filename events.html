@@ -268,7 +268,7 @@
                     </div>
                     <div>
                         <label class="form-label" for="cf-season">赛季</label>
-                        <input class="input" id="cf-season" value="S6" maxlength="10">
+                        <select class="select" id="cf-season"><option value="S6">第六赛季</option></select>
                     </div>
                     <div>
                         <label class="form-label" for="cf-status">状态</label>
@@ -348,6 +348,17 @@
                         <div style="font-size: 13px; color:var(--smoke); margin-top:6px;">jpg / png / webp，≤ 2MB；不上传则卡片显示封面图标（emoji）</div>
                     </div>
                 </div>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label" for="cf-template">从模板新建</label>
+                        <select class="select" id="cf-template"><option value="">不使用模板</option></select>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:flex-end; padding-bottom:2px;">
+                        <button class="btn btn-ghost btn-sm" id="cf-tpl-apply" type="button">套用模板</button>
+                        <button class="btn btn-ghost btn-sm" id="cf-tpl-save" type="button">存为模板</button>
+                        <button class="btn btn-ghost btn-sm" id="cf-tpl-del" type="button">删除模板</button>
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button class="btn btn-ghost" type="button" data-close="create-modal">取消</button>
                     <button class="btn btn-primary" id="cf-submit" type="submit">创建</button>
@@ -362,8 +373,8 @@
             <button class="modal-close" data-close="admin-modal" type="button" aria-label="关闭">&times;</button>
             <span class="eyebrow">Admin Gate</span>
             <h3 class="modal-title" style="margin-top:8px;">管理员验证</h3>
-            <label class="form-label" for="admin-pwd">管理口令</label>
-            <input class="input" id="admin-pwd" type="password" placeholder="输入管理口令以创建 / 审核活动">
+            <label class="form-label" for="admin-pwd">一次性管理员口令</label>
+            <input class="input" id="admin-pwd" type="password" placeholder="输入超级管理员生成的一次性口令（用后即失效）">
             <div class="modal-actions">
                 <button class="btn btn-ghost" type="button" data-close="admin-modal">取消</button>
                 <button class="btn btn-primary" id="admin-verify-btn" type="button">验证</button>
@@ -531,7 +542,7 @@
                 '<h2 style="font-weight:400; color:var(--pure-white); margin:12px 0 10px;">数据库尚未升级</h2>' +
                 '<p class="muted" style="font-size: 15px; max-width:540px; margin:0 auto 20px; line-height:1.8;">' +
                 '活动大厅依赖新表 <span class="mono" style="color:var(--mist)">events / event_registrations / site_users</span>。<br>' +
-                '请在 Supabase SQL Editor 整段执行 <span class="mono" style="color:var(--mist)">supabase/schema.sql</span> 后刷新。' +
+                '请在 Supabase SQL Editor 整段执行 <span class="mono" style="color:var(--mist)">supabase/install.sql</span> 后刷新。' +
                 '执行前可先使用旧版入口：</p>' +
                 '<div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">' +
                 '  <a class="btn btn-ghost" href="matches.html">比赛中心</a>' +
@@ -617,7 +628,13 @@
             if (tableMissing) { renderMissing(); return; }
             var u = HWAuth.getSession();
             if (!u) {
-                main.innerHTML = '<div class="empty-state">登录后查看我的报名。<br><br>' +
+                function waitlistPos(list, r) {
+                var wl = list.filter(function (x) { return x.event_id === r.event_id && x.status === 'waitlist'; })
+                    .sort(function (a, b) { return String(a.created_at || '') < String(b.created_at || '') ? -1 : 1; });
+                var i = wl.findIndex(function (x) { return x.id === r.id; });
+                return i >= 0 ? i + 1 : 1;
+            }
+            main.innerHTML = '<div class="empty-state">登录后查看我的报名。<br><br>' +
                     '<button class="btn btn-primary" id="mine-login" type="button">登录 / 注册</button></div>';
                 document.getElementById('mine-login').addEventListener('click', function () {
                     HWAuth.openModal({ stay: true }).then(render).catch(function () {});
@@ -640,7 +657,8 @@
                     '  <div class="t">' + esc(ev.title || '（活动已删除）') + '</div>' +
                     '  <div class="s">报名于 ' + fmtTime(r.created_at) +
                     (r.team_name ? ' · 战队「' + esc(r.team_name) + '」' : ' · 待分队') +
-                    (ev.start_time ? ' · 活动 ' + fmtTime(ev.start_time) : '') + '</div>' +
+                    (ev.start_time ? ' · 活动 ' + fmtTime(ev.start_time) : '') +
+                    (r.status === 'waitlist' ? ' · 候补第 ' + waitlistPos(allRegs, r) + ' 位' : '') + '</div>' +
                     '</div>' +
                     '<div class="mine-ops">' +
                     '  <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
@@ -710,7 +728,7 @@
                 sb.from('player_honors').select('id, player_name, game_id, title, description, awarded_at')
                     .eq('event_id', ev.id).order('awarded_at', { ascending: false })
                     .then(function (r) {
-                        if (r.error) { listEl.innerHTML = '<span class="muted">荣誉表未就绪：请先执行 supabase/migration_v3.sql。</span>'; return; }
+                        if (r.error) { listEl.innerHTML = '<span class="muted">荣誉表未就绪：请先执行 supabase/install.sql。</span>'; return; }
                         var rows = r.data || [];
                         if (!rows.length) { listEl.innerHTML = '<span class="muted">本活动暂无已发放荣誉。</span>'; return; }
                         listEl.innerHTML = rows.map(function (h) {
@@ -906,6 +924,9 @@
                 '<div id="ev-workspace" class="tiles" style="margin-bottom:4px;">加载中…</div>' +
                 '</div>' +
                 (managePane ? '<div class="dt-pane" data-pane="manage" hidden>' + adminHtml + honorHtml(ev) +
+                  '<div class="section-label">活动复制</div>' +
+                  '<p class="muted" style="font-size:13px;">复制为新草稿（只复制活动设置，不带报名与赛程数据）。</p>' +
+                  '<button class="btn btn-ghost" id="adm-copy-ev" type="button">复制为草稿</button>' +
                   (isAdmin() ? '<div class="section-label" style="color:#ff8f8f;">危险操作</div>' +
                     '<p class="muted" style="font-size:13px;">删除后活动对所有人不可见（软删除，数据保留，超管可恢复）。</p>' +
                     '<button class="btn btn-danger" id="adm-delete-ev" type="button">删除活动</button>' : '') +
@@ -926,6 +947,24 @@
             });
             renderWorkspace(ev);
             wireHonors(ev);
+            var copyBtn = document.getElementById('adm-copy-ev');
+            if (copyBtn) copyBtn.addEventListener('click', function () {
+                copyBtn.disabled = true; copyBtn.textContent = '复制中…';
+                var copy = {
+                    title: (ev.title || '未命名活动') + '（副本）', event_type: ev.event_type, season: ev.season,
+                    status: 'draft', description: ev.description || '', rules: ev.rules || '', format: ev.format || '',
+                    start_time: ev.start_time, end_time: ev.end_time, reg_deadline: ev.reg_deadline,
+                    max_slots: ev.max_slots, venue: ev.venue || '', cover_emoji: ev.cover_emoji || '',
+                    cover_image: ev.cover_image || '', group_count: ev.group_count || 1,
+                    stream_url: ev.stream_url || '', organizer_id: ev.organizer_id || null, created_by: 'admin'
+                };
+                HWAuth.getClient().from('events').insert([copy]).then(function (r) {
+                    copyBtn.disabled = false; copyBtn.textContent = '复制为草稿';
+                    if (r.error) { HWLayout.toast('复制失败: ' + r.error.message, 'err'); return; }
+                    HWLayout.toast('已复制为草稿（不含报名与赛程）');
+                    closeDetail(); refresh();
+                });
+            });
 
             /* 详情页签切换 */
             panel.querySelectorAll('[data-dtab]').forEach(function (b) {
@@ -1131,14 +1170,12 @@
             if (!pwd) return;
             var btn = document.getElementById('admin-verify-btn');
             btn.disabled = true; btn.textContent = '验证中…';
-            HWAuth.getClient().rpc('check_admin_password', { input_pwd: pwd })
+            HWLayout.redeemAdminCode(pwd)
                 .then(function (res) {
                     btn.disabled = false; btn.textContent = '验证';
-                    if (res.error || res.data !== true) { HWLayout.toast('管理口令错误！'); return; }
+                    if (!res.ok) { HWLayout.toast(res.error || '口令无效或已失效', 'err'); return; }
                     sessionStorage.setItem('hw_admin_verified_at', String(Date.now()));
-                    // 口令正确 → 全站管理会话（15 分钟）+ 尝试把当前账号升级为 admin 角色
-                    HWLayout.markAdmin(15);
-                    HWLayout.promoteRole(pwd);
+                    // 一次性口令兑换成功 → 15 分钟管理员会话（不改变账号角色）
                     document.dispatchEvent(new CustomEvent('hw:admin'));
                     document.getElementById('admin-modal').classList.remove('visible');
                     updateAdminUI();
@@ -1220,6 +1257,78 @@
         });
 
 
+        /* 赛季下拉：来自 seasons 注册表（已归档赛季不可选新建活动） */
+        function populateSeasonSelect() {
+            var sel = document.getElementById('cf-season');
+            if (!sel) return;
+            HWLayout.getSeasons().then(function (list) {
+                var act = list.filter(function (x) { return x.status !== 'archived'; });
+                if (!act.length) act = list;
+                sel.innerHTML = act.map(function (x) {
+                    return '<option value="' + esc(String(x.season_key).toUpperCase()) + '"' +
+                        (x.is_current ? ' selected' : '') + '>' + esc(x.name || x.season_key) + '</option>';
+                }).join('');
+            });
+        }
+        populateSeasonSelect();
+
+        /* 活动模板：event_templates（表未部署时静默不可用） */
+        function loadTemplates() {
+            var sel = document.getElementById('cf-template');
+            if (!sel) return;
+            HWAuth.getClient().from('event_templates').select('*').order('created_at', { ascending: false })
+                .then(function (r) {
+                    if (r.error || !r.data) return;
+                    sel.innerHTML = '<option value="">不使用模板</option>' + r.data.map(function (t) {
+                        return '<option value="' + t.id + '" data-payload="' + esc(JSON.stringify(t.payload || {})) + '">' + esc(t.name) + '</option>';
+                    }).join('');
+                }, function () {});
+        }
+        loadTemplates();
+        function formPayload() {
+            return {
+                title: document.getElementById('cf-title').value, event_type: document.getElementById('cf-type').value,
+                season: document.getElementById('cf-season').value, format: document.getElementById('cf-format').value,
+                group_count: document.getElementById('cf-groups').value, venue: document.getElementById('cf-venue').value,
+                description: document.getElementById('cf-desc').value, rules: document.getElementById('cf-rules').value,
+                stream_url: document.getElementById('cf-stream').value, max_slots: document.getElementById('cf-slots').value
+            };
+        }
+        var tplApply = document.getElementById('cf-tpl-apply');
+        if (tplApply) tplApply.addEventListener('click', function () {
+            var sel = document.getElementById('cf-template');
+            var opt = sel.options[sel.selectedIndex];
+            if (!opt || !opt.dataset.payload) { HWLayout.toast('先选择一个模板', 'info'); return; }
+            var pl = {};
+            try { pl = JSON.parse(opt.dataset.payload); } catch (e) {}
+            var set = function (id, v) { var el = document.getElementById(id); if (el && v != null) el.value = v; };
+            set('cf-title', pl.title); set('cf-type', pl.event_type); set('cf-season', pl.season);
+            set('cf-format', pl.format); set('cf-groups', pl.group_count); set('cf-venue', pl.venue);
+            set('cf-desc', pl.description); set('cf-rules', pl.rules); set('cf-stream', pl.stream_url);
+            set('cf-slots', pl.max_slots);
+            HWLayout.toast('已套用模板');
+        });
+        var tplSave = document.getElementById('cf-tpl-save');
+        if (tplSave) tplSave.addEventListener('click', function () {
+            var u = HWAuth.getSession();
+            var name = window.prompt('模板名称：', document.getElementById('cf-title').value || '常用活动模板');
+            if (!name) return;
+            HWAuth.getClient().from('event_templates').insert([{ owner_id: u ? u.id : null, name: name, payload: formPayload() }])
+                .then(function (r) {
+                    if (r.error) { HWLayout.toast('保存模板失败（请先执行 install.sql）：' + r.error.message, 'err'); return; }
+                    HWLayout.toast('模板已保存'); loadTemplates();
+                });
+        });
+        var tplDel = document.getElementById('cf-tpl-del');
+        if (tplDel) tplDel.addEventListener('click', function () {
+            var sel = document.getElementById('cf-template');
+            if (!sel.value) { HWLayout.toast('先选择一个模板', 'info'); return; }
+            HWAuth.getClient().from('event_templates').delete().eq('id', sel.value).then(function (r) {
+                if (r.error) { HWLayout.toast('删除失败: ' + r.error.message, 'err'); return; }
+                HWLayout.toast('模板已删除'); loadTemplates();
+            });
+        });
+
         document.getElementById('create-form').addEventListener('submit', function (e) {
             e.preventDefault();
             var title = document.getElementById('cf-title').value.trim();
@@ -1263,7 +1372,7 @@
                     if (res.error) { HWLayout.toast('创建失败: ' + res.error.message); return; }
                     document.getElementById('create-modal').classList.remove('visible');
                     document.getElementById('create-form').reset();
-                    document.getElementById('cf-season').value = 'S6';
+                    populateSeasonSelect();
                     resetCoverField();
                     refresh();
                 });
