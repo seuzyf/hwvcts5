@@ -1,5 +1,7 @@
+# 纯静态站点：没有任何打包步骤，html/css/js 直接就是产物。
+# 但必须显式声明 command + publish，否则 Netlify 会判定"无需构建"而跳过部署。
 [build]
-  command = "npm run build"
+  command = "node scripts/build.js"
   publish = "dist"
 
 [build.environment]
