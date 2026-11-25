@@ -8,3 +8,6 @@ node_modules/
 
 # Local scratch
 .scratch/
+
+# 构建产物（Netlify 在 CI 里生成，不进仓库）
+dist/
