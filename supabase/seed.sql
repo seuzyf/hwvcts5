@@ -45,7 +45,11 @@ from (values
      8, '已结束', '📜')
 ) as v(code, title, event_type, season, status, description, rules, format,
        start_time, end_time, reg_deadline, max_slots, venue, cover_emoji)
-where not exists (select 1 from public.events e where e.title = v.title);
+/* 幂等：code 或 title 任一已存在就跳过。
+   以前只按 title 判，于是「同一个 code 换了标题」会撞 events_code_key。 */
+where not exists (
+    select 1 from public.events e where e.code = v.code or e.title = v.title
+);
 
 
 -- ---------------------------------------------------------------------
@@ -94,12 +98,19 @@ values
    '因故取消，仅用于验证筛选与状态展示。', '—', '5v5',
    now() + interval '1 day', now() + interval '1 day', now(), 8, '—', '🚫',
    (select id from public.site_users where username = 'organizer'))
+/* 幂等：code 撞了就更新展示字段。
+   注意不覆盖 status / reg_deadline / max_slots —— 重跑 seed 不该把
+   管理员手工改过的状态或已产生的报名数据冲掉。 */
 on conflict (code) do update set
   title = excluded.title,
-  status = excluded.status,
   description = excluded.description,
-  start_time = excluded.start_time,
-  end_time = excluded.end_time;
+  rules = excluded.rules,
+  format = excluded.format,
+  venue = excluded.venue,
+  cover_emoji = excluded.cover_emoji,
+  updated_at = now()
+/* 只在标题真的变了才写：重跑 seed 不产生无意义的 UPDATE 噪音 */
+where events.title is distinct from excluded.title;
 
 -- ---------------------------------------------------------------------
 -- 3. 选手花名册 + 权限/统计（每赛季同一批人）
@@ -470,7 +481,9 @@ do $$ begin
      30, '—', '⛔')
   ) as v(code, title, event_type, season, status, description, rules, format,
           start_time, end_time, reg_deadline, max_slots, venue, cover_emoji)
-  where not exists (select 1 from public.events e where e.code = v.code);
+  where not exists (
+      select 1 from public.events e where e.code = v.code or e.title = v.title
+  );
 exception when others then raise notice '⑩-2 events 跳过: %', sqlerrm; end $$;
 
 -- ⑩-3 tester 的三条报名：待审核 / 已通过 / 已撤回

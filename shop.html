@@ -121,15 +121,8 @@
     .cond-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
     .cond-row .select { flex: 1; min-width: 140px; }
     .cond-row .input { width: 90px; }
-    /* 「参与过指定活动」的多选：点一下就勾上，不需要按住 Ctrl */
-    .cond-picker { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px;
-                   border: 1px solid var(--border); border-radius: var(--r-btn); background: var(--obsidian); max-height: 132px; overflow-y: auto; }
-    .cond-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: var(--r-pill);
-                 border: 1px solid var(--border); font-size: 12.5px; color: var(--ash); cursor: pointer;
-                 transition: border-color var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out); }
-    .cond-chip:hover { border-color: var(--iron); color: var(--mist); }
-    .cond-chip input { accent-color: var(--coral-pulse); margin: 0; }
-    .cond-chip:has(input:checked) { border-color: var(--coral-pulse); color: var(--pure-white); }
+    /* 「参与过指定活动」：下拉选一个活动（一行放得下，不用展开一块复选框海） */
+    .cond-event { flex: 1 1 180px; }
     .rec-table td, .rec-table th { padding: 9px 10px; }
     @media (max-width: 560px) {
       .gm-hero { height: 200px; }
@@ -405,14 +398,14 @@
           '<select class="select" data-cond-type="' + i + '">' + typeOpts + '</select>' +
           (t.hasValue ? '<input class="input" type="number" min="0" step="1" data-cond-val="' + i + '" value="' + (c.value != null ? c.value : 1) + '">' : '') +
           (t.picker === 'events'
-            ? '<div class="cond-picker" data-cond-picker="' + i + '">' +
+            ? '<select class="select cond-event" data-cond-event="' + i + '" aria-label="选择指定活动" style="flex:1; min-width:180px;">' +
                 (state.allEvents.length === 0
-                  ? '<span class="smoke" style="font-size:12.5px;">活动列表为空</span>'
-                  : state.allEvents.map(function (ev) {
+                  ? '<option value="">（暂无活动可选）</option>'
+                  : '<option value="">选择活动…</option>' + state.allEvents.map(function (ev) {
                       var on = (c.events || []).map(String).indexOf(String(ev.id)) !== -1;
-                      return '<label class="cond-chip"><input type="checkbox" value="' + ev.id + '"' + (on ? ' checked' : '') + '> ' + esc(ev.title) + '</label>';
+                      return '<option value="' + ev.id + '"' + (on ? ' selected' : '') + '>' + esc(ev.title) + '</option>';
                     }).join('')) +
-              '</div>'
+              '</select>'
             : '') +
           '<button class="btn btn-ghost btn-sm" data-cond-del="' + i + '" type="button">×</button>' +
           '</div>';
@@ -433,10 +426,10 @@
         conn: connSel ? connSel.value : 'and',
         value: valEl ? (parseInt(valEl.value, 10) || 0) : 0
       };
-      var pickHost = row.querySelector('[data-cond-picker]');
-      if (pickHost) {
-        cond.events = Array.prototype.slice.call(pickHost.querySelectorAll('input:checked'))
-          .map(function (x) { return parseInt(x.value, 10); });
+      var evSel = row.querySelector('[data-cond-event]');
+      if (evSel) {
+        var v = parseInt(evSel.value, 10);
+        cond.events = isNaN(v) ? [] : [v];   /* 下拉单选；数据形状仍是数组，兼容旧数据 */
       }
       return cond;
     });
@@ -452,8 +445,29 @@
     });
     document.getElementById('gf-conds').querySelectorAll('[data-cond-type]').forEach(function (sel) {
       sel.addEventListener('change', function () {
+        var idx = parseInt(sel.getAttribute('data-cond-type'), 10);
+        /* 换类型会整块重绘。先记住这一行原来选的活动，
+           否则从「参与过指定活动」切到别的类型再切回来，选择就丢了。 */
+        var prevEvents = (state.conds[idx] && Array.isArray(state.conds[idx].events))
+            ? state.conds[idx].events.slice() : null;
         syncCondsFromDom();
+        var c = state.conds[idx];
+        if (c && prevEvents && prevEvents.length &&
+            (COND_TYPES[normCondType(c.type)] || {}).picker === 'events' &&
+            !(Array.isArray(c.events) && c.events.length)) {
+          c.events = prevEvents;
+        }
         renderCondEditor();
+      });
+    });
+    /* 选了活动立刻写回 state：切换条件类型会整块重绘，
+       不先把值写进 state.conds 的话，切走再切回来选中的活动就没了。 */
+    document.getElementById('gf-conds').querySelectorAll('[data-cond-event]').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        var idx = parseInt(sel.getAttribute('data-cond-event'), 10);
+        syncCondsFromDom();
+        var v = parseInt(sel.value, 10);
+        if (state.conds[idx]) state.conds[idx].events = isNaN(v) ? [] : [v];
       });
     });
   }

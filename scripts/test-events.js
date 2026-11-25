@@ -133,6 +133,31 @@ setTimeout(() => {
       const inv = [...d.querySelectorAll('.event-card[data-id]')].find((c) => Number(c.dataset.id) === 2);
       ok('#2 未过期者不受影响（仍是报名中）', /报名中/.test(inv.textContent));
 
+      /* ★ 筛选口径：静态按钮曾是库内状态值（finished），筛选逻辑比的是 phase（ended）
+         → 点「已结束」永远空。这里逐个点一遍，断言能选出东西。 */
+      d.getElementById('detail-close').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+      const filterBtns = [...d.querySelectorAll('#status-filter button')];
+      ok('筛选按钮用 phase 口径（不出现 registration/finished）',
+         filterBtns.every((b) => ['all', 'open', 'live', 'ended', 'draft', 'cancelled', 'deleted'].includes(b.dataset.status)),
+         filterBtns.map((b) => b.dataset.status).join(','));
+
+      const clickFilter = (name) => {
+        const b = [...d.querySelectorAll('#status-filter button')].find((x) => x.dataset.status === name);
+        if (b) b.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+        return [...d.querySelectorAll('.event-card')].length;
+      };
+      /* 造一个「手工把状态改成已结束」的活动（用户的操作路径） */
+      w.__data.events.push({ id: 7, title: '手工改为已结束', status: 'finished', start_time: now + 24 * H, end_time: now + 48 * H,
+        max_slots: 16, event_type: 'tournament', season: 'S6' });
+      w.__tick && w.__tick();
+
+      const endedCount = clickFilter('ended');
+      ok('点「已结束」能筛出已结束的活动', endedCount > 0, 'got ' + endedCount);
+      const liveCount = clickFilter('live');
+      ok('点「进行中」筛选正常', liveCount >= 1, 'got ' + liveCount);
+      ok('点「报名中」包含已截止的场次（用户预期是"报名这事"）', clickFilter('open') >= 2, '');
+      ok('点「全部」恢复全部', clickFilter('all') === d.querySelectorAll('.event-card').length, '');
+
       /* 「我的报名」不能因为 waitlistPos 位置错误而整块挂掉 */
       const mine = d.querySelector('[data-tab="mine"]') || d.querySelector('.tab-btn[data-tab="mine"]');
       if (mine) {
