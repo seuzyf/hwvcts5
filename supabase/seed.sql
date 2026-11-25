@@ -1,19 +1,52 @@
 -- =====================================================================
--- HWVCTS 测试数据（幂等，可重复执行）
+-- HWVCTS · seed.sql（仅测试数据，幂等可重跑）
 -- ---------------------------------------------------------------------
--- 用途：本地 / 预发环境快速得到一套「有血有肉」的数据，
---       覆盖：多赛季、报名中/进行中/已结束/草稿/已取消、
---             已排期与待定赛程、已结算与未结算竞猜、积分流水、
---             商品与兑换记录、通知、队长、组织者申请。
---
--- 账号：所有测试账号密码统一为  password123
---       存的是 SHA-256 旧格式 —— 首次登录会被 js/auth.js 自动
---       升级为 PBKDF2（正好验证「无感升级」这条链路）。
---
--- 执行顺序：schema.sql → bootstrap.sql → hardening.sql → seed.sql
+-- ⚠️ 警告：本文件包含弱口令测试账号（含超级管理员 00588771/123456），
+--    只能在测试/内部环境执行，正式库严禁执行本文件！
+-- 前置：先执行 install.sql。账号密码为 SHA-256 旧格式，首次登录会
+--    被 js/auth.js 自动升级为 PBKDF2。
 -- =====================================================================
 
 begin;
+
+-- ---------------------------------------------------------------------
+-- 5. 示例活动（幂等：按 title 去重）
+-- ---------------------------------------------------------------------
+insert into public.events
+    (code, title, event_type, season, status, description, rules, format,
+     start_time, end_time, reg_deadline, max_slots, venue, cover_emoji)
+select v.code, v.title, v.event_type, v.season, v.status, v.description,
+       v.rules, v.format, v.start_time, v.end_time, v.reg_deadline,
+       v.max_slots, v.venue, v.cover_emoji
+from (values
+    ('EVT-S6-01', 'S6 赛季冠军赛', 'tournament', 'S6', 'registration',
+     '第六赛季最终冠军赛，各组别优胜队伍晋级线上对决，冠军将获得定制奖杯与称号。',
+     '小组赛 BO1 循环 → 淘汰赛 BO3 单败；每队 5 人 + 1 替补，迟到 10 分钟判负',
+     'BO1 / BO3',
+     now() + interval '7 days', now() + interval '14 days', now() + interval '5 days',
+     16, '腾讯会议房间号（报名通过后群内发放）', '🏆'),
+    ('EVT-S6-02', 'S6 周末表演赛', 'showmatch', 'S6', 'ongoing',
+     '娱乐表演赛，随机组队混战，欢迎所有段位的选手参与。',
+     'BO1 双败，娱乐为主，禁止代打',
+     'BO1',
+     now() - interval '1 day', now() + interval '2 days', now() - interval '2 days',
+     20, '自定义房间：HWVCT-SHOW', '🎉'),
+    ('EVT-S6-03', 'S6 新人训练营', 'scrim', 'S6', 'registration',
+     '面向新人的训练赛活动，由老选手带队教学，报名即可参与。',
+     'BO3 两场，赛后复盘',
+     'BO3',
+     now() + interval '3 days', now() + interval '3 days', now() + interval '2 days',
+     12, '训练房间（私密）', '🎯'),
+    ('EVT-S5-01', 'S5 赛季总决赛（回顾）', 'tournament', 'S5', 'finished',
+     '第五赛季总决赛，已完赛。数据可在比赛中心查看。',
+     'BO5 两场，赛后复盘',
+     'BO5',
+     now() - interval '30 days', now() - interval '30 days', now() - interval '35 days',
+     8, '已结束', '📜')
+) as v(code, title, event_type, season, status, description, rules, format,
+       start_time, end_time, reg_deadline, max_slots, venue, cover_emoji)
+where not exists (select 1 from public.events e where e.title = v.title);
+
 
 -- ---------------------------------------------------------------------
 -- 1. 账号（12 个）
@@ -21,6 +54,7 @@ begin;
 insert into public.site_users (username, password, nickname, game_id, role, balance)
 values
   ('admin',      encode(sha256(convert_to('password123','UTF8')),'hex'), '站点管理员', 'HW-0001', 'superadmin', 0),
+  ('00588771',   encode(sha256(convert_to('123456','UTF8')),'hex'),      '测试超级管理员', 'HW-0005', 'superadmin', 0),
   ('organizer',  encode(sha256(convert_to('password123','UTF8')),'hex'), '赛事组织者', 'HW-0002', 'organizer',  120),
   ('alice',      encode(sha256(convert_to('password123','UTF8')),'hex'), '爱丽丝',     'HW-1001', 'member',     260),
   ('bob',        encode(sha256(convert_to('password123','UTF8')),'hex'), '鲍勃',       'HW-1002', 'member',     180),
@@ -394,7 +428,6 @@ on conflict (user_id) do update set
   cur_rank = excluded.cur_rank,
   cur_acs = excluded.cur_acs;
 
-commit;
 
 -- =====================================================================
 -- 验证：
@@ -404,3 +437,190 @@ commit;
 --   select u.username, count(*) from s6_bet_bets b join site_users u on u.id=b.user_id group by 1;
 --   select * from recalc_balance((select id from site_users where username='alice'));
 -- =====================================================================
+
+-- ── 以下为原 bootstrap.sql 第 ⑩ 节测试数据 ──
+-- ═══════════════════════════════════════════════════════════════════════
+-- 10. 测试数据（全部幂等）
+-- ═══════════════════════════════════════════════════════════════════════
+
+-- ⑩-1 测试账号（明文密码可直接登录：verifyPassword 兼容明文与 SHA-256）
+do $$ begin
+  insert into public.site_users (username, password, nickname, game_id, bio, role, balance)
+  values
+    ('tester',    'test1234',  '测试小号',   'TESTER#001', '普通成员视图测试账号', 'member', 500),
+    ('testadmin', 'admin1234', '测试管理员', 'ADMIN#001',  '管理员视图测试账号',   'admin',  9999)
+  on conflict (username) do nothing;
+exception when others then raise notice '⑩-1 site_users 跳过: %', sqlerrm; end $$;
+
+-- ⑩-2 补两种活动状态（schema 自带 registration/ongoing/finished 示例 → 管理列表可见全部 5 态）
+do $$ begin
+  insert into public.events
+    (code, title, event_type, season, status, description, rules, format,
+     start_time, end_time, reg_deadline, max_slots, venue, cover_emoji)
+  select v.code, v.title, v.event_type, v.season, v.status, v.description, v.rules, v.format,
+         v.start_time, v.end_time, v.reg_deadline, v.max_slots, v.venue, v.cover_emoji
+  from (values
+    ('EVT-S6-T1', '测试·草稿活动（未发布）', 'scrim',    'S6', 'draft',
+     '假数据：草稿状态，验证管理后台徽章与状态下拉。', 'BO1', 'BO1',
+     now()+interval '10 days', now()+interval '10 days', now()+interval '8 days',
+     8, '测试房间', '🧪'),
+    ('EVT-S6-T2', '测试·已取消活动', 'activity', 'S6', 'cancelled',
+     '假数据：已取消状态，验证管理后台徽章与状态下拉。', '无', '自由参与',
+     now()+interval '5 days', now()+interval '6 days', now()+interval '4 days',
+     30, '—', '⛔')
+  ) as v(code, title, event_type, season, status, description, rules, format,
+          start_time, end_time, reg_deadline, max_slots, venue, cover_emoji)
+  where not exists (select 1 from public.events e where e.code = v.code);
+exception when others then raise notice '⑩-2 events 跳过: %', sqlerrm; end $$;
+
+-- ⑩-3 tester 的三条报名：待审核 / 已通过 / 已撤回
+do $$ begin
+  insert into public.event_registrations (event_id, user_id, team_name, members, contact, note, status)
+  select e.id, u.id, v.team_name, v.members::jsonb, v.contact, v.note, v.status
+  from (values
+    ('EVT-S6-01', '测试战队A',  '["测试小号","队友甲","队友乙"]', 'wechat: tester', '假数据·待审核', 'pending'),
+    ('EVT-S6-03', '测试战队B',  '["测试小号"]',                  'qq: 10000',      '假数据·已通过', 'approved'),
+    ('EVT-S6-02', '测试独行侠', '["测试小号"]',                  '',               '假数据·已撤回', 'cancelled')
+  ) as v(code, team_name, members, contact, note, status)
+  join public.events e     on e.code = v.code
+  join public.site_users u on u.username = 'tester'
+  where not exists (select 1 from public.event_registrations r
+                    where r.event_id = e.id and r.user_id = u.id);
+exception when others then raise notice '⑩-3 event_registrations 跳过: %', sqlerrm; end $$;
+
+-- ⑩-4 传奇组 3 队 10 名测试选手（花名册）
+do $$ begin
+  insert into public.s6_player_ids (name, team, "group", image, honor, pwd)
+  values
+    ('测试·苍穹1号','苍穹队','传奇组','','','pwd888'), ('测试·苍穹2号','苍穹队','传奇组','','',''),
+    ('测试·苍穹3号','苍穹队','传奇组','','',''),       ('测试·苍穹4号','苍穹队','传奇组','','',''),
+    ('测试·烈焰1号','烈焰队','传奇组','','',''),       ('测试·烈焰2号','烈焰队','传奇组','','',''),
+    ('测试·烈焰3号','烈焰队','传奇组','','',''),
+    ('测试·雷霆1号','雷霆队','传奇组','','',''),       ('测试·雷霆2号','雷霆队','传奇组','','',''),
+    ('测试·雷霆3号','雷霆队','传奇组','','','')
+  on conflict (name) do nothing;
+exception when others then raise notice '⑩-4 s6_player_ids 跳过: %', sqlerrm; end $$;
+
+-- ⑩-5 赛程数据（赛程 Tab；两场带比分可测写回，两场未打；RR- 前缀免被赛程重生成清理）
+do $$ begin
+  insert into public.s6_match_schedule
+    ("group", match_id, team_a, team_b, score_a, score_b, match_date, link, commentators)
+  values
+    ('传奇组','RR-T1','苍穹队','烈焰队', 13, 5,  now()+interval '2 days','https://example.com/room/1','测试解说·甲'),
+    ('传奇组','RR-T2','苍穹队','雷霆队', 11, 13, now()+interval '3 days','https://example.com/room/2',''),
+    ('传奇组','RR-T3','烈焰队','雷霆队', null, null, now()+interval '4 days','',''),
+    ('传奇组','RR-T4','烈焰队','苍穹队', null, null, now()+interval '5 days','','')
+  on conflict ("group", match_id) do nothing;
+exception when others then raise notice '⑩-5 s6_match_schedule 跳过: %', sqlerrm; end $$;
+
+-- ⑩-6 赛果数据（赛果 Tab 编辑下拉有行可选；data 格式 = ACS/K/D/A）
+do $$ begin
+  insert into public.s6_matches
+    ("group", stage, match_date, map, score, team_a, team_b,
+     team_a_player1_id, team_a_player2_id, team_b_player1_id, team_b_player2_id,
+     team_a_player1_ch, team_a_player2_ch, team_b_player1_ch, team_b_player2_ch,
+     team_a_player1_data, team_a_player2_data, team_b_player1_data, team_b_player2_data)
+  select '传奇组','小组赛', now()+interval '1 day','源工重镇', '13:9','苍穹队','烈焰队',
+    (select id from public.s6_player_ids where name='测试·苍穹1号'),
+    (select id from public.s6_player_ids where name='测试·苍穹2号'),
+    (select id from public.s6_player_ids where name='测试·烈焰1号'),
+    (select id from public.s6_player_ids where name='测试·烈焰2号'),
+    '霓虹','夜露','捷风','零',
+    '24/18/12/3','19/15/14/5','21/16/13/2','14/17/15/4'
+  where not exists (select 1 from public.s6_matches m
+                    where m."group"='传奇组' and m.stage='小组赛'
+                      and m.team_a='苍穹队' and m.team_b='烈焰队' and m.map='源工重镇');
+exception when others then raise notice '⑩-6 s6_matches 跳过: %', sqlerrm; end $$;
+
+-- ⑩-7 选手权限（s6_player_stats）：tester 的 game_id 命中队长 → 活动栏出「分队」、draft 放行
+do $$ begin
+  insert into public.s6_player_stats (player_name, game_id, team, "group", pre_group, role)
+  select v.player_name, v.game_id, v.team, v."group", v."group", v.role
+  from (values
+    ('测试·苍穹1号','TESTER#001','苍穹队','传奇组','队长'),
+    ('测试·苍穹2号','FAKE2#002', '苍穹队','传奇组','选手'),
+    ('测试·苍穹3号','FAKE3#003', '苍穹队','传奇组','选手'),
+    ('测试·苍穹4号','FAKE4#004', '苍穹队','传奇组','选手'),
+    ('测试·烈焰1号','FAKE5#005', '烈焰队','传奇组','队长'),
+    ('测试·烈焰2号','FAKE6#006', '烈焰队','传奇组','选手'),
+    ('测试·烈焰3号','FAKE7#007', '烈焰队','传奇组','选手'),
+    ('测试·雷霆1号','FAKE8#008', '雷霆队','传奇组','队长'),
+    ('测试·雷霆2号','FAKE9#009', '雷霆队','传奇组','选手'),
+    ('测试·雷霆3号','FAKE10#010','雷霆队','传奇组','选手')
+  ) as v(player_name, game_id, team, "group", role)
+  where not exists (select 1 from public.s6_player_stats p where p.player_name = v.player_name);
+exception when others then raise notice '⑩-7 s6_player_stats 跳过: %', sqlerrm; end $$;
+
+-- ⑩-8 分队页旧表镜像（team_note = 已分队伍）
+do $$ begin
+  insert into public.player_stats (player_name, game_id, team, team_note, "group", pre_group, role, huawei_score)
+  select v.player_name, v.game_id, v.team, v.team_note, v."group", v."group", v.role, v.huawei_score
+  from (values
+    ('测试·苍穹1号','TESTER#001','苍穹队','苍穹队','传奇组','队长',95),
+    ('测试·苍穹2号','FAKE2#002', '苍穹队','苍穹队','传奇组','选手',88),
+    ('测试·苍穹3号','FAKE3#003', '苍穹队','苍穹队','传奇组','选手',82),
+    ('测试·苍穹4号','FAKE4#004', '苍穹队','苍穹队','传奇组','选手',79),
+    ('测试·烈焰1号','FAKE5#005', '烈焰队','烈焰队','传奇组','队长',91),
+    ('测试·烈焰2号','FAKE6#006', '烈焰队','烈焰队','传奇组','选手',85),
+    ('测试·烈焰3号','FAKE7#007', '烈焰队','烈焰队','传奇组','选手',80),
+    ('测试·雷霆1号','FAKE8#008', '雷霆队','雷霆队','传奇组','队长',90),
+    ('测试·雷霆2号','FAKE9#009', '雷霆队','雷霆队','传奇组','选手',84),
+    ('测试·雷霆3号','FAKE10#010','雷霆队','雷霆队','传奇组','选手',77)
+  ) as v(player_name, game_id, team, team_note, "group", role, huawei_score)
+  where not exists (select 1 from public.player_stats p where p.player_name = v.player_name);
+
+  insert into public.player_ids (name, team, "group", pwd)
+  select v.name, v.team, v."group", v.pwd from (values
+    ('测试·苍穹1号','苍穹队','传奇组','pwd888'), ('测试·苍穹2号','苍穹队','传奇组',''),
+    ('测试·苍穹3号','苍穹队','传奇组',''),       ('测试·苍穹4号','苍穹队','传奇组',''),
+    ('测试·烈焰1号','烈焰队','传奇组',''),       ('测试·烈焰2号','烈焰队','传奇组',''),
+    ('测试·烈焰3号','烈焰队','传奇组',''),
+    ('测试·雷霆1号','雷霆队','传奇组',''),       ('测试·雷霆2号','雷霆队','传奇组',''),
+    ('测试·雷霆3号','雷霆队','传奇组','')
+  ) as v(name, team, "group", pwd)
+  on conflict (name) do nothing;
+exception when others then raise notice '⑩-8 player_stats/player_ids 跳过: %', sqlerrm; end $$;
+
+-- ⑩-9 选手页评论 ×2（player_key = 选手id::组别）
+do $$ begin
+  insert into public.s6_comments (player_key, nickname, rating, content, ip, parent_id)
+  select (p.id::text || '::传奇组'), v.nickname, v.rating, v.content, v.ip, null::bigint
+  from (values
+    ('围观群众', 5, '假数据：这选手打得真不错！'),
+    ('测试小号', 4, '假数据：回复一条测试评论。')
+  ) as v(nickname, rating, content)
+  cross join public.s6_player_ids p
+  where p.name = '测试·苍穹1号'
+    and not exists (select 1 from public.s6_comments c where c.ip = '127.0.0.1' and c.nickname = '围观群众');
+exception when others then raise notice '⑩-9 s6_comments 跳过: %', sqlerrm; end $$;
+
+-- ⑩-10 竞猜：组别状态 + 下注 + 低保领取
+do $$ begin
+  insert into public.s6_betting_groups (group_name, is_locked)
+  values ('传奇组', false), ('中坚组', false), ('挑战组', false)
+  on conflict (group_name) do nothing;
+
+  insert into public.s6_bet_bets (user_id, match_id, amount, predicted_winner)
+  select u.id, m.id, v.amount, v.winner
+  from (values
+    ('RR-T1', 100, '苍穹队'),
+    ('RR-T2', 50,  '雷霆队')
+  ) as v(mid, amount, winner)
+  join public.site_users u        on u.username = 'tester'
+  join public.s6_match_schedule m on m.match_id = v.mid and m."group" = '传奇组'
+  where not exists (select 1 from public.s6_bet_bets b
+                    where b.user_id = u.id and b.match_id = m.id);
+
+  insert into public.s6_bet_welfare_claims (user_id)
+  select u.id from public.site_users u
+  where u.username = 'tester'
+    and not exists (select 1 from public.s6_bet_welfare_claims w where w.user_id = u.id);
+
+exception when others then raise notice '⑩-10 竞猜数据 跳过: %', sqlerrm; end $$;
+
+-- ─────────────────────────────────────────────────────────────
+do $$ begin
+  raise notice '✅ 引导完成：若上方无「…跳过」 NOTICE，全部表与测试数据已就绪。';
+end $$;
+
+commit;

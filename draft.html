@@ -443,6 +443,20 @@
                     if (ev) HWLayout.eventBar({ event: ev, perms: perms });
                     else HWLayout.eventBar({ event: null });
 
+                    /* 归档赛季只读：分队提交禁用 */
+                    HWLayout.getSeasons().then(function (list) {
+                        var row = list.find(function (x) { return x.season_key === season; });
+                        if (!row || row.status !== 'archived') return;
+                        var sbBtn = document.getElementById('submit-btn');
+                        if (sbBtn) { sbBtn.disabled = true; sbBtn.title = '赛季已归档，只读'; }
+                        var host2 = document.querySelector('.page-header');
+                        if (host2) {
+                            var b2 = document.createElement('div');
+                            b2.className = 'notice';
+                            b2.innerHTML = '<strong>该赛季已归档（只读）。</strong> 如需继续分队，请管理员在管理后台取消归档。';
+                            host2.after(b2);
+                        }
+                    });
                     var ok = perms.isAdmin || perms.isCaptain || perms.isOrganizer;
                     if (!ok) {
                         document.querySelectorAll('.page-header, .draft-tabs').forEach(function (el) { el.style.display = 'none'; });
@@ -794,9 +808,7 @@
         let isDrawing = false;
         let seenInCurrentDraw = new Set();
 
-        const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabaseClient = HWLayout.supa(); /* 连接配置收敛：js/layout.js 唯一出处 */
 
         const groupFilterButtons = document.getElementById('group-filter-buttons');
         const targetTeamSelect = document.getElementById('target-team');

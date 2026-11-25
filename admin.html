@@ -225,6 +225,91 @@
                     <div style="font-size: 13px; color:var(--smoke); margin-top:2px;">选手数据与多维对比</div>
                 </a>
             </div>
+            <div class="card mt-16" id="code-card" hidden>
+                <div class="flex-between">
+                    <div>
+                        <span class="eyebrow">One-time Access</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">一次性临时管理员口令</h2>
+                    </div>
+                    <span class="smoke" style="font-size:13px;">仅超级管理员 · 用一次即失效</span>
+                </div>
+                <p class="muted" style="font-size:13px; margin-top:10px;">生成后把口令给需要临时管理权限的同事，对方在活动页/审核页验证框输入即可获得 15 分钟管理员会话。口令明文只显示一次，请当场复制。</p>
+                <div class="filter-bar" style="margin:14px 0 10px; flex-wrap:wrap;">
+                    <select class="select" id="code-ttl" aria-label="有效期">
+                        <option value="15">15 分钟</option>
+                        <option value="30" selected>30 分钟</option>
+                        <option value="60">1 小时</option>
+                        <option value="240">4 小时</option>
+                        <option value="custom">自定义…</option>
+                    </select>
+                    <input class="input" id="code-ttl-custom" type="number" min="5" max="1440" placeholder="分钟数（5–1440）" style="width:170px;" hidden>
+                    <input class="input" id="code-note" maxlength="60" placeholder="备注，如：给张三审核报名" style="flex:1; min-width:180px;">
+                    <button class="btn btn-primary" id="code-gen" type="button">生成新口令</button>
+                </div>
+                <div id="code-result" hidden style="border:1px dashed var(--coral-pulse); border-radius:12px; padding:14px; margin:10px 0;">
+                    <div class="smoke" style="font-size:12px;">新口令（只显示这一次，关掉就找不回）：</div>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+                        <code id="code-plain" style="font-size:20px; letter-spacing:1px; color:var(--pure-white);"></code>
+                        <button class="btn btn-ghost btn-sm" id="code-copy" type="button">复制</button>
+                        <span class="smoke" id="code-exp" style="font-size:12px;"></span>
+                    </div>
+                </div>
+                <div id="code-list" style="margin-top:10px;"><div class="empty-state">加载中…</div></div>
+            </div>
+            <div class="card mt-16" id="season-card">
+                <div class="flex-between">
+                    <div>
+                        <span class="eyebrow">Seasons</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">赛季管理</h2>
+                    </div>
+                    <span class="smoke" style="font-size:13px;">归档手动操作、可恢复；多个赛季可同时进行</span>
+                </div>
+                <div class="filter-bar" style="margin:14px 0 10px; flex-wrap:wrap;">
+                    <input class="input" id="season-key" maxlength="5" placeholder="赛季 key，如 s7" style="width:140px;">
+                    <input class="input" id="season-name" maxlength="30" placeholder="赛季名称，如 第七赛季" style="flex:1; min-width:160px;">
+                    <button class="btn btn-primary" id="season-create" type="button">新建赛季</button>
+                </div>
+                <div id="season-list"><div class="empty-state">加载中…</div></div>
+            </div>
+            <div class="card mt-16" id="audit-card">
+                <div class="flex-between">
+                    <div>
+                        <span class="eyebrow">Audit</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">审计日志</h2>
+                    </div>
+                    <span class="smoke" style="font-size:13px;" id="audit-count"></span>
+                </div>
+                <div class="filter-bar" style="margin:14px 0 10px; flex-wrap:wrap;">
+                    <input class="input" id="audit-actor" placeholder="操作人（用户名/昵称）" style="width:180px;">
+                    <select class="select" id="audit-action"><option value="">全部动作</option></select>
+                    <input class="input" id="audit-from" type="date" aria-label="起始日期">
+                    <input class="input" id="audit-to" type="date" aria-label="结束日期">
+                    <button class="btn btn-primary btn-sm" id="audit-search" type="button">查询</button>
+                    <button class="btn btn-ghost btn-sm" id="audit-prev" type="button">上一页</button>
+                    <button class="btn btn-ghost btn-sm" id="audit-next" type="button">下一页</button>
+                </div>
+                <div id="audit-list"><div class="empty-state">加载中…</div></div>
+            </div>
+            <div class="card mt-16" id="comment-card">
+                <div class="flex-between">
+                    <div>
+                        <span class="eyebrow">Moderation</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">评论审核</h2>
+                    </div>
+                    <span class="smoke" style="font-size:13px;" id="comment-count"></span>
+                </div>
+                <div id="comment-list" style="margin-top:14px;"><div class="empty-state">加载中…</div></div>
+            </div>
+            <div class="card mt-16" id="refund-card">
+                <div class="flex-between">
+                    <div>
+                        <span class="eyebrow">Refunds</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">兑换记录与退款</h2>
+                    </div>
+                    <span class="smoke" style="font-size:13px;">撤销兑换将原子返还积分并回补库存</span>
+                </div>
+                <div id="refund-list" style="margin-top:14px;"><div class="empty-state">加载中…</div></div>
+            </div>
             <div class="card mt-16" id="broadcast-card" hidden>
                 <span class="eyebrow">Announcements</span>
                 <h2 class="section-title" style="margin-top:8px;">全员广播公告</h2>
@@ -250,10 +335,7 @@
 <script>
 
 document.addEventListener('DOMContentLoaded', () => {
-    const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
-    const { createClient } = supabase;
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabaseClient = HWLayout.supa(); /* 连接配置收敛：js/layout.js 唯一出处 */
 
 
     let currentSeason = 's6'; // 默认 S6 赛季
@@ -428,6 +510,11 @@ document.addEventListener('DOMContentLoaded', () => {
             applyAdminScope();
             if (HWLayout.isAdminNow()) loadPermUsers();
             renderMyRegistrants();
+            initCodeCard();
+            loadSeasonsAdmin();
+            loadAudit();
+            loadCommentReports();
+            loadRefunds();
         }
         if (name === 'admin' && window.location.hash === '#perm-card') {
             setTimeout(function () {
@@ -525,7 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(function (e) {
                 host.innerHTML = '<div class="empty-state"><strong>活动加载失败</strong><br>' + esc(e.message || e) +
-                    '<br><br>若为「缺少 events 表」，请先执行 supabase/schema.sql。</div>';
+                    '<br><br>若为「缺少 events 表」，请先执行 supabase/install.sql。</div>';
             });
     }
 
@@ -1078,6 +1165,294 @@ document.addEventListener('DOMContentLoaded', () => {
             HWAuth.on(function (e) { if (e === 'login' || e === 'logout') route(); });
         }
     });
+
+    /* ════ 一次性临时管理员口令（仅超管） ════ */
+    var CODE_STATUS = { active: ['未使用', 'badge-green'], used: ['已使用', 'badge-quiet'], expired: ['已过期', 'badge-quiet'], revoked: ['已撤销', 'badge-coral'] };
+    function isSuper() { var u = HWAuth.getSession(); return !!(u && u.role === 'superadmin'); }
+    function initCodeCard() {
+        var card = document.getElementById('code-card');
+        if (!card) return;
+        if (!isSuper()) { card.hidden = true; return; }
+        card.hidden = false;
+        loadCodeList();
+        var ttlSel = document.getElementById('code-ttl');
+        ttlSel.onchange = function () {
+            document.getElementById('code-ttl-custom').hidden = ttlSel.value !== 'custom';
+        };
+        document.getElementById('code-gen').onclick = genCode;
+        document.getElementById('code-copy').onclick = function () {
+            var t = document.getElementById('code-plain').textContent;
+            if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { HWLayout.toast('已复制'); });
+        };
+    }
+    function genCode() {
+        var me = HWAuth.getSession();
+        var ttlSel = document.getElementById('code-ttl');
+        var ttl = ttlSel.value === 'custom' ? parseInt(document.getElementById('code-ttl-custom').value, 10) : parseInt(ttlSel.value, 10);
+        if (!ttl || ttl < 5 || ttl > 1440) { HWLayout.toast('有效期须在 5–1440 分钟之间', 'err'); return; }
+        var pwd = window.prompt('二次确认：请输入你自己的账号密码：');
+        if (!pwd) return;
+        HWAuth.verifyOwnPassword(pwd).then(function (ok) {
+            if (!ok) { HWLayout.toast('密码不正确，已取消生成', 'err'); return; }
+            return sb2().rpc('generate_admin_code', { p_operator_id: me.id, p_ttl_minutes: ttl, p_note: document.getElementById('code-note').value.trim() });
+        }).then(function (r) {
+            if (!r) return;
+            if (r.error || (r.data && r.data.error)) {
+                HWLayout.toast('生成失败：' + ((r.data && r.data.error) || r.error.message || '请先执行 install.sql'), 'err'); return;
+            }
+            var box = document.getElementById('code-result');
+            box.hidden = false;
+            document.getElementById('code-plain').textContent = r.data.code;
+            document.getElementById('code-exp').textContent = '有效至 ' + HWLayout.fmtBJ(r.data.expires_at) + '（北京时间）· 只显示这一次';
+            HWLayout.toast('口令已生成，请立即复制保存');
+            loadCodeList();
+        }).catch(function (e) { HWLayout.toast('生成失败：' + (e.message || e), 'err'); });
+    }
+    function sb2() { return HWAuth.getClient(); }
+    function loadCodeList() {
+        var host = document.getElementById('code-list');
+        var me = HWAuth.getSession();
+        if (!host || !me) return;
+        sb2().rpc('list_admin_codes', { p_operator_id: me.id }).then(function (r) {
+            if (r.error || !r.data || r.data.error) {
+                host.innerHTML = '<div class="empty-state">口令功能未就绪：请先执行 supabase/install.sql。</div>'; return;
+            }
+            var rows = r.data.codes || [];
+            if (!rows.length) { host.innerHTML = '<div class="empty-state">暂无生成的口令。</div>'; return; }
+            host.innerHTML = rows.map(function (c) {
+                var st = CODE_STATUS[c.status] || [c.status, ''];
+                return '<div class="adm-ev-row">' +
+                    '<span class="adm-ev-main"><span class="adm-ev-title mono">' + esc(c.code_hint) + '</span>' +
+                    '<span class="adm-ev-sub">' + esc(c.note || '（无备注）') + ' · ' + esc(c.created_by_name || '') + ' 生成 · ' +
+                    HWLayout.fmtBJ(c.created_at) + ' 至 ' + HWLayout.fmtBJ(c.expires_at) +
+                    (c.used_by_name ? ' · 使用者 ' + esc(c.used_by_name) : '') + '</span></span>' +
+                    '<span class="badge ' + st[1] + '">' + st[0] + '</span>' +
+                    (c.status === 'active' ? '<button class="btn btn-ghost btn-sm" data-revoke="' + c.id + '" type="button">撤销</button>' : '') +
+                    '</div>';
+            }).join('');
+            host.querySelectorAll('[data-revoke]').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    sb2().rpc('revoke_admin_code', { p_operator_id: me.id, p_code_id: parseInt(b.dataset.revoke, 10) })
+                        .then(function (r) {
+                            if (r.error || (r.data && r.data.error)) { HWLayout.toast('撤销失败：' + ((r.data && r.data.error) || r.error.message), 'err'); return; }
+                            HWLayout.toast('已撤销'); loadCodeList();
+                        });
+                });
+            });
+        });
+    }
+
+    /* ════ 赛季管理 ════ */
+    function loadSeasonsAdmin() {
+        var host = document.getElementById('season-list');
+        if (!host) return;
+        HWLayout.clearSeasonsCache();
+        HWLayout.getSeasons().then(function (list) {
+            host.innerHTML = list.map(function (x) {
+                return '<div class="adm-ev-row"><span class="adm-ev-main">' +
+                    '<span class="adm-ev-title">' + esc(x.name || x.season_key) +
+                    (x.is_current ? ' <span class="badge badge-green">当前赛季</span>' : '') +
+                    (x.status === 'archived' ? ' <span class="badge badge-quiet">已归档</span>' : ' <span class="badge badge-coral">进行中</span>') + '</span>' +
+                    '<span class="adm-ev-sub">' + esc(x.season_key) + ' · 设为当前只影响新建活动默认值，不影响其他赛季办赛</span></span>' +
+                    (!x.is_current && x.status !== 'archived' ? '<button class="btn btn-ghost btn-sm" data-cur="' + esc(x.season_key) + '" type="button">设为当前</button>' : '') +
+                    (x.status !== 'archived'
+                        ? '<button class="btn btn-ghost btn-sm" data-arch="' + esc(x.season_key) + '" type="button">归档</button>'
+                        : '<button class="btn btn-primary btn-sm" data-unarch="' + esc(x.season_key) + '" type="button">取消归档</button>') +
+                    '</div>';
+            }).join('');
+            host.querySelectorAll('[data-cur]').forEach(function (b) { b.addEventListener('click', function () { setCurrentSeason(b.dataset.cur); }); });
+            host.querySelectorAll('[data-arch]').forEach(function (b) { b.addEventListener('click', function () { setSeasonStatus(b.dataset.arch, 'archived'); }); });
+            host.querySelectorAll('[data-unarch]').forEach(function (b) { b.addEventListener('click', function () { setSeasonStatus(b.dataset.unarch, 'active'); }); });
+        });
+        var btn = document.getElementById('season-create');
+        if (btn && !btn._wired) {
+            btn._wired = true;
+            btn.addEventListener('click', function () {
+                var me = HWAuth.getSession();
+                var key = document.getElementById('season-key').value.trim().toLowerCase();
+                var name = document.getElementById('season-name').value.trim();
+                if (!/^s[0-9]{1,3}$/.test(key)) { HWLayout.toast('赛季 key 格式应为 s+数字，如 s7', 'err'); return; }
+                sb2().rpc('create_season_tables', { p_operator_id: me.id, p_key: key, p_name: name })
+                    .then(function (r) {
+                        if (r.error || (r.data && r.data.error)) { HWLayout.toast('新建失败：' + ((r.data && r.data.error) || r.error.message || '请先执行 install.sql'), 'err'); return; }
+                        HWLayout.toast('赛季 ' + key + ' 已创建（全套数据表就绪）');
+                        loadSeasonsAdmin();
+                    });
+            });
+        }
+    }
+    function setCurrentSeason(key) {
+        var sb = sb2();
+        sb.from('seasons').update({ is_current: false }).neq('season_key', key).then(function () {
+            return sb.from('seasons').update({ is_current: true }).eq('season_key', key);
+        }).then(function (r) {
+            if (r.error) { HWLayout.toast('设置失败: ' + r.error.message, 'err'); return; }
+            HWLayout.writeAudit('season.current', 'season', key, {});
+            HWLayout.toast('已设为当前赛季（仅影响新建活动默认值）');
+            loadSeasonsAdmin();
+        });
+    }
+    function setSeasonStatus(key, status) {
+        var doIt = function () {
+            sb2().from('seasons').update({ status: status }).eq('season_key', key).then(function (r) {
+                if (r.error) { HWLayout.toast('操作失败（请先执行 install.sql）: ' + r.error.message, 'err'); return; }
+                HWLayout.writeAudit(status === 'archived' ? 'season.archive' : 'season.unarchive', 'season', key, {});
+                HWLayout.toast(status === 'archived' ? '已归档（随时可取消归档恢复）' : '已恢复为进行中');
+                loadSeasonsAdmin();
+            });
+        };
+        if (status === 'archived') {
+            HWLayout.confirmDialog({ title: '归档赛季', message: '归档后该赛季不能再新建活动和录入数据，但可查看、可随时取消归档。确定归档？', okText: '归档' }).then(function (ok) { if (ok) doIt(); });
+        } else doIt();
+    }
+
+    /* ════ 审计日志 ════ */
+    var auditPage = 0, auditUsers = null;
+    function loadAudit() {
+        var host = document.getElementById('audit-list');
+        if (!host) return;
+        var actSel = document.getElementById('audit-action');
+        if (actSel && actSel.options.length <= 1) {
+            Object.keys(HWLayout.ACTION_ZH).forEach(function (k) {
+                var o = document.createElement('option'); o.value = k; o.textContent = HWLayout.ACTION_ZH[k] + '（' + k + '）';
+                actSel.appendChild(o);
+            });
+        }
+        var sb = sb2();
+        var ensureUsers = auditUsers ? Promise.resolve(auditUsers)
+            : sb.from('site_users').select('id, username, nickname').limit(1000).then(function (r) {
+                auditUsers = {};
+                ((r && r.data) || []).forEach(function (u) { auditUsers[u.id] = u; });
+                return auditUsers;
+            }, function () { auditUsers = {}; return auditUsers; });
+        ensureUsers.then(function () {
+            var q = sb.from('audit_log').select('*').order('created_at', { ascending: false })
+                .range(auditPage * 50, auditPage * 50 + 49);
+            var act = document.getElementById('audit-action').value;
+            if (act) q = q.eq('action', act);
+            var from = document.getElementById('audit-from').value;
+            var to = document.getElementById('audit-to').value;
+            if (from) q = q.gte('created_at', from + 'T00:00:00+08:00');
+            if (to) q = q.lte('created_at', to + 'T23:59:59+08:00');
+            return q;
+        }).then(function (r) {
+            if (r.error) { host.innerHTML = HWLayout.stateHtml('error', { message: '审计表未就绪，请先执行 install.sql。', retryId: 'audit-retry' }); wireAuditRetry(); return; }
+            var rows = r.data || [];
+            var kw = document.getElementById('audit-actor').value.trim().toLowerCase();
+            if (kw) rows = rows.filter(function (x) {
+                var u = auditUsers[x.actor_id] || {};
+                return String(u.username || '').toLowerCase().indexOf(kw) >= 0 || String(u.nickname || '').toLowerCase().indexOf(kw) >= 0;
+            });
+            document.getElementById('audit-count').textContent = '第 ' + (auditPage + 1) + ' 页 · 本页 ' + rows.length + ' 条';
+            if (!rows.length) { host.innerHTML = HWLayout.stateHtml('empty', { title: '暂无审计记录' }); return; }
+            host.innerHTML = rows.map(function (x) {
+                var u = auditUsers[x.actor_id] || {};
+                return '<div class="adm-ev-row"><span class="adm-ev-main">' +
+                    '<span class="adm-ev-title">' + esc(HWLayout.ACTION_ZH[x.action] || x.action) + '</span>' +
+                    '<span class="adm-ev-sub">' + esc(u.nickname || u.username || ('用户#' + (x.actor_id || '?'))) +
+                    ' · ' + esc(x.target_type || '') + (x.target_id ? ' #' + esc(x.target_id) : '') +
+                    ' · ' + HWLayout.fmtBJ(x.created_at) + '</span></span></div>';
+            }).join('');
+        }).catch(function () { host.innerHTML = HWLayout.stateHtml('error', { retryId: 'audit-retry' }); wireAuditRetry(); });
+        var sb1 = document.getElementById('audit-search');
+        if (sb1 && !sb1._wired) { sb1._wired = true; sb1.addEventListener('click', function () { auditPage = 0; loadAudit(); }); }
+        var pv = document.getElementById('audit-prev');
+        if (pv && !pv._wired) { pv._wired = true; pv.addEventListener('click', function () { if (auditPage > 0) { auditPage--; loadAudit(); } }); }
+        var nx = document.getElementById('audit-next');
+        if (nx && !nx._wired) { nx._wired = true; nx.addEventListener('click', function () { auditPage++; loadAudit(); }); }
+    }
+    function wireAuditRetry() {
+        var b = document.getElementById('audit-retry');
+        if (b) b.addEventListener('click', loadAudit);
+    }
+
+    /* ════ 评论审核（举报队列；本轮不含禁言） ════ */
+    function loadCommentReports() {
+        var host = document.getElementById('comment-list');
+        if (!host) return;
+        var sb = sb2();
+        sb.from('comment_reports').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(50)
+            .then(function (r) {
+                if (r.error) { host.innerHTML = '<div class="empty-state">评论审核未就绪：请先执行 install.sql。</div>'; return; }
+                var rows = r.data || [];
+                document.getElementById('comment-count').textContent = rows.length ? rows.length + ' 条待处理举报' : '';
+                if (!rows.length) { host.innerHTML = '<div class="empty-state">暂无待处理举报。</div>'; return; }
+                var ids = rows.map(function (x) { return x.comment_id; });
+                return sb.from('s6_comments').select('*').in('id', ids).then(function (cr) {
+                    var cmap = {};
+                    ((cr && cr.data) || []).forEach(function (c) { cmap[c.id] = c; });
+                    host.innerHTML = rows.map(function (x) {
+                        var c = cmap[x.comment_id] || {};
+                        return '<div class="adm-ev-row"><span class="adm-ev-main">' +
+                            '<span class="adm-ev-title">' + esc(c.nickname || '评论') + '：' + esc(String(c.content || '（评论已删除）').slice(0, 60)) + '</span>' +
+                            '<span class="adm-ev-sub">举报原因：' + esc(x.reason || '（未填）') + ' · ' + HWLayout.fmtBJ(x.created_at) +
+                            (c.status === 'hidden' ? ' · 当前已隐藏' : '') + '</span></span>' +
+                            '<button class="btn btn-ghost btn-sm" data-chide="' + x.id + '" data-cid="' + x.comment_id + '" type="button">隐藏评论</button>' +
+                            '<button class="btn btn-ghost btn-sm" data-cdismiss="' + x.id + '" type="button">忽略举报</button></div>';
+                    }).join('');
+                    host.querySelectorAll('[data-chide]').forEach(function (b) {
+                        b.addEventListener('click', function () { handleReport(parseInt(b.dataset.chide, 10), parseInt(b.dataset.cid, 10), true); });
+                    });
+                    host.querySelectorAll('[data-cdismiss]').forEach(function (b) {
+                        b.addEventListener('click', function () { handleReport(parseInt(b.dataset.cdismiss, 10), null, false); });
+                    });
+                });
+            });
+    }
+    function handleReport(reportId, commentId, hide) {
+        var me = HWAuth.getSession();
+        var sb = sb2();
+        var chain = Promise.resolve();
+        if (hide && commentId) {
+            chain = sb.from('s6_comments').update({ status: 'hidden', hidden_by: me.id, hidden_at: new Date().toISOString(), hide_reason: '举报审核隐藏' }).eq('id', commentId)
+                .then(function () { HWLayout.writeAudit('comment.hide', 'comment', commentId, { report: reportId }); });
+        }
+        chain.then(function () {
+            return sb.from('comment_reports').update({ status: hide ? 'hidden' : 'dismissed', handled_by: me.id, handled_at: new Date().toISOString() }).eq('id', reportId);
+        }).then(function () { HWLayout.toast(hide ? '评论已隐藏' : '举报已忽略'); loadCommentReports(); });
+    }
+
+    /* ════ 兑换退款 ════ */
+    function loadRefunds() {
+        var host = document.getElementById('refund-list');
+        if (!host) return;
+        var sb = sb2();
+        Promise.all([
+            sb.from('goods_redemptions').select('*').order('created_at', { ascending: false }).limit(30),
+            sb.from('goods').select('id, title'),
+            sb.from('site_users').select('id, username, nickname').limit(1000)
+        ]).then(function (rs) {
+            if (rs[0].error) { host.innerHTML = '<div class="empty-state">兑换记录加载失败（请先执行 install.sql）。</div>'; return; }
+            var goods = {}; ((rs[1] && rs[1].data) || []).forEach(function (g) { goods[g.id] = g.title; });
+            var users = {}; ((rs[2] && rs[2].data) || []).forEach(function (u) { users[u.id] = u.nickname || u.username; });
+            var rows = rs[0].data || [];
+            if (!rows.length) { host.innerHTML = '<div class="empty-state">暂无兑换记录。</div>'; return; }
+            host.innerHTML = rows.map(function (x) {
+                var refunded = x.status === 'refunded';
+                return '<div class="adm-ev-row"><span class="adm-ev-main">' +
+                    '<span class="adm-ev-title">' + esc(goods[x.goods_id] || ('商品#' + x.goods_id)) + ' · ' + x.cost + ' 积分</span>' +
+                    '<span class="adm-ev-sub">' + esc(users[x.user_id] || ('用户#' + x.user_id)) + ' · ' + HWLayout.fmtBJ(x.created_at) +
+                    (refunded ? ' · 已退款：' + esc(x.refund_reason || '') : '') + '</span></span>' +
+                    (refunded ? '<span class="badge badge-quiet">已退款</span>'
+                              : '<button class="btn btn-ghost btn-sm" data-refund="' + x.id + '" type="button">撤销兑换（退款）</button>') +
+                    '</div>';
+            }).join('');
+            host.querySelectorAll('[data-refund]').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    var me = HWAuth.getSession();
+                    var reason = window.prompt('退款原因（必填，将通知/记录在案）：', '');
+                    if (!reason) return;
+                    sb2().rpc('refund_redemption', { p_operator_id: me.id, p_redemption_id: parseInt(b.dataset.refund, 10), p_reason: reason })
+                        .then(function (r) {
+                            if (r.error || (r.data && r.data.error)) { HWLayout.toast('退款失败：' + ((r.data && r.data.error) || r.error.message), 'err'); return; }
+                            HWLayout.toast('已退款：积分返还、库存回补完成');
+                            loadRefunds();
+                        });
+                });
+            });
+        }).catch(function () { host.innerHTML = '<div class="empty-state">兑换记录加载失败。</div>'; });
+    }
+
 
 });
 </script>

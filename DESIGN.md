@@ -599,22 +599,91 @@ user_id    —— 账号与选手档案的绑定键，管归属与权限
 被拒/撤回的报名不生成；管理员在数据台成员维护有「重新同步选手页」动作兜底并写日志。
 无「认领」概念：个人主页「我的选手页」按 user_id 绑定自动出现。
 
-## 14.10 阶段 9–11（下轮，本轮不做）
+## 14.10 本轮修改（定稿并实现：SQL 两份制 + 一次性口令 + 阶段 9–11 + 连接收敛）
 
-- 阶段 9 · A 线无邮箱版：登录限流（同账号 5 次锁 10 分钟 + IP 限速）、会话 7 天续期/30 天重登、
-  审计日志页、统一错误边界组件化收尾；Supabase Auth 迁移搁置（无邮箱），风险以限流+审计+RPC 压制；
-- 阶段 10 · B 线运营：赛季表与硬编码清除、报名可修改、候补可视化、活动复制/模板、批量审核、
-  赛果 CSV 导入（预检 + 整批回滚）、队伍管理、评论审核、商城退款原子回滚；
-- 阶段 11 · C 线其余：服务端分页与聚合、赔率走势快照、竞猜锁定组别管理界面、导出/打印统一。
+> 本节为本轮唯一有效的执行口径，全部改动合并在一个 PR 中一次提交。
 
-## 14.11 本轮数据库迁移（migration_v3.sql，只增不改）
+### 数据库：两份制（install.sql + seed.sql）
 
-- `events` += deleted_at/deleted_by/delete_reason；
-- `player_identities`（player_key 主键、user_id、real_name、current_game_id、created_at）；
-- `player_id_aliases`（game_id、season、player_key、is_current、created_at）；
-- `player_honors`（见 14.7）；`*_match_schedule` += result_status/submitted_by/confirmed_by/confirmed_at；
-- `audit_log`（actor_id、actor_role、action、target_type、target_id、detail jsonb、created_at）——本轮先建表与写入点，查询页下轮；
-- `seasons` 表下轮（阶段 10）再建，本轮不预埋。
+- 删除 `schema.sql / bootstrap.sql / hardening.sql / migration_v3.sql`，合并为
+  `supabase/install.sql`（约 1430 行：核心表 → 赛季表 → 既有增量 → 安全函数 →
+  本轮新增 → 旧静态口令退役清理）。全新库跑 `install.sql`，已有库改版后重跑它即可。
+- `supabase/seed.sql` 只放测试数据（含弱口令测试号，文件头有正式库禁用警告），
+  正式环境只跑 install.sql。
+- 【教训写死】给老表加列必须写在 install 的「结构补齐段」用
+  `add column if not exists`，只改建表语句对已存在的表无效（matches.event_id 事故）。
+- 新增表：admin_access_codes、login_attempts、seasons、registration_revisions、
+  event_templates、import_batches、comment_reports、team_transfer_requests、
+  bet_odds_snapshots；新函数：generate/redeem/revoke/list_admin_code(s)、
+  create_season_tables、refund_redemption、place_bet（adjust_points 覆盖为带上限版）。
+- 旧静态口令退役：install 末尾删除 site_settings 默认口令行并 drop
+  check_admin_password / promote_self_admin（默认口令已知，留着即后门）。
+
+### 一次性临时管理员口令
+
+- 超管在管理后台生成：有效期预设 15/30（默认）/60/240 分钟或自定义输入分钟数
+  （服务端硬校验 5–1440），带备注；生成前重输自己密码二次确认（HWAuth.verifyOwnPassword）。
+- 口令 `HW-XXXX-XXXX-XXXX` 服务端生成、只存 SHA-256 哈希，明文仅返回一次；
+  兑换为单条原子更新（防并发重复兑换），以 DB 时间判过期；兑换须登录绑人，
+  成功给 15 分钟管理员会话（最高 admin，不升超管）；失败统一提示并按账号限速；
+  未用口令可撤销；生成/兑换/撤销全写审计。events/review 两处口令门已切换。
+
+### 测试超级管理员（仅 seed）
+
+`00588771 / 123456`（昵称「测试超级管理员」，游戏 ID `HW-0005`，superadmin）。
+弱口令测试号，正式环境禁止执行 seed；账号清单见 seed.sql 文件头。
+
+### 阶段 9 · 加固（已实现）
+
+- 登录限流：login_attempts 记录，同账号 10 分钟失败 ≥5 次锁定 10 分钟，成功清零；
+  表未部署时静默跳过。定位为门槛级防护（前端登录模型），不夸大。
+- 会话：localStorage 只存必要字段（不再存密码哈希）；meta 记录签发/活跃时间，
+  7 天滑动续期、30 天强制重登，过期原地提示重登不丢页面；停用账号登录给明确原因。
+- 审计日志页（管理后台）：按人/动作/时间筛选，50 条/页；ACTION_ZH 集中映射。
+- 统一错误边界：HWLayout.stateHtml 三态（暂无数据/加载失败/无权限），已接入后台新区块与选手列表。
+
+### 阶段 10 · 运营闭环（已实现；评论禁言按用户决定本轮不做）
+
+1. 赛季管理：seasons 表 + create_season_tables 受控建表函数（key 白名单）。
+   新建/设为当前/归档互不连带，多赛季可并行，归档纯手动、可恢复、二次确认+审计；
+   当前赛季仅为新建活动默认值。归档后 manage/schedule/draft 显示只读横幅并禁用写操作。
+2. 报名可修改：registration_revisions 存修改前快照；改队伍/真名/游戏 ID 等关键字段
+   在已通过状态下自动回待审核并通知组织者，非关键字段直接生效；可查修改历史。
+3. 候补可视化：我的报名/审核列表显示「候补第 N 位」，审核页一键递补（promoteWaitlist）+通知。
+4. 活动复制（为草稿、不带报名赛程）与 event_templates 模板（套用/保存/删除）。
+5. 批量审核补齐：批量拒绝（原因通知报名者、逐条反馈）与既有批量通过并存。
+6. 赛果 CSV 导入：模板下载 → 逐行预检报错（格式/花名册匹配/队长仅本队范围/500 行上限）
+   → 整批入库（import_batches + import_batch_id 标记）→ 可整批撤销（已确认赛程保留并提示）。
+7. 队伍管理：改名（同步花名册与未开赛赛程、已结算保留快照）、队长转让
+   （team_transfer_requests，对方确认后生效），写审计。
+8. 评论审核（不含禁言）：选手页举报 → comment_reports 队列 → 管理员隐藏/恢复，处置留痕；
+   已隐藏评论对访客不可见。
+9. 商城退款：refund_redemption 原子退款（状态防重、库存+1、积分走流水、原因必填）；
+   adjust_points 服务端硬上限：admin 单次 ±500，superadmin 不限。
+
+### 阶段 11 · 收尾（已实现）
+
+- 分页：审计 50/页、选手列表 20/页渲染分页、商店商品服务端 range 分页（20/页）。
+  说明：选手生涯聚合口径不变且仍在前端计算（数据量小），服务端聚合 RPC 列下轮候选。
+- 赔率走势：下注后写 bet_odds_snapshots 快照（失败不挡下注），对阵详情 canvas 小图。
+- 竞猜自动锁定：状态 = 已结算 > 组别手动锁 > 到时锁（当前时间 ≥ 赛程对战时间）> 可竞猜；
+  未排时间显示「时间待定」不开放；下注走 place_bet 服务端以 DB 时间裁决
+  （未部署时回退前端复查）；锁定后禁撤注；时间统一北京时间（HWLayout.fmtBJ）；
+  组别手动锁为管理员紧急兜底，后台开关 + 审计。
+- 导出与打印：HWLayout.downloadCsv 统一入口（列定义一处），theme.css 补 @media print。
+
+### Supabase 连接配置收敛（已实现）
+
+URL/KEY 只保留 js/layout.js 一处（HWLayout.supa），auth.js 与 8 个页面
+（admin/betting/draft/manage/matches/player/schedule/summary）全部改为取统一客户端。
+summary.html 本体功能维持现状（仅连接一行收敛）；评论禁言、Supabase Auth 迁移本轮不做。
+
+## 14.11 本轮数据库结构（install.sql，只增不改、幂等）
+
+- 既有增量（原 migration_v3）：events 软删列、player_identities/aliases、player_honors、
+  *_match_schedule 结果状态列、audit_log；
+- 本轮新增表与函数见 14.10；seasons 初始行：s5 已归档、s6 当前（归档可随时恢复）；
+- 空库演练顺序只有一份：install.sql →（测试环境可选）seed.sql。
 
 ## 14.12 本轮验证清单
 

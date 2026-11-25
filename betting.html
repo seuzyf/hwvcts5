@@ -200,6 +200,7 @@
 
             <div id="event-bar" hidden></div>
 
+            <div id="group-lock-bar" hidden style="margin-bottom:14px;"></div>
             <div id="main-content"></div>
 
             <section id="leaderboard-section" class="card" style="display:none;">
@@ -310,10 +311,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     var boundEv = null;   /* P13f：绑定活动（活动封禁判定） */
-    const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
-    const { createClient } = supabase;
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabaseClient = HWLayout.supa(); /* 连接配置收敛：js/layout.js 唯一出处 */
 
     let currentUser = null;
     let allMatchesData = [];
@@ -387,7 +385,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function loadGroupLocks() {
+        try {
+            const table = (currentSeason === 's5' ? 's5' : 's6') + '_betting_groups';
+            const r = await supabaseClient.from(table).select('group_name, is_locked');
+            const rows = (r && r.data) || [];
+            lockedGroups = new Set(rows.filter(g => g.is_locked).map(g => g.group_name));
+            renderGroupLockBar(rows);
+        } catch (e) { /* 表未部署时无手动锁 */ }
+    }
+    function renderGroupLockBar(rows) {
+        const bar = document.getElementById('group-lock-bar');
+        if (!bar) return;
+        if (!HWLayout.isAdminNow()) { bar.hidden = true; return; }
+        const names = [...new Set(allMatchesData.map(m => m.group).filter(Boolean))];
+        if (!names.length) { bar.hidden = true; return; }
+        bar.hidden = false;
+        bar.innerHTML = '<div class="card" style="padding:12px 16px;"><span class="eyebrow">组别锁定（管理员紧急兜底，自动锁定按对战时间）</span>' +
+            '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">' + names.map(g => {
+                const locked = lockedGroups.has(g);
+                return '<button class="btn ' + (locked ? 'btn-primary' : 'btn-ghost') + ' btn-sm" type="button" data-glock="' + g + '">' +
+                    g + (locked ? ' · 已锁' : ' · 解锁中') + '</button>';
+            }).join('') + '</div></div>';
+        bar.querySelectorAll('[data-glock]').forEach(b => b.addEventListener('click', async () => {
+            const g = b.dataset.glock;
+            const next = !lockedGroups.has(g);
+            const table = (currentSeason === 's5' ? 's5' : 's6') + '_betting_groups';
+            const r = await supabaseClient.from(table).upsert([{ group_name: g, is_locked: next }], { onConflict: 'group_name' });
+            if (r.error) { HWLayout.toast('操作失败（请先执行 install.sql）: ' + r.error.message, 'err'); return; }
+            HWLayout.writeAudit(next ? 'bet.group_lock' : 'bet.group_unlock', 'betting_group', g, { season: currentSeason });
+            HWLayout.toast(next ? '已锁定组别 ' + g : '已解锁组别 ' + g);
+            await loadGroupLocks();
+            renderMatches();
+        }));
+    }
+
     async function initializePage() {
+        await loadGroupLocks();
         mainContent.innerHTML = '<p style="color:var(--smoke); text-align:center; width:100%;">正在加载最新赛程和预测数据...</p>';
         const [
             { data: matches, error: mError },
@@ -475,13 +509,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /* 比赛状态：bettable 可竞猜 / locked-pending 已锁定待结算 / settled 已结算 */
+    /* 竞猜状态（自动锁定）：已结算 > 组别手动锁 > 到时自动锁 > 可竞猜；未排时间不开放 */
+    let lockedGroups = new Set();
     function matchBetState(m) {
         const hasScore = m.score_a != null && m.score_b != null && (m.score_a > 0 || m.score_b > 0);
         if (hasScore) return 'settled';
-        if (m.match_date && new Date(m.match_date).getTime() < Date.now()) return 'locked-pending';
+        if (m.group && lockedGroups.has(m.group)) return 'group-locked';
+        if (!m.match_date) return 'unscheduled';
+        if (new Date(m.match_date).getTime() < Date.now()) return 'locked-pending';
         return 'bettable';
     }
-    const STATE_ZH = { bettable: '可竞猜', 'locked-pending': '已锁定 · 待结算', settled: '已结算' };
+    const STATE_ZH = { bettable: '可竞猜', 'locked-pending': '已锁定 · 待结算', settled: '已结算', 'group-locked': '已锁定（管理员）', unscheduled: '时间待定' };
 
     /* 状态签名：比赛时间跨过「开赛」时自动刷新卡片，不必手动刷新页面 */
     let lastStateSig = '';
@@ -554,6 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
             mainContent.appendChild(section);
         });
         lastStateSig = stateSignature();
+        renderGroupLockBar([]);
     }
 
     /* 开赛时间到达后，卡片状态自动从「可竞猜」切到「已锁定 · 待结算」 */
@@ -592,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('md-title').textContent = `${match.team_a} vs ${match.team_b}`;
         document.getElementById('md-status').innerHTML =
             `<span class="badge ${state === 'bettable' ? 'badge-green' : state === 'locked-pending' ? 'badge-gold' : 'badge-quiet'}">${STATE_ZH[state]}</span>` +
-            (match.match_date ? `<span class="smoke" style="margin-left:8px; font-size:12px;">${new Date(match.match_date).toLocaleString('zh-CN')}</span>` : '');
+            (match.match_date ? `<span class="smoke" style="margin-left:8px; font-size:12px;">${HWLayout.fmtBJ(match.match_date)}（北京时间）</span>` : '<span class="smoke" style="margin-left:8px; font-size:12px;">对战时间待定</span>');
         const body = document.getElementById('md-body');
         body.innerHTML = '<p style="color:var(--smoke); text-align:center;">加载中…</p>';
         const betBtn = document.getElementById('md-bet-btn');
@@ -641,9 +680,37 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span>列：</span><span>生涯排名</span><span>本次排名</span><span>生涯 ACS</span><span>比赛 ACS</span>
                 </div>
                 <div class="md-teams">${renderTeam(match.team_a)}${renderTeam(match.team_b)}</div>`;
+            loadOddsTrend(match, body);
         } catch (e) {
             body.innerHTML = '<p style="color:var(--coral-pulse); text-align:center;">名单数据加载失败</p>';
         }
+    }
+
+    /* 赔率走势小图（bet_odds_snapshots；无快照时不显示） */
+    async function loadOddsTrend(match, body) {
+        try {
+            const r = await supabaseClient.from('bet_odds_snapshots').select('*')
+                .eq('season', currentSeason).eq('match_id', match.id)
+                .order('created_at', { ascending: true }).limit(60);
+            const rows = (r && r.data) || [];
+            if (rows.length < 2) return;
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'margin-top:14px;';
+            wrap.innerHTML = '<div class="smoke" style="font-size:12px; margin-bottom:6px;">赔率走势（' + match.team_a + ' 赔率）</div>' +
+                '<canvas width="520" height="90" style="width:100%; height:90px; display:block;"></canvas>';
+            body.appendChild(wrap);
+            const cv = wrap.querySelector('canvas');
+            const ctx = cv.getContext('2d');
+            const vals = rows.map(x => Number(x.rate_a) || 0);
+            const min = Math.min(...vals), max = Math.max(...vals), pad = (max - min) * 0.15 || 0.1;
+            ctx.strokeStyle = '#ff4655'; ctx.lineWidth = 2; ctx.beginPath();
+            vals.forEach((v, i) => {
+                const x = 8 + (cv.width - 16) * (vals.length === 1 ? 0 : i / (vals.length - 1));
+                const y = cv.height - 8 - (cv.height - 16) * ((v - min + pad) / (max - min + 2 * pad));
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        } catch (e) { /* 快照表未部署则跳过 */ }
     }
 
     function openBetModal(matchId) {
@@ -656,6 +723,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const st = matchBetState(match);
         if (st === 'settled') { HWLayout.toast('该场比赛已结算，不再接受预测'); return; }
         if (st === 'locked-pending') { HWLayout.toast('比赛时间已过，预测已锁定，等待结算'); return; }
+        if (st === 'group-locked') { HWLayout.toast('该组别已被管理员锁定，暂停预测'); return; }
+        if (st === 'unscheduled') { HWLayout.toast('对战时间待定，暂未开放竞猜'); return; }
 
         document.getElementById('bet-modal-header').textContent = `${match.team_a} vs ${match.team_b}`;
         document.getElementById('modal-user-balance').textContent = Math.round(currentUser.balance);
@@ -727,22 +796,47 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             {
+                /* 提交瞬间复查（防止开着弹窗跨过开赛点） */
                 const stC = matchBetState(match);
                 if (stC !== 'bettable') {
-                    HWLayout.toast('比赛时间已过或已结算，无法提交预测', 'err');
+                    HWLayout.toast('比赛已锁定或时间待定，无法提交预测', 'err');
                     betModal.classList.remove('visible');
                     return;
                 }
             }
-            
+
             betConfirmBtn.disabled = true; betConfirmBtn.textContent = '提交中...';
-            const { error } = await supabaseClient.from(betsTable()).insert([{ user_id: currentUser.id, match_id: match.id, amount, predicted_winner: selectedTeam }]);
+            /* 服务端裁决（place_bet 以数据库时间为准）；未部署该函数时回退前端校验直插 */
+            let error = null;
+            const rpcRes = await supabaseClient.rpc('place_bet', {
+                p_user_id: currentUser.id, p_season: currentSeason, p_match_id: match.id,
+                p_amount: amount, p_predicted_winner: selectedTeam
+            });
+            if (rpcRes.error && /could not find the function|PGRST202/i.test(rpcRes.error.message || '')) {
+                const ins = await supabaseClient.from(betsTable()).insert([{ user_id: currentUser.id, match_id: match.id, amount, predicted_winner: selectedTeam }]);
+                error = ins.error;
+            } else if (rpcRes.error) {
+                error = rpcRes.error;
+            } else if (rpcRes.data && rpcRes.data.error) {
+                error = { message: rpcRes.data.error };
+            }
             betConfirmBtn.disabled = false; betConfirmBtn.textContent = '确 认 预 测';
 
             if (error) {
                 HWLayout.toast("预测失败: " + error.message);
                 return;
             }
+            /* 赔率走势快照（best effort，失败不挡下注） */
+            try {
+                const mb = allBetsData.filter(b => b.match_id === match.id);
+                const pA = mb.filter(b => b.predicted_winner === match.team_a).reduce((t, b) => t + b.amount, 0) + (selectedTeam === match.team_a ? amount : 0);
+                const pB = mb.filter(b => b.predicted_winner === match.team_b).reduce((t, b) => t + b.amount, 0) + (selectedTeam === match.team_b ? amount : 0);
+                await supabaseClient.from('bet_odds_snapshots').insert([{
+                    season: currentSeason, match_id: match.id, pool_a: pA, pool_b: pB,
+                    rate_a: Math.round(((200 + pA + pB) / (100 + pA)) * 100) / 100,
+                    rate_b: Math.round(((200 + pA + pB) / (100 + pB)) * 100) / 100
+                }]);
+            } catch (e) { /* snapshots 表未部署则跳过 */ }
             HWLayout.toast("预测成功!");
             betModal.classList.remove('visible');
             await initializePage();
@@ -863,6 +957,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        /* 锁定后不可撤注（与下注同一道状态校验） */
+        const myBet = allBetsData.find(b => b.id === betId);
+        const myMatch = myBet ? allMatchesData.find(m => m.id === myBet.match_id) : null;
+        if (myMatch && matchBetState(myMatch) !== 'bettable') {
+            HWLayout.toast('比赛已锁定或已结算，预测不可撤销', 'err');
+            return;
+        }
         const { error } = await supabaseClient.from(betsTable()).delete().eq('id', betId);
         if (error) { HWLayout.toast('撤销失败: ' + error.message); return; }
         

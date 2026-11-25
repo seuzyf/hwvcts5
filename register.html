@@ -419,7 +419,26 @@
             .then(function (r) {
               if (r.error) { throw new Error('资料保存失败: ' + r.error.message); }
               syncBoundGameId(u);
-              if (mine) { return null; } /* 已有报名 = 仅更新资料 */
+              if (mine) {
+                /* 已有报名：真名/游戏ID 属关键字段，变更则存快照并回待审核 */
+                var keyChanged2 = !!profile && ((pData.real_name || '') !== (profile.real_name || '') || (pData.game_id || '') !== (profile.game_id || ''));
+                if (keyChanged2) {
+                  sb().from('registration_revisions').insert([{
+                    registration_id: mine.id, event_id: ev.id, snapshot: mine,
+                    changed_by: u.id, change_kind: 'key_edit'
+                  }]).then(function () {}, function () {});
+                  if (mine.status === 'approved') {
+                    return sb().from('event_registrations')
+                      .update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', mine.id)
+                      .then(function () {
+                        if (ev.organizer_id) HWLayout.notifyUser(ev.organizer_id, '报名修改待重审', '「' + ev.title + '」有报名修改了真名/游戏ID，已回到待审核。', 'review.html?event=' + ev.id);
+                        HWLayout.toast('关键信息已变更，报名回到待审核');
+                        return null;
+                      });
+                  }
+                }
+                return null;
+              }
               return submitRegistration(u);
             });
         }).then(function (res) {
@@ -534,6 +553,51 @@
           });
       }
 
+      /* 报名修改：先存修改前快照（registration_revisions），关键字段变更回待审核 */
+      function saveRegEdit() {
+        var u = HWAuth.getSession();
+        if (!u || !mine) return;
+        var team = document.getElementById('st-team').value.trim();
+        var contact = document.getElementById('st-contact').value.trim();
+        var note = document.getElementById('st-note').value.trim();
+        var keyChanged = team !== (mine.team_name || '');
+        var backToPending = mine.status === 'approved' && keyChanged;
+        var btn = document.getElementById('st-edit-save');
+        btn.disabled = true; btn.textContent = '保存中…';
+        sb().from('registration_revisions').insert([{
+          registration_id: mine.id, event_id: ev.id,
+          snapshot: mine, changed_by: u.id, change_kind: keyChanged ? 'key_edit' : 'edit'
+        }]).then(function () {}, function () {})  /* 表未部署时忽略 */;
+        var patch = { team_name: team, contact: contact, note: note, updated_at: new Date().toISOString() };
+        if (backToPending) patch.status = 'pending';
+        sb().from('event_registrations').update(patch).eq('id', mine.id).then(function (res) {
+          btn.disabled = false; btn.textContent = '保存修改';
+          if (res.error) { HWLayout.toast('保存失败: ' + res.error.message, 'err'); return; }
+          HWLayout.writeAudit('registration.edit', 'registration', mine.id, { keyChanged: keyChanged, backToPending: backToPending });
+          if (backToPending) {
+            if (ev.organizer_id) HWLayout.notifyUser(ev.organizer_id, '报名修改待重审', '「' + ev.title + '」有报名修改了队伍，已回到待审核。', 'review.html?event=' + ev.id);
+            HWLayout.notifyAdmins('报名修改待重审', '「' + ev.title + '」有报名修改关键信息待重审。', 'review.html?event=' + ev.id);
+            HWLayout.toast('已保存，队伍变更需重新审核');
+          } else {
+            HWLayout.toast('报名信息已更新');
+          }
+          bootData();
+        });
+      }
+      function loadRegHistory() {
+        var host = document.getElementById('st-history');
+        if (!host || !mine) return;
+        sb().from('registration_revisions').select('*').eq('registration_id', mine.id)
+          .order('created_at', { ascending: false }).limit(5)
+          .then(function (r) {
+            if (r.error || !r.data || !r.data.length) { host.innerHTML = ''; return; }
+            host.innerHTML = '<div class="smoke" style="font-size:12px;">修改历史：' + r.data.map(function (h) {
+              return new Date(h.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) +
+                (h.change_kind === 'key_edit' ? '（关键信息）' : '');
+            }).join(' · ') + '</div>';
+          }, function () { host.innerHTML = ''; });
+      }
+
       /* ---------- 渲染 ---------- */
       function renderEventCard() {
         var host = document.getElementById('reg-event-card');
@@ -567,9 +631,27 @@
           ((mine.status === 'pending' || mine.status === 'approved')
             ? '<button class="btn btn-ghost btn-sm" id="st-cancel" type="button" style="margin-left:auto;">撤回报名</button>' : '') +
           '</div>' +
-          '<p class="smoke" style="font-size:13px; margin:10px 0 0;">如需更换队伍，请撤回后重新报名；个人资料可随时在下方更新。</p>';
+          '<p class="smoke" style="font-size:13px; margin:10px 0 0;">可直接修改报名信息：修改队伍等关键信息后将重新进入待审核；改联系方式、备注不影响审核状态。个人资料可在下方更新。</p>' +
+          ((mine.status === 'pending' || mine.status === 'approved' || mine.status === 'waitlist')
+            ? '<div style="margin-top:10px;"><button class="btn btn-ghost btn-sm" id="st-edit" type="button">修改报名</button></div>' +
+              '<div id="st-edit-box" hidden style="margin-top:12px;">' +
+              '  <label class="form-label">队伍</label><input class="input" id="st-team" value="' + esc(mine.team_name || '') + '">' +
+              '  <label class="form-label" style="margin-top:8px;">联系方式</label><input class="input" id="st-contact" value="' + esc(mine.contact || '') + '">' +
+              '  <label class="form-label" style="margin-top:8px;">备注</label><input class="input" id="st-note" value="' + esc(mine.note || '') + '">' +
+              '  <div style="margin-top:10px; display:flex; gap:8px;"><button class="btn btn-primary btn-sm" id="st-edit-save" type="button">保存修改</button>' +
+              '  <button class="btn btn-ghost btn-sm" id="st-edit-cancel" type="button">取消</button></div>' +
+              '</div>'
+            : '') +
+          '<div id="st-history" style="margin-top:10px;"></div>';
         var c = document.getElementById('st-cancel');
         if (c) c.addEventListener('click', function () { cancelReg(mine.id); });
+        var eb = document.getElementById('st-edit');
+        if (eb) eb.addEventListener('click', function () { document.getElementById('st-edit-box').hidden = false; });
+        var ec = document.getElementById('st-edit-cancel');
+        if (ec) ec.addEventListener('click', function () { document.getElementById('st-edit-box').hidden = true; });
+        var es = document.getElementById('st-edit-save');
+        if (es) es.addEventListener('click', saveRegEdit);
+        loadRegHistory();
       }
 
       function prefill() {

@@ -72,6 +72,11 @@
       </table>
     </div>
 
+    <div id="dc-pager" style="display:none; gap:8px; align-items:center; justify-content:flex-end; margin-top:12px;">
+      <button class="btn btn-ghost btn-sm" id="dc-prev" type="button">上一页</button>
+      <span class="smoke" id="dc-pageinfo" style="font-size:13px;"></span>
+      <button class="btn btn-ghost btn-sm" id="dc-next" type="button">下一页</button>
+    </div>
     <div id="dc-empty" class="empty-state" hidden>
       <strong>暂无选手</strong>
       <p>当前筛选下没有选手（或尚未录入比赛数据）。</p>
@@ -80,7 +85,7 @@
 
   <script>
     (function () {
-      var state = { season: '', event: '', evs: [], rows: [], view: [], sort: { key: 'kills', dir: -1 }, q: '', regCount: 0 };
+      var state = { season: '', event: '', evs: [], rows: [], view: [], sort: { key: 'kills', dir: -1 }, q: '', regCount: 0, page: 0, pageSize: 20 };
 
       function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -283,6 +288,12 @@
           if (anyScoped) matches = scoped;
         }
 
+        if (!r && !matches.length && !roster.length) {
+          tb.innerHTML = '<tr><td colspan="14">' + '加载失败，请检查网络后重试。 <button class="btn btn-ghost btn-sm" id="dc-retry" type="button">重试</button>' + '</td></tr>';
+          var rb = document.getElementById('dc-retry');
+          if (rb) rb.addEventListener('click', function () { loadAll(); });
+          return;
+        }
         await loadRegistrants();
 
         /* 与 player.html 同源解析 */
@@ -371,10 +382,20 @@
         if (!rows.length) {
           tb.innerHTML = '';
           document.getElementById('dc-empty').hidden = false;
+          document.getElementById('dc-pager').style.display = 'none';
           return;
         }
         document.getElementById('dc-empty').hidden = true;
-        tb.innerHTML = rows.map(function (r, idx) {
+        /* 分页渲染（20 条/页，序号按全局位次） */
+        var totalPages = Math.max(1, Math.ceil(rows.length / state.pageSize));
+        if (state.page >= totalPages) state.page = totalPages - 1;
+        var pager = document.getElementById('dc-pager');
+        pager.style.display = totalPages > 1 ? 'flex' : 'none';
+        document.getElementById('dc-pageinfo').textContent = '第 ' + (state.page + 1) + ' / ' + totalPages + ' 页 · 共 ' + rows.length + ' 人';
+        document.getElementById('dc-prev').disabled = state.page === 0;
+        document.getElementById('dc-next').disabled = state.page >= totalPages - 1;
+        var pageRows = rows.slice(state.page * state.pageSize, state.page * state.pageSize + state.pageSize);
+        tb.innerHTML = pageRows.map(function (r, pidx) { var idx = state.page * state.pageSize + pidx;
           var idCell = r.gid
             ? '<a href="player.html?id=' + encodeURIComponent(r.gid)
               + '&name=' + encodeURIComponent(r.name || '')
@@ -417,13 +438,17 @@
       document.querySelectorAll('#dc-table th[data-sort]').forEach(function (th) {
         th.addEventListener('click', function () {
           var key = th.dataset.sort;
+          state.page = 0;
           if (state.sort.key === key) state.sort.dir *= -1;
           else state.sort = { key: key, dir: (key === 'name' || key === 'gid') ? 1 : -1 };
           render();
         });
       });
+      document.getElementById('dc-prev').addEventListener('click', function () { if (state.page > 0) { state.page--; render(); } });
+      document.getElementById('dc-next').addEventListener('click', function () { state.page++; render(); });
       document.getElementById('dc-search').addEventListener('input', function (e) {
         state.q = e.target.value;
+        state.page = 0;
         render();
       });
       document.getElementById('dc-csv').addEventListener('click', exportCsv);

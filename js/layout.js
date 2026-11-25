@@ -674,14 +674,13 @@
   /** 至少某角色（组织者以上等判断；临时管理员=admin，不升 superadmin） */
   function atLeast(minRole) { return effectiveRank() >= roleRank(minRole); }
 
+  /* ★ Supabase 连接配置全站唯一出处：其他文件一律经 HWLayout.supa()
+     或 HWAuth.getClient() 取得客户端，不得再自带 URL/KEY 副本。 */
+  var SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
   function supa() {
     if (typeof supabase === 'undefined' || !supabase.createClient) return null;
-    if (!supa._c) {
-      supa._c = supabase.createClient(
-        'https://odjmanvkhwiirswscrht.supabase.co',
-        'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO'
-      );
-    }
+    if (!supa._c) supa._c = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     return supa._c;
   }
 
@@ -689,7 +688,7 @@
   /**
    * 口令验证通过后把当前账号升为 admin。
    * 优先走服务端 RPC（promote_self_admin，服务端再校验一次口令）；
-   * 仅当数据库尚未部署 supabase/hardening.sql（PGRST202 函数不存在）时，
+   * 仅当数据库尚未部署 supabase/install.sql（PGRST202 函数不存在）时，
    * 才回退到旧的前端直写，避免升级期间管理员功能整体失效。
    */
   function promoteRole(pwd) {
@@ -1223,6 +1222,126 @@
     });
   }
 
+
+  /* ---------------- 本轮新增：一次性口令 / 赛季 / 审计 / 工具 ---------------- */
+
+  /** 兑换一次性临时管理员口令：成功后开启 15 分钟管理员会话（最高 admin）。 */
+  function redeemAdminCode(code) {
+    var sb = supa();
+    var u = (typeof HWAuth !== 'undefined' && HWAuth.getSession) ? HWAuth.getSession() : null;
+    if (!sb) return Promise.resolve({ ok: false, error: '数据连接不可用' });
+    if (!u || !u.id) return Promise.resolve({ ok: false, error: '请先登录再兑换口令（口令需绑到账号以便追溯）' });
+    return sb.rpc('redeem_admin_code', { p_code: String(code || '').trim(), p_user_id: u.id })
+      .then(function (r) {
+        if (r.error) {
+          if (/could not find the function|PGRST202|404/i.test(r.error.message || '')) {
+            return { ok: false, error: '数据库尚未部署一次性口令，请先执行 supabase/install.sql' };
+          }
+          return { ok: false, error: r.error.message || '兑换失败' };
+        }
+        var d = r.data || {};
+        if (d.error) return { ok: false, error: d.error };
+        markAdmin(15);
+        return { ok: true };
+      }, function (e) { return { ok: false, error: (e && e.message) || '兑换失败' }; });
+  }
+
+  /** 统一审计写入（best effort，失败不挡业务） */
+  function writeAudit(action, targetType, targetId, detail) {
+    var sb = supa();
+    if (!sb) return Promise.resolve();
+    var u = (typeof HWAuth !== 'undefined' && HWAuth.getSession) ? HWAuth.getSession() : null;
+    return sb.from('audit_log').insert([{
+      actor_id: u ? u.id : null, actor_role: u ? (u.role || '') : '',
+      action: action, target_type: targetType || '', target_id: String(targetId == null ? '' : targetId),
+      detail: detail || {}
+    }]).then(function () {}, function () {});
+  }
+
+  var ACTION_ZH = {
+    'admin_code.generate': '生成临时口令', 'admin_code.redeem': '兑换临时口令', 'admin_code.revoke': '撤销临时口令',
+    'event.delete': '删除活动', 'event.restore': '恢复活动', 'honor.award': '发放荣誉', 'honor.revoke': '撤销荣誉',
+    'gameid.change': '修改游戏ID', 'player.resync': '重新同步选手页', 'role.change': '调整角色',
+    'points.adjust': '调整积分', 'shop.refund': '商城退款', 'season.create': '新建赛季',
+    'season.archive': '归档赛季', 'season.unarchive': '恢复赛季', 'season.current': '设为当前赛季',
+    'bet.group_lock': '锁定竞猜组别', 'bet.group_unlock': '解锁竞猜组别',
+    'registration.edit': '修改报名', 'team.rename': '队伍改名', 'team.transfer': '队长转让',
+    'comment.hide': '隐藏评论', 'comment.restore': '恢复评论', 'import.create': 'CSV导入赛果', 'import.undo': '撤销CSV导入'
+  };
+
+  /* 赛季注册表：拉 seasons 表，失败回退内置 s5/s6（不白屏） */
+  var _seasonsCache = null;
+  function getSeasons() {
+    if (_seasonsCache) return _seasonsCache;
+    var fallback = [
+      { season_key: 's5', name: '第五赛季', status: 'archived', is_current: false },
+      { season_key: 's6', name: '第六赛季', status: 'active', is_current: true }
+    ];
+    var sb = supa();
+    if (!sb) { _seasonsCache = Promise.resolve(fallback); return _seasonsCache; }
+    _seasonsCache = sb.from('seasons').select('*').order('id', { ascending: true })
+      .then(function (r) {
+        if (r.error || !r.data || !r.data.length) return fallback;
+        return r.data;
+      }, function () { return fallback; });
+    return _seasonsCache;
+  }
+  function clearSeasonsCache() { _seasonsCache = null; }
+
+  /** 统一 CSV 下载：列定义一处维护（cols=[{key,label}]，rows 为对象数组） */
+  function downloadCsv(filename, cols, rows) {
+    var lines = [cols.map(function (c) { return c.label; }).join(',')];
+    (rows || []).forEach(function (r) {
+      lines.push(cols.map(function (c) {
+        var v = r[c.key] == null ? '' : String(r[c.key]);
+        return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      }).join(','));
+    });
+    var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  }
+
+  /** 统一状态块：empty 暂无数据 / error 加载失败 / forbidden 无权限 */
+  function stateHtml(kind, opts) {
+    opts = opts || {};
+    if (kind === 'error') {
+      return '<div class="empty-state"><strong>加载失败</strong><p>' + esc(opts.message || '网络或数据库异常，请稍后重试。') + '</p>' +
+        (opts.retryId ? '<button class="btn btn-ghost" type="button" id="' + opts.retryId + '">重试</button>' : '') + '</div>';
+    }
+    if (kind === 'forbidden') {
+      return '<div class="empty-state"><strong>无权限查看</strong><p>' + esc(opts.message || '请先登录，或联系管理员开通权限。') + '</p></div>';
+    }
+    return '<div class="empty-state"><strong>' + esc(opts.title || '暂无数据') + '</strong><p>' + esc(opts.message || '') + '</p></div>';
+  }
+
+  /* 北京时间（Asia/Shanghai）展示/输入换算 */
+  function fmtBJ(iso) {
+    if (!iso) return '—';
+    try {
+      var parts = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(iso));
+      var o = {}; parts.forEach(function (x) { o[x.type] = x.value; });
+      return o.year + '-' + o.month + '-' + o.day + ' ' + o.hour + ':' + o.minute;
+    } catch (e) { return String(iso).slice(0, 16).replace('T', ' '); }
+  }
+  function toBJInputValue(iso) {
+    if (!iso) return '';
+    try {
+      var parts = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(iso));
+      var o = {}; parts.forEach(function (x) { o[x.type] = x.value; });
+      return o.year + '-' + o.month + '-' + o.day + 'T' + o.hour + ':' + o.minute;
+    } catch (e) { return ''; }
+  }
+  function fromBJInputValue(v) {
+    if (!v) return null;
+    var d = new Date(v + ':00+08:00');
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+
   function ensureAccountModals() {
     if (modalsInjected && document.getElementById('hw-av-modal')) return;
     modalsInjected = true;
@@ -1549,6 +1668,13 @@
     layoutInited = true;
     if (typeof HWAuth !== 'undefined' && !HWAuth.getSession()) {
       try { HWAuth.init(); } catch (e) { /* offline */ }
+      if (HWAuth.sessionExpired && HWAuth.sessionExpired()) {
+        /* 会话过期（7 天未活动 / 满 30 天）：原地提示重登，不丢当前页面 */
+        setTimeout(function () {
+          toast('登录已过期，请重新登录（登录后仍在本页）', 'info');
+          if (HWAuth.openModal) HWAuth.openModal({ stay: true }).catch(function () {});
+        }, 600);
+      }
     }
     buildNav();
     buildFooter();
@@ -1569,6 +1695,20 @@
   }
 
   window.HWLayout = {
+    SUPABASE_URL: SUPABASE_URL,
+    SUPABASE_KEY: SUPABASE_KEY,
+    supa: supa,
+    redeemAdminCode: redeemAdminCode,
+    writeAudit: writeAudit,
+    ACTION_ZH: ACTION_ZH,
+    getSeasons: getSeasons,
+    clearSeasonsCache: clearSeasonsCache,
+    downloadCsv: downloadCsv,
+    stateHtml: stateHtml,
+    fmtBJ: fmtBJ,
+    toBJInputValue: toBJInputValue,
+    fromBJInputValue: fromBJInputValue,
+    adminRemainingMs: adminRemainingMs,
     renderAuth: renderAuth,
     bump: bump,
     reveal: reveal,

@@ -295,14 +295,39 @@
     if (isAdmin()) return true;
     return g && g.created_by != null && String(g.created_by) === String(u.id);
   }
+  function renderGoodsPager(total) {
+    var host = document.getElementById('shop-grid');
+    if (!host || !host.parentNode) return;
+    var pager = document.getElementById('shop-pager');
+    if (!pager) {
+      pager = document.createElement('div');
+      pager.id = 'shop-pager';
+      pager.style.cssText = 'display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:12px;';
+      host.parentNode.insertBefore(pager, host.nextSibling);
+    }
+    var pages = Math.max(1, Math.ceil((total || 0) / GOODS_PAGE_SIZE));
+    pager.style.display = pages > 1 ? 'flex' : 'none';
+    pager.innerHTML = '<button class="btn btn-ghost btn-sm" id="shop-prev" type="button">上一页</button>' +
+      '<span class="smoke" style="font-size:13px;">第 ' + (goodsPage + 1) + ' / ' + pages + ' 页</span>' +
+      '<button class="btn btn-ghost btn-sm" id="shop-next" type="button">下一页</button>';
+    var pv = document.getElementById('shop-prev'), nx = document.getElementById('shop-next');
+    if (pv) { pv.disabled = goodsPage === 0; pv.onclick = function () { if (goodsPage > 0) { goodsPage--; loadGoods(); } }; }
+    if (nx) { nx.disabled = goodsPage >= pages - 1; nx.onclick = function () { if (goodsPage < pages - 1) { goodsPage++; loadGoods(); } }; }
+  }
+  var goodsPage = 0;
+  var GOODS_PAGE_SIZE = 20;
   function loadGoods() {
     var host = document.getElementById('shop-grid');
     /* 加载态用骨架屏，避免「加载中…」闪一下又跳走 */
     if (host && !host.dataset.loaded && window.HWLayout && HWLayout.skeletonCards) {
       host.innerHTML = HWLayout.skeletonCards(6);
     }
-    return sb().from('goods').select('*').order('id', { ascending: false }).then(function (r) {
+    return sb().from('goods').select('*', { count: 'exact' })
+      .order('id', { ascending: false })
+      .range(goodsPage * GOODS_PAGE_SIZE, goodsPage * GOODS_PAGE_SIZE + GOODS_PAGE_SIZE - 1)
+      .then(function (r) {
       var rows = (r && !r.error && r.data) || [];
+      renderGoodsPager((r && r.count) || rows.length);
       var u = me();
       state.goods = rows.filter(function (g) {
         if (g.status === 'active') return true;

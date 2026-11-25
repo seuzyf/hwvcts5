@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "check": "node scripts/check.js",
-    "check:sql": "python3 -c \"from pglast import parse_sql; [parse_sql(open(f,encoding='utf-8').read()) for f in ['supabase/schema.sql','supabase/bootstrap.sql','supabase/hardening.sql','supabase/migration_v3.sql','supabase/seed.sql'] if __import__('os').path.exists(f)]; print('SQL OK')\"",
+    "check:sql": "python3 -c \"from pglast import parse_sql; [parse_sql(open(f,encoding='utf-8').read()) for f in ['supabase/install.sql','supabase/seed.sql']]; print('SQL OK')\"",
     "serve": "python3 -m http.server 8080",
     "check:fields": "node scripts/check-sql-fields.js"
   },

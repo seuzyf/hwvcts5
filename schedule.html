@@ -234,10 +234,7 @@
 <script>
 
     document.addEventListener('DOMContentLoaded', () => {
-        const SUPABASE_URL = 'https://odjmanvkhwiirswscrht.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_LVXTUDdXTQ8vlRS0U0G1xQ_qMnEiylO';
-        const { createClient } = supabase;
-        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabaseClient = HWLayout.supa(); /* 连接配置收敛：js/layout.js 唯一出处 */
 
         const groupFilters    = document.getElementById('group-filters');
         const stageFilters    = document.getElementById('stage-filters');
@@ -1641,6 +1638,20 @@
                     HWLayout.eventBar({ event: ev, perms: perms });
                 });
             }
+            /* 归档赛季只读 */
+            HWLayout.getSeasons().then(function (list) {
+                var row = list.find(function (x) { return x.season_key === currentSeason; });
+                if (!row || row.status !== 'archived') return;
+                var host = document.querySelector('main') || document.body;
+                var b = document.createElement('div');
+                b.className = 'notice';
+                b.style.margin = '14px 0';
+                b.innerHTML = '<strong>该赛季已归档（只读）。</strong> 如需继续排赛程，请管理员在管理后台取消归档。';
+                host.prepend(b);
+                document.querySelectorAll('button.btn-primary, button.success').forEach(function (el) {
+                    el.disabled = true; el.title = '赛季已归档，只读';
+                });
+            });
             loadData();
         });
     });
