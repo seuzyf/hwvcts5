@@ -2,6 +2,7 @@
   "name": "hwvcts5",
   "private": true,
   "scripts": {
+    "build": "node scripts/build.js",
     "check": "node scripts/check.js",
     "check:sql": "python3 -c \"from pglast import parse_sql; [parse_sql(open(f,encoding='utf-8').read()) for f in ['supabase/install.sql','supabase/seed.sql','supabase/fix-passwords.sql']]; print('SQL OK')\"",
     "serve": "python3 -m http.server 8080",
@@ -16,7 +17,8 @@
     "test:ui": "node scripts/test-ui.js",
     "test:parity": "node scripts/test-parity.js",
     "test:autosync": "node scripts/test-autosync.js",
-    "test:report": "node scripts/test-report.js"
+    "test:report": "node scripts/test-report.js",
+    "check:deploy": "node scripts/check-deploy.js"
   },
   "dependencies": {
     "lucide-static": "^0.462.0"
