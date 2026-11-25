@@ -18,11 +18,11 @@
         .switch .slider {
             position: absolute; inset: 0; cursor: pointer;
             background: var(--obsidian); border: 1px solid var(--border); border-radius: 20px;
-            transition: 0.2s;
+            transition: background var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
         }
         .switch .slider::before {
             content: ""; position: absolute; height: 14px; width: 14px; left: 2px; bottom: 2px;
-            background: var(--ash); border-radius: 50%; transition: 0.2s;
+            background: var(--ash); border-radius: 50%; transition: background var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
         }
         .switch input:checked + .slider { background: var(--graphite); border-color: var(--smoke); }
         .switch input:checked + .slider::before { transform: translateX(16px); background: var(--pure-white); }
@@ -35,7 +35,7 @@
             border: 1px solid transparent;
             border-radius: 10px;
             cursor: pointer;
-            transition: border-color 0.15s ease, background 0.15s ease;
+            transition: border-color var(--t-hover) var(--ease-out), background var(--t-hover) var(--ease-out);
         }
         .match-card:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.04); }
         .match-card .m-meta {
@@ -53,6 +53,7 @@
             padding: 3px 12px; border-radius: var(--r-badge);
         }
         .match-card .m-tag { flex-shrink: 0; }
+        .match-card .m-tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
         /* Match detail modal table */
         .cmp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -364,13 +365,16 @@
             var score = String(matchData.score).replace(/[/：]/, ' : ');
             var stageBadge = matchData.stage === '决赛' ? '<span class="badge badge-gold m-tag">决赛</span>'
                 : '<span class="badge badge-quiet m-tag">' + esc(stageType) + '</span>';
+            /* 结果状态：待确认的比赛不计入统计 —— 必须当场说明，别让人猜 */
+            var rsSt = HWLayout.resultStateOf(matchData, true);
+            var rsBadge = HWLayout.resultBadge(rsSt);
             card.innerHTML =
                 '<div class="m-meta"><span class="map">' + esc(matchData.map || '') + '</span>' + esc(matchData.match_date || '') + '</div>' +
                 '<div class="m-teams">' +
                 '  <span>' + esc(matchData.team_a) + '</span>' +
                 '  <span class="m-score">' + esc(score) + '</span>' +
                 '  <span>' + esc(matchData.team_b) + '</span>' +
-                '</div>' + stageBadge;
+                '</div><div class="m-tags">' + stageBadge + rsBadge + '</div>';
             card.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
             });

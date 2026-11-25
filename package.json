@@ -5,10 +5,25 @@
     "check": "node scripts/check.js",
     "check:sql": "python3 -c \"from pglast import parse_sql; [parse_sql(open(f,encoding='utf-8').read()) for f in ['supabase/install.sql','supabase/seed.sql']]; print('SQL OK')\"",
     "serve": "python3 -m http.server 8080",
-    "check:fields": "node scripts/check-sql-fields.js"
+    "check:fields": "node scripts/check-sql-fields.js",
+    "test": "node scripts/check.js && node scripts/test-evstate.js && node scripts/test-events.js && node scripts/test-ui.js && node scripts/test-manage.js && node scripts/test-pages.js && node scripts/audit-design.js",
+    "test:evstate": "node scripts/test-evstate.js",
+    "test:manage": "node scripts/test-manage.js",
+    "test:pages": "node scripts/test-pages.js",
+    "test:events": "node scripts/test-events.js",
+    "audit:design": "node scripts/audit-design.js",
+    "test:ui": "node scripts/test-ui.js"
   },
   "dependencies": {
-    "jsdom": "^26.0.0",
     "lucide-static": "^0.462.0"
+  },
+  "version": "1.1.0",
+  "description": "HWVCTS 赛事网站（静态多页站点 · Supabase 直连）",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
   }
 }

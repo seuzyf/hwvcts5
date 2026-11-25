@@ -63,7 +63,7 @@
         .lt-win-item {
             display: flex; align-items: center; gap: 10px; padding: 10px 12px;
             border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,0.03);
-            animation: ltPop 0.35s ease;
+            animation: ltPop var(--t-swap) var(--ease-out);
         }
         @keyframes ltPop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
         .lt-win-rank {
@@ -85,7 +85,7 @@
             <header class="page-header">
                 <span class="eyebrow">Event Lottery</span>
                 <h1 class="page-title">活动抽奖</h1>
-                <p class="page-sub" id="lt-sub">加载中…</p>
+                <p class="page-sub" id="lt-sub">—</p>
             </header>
 
             <div id="event-bar" hidden></div>
@@ -111,7 +111,7 @@
                                 <button class="btn btn-ghost btn-sm" id="lt-clear" type="button">清空</button>
                                 <span class="smoke" style="font-size:12px; align-self:center;">勾选活动下的比赛记录，自动统计出场名单</span>
                             </div>
-                            <div class="lt-match-list" id="lt-match-list"><div class="empty-state">加载中…</div></div>
+                            <div class="lt-match-list" id="lt-match-list"><div class="sk-loader"><div class="sk"></div><div class="sk"></div><span class="sr-only">正在加载赛程</span></div></div>
                         </div>
 
                         <div id="lt-pane-import" hidden>
@@ -125,7 +125,7 @@
                             </div>
                         </div>
 
-                        <div class="lt-pool" id="lt-pool"><span class="smoke">名单加载中…</span></div>
+                        <div class="lt-pool" id="lt-pool"><div class="sk-loader inline"><div class="sk"></div><span class="sr-only">正在加载名单</span></div></div>
                     </section>
 
                     <section class="card">
@@ -190,7 +190,7 @@
 
                     <section class="card">
                         <div class="block-head"><h2>历史中奖记录</h2></div>
-                        <div id="lt-history"><div class="empty-state lt-empty-pad">加载中…</div></div>
+                        <div id="lt-history"><div class="sk-loader lt-empty-pad"><div class="sk"></div><div class="sk"></div><span class="sr-only">正在加载记录</span></div></div>
                     </section>
                 </div>
             </div>

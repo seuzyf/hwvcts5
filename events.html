@@ -12,26 +12,7 @@
     <script src="js/auth.js"></script>
     <script src="js/layout.js"></script>
     <style>
-        .tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
-        .tab-btn {
-            padding: 10px 16px;
-            background: none;
-            border: none;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -1px;
-            color: var(--ash);
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: color 0.15s ease, border-color 0.15s ease;
-        }
-        .tab-btn:hover { color: var(--pure-white); }
-        .tab-btn.active { color: var(--pure-white); border-bottom-color: var(--coral-pulse); }
-        .tab-badge {
-            display: inline-block; min-width: 17px; padding: 0 5px; margin-left: 6px;
-            border-radius: 9px; background: var(--graphite); color: var(--mist);
-            font-family: var(--font-mono); font-size: 11px; line-height: 17px; text-align: center;
-        }
+        /* .tabs / .tab-btn / .tab-badge 已收进 css/theme.css（全站一套） */
 
         /* 小红书式错位信息流（CSS columns 瀑布流 + 混合比例封面） */
         .events-grid { column-count: 3; column-gap: 16px; }
@@ -47,7 +28,7 @@
             box-shadow: var(--key-shadow);
             cursor: pointer;
             overflow: hidden;
-            transition: box-shadow 0.2s ease, transform 0.2s ease;
+            transition: box-shadow var(--t-hover) var(--ease-out), transform var(--t-hover) var(--ease-out);
         }
         .event-card:hover { box-shadow: var(--key-shadow-hover); transform: translateY(-3px); }
 
@@ -55,7 +36,7 @@
         .ev-cover.r34 { aspect-ratio: 3 / 4; }
         .ev-cover.r11 { aspect-ratio: 1 / 1; }
         .ev-cover.r43 { aspect-ratio: 4 / 3; }
-        .ev-cover img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.35s ease; }
+        .ev-cover img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--t-swap) var(--ease-out); }
         .event-card:hover .ev-cover img { transform: scale(1.05); }
         .ev-cover .ev-emoji-fb {
             position: absolute; inset: 0;
@@ -84,7 +65,7 @@
         .slot-bar { flex: 1; }
         .slot-text { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--smoke); margin-bottom: 5px; text-transform: uppercase; }
         .slot-track { height: 4px; background: var(--obsidian); border-radius: 2px; overflow: hidden; }
-        .slot-fill { height: 100%; background: var(--mist); border-radius: 2px; transition: width 0.4s ease; }
+        .slot-fill { position: relative; height: 100%; background: var(--mist); border-radius: 2px; }
         .slot-fill.full { background: var(--coral-pulse); }
         .event-card.ev-dim { opacity: .62; filter: grayscale(.35); }
 
@@ -99,7 +80,7 @@
             min-width: 130px; padding: 10px 14px;
             background: var(--ink); border-radius: var(--r-card); box-shadow: var(--key-shadow);
             text-decoration: none; color: var(--mist);
-            transition: box-shadow 0.2s ease, transform 0.2s ease;
+            transition: box-shadow var(--t-hover) var(--ease-out), transform var(--t-hover) var(--ease-out);
         }
         #ev-workspace .tile:hover { transform: translateY(-2px); box-shadow: var(--key-shadow-hover); }
         #ev-workspace .t-name { font-size: 15px; font-weight: 600; color: var(--pure-white); }
@@ -152,10 +133,21 @@
         .detail-info b { color:var(--mist); font-weight:600; }
         .detail-info .slot-mini { display:inline-flex; align-items:center; gap:8px; }
         .detail-info .slot-mini .slot-track { width:90px; }
-        .detail-tabs { display:flex; gap:6px; margin:18px 0 14px; border-bottom:1px solid var(--border); }
-        .detail-tabs button { padding:9px 14px; background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px; color:var(--ash); font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; }
-        .detail-tabs button.active { color:var(--pure-white); border-bottom-color:var(--coral-pulse); }
+        /* 页签：指示条滑动过去（一个元素移动 = 交代"从哪来到哪去"），而不是每个页签自己闪烁 */
+        .detail-tabs { position:relative; display:flex; gap:6px; margin:18px 0 14px; border-bottom:1px solid var(--border); }
+        .detail-tabs button { padding:9px 14px; background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px; color:var(--ash); font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;
+            transition: color var(--t-hover) var(--ease-out); }
+        .detail-tabs button.active { color:var(--pure-white); }
+        .detail-tabs .dt-ink {
+            position:absolute; bottom:-1px; height:2px; background:var(--coral-pulse); border-radius:2px;
+            transform:translateX(0); width:0; pointer-events:none;
+            transition: transform var(--t-swap) var(--ease-standard), width var(--t-swap) var(--ease-standard);
+        }
         .dt-pane[hidden] { display:none; }
+        .dt-pane.pane-in-r { animation: pane-in-r var(--t-swap) var(--ease-standard) both; }
+        .dt-pane.pane-in-l { animation: pane-in-l var(--t-swap) var(--ease-standard) both; }
+        @keyframes pane-in-r { from { opacity:0; transform:translate3d(10px,0,0); } to { opacity:1; transform:none; } }
+        @keyframes pane-in-l { from { opacity:0; transform:translate3d(-10px,0,0); } to { opacity:1; transform:none; } }
         .detail-foot { position:sticky; bottom:-28px; margin:20px -28px -28px; padding:14px 28px calc(14px + env(safe-area-inset-bottom)); background:var(--ink); border-top:1px solid var(--border); }
         .detail-foot .my-reg-box { margin-top:0; }
         .teams-chips { display:flex; flex-wrap:wrap; gap:6px; }
@@ -184,7 +176,7 @@
         .team-chips span {
             display: inline-flex; align-items: center; padding: 6px 13px;
             border: 1px solid var(--border); border-radius: 999px;
-            font-size: 13px; color: var(--ash); background: var(--obsidian); transition: 0.15s;
+            font-size: 13px; color: var(--ash); background: var(--obsidian); transition: background var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
         }
         .team-chips label:hover span { border-color: var(--smoke); color: var(--pure-white); }
         .team-chips input:checked + span {
@@ -450,7 +442,7 @@
                 (perms.isAdmin ? '<span class="badge badge-coral">ADMIN</span>'
                  : (perms.isCaptain || perms.isEventCaptain) ? '<span class="badge badge-blue">CAPTAIN</span>' : '');
             }
-            paint({}); // 先渲染基础四块：权限查询慢/失败也绝不卡「加载中」
+            paint({}); // 先渲染基础四块：权限查询慢/失败也绝不卡在骨架屏
             HWLayout.access(HWLayout.seasonKey(ev), ev).then(paint)
                 .catch(function () { /* 基础块已在，保持即可 */ });
         }
@@ -491,9 +483,11 @@
         function syncFilterOptions() {
             var seg = document.getElementById('status-filter');
             if (!seg) return;
-            var want = [['all', '全部'], ['registration', '报名中'], ['ongoing', '进行中'], ['finished', '已结束']];
+            var want = [['all', '全部'], ['open', '报名中'], ['live', '进行中'], ['ended', '已结束']];
             var u = HWAuth.getSession();
             if (u && (isAdmin() || isOrganizerRole())) { want.push(['draft', '草稿'], ['cancelled', '已取消']); }
+            /* 「报名中」意味着还能报：open / closing / full / closed(已截止但仍可看) 都归这一桶的用户预期 */
+
             if (typeof HWLayout !== 'undefined' && HWLayout.getRole && HWLayout.getRole() === 'superadmin') want.push(['deleted', '已删除']);
             var cur = want.map(function (w) { return w[0]; }).join(',');
             if (seg.dataset.opts === cur) return;
@@ -565,7 +559,12 @@
                 if (ev.status === 'draft' || ev.status === 'cancelled') {
                     if (!(isAdmin() || evOrganizer(ev))) return false;
                 }
-                return currentFilter === 'all' || ev.status === currentFilter;
+                if (currentFilter === 'all') return true;
+                var ph = HWLayout.evState(ev, { regs: allRegs }).phase;
+                if (currentFilter === 'open') return ph === 'open' || ph === 'closing' || ph === 'full';
+                if (currentFilter === 'live') return ph === 'live';
+                if (currentFilter === 'ended') return ph === 'ended';
+                return ph === currentFilter;
             });
             if (list.length === 0) {
                 main.innerHTML = '<div class="empty-state">该筛选条件下暂无活动。</div>';
@@ -577,6 +576,8 @@
                 var pct = slots ? Math.min(100, Math.round(regs.length / slots * 100)) : 0;
                 var full = slots && regs.length >= slots;
                 var mine = myRegOf(ev.id);
+                /* 全站唯一状态口径：卡片与详情永远说同一句话 */
+                var st = HWLayout.evState(ev, { regs: allRegs });
 
                 var mineBadge = '';
                 if (mine) {
@@ -589,9 +590,9 @@
                 var coverInner = ev.cover_image
                     ? '<img src="' + esc(ev.cover_image) + '" alt="" loading="lazy">'
                     : '<span class="ev-emoji-fb">' + HWLayout.ico('trophy', 30) + '</span>';
+                /* 此刻没用的不出现：类型只在详情里说，卡片只给「状态 + 我的状态」 */
                 var tags =
-                    '<span class="badge badge-quiet">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + '</span>' +
-                    '<span class="badge ' + (EV_BADGE[ev.status] || '') + '">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
+                    '<span class="badge badge-' + st.tone + '" data-ev-phase="' + st.phase + '">' + esc(st.label) + '</span>' +
                     mineBadge;
 
                 return '<article class="event-card' + ((ev.status === 'draft' || ev.status === 'cancelled' || ev.status === 'deleted') ? ' ev-dim' : '') + '" data-id="' + ev.id + '" tabindex="0">' +
@@ -603,13 +604,14 @@
                     '  <p class="ev-desc">' + esc(ev.description || '暂无简介') + '</p>' +
                     '  <div class="ev-meta">' +
                     '    <span>' + fmtTime(ev.start_time) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
-                    (ev.reg_deadline ? '<span>报名截止 ' + fmtTime(ev.reg_deadline) + '</span>' : '') +
+                    (ev.reg_deadline ? '<span data-deadline' + (st.phase === 'closed' ? ' class="ev-past"' : '') + '>报名截止 ' + fmtTime(ev.reg_deadline) + '</span>' : '') +
                     (ev.venue ? '<span>' + esc(ev.venue) + '</span>' : '') +
                     '  </div>' +
                     '  <div class="ev-foot">' +
                     '    <div class="slot-bar">' +
-                    '      <div class="slot-text">' + (slots ? (full ? '名额已满' : regs.length + ' / ' + slots + ' 已报名') : regs.length + ' 已报名 · 不限') + '</div>' +
-                    '      <div class="slot-track"><div class="slot-fill' + (full ? ' full' : '') + '" style="width:' + (slots ? pct : Math.min(100, regs.length * 8)) + '%"></div></div>' +
+                    '      <div class="slot-text">' + (slots ? (full ? '名额已满 · 可候补' : regs.length + ' / ' + slots + ' 已报名') : regs.length + ' 已报名 · 不限') +
+                         (st.hint ? '<span class="slot-hint">' + esc(st.hint) + '</span>' : '') + '</div>' +
+                    '      <div class="slot-track"><div class="slot-fill' + (full ? ' full' : '') + '" style="width:100%; transform:scaleX(' + ((slots ? pct : Math.min(100, regs.length * 8)) / 100) + ')"></div></div>' +
                     '    </div>' +
                     '    <span class="btn btn-ghost btn-sm" style="pointer-events:none;">详情</span>' +
                     '  </div>' +
@@ -618,23 +620,37 @@
             }).join('') + '</div>';
 
             main.querySelectorAll('.event-card').forEach(function (card) {
-                var open = function () { openDetail(parseInt(card.dataset.id, 10)); };
+                var open = function () {
+                    /* 卡片 → 详情：让封面 morph 过去（渐进增强，不支持的浏览器原样弹出） */
+                    var img = card.querySelector('.ev-cover img');
+                    if (img && document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                        img.style.viewTransitionName = 'ev-cover';
+                        document.startViewTransition(function () { openDetail(parseInt(card.dataset.id, 10)); });
+                        setTimeout(function () { img.style.viewTransitionName = ''; }, 500);
+                    } else {
+                        openDetail(parseInt(card.dataset.id, 10));
+                    }
+                };
                 card.addEventListener('click', open);
                 card.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
             });
+            /* 列表错峰进入：交代「这一批换出来了」 */
+            if (typeof HWLayout !== 'undefined' && HWLayout.stagger) HWLayout.stagger(main.querySelector('.events-grid'), ':scope > *');
+        }
+
+        /* 候补排位（strict mode 下必须放在函数顶层的函数声明里，不能闷在 if 块内） */
+        function waitlistPos(list, r) {
+            var wl = list.filter(function (x) { return x.event_id === r.event_id && x.status === 'waitlist'; })
+                .sort(function (a, b) { return String(a.created_at || '') < String(b.created_at || '') ? -1 : 1; });
+            var i = wl.findIndex(function (x) { return x.id === r.id; });
+            return i >= 0 ? i + 1 : 1;
         }
 
         function renderMine() {
             if (tableMissing) { renderMissing(); return; }
             var u = HWAuth.getSession();
             if (!u) {
-                function waitlistPos(list, r) {
-                var wl = list.filter(function (x) { return x.event_id === r.event_id && x.status === 'waitlist'; })
-                    .sort(function (a, b) { return String(a.created_at || '') < String(b.created_at || '') ? -1 : 1; });
-                var i = wl.findIndex(function (x) { return x.id === r.id; });
-                return i >= 0 ? i + 1 : 1;
-            }
-            main.innerHTML = '<div class="empty-state">登录后查看我的报名。<br><br>' +
+                main.innerHTML = '<div class="empty-state">登录后查看我的报名。<br><br>' +
                     '<button class="btn btn-primary" id="mine-login" type="button">登录 / 注册</button></div>';
                 document.getElementById('mine-login').addEventListener('click', function () {
                     HWAuth.openModal({ stay: true }).then(render).catch(function () {});
@@ -658,7 +674,12 @@
                     '  <div class="s">报名于 ' + fmtTime(r.created_at) +
                     (r.team_name ? ' · 战队「' + esc(r.team_name) + '」' : ' · 待分队') +
                     (ev.start_time ? ' · 活动 ' + fmtTime(ev.start_time) : '') +
-                    (r.status === 'waitlist' ? ' · 候补第 ' + waitlistPos(allRegs, r) + ' 位' : '') + '</div>' +
+                    (r.status === 'waitlist' ? ' · 候补第 ' + waitlistPos(allRegs, r) + ' 位' : '') +
+                    (function () {
+                        var w = HWLayout.evState(ev, { regs: allRegs });
+                        return (w.phase === 'ended' || w.phase === 'cancelled' || w.phase === 'live')
+                            ? ' · <span class="mine-ev-phase">' + esc(w.label) + '</span>' : '';
+                    })() + '</div>' +
                     '</div>' +
                     '<div class="mine-ops">' +
                     '  <span class="badge ' + (REG_BADGE[r.status] || '') + '">' + (REG_STATUS[r.status] || r.status) + '</span>' +
@@ -668,6 +689,7 @@
                 '</div>';
             }).join('') + '</div>';
 
+            if (typeof HWLayout !== 'undefined' && HWLayout.stagger) HWLayout.stagger(main.querySelector('.mine-list'), ':scope > *');
             main.querySelectorAll('[data-detail]').forEach(function (b) {
                 b.addEventListener('click', function () { openDetail(parseInt(b.dataset.detail, 10)); });
             });
@@ -691,13 +713,13 @@
               '    <option value="__custom">自定义…</option>' +
               '  </select>' +
               '  <input class="input" id="honor-title-custom" placeholder="自定义荣誉名称" style="flex:1; min-width:140px; display:none;">' +
-              '  <input class="input" id="honor-date" type="date" style="min-width:150px;">' +
+              '  <input class="input" id="honor-date" type="date" aria-label="荣誉获得日期" style="min-width:150px;">' +
               '</div>' +
               '<div class="admin-row" style="margin-top:8px;">' +
               '  <input class="input" id="honor-desc" placeholder="详细介绍（获奖理由，会展示在荣誉详情里）" style="flex:1; min-width:220px;">' +
               '  <button class="btn btn-primary" id="honor-award" type="button">发放荣誉</button>' +
               '</div>' +
-              '<div id="honor-list" style="margin-top:12px;"><span class="muted">加载中…</span></div>';
+              '<div id="honor-list" style="margin-top:12px;">' + HWLayout.loader({ rows: 2, label: '正在加载荣誉' }) + '</div>';
         }
 
         function wireHonors(ev) {
@@ -810,8 +832,9 @@
             var mine = myRegOf(ev.id);
             var slots = ev.max_slots;
             var full = slots && regs.length >= slots;
-            var deadlinePassed = ev.reg_deadline && new Date(ev.reg_deadline) < new Date();
-            var canRegister = ev.status === 'registration' && !deadlinePassed && !full && !mine;
+            var st = HWLayout.evState(ev, { regs: allRegs });
+            var deadlinePassed = st.phase === 'closed';
+            var canRegister = st.joinable && !mine;
 
             var rosterHtml = regs.length === 0
                 ? '<div class="empty-state" style="padding:20px 0;">暂无报名</div>'
@@ -841,12 +864,14 @@
             var registerHtml;
             if (canRegister) {
                 registerHtml = '<a class="btn btn-primary" href="register.html?event=' + ev.id + '" style="width:100%;">' +
-                    (u ? '填写并报名 →' : '登录并报名 →') + '</a>';
+                    (st.phase === 'full' ? (u ? '名额已满 · 加入候补 →' : '登录并加入候补 →')
+                                        : (u ? '填写并报名 →' : '登录并报名 →')) + '</a>';
             } else if (!mine) {
-                registerHtml = '<div class="notice">' +
-                    (ev.status !== 'registration' ? '当前状态（' + (EV_STATUS[ev.status] || ev.status) + '）不可报名。'
-                     : deadlinePassed ? ('报名已于 ' + fmtTime(ev.reg_deadline) + ' 截止。')
-                     : full ? '名额已满。' : '暂不可报名。') + '</div>';
+                /* 界面自己说明自己：一律给「为什么 + 什么时候 + 还能做什么」 */
+                registerHtml = '<div class="notice">' + esc(st.blockedReason || '暂不可报名。') +
+                    (st.phase === 'closed' && ev.start_time ? '<span class="notice-sub">开赛时间 ' + fmtTime(ev.start_time) + '</span>' : '') +
+                    (st.phase === 'full' ? '<a class="mini-btn" href="register.html?event=' + ev.id + '">加入候补 →</a>' : '') +
+                    '</div>';
             } else registerHtml = '';
 
             var adminHtml = canManageEv(ev)
@@ -863,12 +888,12 @@
                   '  <button class="btn btn-ghost" id="adm-stream-save" type="button">保存直播链接</button>' +
                   '  <button class="btn btn-ghost" id="adm-cover-btn" type="button">更换封面图</button>' +
                   (ev.cover_image ? '  <button class="btn btn-ghost" id="adm-cover-clear" type="button">移除封面</button>' : '') +
-                  '  <input type="file" id="adm-cover-file" accept="image/*" style="display:none;">' +
+                  '  <input type="file" id="adm-cover-file" accept="image/*" aria-label="上传活动封面" style="display:none;">' +
                   '</div>' +
                   '<div class="admin-row" style="display:block; margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:14px;">' +
                   '  <span class="form-label">活动队长（数据台权限）</span>' +
                   '  <p class="muted" style="font-size:13px; margin:4px 0 10px;">队长登录后可在本活动页签进入「管理 · 数据台」录入赛程赛果；与本活动绑定，换活动需重新设置。</p>' +
-                  '  <div id="captains-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"><span class="muted">加载中…</span></div>' +
+                  '  <div id="captains-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">' + HWLayout.loader({ inline: true, label: '正在加载队长' }) + '</div>' +
                   '  <div class="admin-row">' +
                   '    <select class="select" id="captain-player" style="flex:1; min-width:200px;"><option value="">选择选手（本活动赛季花名册）</option></select>' +
                   '    <button class="btn btn-ghost" id="captain-add" type="button">设为队长</button>' +
@@ -893,14 +918,14 @@
                 (ev.cover_image ? '' : '  <span class="icon-circle" style="width:52px;height:52px;">' + HWLayout.ico('trophy', 24) + '</span>') +
                 '  <div><span class="eyebrow">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
                 '  <h3 class="modal-title" style="font-size:20px; margin-top:4px;">' + esc(ev.title) + '</h3></div>' +
-                '  <span class="badge ' + (EV_BADGE[ev.status] || '') + '" style="margin-left:auto;">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
+                '  <span class="badge badge-' + st.tone + '" style="margin-left:auto;" data-ev-phase="' + st.phase + '">' + esc(st.label) + '</span>' +
                 '</div>' +
                 '<div class="detail-info">' +
                 '  <span>开始 <b>' + fmtTime(ev.start_time) + '</b></span>' +
-                '  <span>报名截止 <b>' + (ev.reg_deadline ? fmtTime(ev.reg_deadline) : '不限') + '</b></span>' +
+                '  <span data-deadline' + (st.phase === 'closed' ? ' class="ev-past"' : '') + '>报名截止 <b>' + (ev.reg_deadline ? fmtTime(ev.reg_deadline) : '不限') + '</b></span>' +
                 '  <span>赛制 <b>' + esc(ev.format || '—') + '</b> · <b>' + ((ev.group_count || 1) + ' 组') + '</b></span>' +
                 '  <span class="slot-mini">名额 <b>' + (slots ? regs.length + ' / ' + slots : regs.length + '（不限）') + '</b>' +
-                (slots ? '<span class="slot-track"><span class="slot-fill' + (full ? ' full' : '') + '" style="display:block; height:100%; width:' + slotPct + '%;"></span></span>' : '') + '</span>' +
+                (slots ? '<span class="slot-track"><span class="slot-fill' + (full ? ' full' : '') + '" style="display:block; height:100%; width:100%; transform:scaleX(' + (slotPct / 100) + ');"></span></span>' : '') + '</span>' +
                 (ev.venue ? '  <span>' + HWLayout.ico('map-pin', 13) + ' <b>' + esc(ev.venue) + '</b></span>' : '') +
                 (ev.stream_url ? '  <span><a href="' + esc(ev.stream_url) + '" target="_blank" rel="noopener" style="color:var(--info-blue);">进入直播间 →</a></span>' : '') +
                 '</div>' +
@@ -921,7 +946,7 @@
                 rosterHtml +
                 '</div>' +
                 '<div class="dt-pane" data-pane="space" hidden>' +
-                '<div id="ev-workspace" class="tiles" style="margin-bottom:4px;">加载中…</div>' +
+                '<div id="ev-workspace" class="tiles" style="margin-bottom:4px;">' + HWLayout.loader({ rows: 3, label: '正在加载活动工作区' }) + '</div>' +
                 '</div>' +
                 (managePane ? '<div class="dt-pane" data-pane="manage" hidden>' + adminHtml + honorHtml(ev) +
                   '<div class="section-label">活动复制</div>' +
@@ -933,7 +958,30 @@
                   '</div>' : '') +
                 '<div class="detail-foot">' + myRegHtml + registerHtml + '</div>';
 
+            /* 页签指示条：初始对齐 active，后续切换只移动它 */
+            (function () {
+                var tabsEl = panel.querySelector('.detail-tabs');
+                if (!tabsEl || tabsEl.querySelector('.dt-ink')) return;
+                var ink = document.createElement('span');
+                ink.className = 'dt-ink';
+                tabsEl.appendChild(ink);
+                var moveInk = function () {
+                    var act = tabsEl.querySelector('button.active');
+                    if (!act) return;
+                    ink.style.width = act.offsetWidth + 'px';
+                    ink.style.transform = 'translateX(' + act.offsetLeft + 'px)';
+                };
+                requestAnimationFrame(moveInk);
+                window.addEventListener('resize', moveInk, { passive: true });
+            })();
+            panel.dataset.evId = String(ev.id);
+            panel.dataset.joinable = canRegister ? '1' : '0';
             document.getElementById('detail-modal').classList.add('visible');
+            /* 详情面板整体进入用统一曲线（theme.css 的 .modal-panel 已定义，这里只补 stagger） */
+            if (typeof HWLayout !== 'undefined' && HWLayout.stagger) {
+                var pane = panel.querySelector('.dt-pane[data-pane="overview"]');
+                if (pane) HWLayout.stagger(pane, ':scope > *');
+            }
             document.getElementById('detail-close').addEventListener('click', closeDetail);
             var icsBtn = document.getElementById('ev-ics');
             if (icsBtn) icsBtn.addEventListener('click', function () {
@@ -967,11 +1015,32 @@
             });
 
             /* 详情页签切换 */
+            var tabOrder = [];
+            panel.querySelectorAll('[data-dtab]').forEach(function (b) { tabOrder.push(b.dataset.dtab); });
             panel.querySelectorAll('[data-dtab]').forEach(function (b) {
+                b.setAttribute('role', 'tab');
                 b.addEventListener('click', function () {
-                    panel.querySelectorAll('[data-dtab]').forEach(function (x) { x.classList.toggle('active', x === b); });
-                    panel.querySelectorAll('.dt-pane').forEach(function (p) { p.hidden = p.dataset.pane !== b.dataset.dtab; });
-                    if (typeof HWLayout !== 'undefined' && HWLayout.reveal) HWLayout.reveal(panel.querySelector('.dt-pane[data-pane="' + b.dataset.dtab + '"]'));
+                    var from = panel.querySelector('[data-dtab].active');
+                    var dir = from ? (tabOrder.indexOf(b.dataset.dtab) > tabOrder.indexOf(from.dataset.dtab) ? 1 : -1) : 1;
+                    panel.querySelectorAll('[data-dtab]').forEach(function (x) {
+                        x.classList.toggle('active', x === b);
+                        x.setAttribute('aria-selected', x === b ? 'true' : 'false');
+                    });
+                    var ink = panel.querySelector('.dt-ink');
+                    if (ink) {
+                        ink.style.width = b.offsetWidth + 'px';
+                        ink.style.transform = 'translateX(' + b.offsetLeft + 'px)';
+                    }
+                    panel.querySelectorAll('.dt-pane').forEach(function (p) {
+                        var on = p.dataset.pane === b.dataset.dtab;
+                        p.hidden = !on;
+                        if (on) {
+                            /* 方向感：从右边来的页签从右进，反之从左进 */
+                            p.classList.remove('pane-in-l', 'pane-in-r');
+                            void p.offsetWidth;
+                            p.classList.add(dir > 0 ? 'pane-in-r' : 'pane-in-l');
+                        }
+                    });
                 });
             });
 
@@ -1390,12 +1459,15 @@
 
         /* ---------- tabs / filters ---------- */
         function switchTab(tab) {
+            if (tab === currentTab && !document.getElementById('main-content').innerHTML) tab = currentTab;
             currentTab = tab;
             document.querySelectorAll('.tab-btn').forEach(function (b) {
                 b.classList.toggle('active', b.dataset.tab === tab);
             });
             document.getElementById('filter-bar').style.display = tab === 'hall' ? 'flex' : 'none';
-            render();
+            /* 大厅 ⇄ 我的报名：退场→入场，用户看得出「换了一屏」而不是内容跳变 */
+            if (typeof HWLayout !== 'undefined' && HWLayout.viewSwap) HWLayout.viewSwap(main, render);
+            else render();
         }
         document.querySelectorAll('.tab-btn').forEach(function (b) {
             b.addEventListener('click', function () {
@@ -1420,11 +1492,74 @@
         });
 
         function refresh() {
+            /* 方案 B：把「时间已推进但没人改 status」的活动静默落库（幂等 + 10 分钟节流）。
+               展示早已由 evState 修正，这一步只让导出的数据与页面一致。 */
+            if (typeof HWLayout !== 'undefined' && HWLayout.syncEventStatuses) {
+                HWLayout.syncEventStatuses().then(function () {}, function () {});
+            }
             return loadData().then(render).catch(function (err) {
                 console.error(err);
                 main.innerHTML = '<div class="empty-state"><strong>加载失败</strong><br>' + esc(err.message || err) + '</div>';
             });
         }
+
+        /* ---------- 时钟：状态是时间的函数，时间在走，界面就得跟着走 ----------
+           只改"会过期的那几处"，不重排列表（重排会闪、会丢焦点、会打断人手上的事）：
+           · 卡片：徽章 + 「报名截止」那行的弱化
+           · 详情：徽章；若"能不能报名"的答案变了，只在没人操作时整体重画一次
+           每 30 秒对齐；页面回到前台 / 窗口获得焦点时立刻对齐。 */
+        function tickStatuses() {
+            var now = Date.now();
+            var changed = 0;
+            document.querySelectorAll('.event-card[data-id]').forEach(function (card) {
+                var id = Number(card.dataset.id);
+                var ev = allEvents.find(function (x) { return x.id === id; });
+                if (!ev) return;
+                var st = HWLayout.evState(ev, { regs: allRegs, now: now });
+                var badge = card.querySelector('[data-ev-phase]');
+                if (badge && badge.dataset.evPhase !== st.phase) {
+                    badge.className = 'badge badge-' + st.tone;
+                    badge.dataset.evPhase = st.phase;
+                    badge.textContent = st.label;
+                    if (HWLayout.reveal) HWLayout.reveal(badge); /* 变的那一刻给一次回应 */
+                    changed++;
+                }
+                var dl = card.querySelector('[data-deadline]');
+                if (dl) dl.classList.toggle('ev-past', !!(st.phase === 'closed' || st.phase === 'ended' || st.phase === 'live'));
+            });
+
+            var panel = document.getElementById('detail-panel');
+            var openId = panel && panel.dataset.evId ? Number(panel.dataset.evId) : 0;
+            if (!openId || !document.getElementById('detail-modal').classList.contains('visible')) return;
+            var dev = allEvents.find(function (x) { return x.id === openId; });
+            if (!dev) return;
+            var dst = HWLayout.evState(dev, { regs: allRegs, now: now });
+            var dbadge = panel.querySelector('[data-ev-phase]');
+            var joinableNow = !!(dst.joinable && !myRegOf(dev.id));
+            var answerChanged = panel.dataset.joinable !== (joinableNow ? '1' : '0');
+            if (answerChanged && panel.contains(document.activeElement)) {
+                /* 用户正在面板里操作：只更新徽章，不打断他；答案等他松手或下次对齐再刷新 */
+                if (dbadge && dbadge.dataset.evPhase !== dst.phase) {
+                    dbadge.className = 'badge badge-' + dst.tone;
+                    dbadge.dataset.evPhase = dst.phase;
+                    dbadge.textContent = dst.label;
+                }
+                return;
+            }
+            if (answerChanged) {
+                panel.dataset.joinable = joinableNow ? '1' : '0';
+                openDetail(openId); /* 答案变了：整个详情重画（边界事件，一次而已） */
+                return;
+            }
+            if (dbadge && dbadge.dataset.evPhase !== dst.phase) {
+                dbadge.className = 'badge badge-' + dst.tone;
+                dbadge.dataset.evPhase = dst.phase;
+                dbadge.textContent = dst.label;
+                if (HWLayout.reveal) HWLayout.reveal(dbadge);
+            }
+        }
+        window.__tick = tickStatuses; /* 测试钩子：手动推进时钟（无副作用） */
+        if (HWLayout.clock) HWLayout.clock(tickStatuses);
 
         HWAuth.on(function (evt) { if (evt === 'login' || evt === 'logout') refresh(); });
 

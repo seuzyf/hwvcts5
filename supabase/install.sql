@@ -1272,6 +1272,30 @@ begin
 end; $fn$;
 grant execute on function public.revoke_admin_code(bigint, bigint) to anon, authenticated, service_role;
 
+-- 撤销口令的反悔窗口：8 秒内可恢复（只允许"刚撤销、且尚未被使用"的口令）。
+-- 与前端 toast 的「撤销此操作」按钮配套；超过 8 秒即视为确认，不提供恢复。
+create or replace function public.restore_admin_code(p_operator_id bigint, p_code_id bigint)
+returns jsonb language plpgsql security definer set search_path = public as $fn$
+declare v_role text; v_n integer;
+begin
+    select role into v_role from public.site_users where id = p_operator_id;
+    if v_role is distinct from 'superadmin' then
+        return jsonb_build_object('error', '仅超级管理员可恢复口令');
+    end if;
+    update public.admin_access_codes
+       set revoked_at = null, revoked_by = null
+     where id = p_code_id
+       and used_at is null
+       and revoked_at is not null
+       and revoked_at > now() - interval '10 seconds';
+    get diagnostics v_n = row_count;
+    if v_n = 0 then return jsonb_build_object('error', '已超过可恢复时间，或该口令已被使用'); end if;
+    insert into public.audit_log (actor_id, actor_role, action, target_type, target_id, detail)
+    values (p_operator_id, v_role, 'admin_code.restore', 'admin_access_code', p_code_id::text, '{}'::jsonb);
+    return jsonb_build_object('ok', true);
+end; $fn$;
+grant execute on function public.restore_admin_code(bigint, bigint) to anon, authenticated, service_role;
+
 create or replace function public.list_admin_codes(p_operator_id bigint)
 returns jsonb language plpgsql security definer set search_path = public as $fn$
 declare v_role text; v_out jsonb;
@@ -1423,6 +1447,58 @@ begin
     return jsonb_build_object('ok', true, 'id', v_id);
 end; $fn$;
 grant execute on function public.place_bet(bigint, text, bigint, integer, text) to anon, authenticated, service_role;
+
+-- ----------------------------------------------------------------------
+-- 5.7bis 活动状态自动推进（一次性/定时调用均幂等）
+--   「过了报名截止还显示报名中」的根因：events.status 是人工字段，从无人推进。
+--   规则与前端的 HWLayout.evState 完全一致（时间事实优先）：
+--     end_time 已过        → finished
+--     start_time 已到       → ongoing
+--     reg_deadline 已过 + 仍 registration → 保持 registration（前端显示「报名已截止」，
+--                                            不自动改 ongoing，避免把「报名结束、活动未开赛」误标为进行中）
+--   用法：select public.sync_event_status();
+--         或用 Supabase Cron（pg_cron）：select cron.schedule('event-status', '*/15 * * * *',
+--             $$select public.sync_event_status()$$);
+-- ----------------------------------------------------------------------
+create or replace function public.sync_event_status()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+    v_finished integer := 0;
+    v_ongoing  integer := 0;
+begin
+    update public.events
+       set status = 'finished', updated_at = now()
+     where status in ('registration', 'ongoing')
+       and end_time is not null
+       and end_time < now();
+    get diagnostics v_finished = row_count;
+
+    update public.events
+       set status = 'ongoing', updated_at = now()
+     where status = 'registration'
+       and start_time is not null
+       and start_time <= now()
+       and (end_time is null or end_time >= now());
+    get diagnostics v_ongoing = row_count;
+
+    return v_finished + v_ongoing;
+end;
+$fn$;
+grant execute on function public.sync_event_status() to anon, authenticated, service_role;
+
+/* 可选：若当前库已启用 pg_cron，则每 15 分钟自动跑一次（未启用则跳过，不报错） */
+do $$
+begin
+    if exists (select 1 from pg_extension where extname = 'pg_cron') then
+        perform cron.schedule('hwvcts-event-status', '*/15 * * * *', 'select public.sync_event_status()');
+    end if;
+exception when others then
+    raise notice 'pg_cron 排程跳过: %', sqlerrm;
+end $$;
 
 -- 5.8 旧静态口令退役（默认口令是已知口令，留着即后门） --------------------
 delete from public.site_settings where key = 'admin_password_sha256';

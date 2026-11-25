@@ -219,7 +219,14 @@
   }
 
   /* ---------------- 通知中心（右上角铃铛） ---------------- */
-  function toast(msg, type) {
+  /**
+   * toast(msg, type, opts)
+   *  · 已经是同类提示就合并计数，不再叠一摞（「重复操作」不该刷屏）
+   *  · 鼠标悬停/聚焦时暂停倒计时（不打断正在读的人）
+   *  · opts.action = {label, onClick} 时给一条可撤回的路（"按下去能收回"）
+   *  · 错误提示不自动消失（onSticky），信息提示 3 秒走
+   */
+  function toast(msg, type, opts) {
     var host = document.getElementById('hw-toasts');
     if (!host) {
       host = document.createElement('div');
@@ -234,14 +241,73 @@
       else if (/成功|已保存|已同步|已生成|已通过|已提交|已撤回|已设置|已更新|✓/.test(s)) type = 'ok';
       else type = 'info';
     }
+    opts = opts || {};
+    var text = String(msg == null ? '' : msg);
+
+    /* 合并同类：同样的提示连点 5 次，只该有一次声音 */
+    var same = host.querySelector('.hw-toast:not(.out) .hw-toast-msg[data-same="' + cssEsc(text) + '"]');
+    if (same) {
+      var row = same.closest('.hw-toast');
+      var cnt = row.querySelector('.hw-toast-count');
+      if (!cnt) {
+        cnt = document.createElement('span');
+        cnt.className = 'hw-toast-count';
+        cnt.dataset.n = '1';
+        row.appendChild(cnt);
+      }
+      cnt.dataset.n = String((parseInt(cnt.dataset.n, 10) || 1) + 1);
+      cnt.textContent = '×' + cnt.dataset.n;
+      reveal(row);
+      return;
+    }
+
     var t = document.createElement('div');
     t.className = 'hw-toast' + (type === 'err' ? ' err' : type === 'ok' ? '' : ' info');
-    t.textContent = String(msg == null ? '' : msg);
+    t.setAttribute('role', type === 'err' ? 'alert' : 'status');
+
+    var body = document.createElement('span');
+    body.className = 'hw-toast-msg';
+    body.dataset.same = text;
+    body.textContent = text;
+    t.appendChild(body);
+
+    if (opts.action && opts.action.label) {
+      var undo = document.createElement('button');
+      undo.type = 'button';
+      undo.className = 'hw-toast-action';
+      undo.textContent = opts.action.label;
+      undo.addEventListener('click', function () {
+        dismiss();
+        try { opts.action.onClick(); } catch (e) { /* 撤回失败不影响主流程 */ }
+      });
+      t.appendChild(undo);
+    }
     host.appendChild(t);
-    setTimeout(function () {
+
+    var timer = null;
+    function dismiss() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (t.classList.contains('out')) return;
       t.classList.add('out');
       setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 320);
-    }, 3000);
+    }
+    /* 错误必须由人确认（点一下 / 悬停在外），信息类 3 秒自动走 */
+    if (type !== 'err' || opts.autoDismiss) {
+      var start = function () {
+        timer = setTimeout(dismiss, opts.duration || 3000);
+      };
+      start();
+      t.addEventListener('mouseenter', function () { if (timer) { clearTimeout(timer); timer = null; } });
+      t.addEventListener('mouseleave', function () { if (!t.classList.contains('out')) start(); });
+      t.addEventListener('focusin', function () { if (timer) { clearTimeout(timer); timer = null; } });
+    } else {
+      t.classList.add('hw-toast-sticky');
+      t.addEventListener('click', dismiss);
+    }
+  }
+
+  function cssEsc(v) {
+    return String(v).replace(/["\\]/g, '\\$&');
   }
 
   /** 内容切换时轻微淡入，交代「这一块换了」 */
@@ -251,6 +317,70 @@
     void el.offsetWidth;
     el.classList.add('reveal-in');
     setTimeout(function () { el.classList.remove('reveal-in'); }, 300);
+  }
+
+  /**
+   * 列表/容器整体替换内容时，用「错峰进入」交代「这里换了」而不是硬闪。
+   * 只给前 N 项加延迟，避免长列表尾部延迟过久。
+   */
+  function stagger(host, sel) {
+    if (!host) return;
+    var items = host.querySelectorAll(sel || ':scope > *');
+    var n = Math.min(items.length, 12);
+    for (var i = 0; i < n; i++) {
+      items[i].style.setProperty('--i', String(i));
+      items[i].classList.add('m-enter');
+      (function (el) {
+        setTimeout(function () { el.classList.remove('m-enter'); el.style.removeProperty('--i'); }, 700);
+      })(items[i]);
+    }
+  }
+
+  /** 视图切换（同文档内）：出→入，有来有去 */
+  function viewSwap(el, render) {
+    if (!el) { if (render) render(); return; }
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { if (render) render(); return; }
+    /* 先让旧内容快速退场（120ms 足够），再渲染新内容并进入 */
+    el.style.transition = 'opacity 120ms cubic-bezier(0.4,0,1,1), transform 120ms cubic-bezier(0.4,0,1,1)';
+    el.style.opacity = '0';
+    el.style.transform = 'translate3d(0,-4px,0)';
+    setTimeout(function () {
+      if (render) render();
+      el.style.transition = 'none';
+      el.style.opacity = '';
+      el.style.transform = '';
+      el.classList.remove('view-enter');
+      void el.offsetWidth;
+      el.classList.add('view-enter');
+      setTimeout(function () { el.classList.remove('view-enter'); }, 400);
+    }, 120);
+  }
+
+  /**
+   * 数字变化：数值真的变了才动（不变就一点动静都没有 = 克制）。
+   * 支持 1200 → 1240 的滚动计数，只在 |Δ| ≤ 999 时使用，避免长数字闪烁。
+   */
+  function setNum(el, next, opts) {
+    if (!el) return;
+    opts = opts || {};
+    var prev = el.dataset.numValue;
+    el.dataset.numValue = String(next);
+    if (prev === String(next)) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var a = Number(prev), b = Number(next);
+    if (reduce || !isFinite(a) || !isFinite(b) || Math.abs(b - a) > 999 || opts.plain) {
+      el.textContent = String(next);
+      if (!reduce) { el.classList.remove('m-count'); void el.offsetWidth; el.classList.add('m-count'); }
+      return;
+    }
+    var t0 = performance.now(), dur = 320;
+    (function tick(now) {
+      var p = Math.min(1, (now - t0) / dur);
+      var eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = String(Math.round(a + (b - a) * eased));
+      if (p < 1) requestAnimationFrame(tick);
+    })(t0);
   }
 
   /** 数字/内容变化时轻微上浮一下，交代「这里变了」 */
@@ -838,7 +968,191 @@
     return s.toLowerCase();
   }
 
-  var EV_STATUS_ZH = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
+  var EV_STATUS_ZH = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消', deleted: '已删除' };
+
+  /* ═══════════════════════════════════════════════════════════════
+     evState · 全站唯一的活动状态口径
+     ───────────────────────────────────────────────────────────────
+     原则：「系统能判断的不留给用户」。时间事实优先于人工字段：
+     · 已经过了 end_time          → 已结束（哪怕 status 还是 registration）
+     · 已经在 start/end 之间      → 进行中
+     · 报名截止时间已过            → 报名已截止（这是原 bug 的根源）
+     · 名额已满                    → 名额已满（可候补）
+     人工 status 只在时间信息缺失时兜底，管理员的「覆盖」永远优先。
+
+     返回 {
+       phase,        // draft|deleted|cancelled|ended|live|closed|full|closing|open|upcoming
+       label,        // 徽章文案（已经算好「报名已截止」而不是「报名中」）
+       tone,         // quiet|coral|green|gold|danger  → badge-*
+       joinable,     // 此刻能不能报名
+       blockedReason,// 不能报名时的一句话原因（界面自己说明自己）
+       hint,         // 与 phase 无关的补充说明（「还剩 3 小时」「已满，可候补」）
+       coarse        // 应写回数据库的粗粒度 status（不变则 null）
+     }
+     ═══════════════════════════════════════════════════════════════ */
+  var EV_TONE = { open: 'coral', closing: 'gold', full: 'gold', closed: 'quiet',
+                  live: 'green', ended: 'quiet', upcoming: 'blue',
+                  draft: 'quiet', cancelled: 'quiet', deleted: 'quiet' };
+
+  function evPad(n) { return (n < 10 ? '0' : '') + n; }
+  function evShort(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return evPad(d.getMonth() + 1) + '-' + evPad(d.getDate()) + ' ' + evPad(d.getHours()) + ':' + evPad(d.getMinutes());
+  }
+  /* 相对时长：3 小时 / 2 天 / 15 分钟（用于「还剩…」） */
+  function evSpan(ms) {
+    if (ms <= 0) return '0 分钟';
+    var m = Math.floor(ms / 60000);
+    if (m < 60) return Math.max(1, m) + ' 分钟';
+    var h = Math.round(m / 60);
+    if (h < 48) return h + ' 小时';
+    return Math.round(h / 24) + ' 天';
+  }
+
+  /**
+   * @param {object} ev   events 行
+   * @param {object} [opts] { regs: 报名行数组（判定满员）, now: Date|string（测试注入） }
+   */
+  function evState(ev, opts) {
+    opts = opts || {};
+    ev = ev || {};
+    var now = opts.now ? new Date(opts.now) : new Date();
+    var nowMs = now.getTime();
+    var raw = ev.status || 'registration';
+    var start = ev.start_time ? new Date(ev.start_time).getTime() : NaN;
+    var end = ev.end_time ? new Date(ev.end_time).getTime() : NaN;
+    var dl = ev.reg_deadline ? new Date(ev.reg_deadline).getTime() : NaN;
+    var hasStart = !isNaN(start), hasEnd = !isNaN(end), hasDl = !isNaN(dl);
+
+    /* 名额：pending/approved 占位，waitlist 不算（与全站口径一致） */
+    var taken = null, maxSlots = parseInt(ev.max_slots, 10) || 0;
+    if (opts.regs && maxSlots) {
+      taken = opts.regs.filter(function (r) {
+        return r.event_id === ev.id && (r.status === 'pending' || r.status === 'approved');
+      }).length;
+    }
+    var full = !!(maxSlots && taken !== null && taken >= maxSlots);
+
+    function out(phase, label, extra) {
+      extra = extra || {};
+      return {
+        phase: phase,
+        label: label,
+        tone: extra.tone || EV_TONE[phase] || 'quiet',
+        joinable: !!extra.joinable,
+        blockedReason: extra.blockedReason || '',
+        hint: extra.hint || '',
+        coarse: extra.coarse === undefined ? null : extra.coarse,
+        taken: taken,
+        maxSlots: maxSlots
+      };
+    }
+
+    /* 1. 终态优先：人工状态说了算 */
+    if (raw === 'deleted') return out('deleted', '已删除', { blockedReason: '该活动已被删除。' });
+    if (raw === 'cancelled') return out('cancelled', '已取消', { blockedReason: '活动已取消。' });
+    if (raw === 'draft') return out('draft', '草稿', { blockedReason: '活动尚未发布。' });
+    if (raw === 'finished') return out('ended', '已结束', { blockedReason: '活动已结束。' });
+
+    /* 2. 时间事实优先于 registration / ongoing */
+    if (hasEnd && nowMs > end) {
+      return out('ended', '已结束', { blockedReason: '活动已于 ' + evShort(ev.end_time) + ' 结束。', coarse: 'finished' });
+    }
+    if (hasStart && nowMs >= start) {
+      return out('live', '进行中', {
+        blockedReason: '活动已开始，报名通道已关闭。',
+        coarse: raw === 'registration' ? 'ongoing' : null
+      });
+    }
+    if (raw === 'ongoing') {
+      return out('live', '进行中', { blockedReason: '活动已开始，报名通道已关闭。' });
+    }
+
+    /* 3. registration 阶段：把「能不能报」一次算清 */
+    if (hasDl && nowMs > dl) {
+      return out('closed', '报名已截止', { blockedReason: '报名已于 ' + evShort(ev.reg_deadline) + ' 截止。' });
+    }
+    if (full) {
+      return out('full', '名额已满', {
+        blockedReason: '名额已满。',
+        hint: '可加入候补，有人撤回时自动递补。',
+        joinable: true          /* 满员仍可进候补流程，register 页据此切「提交候补」 */
+      });
+    }
+    if (hasDl && dl - nowMs < 24 * 3600 * 1000) {
+      return out('closing', '即将截止', { joinable: true, hint: '还剩 ' + evSpan(dl - nowMs) });
+    }
+    if (hasStart && start - nowMs < 48 * 3600 * 1000) {
+      return out('closing', '报名中', { joinable: true, hint: evSpan(start - nowMs) + '后开赛' });
+    }
+    return out('open', '报名中', { joinable: true });
+  }
+
+  /* ── 结果状态（三页共用：manage / schedule / matches） ────────────────
+     unrecorded 未录入 · pending 待确认 · confirmed 已生效 · locked 已锁定 · rejected 已驳回
+     与 manage.html 内的 resultState() 完全同一口径（无状态列的旧数据 = 已生效）。 */
+  var RS_ZH = { unrecorded: '未录入', pending: '待确认', confirmed: '已生效', locked: '已锁定', rejected: '已驳回' };
+  var RS_TONE = { unrecorded: 'quiet', pending: 'gold', confirmed: 'green', locked: 'blue', rejected: 'danger' };
+
+  function resultStateOf(fixture, hasMaps) {
+    if (!fixture) return 'unrecorded';
+    var hasScore = fixture.score_a != null && fixture.score_b != null;
+    if (!hasScore) return hasMaps ? 'pending' : 'unrecorded';
+    var rs = fixture.result_status;
+    if (rs === 'locked') return 'locked';
+    if (rs === 'pending') return 'pending';
+    if (rs === 'rejected') return 'rejected';
+    return 'confirmed';
+  }
+
+  function resultBadge(st) {
+    return '<span class="badge badge-' + (RS_TONE[st] || 'quiet') + '" data-rs="' + st + '">' +
+      esc(RS_ZH[st] || st) + '</span>';
+  }
+
+  /** 徽章 HTML（全站同一套） */
+  function evBadge(ev, opts) {
+    var s = evState(ev, opts);
+    return '<span class="badge badge-' + s.tone + '" data-ev-phase="' + s.phase + '">' + esc(s.label) + '</span>';
+  }
+
+  /** 应回写数据库的粗粒度状态（不变返回 null；供 syncEventStatus 使用） */
+  function evStatusTarget(ev, now) {
+    return evState(ev, { now: now }).coarse;
+  }
+
+  /**
+   * 把「时间已经推进但没人改 status」的活动落库（PR 方案 B）。
+   * 幂等、低频（默认 10 分钟内不重复）、失败静默——纯前端派生已保证展示正确，
+   * 这一步只是让导出的数据、第三方读库与页面看到的一致。
+   * 返回 Promise<number>（更新的行数）
+   */
+  var _syncAt = 0;
+  function syncEventStatuses(force) {
+    var sb = supa();
+    if (!sb) return Promise.resolve(0);
+    var KEY = 'hw_evsync_at';
+    var last = force ? 0 : Math.max(_syncAt, parseInt(sessionStorage.getItem(KEY) || '0', 10) || 0);
+    if (Date.now() - last < 10 * 60 * 1000) return Promise.resolve(0);
+    _syncAt = Date.now();
+    try { sessionStorage.setItem(KEY, String(_syncAt)); } catch (e) { /* private mode */ }
+    return sb.from('events').select('id, status, start_time, end_time, reg_deadline')
+      .in('status', ['registration', 'ongoing']).limit(500)
+      .then(function (res) {
+        var rows = (res && !res.error && res.data) || [];
+        var jobs = [];
+        rows.forEach(function (ev) {
+          var target = evStatusTarget(ev);
+          if (target && target !== ev.status) {
+            jobs.push(sb.from('events')
+              .update({ status: target, updated_at: new Date().toISOString() })
+              .eq('id', ev.id).eq('status', ev.status)); /* 乐观锁：别人已改则不覆盖 */
+          }
+        });
+        return Promise.all(jobs).then(function () { return jobs.length; });
+      }).catch(function () { return 0; });
+  }
 
   /**
    * Renders the event context bar into #event-bar (pages place the host).
@@ -879,7 +1193,7 @@
       '  <a class="ev-back" href="events.html" title="返回活动大厅">← 活动</a>' +
       '  <span class="ev-identity">' +
       '    <span class="ev-title">' + esc(ev.title) + '</span>' +
-      '    <span class="ev-sub">' + esc(String(ev.season || 'S6').toUpperCase()) + ' · ' + esc(EV_STATUS_ZH[ev.status] || ev.status) + '</span>' +
+      '    <span class="ev-sub">' + esc(String(ev.season || 'S6').toUpperCase()) + ' · <span data-ev-phase="' + evState(ev).phase + '">' + esc(evState(ev).label) + '</span></span>' +
          badge +
       '  </span>' +
       '  <div class="ev-tabs">' + tabs + '</div>' +
@@ -908,7 +1222,8 @@
     }
 
     var typeZh = { tournament: '锦标赛', scrim: '训练赛', showmatch: '表演赛', activity: '活动' }[ev.event_type] || ev.event_type || '';
-    var statusZh = EV_STATUS_ZH[ev.status] || ev.status || '';
+    var evs0 = evState(ev);
+    var statusZh = evs0.label;
     var cover = ev.cover_image
       ? '<div style="margin:-28px -28px 16px;overflow:hidden;border-radius:var(--r-card-lg) var(--r-card-lg) 0 0;">' +
         '<img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:170px;object-fit:cover;display:block;"></div>'
@@ -928,7 +1243,7 @@
       '<h2 style="margin:8px 0 6px;font-size:20px;font-weight:600;color:var(--pure-white);">' + esc(ev.title) + '</h2>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">' +
         (typeZh ? '<span class="badge badge-quiet">' + esc(typeZh) + '</span>' : '') +
-        (statusZh ? '<span class="badge badge-coral">' + esc(statusZh) + '</span>' : '') +
+        (statusZh ? '<span class="badge badge-' + evs0.tone + '" data-ev-phase="' + evs0.phase + '">' + esc(statusZh) + '</span>' : '') +
         (ev.season ? '<span class="badge badge-quiet">' + esc(String(ev.season).toUpperCase()) + '</span>' : '') +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
@@ -1304,6 +1619,52 @@
     document.body.appendChild(a);
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  }
+
+  /**
+   * 时钟总线：状态是时间的函数，时间在走，界面就得跟着走。
+   * 页面只需注册「到点该重算什么」，无需各自 setInterval。
+   *
+   *   HWLayout.clock(fn)   每 30 秒 + 回到前台/获得焦点时调用 fn()
+   *
+   * 约定：fn 必须只更新会过期的那几处（原地改文本/类），
+   * 不要整体重排列表——重排会闪、会丢焦点、打断用户手上的事。
+   */
+  var _clockFns = [];
+  var _clockTimer = null;
+  function clock(fn) {
+    if (typeof fn !== 'function') return;
+    _clockFns.push(fn);
+    if (_clockTimer) return;
+    var run = function () {
+      for (var i = 0; i < _clockFns.length; i++) {
+        try { _clockFns[i](); } catch (e) { /* 一个页面的一处失败不能拖垮时钟 */ }
+      }
+    };
+    var arm = function () {
+      _clockTimer = setInterval(function () { if (!document.hidden) run(); }, 30000);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) run(); });
+      window.addEventListener('focus', run);
+    };
+    /* 等首屏渲染完再对齐一次，避免与初次 render 抢同一帧 */
+    if (document.readyState === 'complete') setTimeout(run, 0); else window.addEventListener('load', run, { once: true });
+    arm();
+  }
+
+  /**
+   * 统一的加载占位：形状预告内容，而不是「加载中…」四个字。
+   * loader(opts) → HTML 字符串
+   *   opts.rows  骨架条数量（默认 3）
+   *   opts.inline 单行横向（表格/小卡内用）
+   *   opts.label 屏幕阅读器文字（默认「正在加载」）
+   */
+  function loader(opts) {
+    opts = opts || {};
+    var rows = opts.inline ? 1 : (opts.rows || 3);
+    var bars = '';
+    for (var i = 0; i < rows; i++) bars += '<div class="sk"></div>';
+    return '<div class="sk-loader' + (opts.inline ? ' inline' : '') + '" role="status" aria-live="polite">' +
+           bars + '<span class="sr-only">' + esc(opts.label || '正在加载') + '</span></div>';
   }
 
   /** 统一状态块：empty 暂无数据 / error 加载失败 / forbidden 无权限 */
@@ -1710,8 +2071,20 @@
     fromBJInputValue: fromBJInputValue,
     adminRemainingMs: adminRemainingMs,
     renderAuth: renderAuth,
+    evState: evState,
+    evBadge: evBadge,
+    evStatusTarget: evStatusTarget,
+    resultStateOf: resultStateOf,
+    resultBadge: resultBadge,
+    RS_ZH: RS_ZH,
+    syncEventStatuses: syncEventStatuses,
     bump: bump,
+    clock: clock,
+    loader: loader,
     reveal: reveal,
+    stagger: stagger,
+    viewSwap: viewSwap,
+    setNum: setNum,
     confirmDialog: confirmDialog,
     skeletonRows: skeletonRows,
     skeletonCards: skeletonCards,

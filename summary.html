@@ -13,15 +13,7 @@
     <script src="js/auth.js"></script>
     <script src="js/layout.js"></script>
     <style>
-        .tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
-        .tab-btn {
-            padding: 10px 16px; background: none; border: none;
-            border-bottom: 2px solid transparent; margin-bottom: -1px;
-            color: var(--ash); font-size: 15px; font-weight: 500; cursor: pointer;
-            transition: color .15s ease, border-color .15s ease;
-        }
-        .tab-btn:hover { color: var(--pure-white); }
-        .tab-btn.active { color: var(--pure-white); border-bottom-color: var(--coral-pulse); }
+        /* .tabs / .tab-btn 已收进 css/theme.css（全站一套） */
 
         /* stats table */
         .table-card { background: var(--ink); border-radius: var(--r-card); box-shadow: var(--key-shadow); overflow: hidden; }
@@ -42,7 +34,7 @@
             padding: 11px 10px; text-align: left;
             border-bottom: 1px solid rgba(54,55,57,.45); white-space: nowrap;
         }
-        #stats-table tbody tr { transition: background .12s ease; }
+        #stats-table tbody tr { transition: background var(--t-page) var(--ease-out); }
         #stats-table tbody tr:hover { background: rgba(255,255,255,.03); }
         #stats-table th[data-sort-key] { cursor: pointer; }
         #stats-table th[data-sort-key]:hover { color: var(--mist); }

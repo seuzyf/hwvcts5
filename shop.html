@@ -15,11 +15,11 @@
     .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
     .shop-card {
       cursor: pointer; display: flex; flex-direction: column; overflow: hidden; padding: 0;
-      transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.15s ease;
+      transition: box-shadow var(--t-hover) var(--ease-out), transform var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
     }
     .shop-card:hover { transform: translateY(-2px); }
     .shop-card .shop-thumb { height: 132px; background: var(--graphite); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .shop-card .shop-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.35s ease; }
+    .shop-card .shop-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--t-swap) var(--ease-out); }
     .shop-card:hover .shop-thumb img { transform: scale(1.03); }
     .shop-card .shop-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
     .shop-title { font-size: 15px; font-weight: 600; color: var(--pure-white); }
@@ -156,7 +156,7 @@
     </div>
 
     <section id="tab-goods">
-      <div id="shop-grid" class="shop-grid"><div class="empty-state">加载中…</div></div>
+      <div id="shop-grid" class="shop-grid"><div class="sk-loader" role="status" aria-live="polite"><div class="sk"></div><div class="sk"></div><div class="sk"></div><span class="sr-only">正在加载商品</span></div></div>
       <div id="shop-empty" class="empty-state" hidden><strong>暂无商品</strong><p>组织者可以新增商品供兑换。</p></div>
     </section>
 
@@ -164,7 +164,7 @@
       <div class="table-wrap">
         <table class="data-table rec-table" id="rec-table">
           <thead><tr><th>时间</th><th>商品</th><th>用户</th><th>消耗积分</th></tr></thead>
-          <tbody id="rec-tbody"><tr><td colspan="4">加载中…</td></tr></tbody>
+          <tbody id="rec-tbody"><tr><td colspan="4"><div class="sk-loader" role="status" aria-live="polite"><div class="sk"></div><div class="sk"></div><span class="sr-only">正在加载兑换记录</span></div></td></tr></tbody>
         </table>
       </div>
       <div id="rec-empty" class="empty-state" hidden><strong>暂无兑换记录</strong></div>
@@ -318,7 +318,7 @@
   var GOODS_PAGE_SIZE = 20;
   function loadGoods() {
     var host = document.getElementById('shop-grid');
-    /* 加载态用骨架屏，避免「加载中…」闪一下又跳走 */
+    /* 加载态用骨架屏（.sk-loader）：先给形状，再给内容，避免文字闪一下又跳走 */
     if (host && !host.dataset.loaded && window.HWLayout && HWLayout.skeletonCards) {
       host.innerHTML = HWLayout.skeletonCards(6);
     }
@@ -669,7 +669,7 @@
   /* ---------- 兑换记录 ---------- */
   function loadRecords() {
     var tbody = document.getElementById('rec-tbody');
-    tbody.innerHTML = '<tr><td colspan="4">加载中…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4">' + HWLayout.loader({ rows: 2, label: '正在加载兑换记录' }) + '</td></tr>';
     var u = me();
     if (!u) { tbody.innerHTML = ''; document.getElementById('rec-empty').hidden = false; return Promise.resolve(); }
     var adminView = isAdmin();

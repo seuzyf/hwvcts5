@@ -40,7 +40,7 @@
             background: var(--ink); border-radius: var(--r-card); overflow: hidden;
             border: 1px solid var(--border); cursor: pointer;
             box-shadow: var(--key-shadow);
-            transition: box-shadow var(--dur-base, 0.2s) var(--ease-out, ease), transform var(--dur-base, 0.2s) var(--ease-out, ease), border-color 0.15s ease;
+            transition: box-shadow var(--t-swap) var(--ease-out), transform var(--t-swap) var(--ease-out), border-color var(--t-hover) var(--ease-out);
             position: relative;
         }
         .betting-card:hover { box-shadow: var(--key-shadow-hover); transform: translateY(-3px); }
@@ -87,7 +87,7 @@
         .roster-btn {
             width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
             background: transparent; color: var(--smoke); font-size: 12px; line-height: 1;
-            cursor: pointer; transition: 0.15s; padding: 0; font-weight: 700;
+            cursor: pointer; transition: background var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out); padding: 0; font-weight: 700;
         }
         .roster-btn:hover { border-color: var(--coral-pulse); color: var(--coral-pulse); }
 
@@ -121,7 +121,7 @@
         .bet-record .cancel-bet-btn {
             height: 28px; border-radius: var(--r-btn); border: 1px solid rgba(255, 99, 99, 0.4);
             background: transparent; color: #ff8f8f; font-size: 12px; padding: 0 12px;
-            cursor: pointer; transition: 0.15s; font-family: inherit;
+            cursor: pointer; transition: background var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out); font-family: inherit;
         }
         .bet-record .cancel-bet-btn:hover { background: rgba(255, 99, 99, 0.1); }
         /* 快捷分数：常用金额一键填入，省去手机上打字 */
@@ -130,8 +130,8 @@
             flex: 1; height: 30px; border-radius: var(--r-btn);
             border: 1px solid var(--border); background: var(--obsidian);
             color: var(--ash); font-family: var(--font-mono); font-size: 13px;
-            cursor: pointer; transition: background var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+            cursor: pointer; transition: background var(--t-hover) var(--ease-out),
+                color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
         }
         .bet-quick button:hover { background: var(--graphite); color: var(--pure-white); border-color: var(--smoke); }
         .bet-quick button:active { transform: scale(0.96); }
@@ -296,7 +296,7 @@
             <span class="modal-eyebrow">Match</span>
             <h3 class="modal-header" id="md-title"></h3>
             <div id="md-status" style="margin:-6px 0 12px;"></div>
-            <div id="md-body"><p style="color:var(--smoke); text-align:center;">加载中…</p></div>
+            <div id="md-body"><div class="sk-loader"><div class="sk"></div><div class="sk"></div><div class="sk"></div><span class="sr-only">正在加载</span></div></div>
             <div class="modal-footer">
                 <button id="md-bet-btn" class="btn btn-primary" type="button" hidden>参与竞猜 →</button>
             </div>
@@ -595,11 +595,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderGroupLockBar([]);
     }
 
-    /* 开赛时间到达后，卡片状态自动从「可竞猜」切到「已锁定 · 待结算」 */
-    setInterval(function () {
-        if (document.visibilityState !== 'visible' || !allMatchesData.length) return;
-        if (stateSignature() !== lastStateSig) renderMatches();
-    }, 30000);
+    /* 开赛时间到达后，卡片状态自动从「可竞猜」切到「已锁定 · 待结算」。
+       走全站时钟总线：同一节奏、同一处管理，页面切走时自动停。 */
+    if (HWLayout.clock) {
+        HWLayout.clock(function () {
+            if (!allMatchesData.length) return;
+            if (stateSignature() !== lastStateSig) renderMatches();
+        });
+    }
 
     /* ---------- 比赛详情：双方名单 + 生涯/本次排名与 ACS ---------- */
     function aggPlayerStats(matchRows) {
@@ -633,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `<span class="badge ${state === 'bettable' ? 'badge-green' : state === 'locked-pending' ? 'badge-gold' : 'badge-quiet'}">${STATE_ZH[state]}</span>` +
             (match.match_date ? `<span class="smoke" style="margin-left:8px; font-size:12px;">${HWLayout.fmtBJ(match.match_date)}（北京时间）</span>` : '<span class="smoke" style="margin-left:8px; font-size:12px;">对战时间待定</span>');
         const body = document.getElementById('md-body');
-        body.innerHTML = '<p style="color:var(--smoke); text-align:center;">加载中…</p>';
+        body.innerHTML = HWLayout.loader({ label: '正在加载' });
         const betBtn = document.getElementById('md-bet-btn');
         betBtn.hidden = state !== 'bettable';
         betBtn.onclick = () => {
@@ -871,7 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadAndRenderExistingBets(matchId, groupName) {
         const listContainer = document.getElementById('existing-bets-list');
-        listContainer.innerHTML = '<p style="text-align:center; color:var(--smoke);">加载中...</p>';
+        listContainer.innerHTML = HWLayout.loader({ rows: 2 });
         
         // 1. 查本场预测记录
         const { data: bets, error } = await supabaseClient

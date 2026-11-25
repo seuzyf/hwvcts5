@@ -68,7 +68,7 @@
             <th>状态</th>
           </tr>
         </thead>
-        <tbody id="dc-tbody"><tr><td colspan="14">加载中…</td></tr></tbody>
+        <tbody id="dc-tbody"><tr><td colspan="14"><div class="sk-loader inline"><div class="sk"></div><span class="sr-only">正在加载选手</span></div></td></tr></tbody>
       </table>
     </div>
 
@@ -240,7 +240,7 @@
         var empty = document.getElementById('dc-empty');
         tb.innerHTML = (window.HWLayout && HWLayout.skeletonRows)
           ? HWLayout.skeletonRows(14, 6)
-          : '<tr><td colspan="14">加载中…</td></tr>';
+          : '<tr><td colspan="14">' + HWLayout.loader({ inline: true, label: '正在加载选手' }) + '</td></tr>';
         empty.hidden = true;
 
         var prefixes = state.season ? [state.season] : ['s6', 's5'];
