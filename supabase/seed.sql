@@ -632,6 +632,109 @@ do $$ begin
 exception when others then raise notice '⑩-10 竞猜数据 跳过: %', sqlerrm; end $$;
 
 -- ─────────────────────────────────────────────────────────────
+-- ⑪ 选手页测试数据：让「测试·苍穹1号」有足够多的数据可测
+--    原来他只有 1 场比赛、0 个荣誉 —— 生涯趋势、雷达图、荣誉墙都测不出来。
+--    这里补到 5 场（跨组别，用来验证生涯合并）+ 4 枚荣誉（带活动归属与详情）。
+--    全部幂等：按 (group, stage, map, team_a, team_b) 判重，重复跑不会翻倍。
+-- ─────────────────────────────────────────────────────────────
+do $$
+declare
+    v_p1 bigint; v_p2 bigint; v_p3 bigint; v_p4 bigint; v_p5 bigint;
+    v_o1 bigint; v_o2 bigint; v_o3 bigint; v_o4 bigint; v_o5 bigint;
+    v_ev1 bigint; v_ev2 bigint;
+    v_src record;
+begin
+    select id into v_p1 from public.s6_player_ids where name = '测试·苍穹1号';
+    select id into v_p2 from public.s6_player_ids where name = '测试·苍穹2号';
+    select id into v_p3 from public.s6_player_ids where name = '测试·苍穹3号';
+    select id into v_p4 from public.s6_player_ids where name = '测试·苍穹4号';
+    select id into v_p5 from public.s6_player_ids where name = '测试·烈焰1号';
+    select id into v_o1 from public.s6_player_ids where name = '测试·烈焰2号';
+    select id into v_o2 from public.s6_player_ids where name = '测试·烈焰3号';
+    select id into v_o3 from public.s6_player_ids where name = '测试·雷霆1号';
+    select id into v_o4 from public.s6_player_ids where name = '测试·雷霆2号';
+    select id into v_o5 from public.s6_player_ids where name = '测试·雷霆3号';
+    select id into v_ev1 from public.events where code = 'EVT-S6-01';
+    select id into v_ev2 from public.events where code = 'EVT-S6-02';
+
+    /* 只有关键选手都存在时才补，避免插入一堆指向 null 的脏行 */
+    if v_p1 is not null and v_p2 is not null and v_o1 is not null then
+        for v_src in
+            select * from (values
+                /* 组别, 阶段, 距今, 地图, 比分, 我方队, 敌方队, 我方数据(A), 敌方数据(B) */
+                ('传奇组','四分之一决赛', 12, '亚海悬城',  '13:7',  '苍穹队','雷霆队',
+                 array['289/22/13/6','241/17/19/8','225/15/11/12','198/12/16/7','176/9/14/9'],
+                 array['211/15/17/5','205/14/16/6','188/12/18/4','170/11/15/5','152/8/13/7']),
+                ('传奇组','半决赛',        8, '莲华古城',  '11:13','苍穹队','烈焰队',
+                 array['256/19/21/4','233/16/15/9','219/14/12/14','187/11/19/6','165/9/17/5'],
+                 array['268/20/14/7','249/18/13/11','231/16/15/8','203/13/17/6','181/10/14/9']),
+                ('传奇组','总决赛',        5, '隐世修所',  '13:11','苍穹队','烈焰队',
+                 array['301/24/11/7','262/19/17/10','238/15/13/15','206/13/18/8','179/10/15/11'],
+                 array['275/21/16/6','251/18/15/9','224/15/17/7','196/12/19/5','172/9/16/8']),
+                ('挑战组','小组赛',        3, '极地寒港',  '13:4',  '苍穹队','雷霆队',
+                 array['312/26/9/5','244/18/13/6','221/15/10/13','192/12/14/9','168/9/12/11'],
+                 array['182/12/18/4','171/10/16/6','158/9/17/3','144/8/15/5','131/6/13/6'])
+            ) as t(grp, stg, ago, mp, sc, ta, tb, da, db)
+        loop
+            if not exists (
+                select 1 from public.s6_matches m
+                 where m."group" = v_src.grp and m.stage = v_src.stg
+                   and m.map = v_src.mp and m.team_a = v_src.ta and m.team_b = v_src.tb
+            ) then
+                insert into public.s6_matches
+                    ("group", stage, match_date, map, score,
+                     team_a, team_b, event_id,
+                     team_a_player1_id, team_a_player2_id, team_a_player3_id,
+                     team_a_player4_id, team_a_player5_id,
+                     team_b_player1_id, team_b_player2_id, team_b_player3_id,
+                     team_b_player4_id, team_b_player5_id,
+                     team_a_player1_ch, team_a_player2_ch, team_a_player3_ch,
+                     team_a_player4_ch, team_a_player5_ch,
+                     team_b_player1_ch, team_b_player2_ch, team_b_player3_ch,
+                     team_b_player4_ch, team_b_player5_ch,
+                     team_a_player1_data, team_a_player2_data, team_a_player3_data,
+                     team_a_player4_data, team_a_player5_data,
+                     team_b_player1_data, team_b_player2_data, team_b_player3_data,
+                     team_b_player4_data, team_b_player5_data)
+                values
+                    (v_src.grp, v_src.stg, now() - (v_src.ago || ' days')::interval,
+                     v_src.mp, v_src.sc,
+                     v_src.ta, v_src.tb, v_ev1,
+                     v_p1, v_p2, v_p3, v_p4, v_p5,
+                     v_o1, v_o2, v_o3, v_o4, v_o5,
+                     '捷风','猎枭','炼狱','幽影','零',
+                     '雷兹','斯凯','夜露','贤者','铁臂',
+                     v_src.da[1], v_src.da[2], v_src.da[3], v_src.da[4], v_src.da[5],
+                     v_src.db[1], v_src.db[2], v_src.db[3], v_src.db[4], v_src.db[5]);
+            end if;
+        end loop;
+
+        /* 荣誉：4 枚，覆盖"有活动归属 + 有详情"与"无活动归属"两种情况 */
+        for v_src in
+            select * from (values
+                ('S6 总决赛 MVP', '总决赛 24/11/7，带领苍穹队 13:11 拿下决胜图。', 5,  v_ev1),
+                ('S6 单场最高 ACS', '单场 312 ACS，本赛季联赛纪录。',              3,  v_ev1),
+                ('S6 最佳指挥',     '（无活动归属的荣誉样式验证）',                  20, null::bigint),
+                ('S6 新人王',       '赛季前半程表现最突出的新人。',                  30, v_ev2)
+            ) as t(ttl, descr, ago, evid)
+        loop
+            if not exists (
+                select 1 from public.player_honors h
+                 where h.player_name = '测试·苍穹1号' and h.title = v_src.ttl
+            ) then
+                insert into public.player_honors
+                    (player_name, game_id, event_id, title, description, awarded_at)
+                values
+                    ('测试·苍穹1号', 'TESTER#001', v_src.evid, v_src.ttl,
+                     v_src.descr, (now() - (v_src.ago || ' days')::interval)::date);
+            end if;
+        end loop;
+    end if;
+exception when others then
+    raise notice '⑪ 选手页测试数据 跳过: %', sqlerrm;
+end $$;
+
+-- ─────────────────────────────────────────────────────────────
 do $$ begin
   raise notice '✅ 引导完成：若上方无「…跳过」 NOTICE，全部表与测试数据已就绪。';
 end $$;

@@ -204,6 +204,87 @@ async function testPlayerLegacyUrl() {
   dom.window.close();
 }
 
+/* seed 的真实数据形状：赛果表用 score 字符串（不是 score_a/score_b） */
+async function testPlayerSeedShape() {
+  console.log('\n[选手页] seed 真实形状：比分存在 score 字符串里');
+  /* seed 与老数据只写 score='13:9'，score_a/score_b 是 null。
+     曾经因为 Number(null)===0 被当成"比分 0:0"，回合数恒为 0 → 雷达图空。 */
+  const o = { id: 1, group: '传奇组', stage: '小组赛', match_date: '2026-11-24T10:00:00Z',
+    map: '源工重镇', score: '13:9', score_a: null, score_b: null,
+    team_a: '苍穹队', team_b: '烈焰队', event_id: 1,
+    team_a_player1_id: 101, team_a_player2_id: 102, team_b_player1_id: 103, team_b_player2_id: 104,
+    team_a_player1_ch: '霓虹', team_a_player2_ch: '夜露', team_b_player1_ch: '捷风', team_b_player2_ch: '零',
+    team_a_player1_data: '24/18/12/3', team_a_player2_data: '19/15/14/5',
+    team_b_player1_data: '21/16/13/2', team_b_player2_data: '14/17/15/4' };
+
+  const { dom, errors } = build('player.html', {
+    s6_matches: [o],
+    s6_player_ids: [{ id: 101, name: '测试·苍穹1号', team: '苍穹队', group: '传奇组', image: '' }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [{ player_name: '测试·苍穹1号', game_id: 'TESTER#001', team: '苍穹队', group: '传奇组', role: '队长' }],
+    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: [], reg_profiles: [],
+    events: [{ id: 1, title: 'S6 正赛', start_time: '2026-11-24T10:00:00Z', status: 'finished', cover_emoji: '🏆' }]
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('测试·苍穹1号'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(1400);
+
+  /* 22 = 13 + 9，必须从 score 字符串读出来 */
+  ok('回合数从 score 字符串取到（13+9=22）', /22 回合/.test(d.getElementById('career-scope').textContent),
+     d.getElementById('career-scope').textContent);
+  const table = d.querySelector('#event-stats-content table');
+  const row = table ? table.querySelector('tbody tr').textContent : '';
+  ok('每回合 K/D/A 不是全 0', /0\.[0-9]{2} \/ 0\.[0-9]{2}/.test(row), row.slice(0, 120));
+  ok('胜负按 score 字符串判出（1 胜）', /1 \/ 0/.test(row), row.slice(0, 80));
+  ok('副标题显示游戏 ID 而不是数据库主键', /TESTER#001/.test(d.getElementById('player-game-id').textContent) &&
+     !/\b101\b/.test(d.getElementById('player-game-id').textContent),
+     d.getElementById('player-game-id').textContent);
+
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+/* 荣誉带：活动图标 + 荣誉名称，点开看详情 */
+async function testHonorStrip() {
+  console.log('\n[选手页] 荣誉带：活动图标 + 名称，可点开详情');
+  const { dom, errors } = build('player.html', {
+    s6_matches: [], s6_player_ids: [{ id: 101, name: '苍穹', team: 'A队', group: '传奇组', image: '' }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [], s6_comments: [], comment_reports: [], event_registrations: [], reg_profiles: [],
+    player_honors: [
+      { id: 1, player_name: '苍穹', title: 'S6 MVP', description: '总决赛最有价值选手', awarded_at: '2026-11-20', event_id: 1 },
+      { id: 2, player_name: '苍穹', title: '最佳指挥', description: '', awarded_at: '2026-11-10', event_id: null }
+    ],
+    events: [{ id: 1, title: 'S6 正赛', cover_emoji: '🏆', cover_image: '' }]
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const w = dom.window, d = w.document;
+  await wait(1400);
+
+  const strip = d.getElementById('honor-strip');
+  ok('荣誉带可见', !!strip && !strip.hidden);
+  ok('三个跳转按钮已移除', !d.querySelector('.ph-player-actions'));
+  const pills = [...d.querySelectorAll('.honor-pill')];
+  ok('每枚荣誉 = 图标 + 名称', pills.length === 2 &&
+     pills.every((p) => p.querySelector('.honor-pill-ico') && p.querySelector('.honor-pill-name')));
+  ok('荣誉名与归属活动都显示', /S6 MVP/.test(strip.textContent) && /S6 正赛/.test(strip.textContent));
+
+  pills[0].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  await wait(250);
+  const modal = d.getElementById('honor-detail-modal');
+  ok('点开后有详情弹窗', !!modal);
+  ok('弹窗有可访问名称', !!modal && !!d.getElementById('honor-detail-title') &&
+     modal.querySelector('.modal-panel').getAttribute('aria-labelledby') === 'honor-detail-title');
+  ok('详情里有获奖理由', !!modal && /总决赛最有价值选手/.test(modal.textContent));
+
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
 /* 生涯口径：同一个人跨赛季/跨组必须合并成一份数据 */
 async function testPlayerCareer() {
   console.log('\n[选手页] 生涯口径：跨赛季跨组合并 + 无记录不报错');
@@ -374,6 +455,8 @@ async function testEvents() {
   await testShop();
   await testPlayer(true);
   await testPlayer(false);
+  await testPlayerSeedShape();
+  await testHonorStrip();
   await testPlayerCareer();
   await testPlayerEmpty();
   await testPlayerLegacyUrl();

@@ -149,15 +149,32 @@
         /* modal 容器由 theme.css 单一提供（.modal-backdrop/.modal-panel） */
 
         /* 成就墙（Phase 14）：封面缩略图 + 荣誉名 + 赛事 + 时间 */
-        .honors-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
-        .honor-card { display: flex; gap: 12px; align-items: center; text-align: left; padding: 10px 12px; background: var(--ink); border: 1px solid var(--border); border-radius: var(--r-card); cursor: pointer; color: var(--mist); font-family: inherit; transition: transform var(--t-hover) var(--ease-out), box-shadow var(--t-hover) var(--ease-out); }
-        .honor-card:hover { transform: translateY(-2px); box-shadow: var(--key-shadow-hover); }
-        .honor-card:active { transform: scale(.98); }
-        .honor-thumb { width: 64px; height: 40px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: var(--graphite); }
-        .honor-thumb-fb { width: 64px; height: 40px; border-radius: 6px; flex-shrink: 0; background: var(--graphite); display:flex; align-items:center; justify-content:center; color: var(--gold-color, #ffd700); }
-        .honor-meta { min-width: 0; }
-        .honor-name { font-size: 14px; font-weight: 700; color: var(--pure-white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .honor-sub { font-size: 12px; color: var(--smoke); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* ── 荣誉带：活动图标 + 荣誉名称，横向排布，点开看详情 ── */
+        .honor-strip { margin-bottom: 16px; }
+        .honor-strip-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+        .honor-strip-count { font-family: var(--font-mono); font-size: 12px; color: var(--smoke);
+                             font-variant-numeric: tabular-nums; }
+        .honor-strip-body { display: flex; flex-wrap: wrap; gap: 10px; }
+
+        /* 一枚荣誉 = 活动图标 + 名称；图标优先用活动封面，没有就用奖杯 */
+        .honor-pill { display: inline-flex; align-items: center; gap: 10px;
+                      padding: 8px 14px 8px 8px; background: var(--ink);
+                      border-radius: var(--r-pill); box-shadow: var(--key-shadow);
+                      border: 1px solid transparent; cursor: pointer;
+                      font-family: inherit; color: var(--mist); text-align: left;
+                      transition: transform var(--t-hover) var(--ease-out),
+                                  border-color var(--t-hover) var(--ease-out); }
+        .honor-pill:hover { transform: translateY(-1px); border-color: var(--border); }
+        .honor-pill:active { transform: scale(.985); }
+        .honor-pill-ico { width: 30px; height: 30px; border-radius: 50%; flex: none;
+                          display: flex; align-items: center; justify-content: center;
+                          background: var(--graphite); color: var(--pure-white); overflow: hidden; }
+        .honor-pill-ico img { width: 100%; height: 100%; object-fit: cover; }
+        .honor-pill-text { display: flex; flex-direction: column; min-width: 0; }
+        .honor-pill-name { font-size: 13.5px; font-weight: 500; color: var(--pure-white);
+                           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+        .honor-pill-sub { font-size: 11.5px; color: var(--smoke); white-space: nowrap;
+                          overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
         /* 赛事数据：表格/折线图 */
         .ev-view-bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; }
         .ev-metric-chips { display:flex; flex-wrap:wrap; gap:6px; }
@@ -183,13 +200,19 @@
                         <h1 id="player-id-header" class="page-title" style="margin:8px 0 0;"><span class="sk sk-title" aria-hidden="true"></span><span class="sr-only">正在加载选手信息</span></h1>
                         <p class="page-sub" id="player-game-id">…</p>
                     </div>
-                    <div class="ph-player-actions">
-                        <a class="btn btn-ghost btn-sm" href="players.html">数据中心</a>
-                        <a class="btn btn-ghost btn-sm" href="schedule.html">赛程</a>
-                        <button class="btn btn-ghost btn-sm" type="button" id="player-copy-link">复制链接</button>
-                    </div>
                 </div>
             </header>
+
+            <!-- 荣誉带：活动图标 + 荣誉名称，点开看详情。
+                 原来这里是「数据中心 / 赛程 / 复制链接」三个跳转按钮 ——
+                 那些入口在导航栏里已经有了，占着页首位置却没提供任何本人信息。 -->
+            <section class="honor-strip" id="honor-strip" hidden>
+                <div class="honor-strip-head">
+                    <span class="eyebrow">Honors</span>
+                    <span class="honor-strip-count" id="honors-count">0</span>
+                </div>
+                <div class="honor-strip-body" id="honors-wall"></div>
+            </section>
 
             <!-- 生涯能力图（同组百分位）+ 生涯数据详情：与 summary.html 的对比页同款 table-card 承载 -->
             <section class="table-card" style="margin-bottom:16px;" id="career-stats-card">
@@ -285,20 +308,6 @@
 
     const supabaseClient = HWLayout.supa(); /* 连接配置收敛：js/layout.js 唯一出处 */
 
-    /* 复制当前选手主页链接（带 name/group/season，别人打开就是同一页） */
-    document.getElementById('player-copy-link').addEventListener('click', function () {
-        var url = location.href;
-        var done = function () { HWLayout.toast('链接已复制', 'ok'); };
-        var fail = function () { HWLayout.toast('复制失败，请从地址栏手动复制', 'err'); };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(done, fail);
-        } else {
-            var ta = document.createElement('textarea');
-            ta.value = url; document.body.appendChild(ta); ta.select();
-            try { document.execCommand('copy'); done(); } catch (e) { fail(); }
-            document.body.removeChild(ta);
-        }
-    });
     
     let currentUserIP = null;
 
@@ -528,7 +537,7 @@
                 : '还没有参加过赛事。<br><a href="events.html" class="btn btn-ghost btn-sm" style="margin-top:10px;">去看活动</a>') + '</div>';
         var rc = document.getElementById('radar-chart-container');
         if (rc) rc.innerHTML = '<div class="radar-empty">还没有比赛数据，暂无法生成雷达图。</div>';
-        var more = document.getElementById('honors-section');
+        var more = document.getElementById('honor-strip');
         if (more) more.hidden = true;
     }
     function renderLoadError_(msg) {
@@ -629,13 +638,22 @@
         } else {
             avHost.innerHTML = '<div class="player-avatar-fallback">' + escapeHTML((realName || playerId || '?').charAt(0)) + '</div>';
         }
-        /* 页首副标题：游戏 ID + 队伍 + 组别（都是"这个人的现状"，不是某个赛季的快照） */
+        /* 页首副标题：队伍 + 组别。
+           注意不要显示 playerId —— 那是 s6_player_ids.id（数据库主键，如 101），
+           不是人看的游戏 ID；真正的游戏 ID（TESTER#001）在 s6_player_stats.game_id 里。 */
         const careerTeams = careerEntry ? Object.keys(careerEntry.teams || {}) : [];
-        const subBits = [playerId];
+        const subBits = [];
         const primeTeam = careerTeams.length ? topKey_(careerEntry.teams) : (currentPlayerInfo.team || '');
         if (primeTeam) subBits.push(primeTeam);
         if (careerGroups.length) subBits.push(careerGroups.join(' / '));
         document.getElementById('player-game-id').textContent = subBits.filter(Boolean).join(' · ');
+        /* 真正的游戏 ID 单独取一次（失败不影响页面） */
+        try {
+            const g = await supabaseClient.from(window.currentSeason + '_player_stats')
+                .select('game_id').eq('player_name', realName).limit(1);
+            const gid = g && !g.error && g.data && g.data[0] && g.data[0].game_id;
+            if (gid) document.getElementById('player-game-id').textContent = [gid].concat(subBits).filter(Boolean).join(' · ');
+        } catch (e) { /* 没有就是没有 */ }
         document.getElementById('player-id-header').textContent = realName || playerId;
 
         renderHonors_(currentPlayerInfo, playerId);
@@ -680,7 +698,7 @@
 
     /* ---------- 成就墙：结构化荣誉优先，兼容旧 honor 文本 ---------- */
     async function renderHonors_(info, playerId) {
-        const sec = document.getElementById('honors-section');
+        const sec = document.getElementById('honor-strip');
         const wall = document.getElementById('honors-wall');
         if (!sec || !wall) return;
         let rows = [];
@@ -700,29 +718,35 @@
         try {
             const ids = [...new Set(rows.map(r => r.event_id).filter(Boolean))];
             if (ids.length) {
-                const er = await supabaseClient.from('events').select('id, title, cover_image').in('id', ids);
+                const er = await supabaseClient.from('events').select('id, title, cover_image, cover_emoji').in('id', ids);
                 (er && er.data || []).forEach(e => { evMap[String(e.id)] = e; });
             }
         } catch (e) { /* 封面取不到时用占位 */ }
-        document.getElementById('honors-count').textContent = rows.length;
+        document.getElementById('honors-count').textContent = rows.length + ' 项';
         sec.hidden = false;
-        const showAll = rows.length > 6;
+
+        /* 图标：优先活动封面，其次 emoji，最后奖杯 —— 一眼能看出是哪场活动给的 */
+        const icoFor = (ev) => {
+            if (ev && ev.cover_image) {
+                return '<img src="' + escapeHTML(ev.cover_image) + '" alt="">';
+            }
+            if (ev && ev.cover_emoji) return '<span>' + escapeHTML(ev.cover_emoji) + '</span>';
+            return window.HWLayout ? HWLayout.ico('trophy', 15) : '★';
+        };
+
         wall.innerHTML = rows.map((h, i) => {
             const ev = h.event_id != null ? evMap[String(h.event_id)] : null;
-            const thumb = ev && ev.cover_image
-                ? '<img class="honor-thumb" src="' + escapeHTML(ev.cover_image) + '" alt="">'
-                : '<span class="honor-thumb-fb">' + (window.HWLayout ? HWLayout.ico('crown', 18) : '★') + '</span>';
-            return '<button type="button" class="honor-card" data-honor="' + i + '"' + (showAll && i >= 6 ? ' hidden' : '') + '>' +
-                thumb +
-                '<span class="honor-meta"><span class="honor-name">' + escapeHTML(h.title || '') + '</span>' +
-                '<span class="honor-sub">' + escapeHTML((ev && ev.title) || (h.__legacy ? '历史荣誉' : '赛事荣誉')) +
-                (h.awarded_at ? ' · ' + escapeHTML(String(h.awarded_at).slice(0, 10)) : '') + '</span></span></button>';
-        }).join('') + (showAll ? '<button type="button" class="honor-card" id="honors-more"><span class="honor-meta"><span class="honor-name">查看全部 ' + rows.length + ' 条</span><span class="honor-sub">展开成就墙</span></span></button>' : '');
-        const more = document.getElementById('honors-more');
-        if (more) more.addEventListener('click', () => {
-            wall.querySelectorAll('[data-honor]').forEach(el => { el.hidden = false; });
-            more.remove();
-        });
+            const src = (ev && ev.title) || (h.__legacy ? '历史荣誉' : '赛事荣誉');
+            return '<button type="button" class="honor-pill" data-honor="' + i + '"' +
+                ' title="' + escapeHTML((h.title || '') + ' · ' + src) + '">' +
+                '<span class="honor-pill-ico">' + icoFor(ev) + '</span>' +
+                '<span class="honor-pill-text">' +
+                  '<span class="honor-pill-name">' + escapeHTML(h.title || '') + '</span>' +
+                  '<span class="honor-pill-sub">' + escapeHTML(src) +
+                    (h.awarded_at ? ' · ' + escapeHTML(String(h.awarded_at).slice(0, 10)) : '') +
+                  '</span>' +
+                '</span></button>';
+        }).join('');
         wall.querySelectorAll('[data-honor]').forEach(el => {
             el.addEventListener('click', () => showHonorDetail_(rows[Number(el.dataset.honor)], evMap));
         });
@@ -735,11 +759,11 @@
         const bd = document.createElement('div');
         bd.className = 'modal-backdrop visible';
         bd.id = 'honor-detail-modal';
-        bd.innerHTML = '<div class="modal-panel" style="max-width:520px;" role="dialog" aria-modal="true">' +
+        bd.innerHTML = '<div class="modal-panel" style="max-width:520px;" role="dialog" aria-modal="true" aria-labelledby="honor-detail-title">' +
             '<button class="modal-close" type="button" aria-label="关闭">&times;</button>' +
             (ev && ev.cover_image ? '<div class="detail-cover" style="margin:-28px -28px 16px; overflow:hidden; border-radius:20px 20px 0 0;"><img src="' + escapeHTML(ev.cover_image) + '" alt="" style="width:100%; height:210px; object-fit:cover; display:block;"></div>' : '') +
             '<span class="eyebrow">Honor</span>' +
-            '<h3 class="modal-title" style="font-size:20px;">' + escapeHTML(h.title || '') + '</h3>' +
+            '<h3 class="modal-title" id="honor-detail-title" style="font-size:20px;">' + escapeHTML(h.title || '') + '</h3>' +
             '<p style="color:var(--ash); font-size:14px; line-height:1.7; margin-top:10px;">' + escapeHTML(h.description || '暂无详细介绍。') + '</p>' +
             '<p style="color:var(--smoke); font-size:13px; margin-top:12px;">' +
             (ev ? '所属赛事：' + escapeHTML(ev.title || '') + '<br>' : '') +
@@ -748,6 +772,9 @@
             '</div>';
         document.body.appendChild(bd);
         bd.querySelector('.modal-close').addEventListener('click', () => bd.remove());
+        bd.addEventListener('click', (e) => { if (e.target === bd) bd.remove(); });
+        const onEsc = (e) => { if (e.key === 'Escape') { bd.remove(); document.removeEventListener('keydown', onEsc); } };
+        document.addEventListener('keydown', onEsc);
     }
 
     /* ---------- 赛事数据：不同赛事下的平均数据 + 对战记录 ---------- */
@@ -786,15 +813,13 @@
                     return false;
                 });
                 if (mySide && m[mySide]) teams[m[mySide]] = (teams[m[mySide]] || 0) + 1;
-                /* 同一口径：回合数来自 score_a/score_b，胜负也按这两个判断 */
-                const sa = Number(m.score_a), sb = Number(m.score_b);
-                if (Number.isFinite(sa) && Number.isFinite(sb) && (sa > 0 || sb > 0)) {
-                    rounds += sa + sb;
-                    const score = [sa, sb];
-                    if (mySide && score[0] !== score[1]) {
-                        const my = mySide === 'team_a' ? score[0] : score[1];
-                        const op = mySide === 'team_a' ? score[1] : score[0];
-                        if (my > op) wins++; else losses++;
+                /* 同一口径：回合数与胜负都走同一对函数（score_a/b 或 score 字符串） */
+                const rds = roundsOfMatch(m);
+                if (rds > 0) {
+                    rounds += rds;
+                    const w = winnerOfMatch(m);
+                    if (mySide && w) {
+                        if (w === (mySide === 'team_a' ? 'a' : 'b')) wins++; else losses++;
                     }
                 }
                 ['team_a', 'team_b'].forEach(tk => {
@@ -977,13 +1002,42 @@
     }
 
     var playerTrendMap = {};   /* P13i：每名选手按时间序的单场 ACS */
-    /** 一场比赛的回合数：优先 score_a + score_b，兼容旧数据里的 "13:9" 字符串 */
+    /**
+     * 一场比赛的回合数。
+     *
+     * 数据里比分有两种存法：score_a / score_b（结果录入页写这两个），
+     * 以及 score 字符串 "13:9"（seed 与老数据写这个）。
+     *
+     * 坑：Number(null) === 0，而 0 是有限数 —— 于是「没写 score_a」会被
+     * 误判成「比分 0:0」，永远读不到 score 字符串，回合数恒为 0。
+     * 必须显式判断"字段真的存在且 > 0"。
+     */
     function roundsOfMatch(m) {
         if (!m) return 0;
-        const a = Number(m.score_a), b = Number(m.score_b);
-        if (Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b >= 0) return a + b;
+        const has = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+        if (has(m.score_a) && has(m.score_b)) {
+            const a = Number(m.score_a), b = Number(m.score_b);
+            if (a > 0 || b > 0) return a + b;
+        }
         const legacy = String(m.score || '').split(/[/:：]/).map(Number);
-        return (legacy.length === 2 && !isNaN(legacy[0]) && !isNaN(legacy[1])) ? legacy[0] + legacy[1] : 0;
+        if (legacy.length === 2 && !isNaN(legacy[0]) && !isNaN(legacy[1]) && (legacy[0] > 0 || legacy[1] > 0)) {
+            return legacy[0] + legacy[1];
+        }
+        return 0;
+    }
+
+    /** 一场比赛的胜负（"a" / "b" / null）。口径与 roundsOfMatch 一致 */
+    function winnerOfMatch(m) {
+        if (!m) return null;
+        const has = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+        let a = null, b = null;
+        if (has(m.score_a) && has(m.score_b)) { a = Number(m.score_a); b = Number(m.score_b); }
+        else {
+            const p = String(m.score || '').split(/[/:：]/).map(Number);
+            if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) { a = p[0]; b = p[1]; }
+        }
+        if (a === null || b === null || a === b) return null;
+        return a > b ? 'a' : 'b';
     }
 
     /** 生涯聚合键：一个人一条，与赛季/组别无关 */
