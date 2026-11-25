@@ -118,9 +118,18 @@
     .gm-actions-row:empty { display: none; }
     .gm-redeem { width: 100%; }
     .gm-footnote { margin: 0; text-align: center; font-size: 12px; color: var(--smoke); }
-    .cond-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
-    .cond-row .select { flex: 1; }
+    .cond-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+    .cond-row .select { flex: 1; min-width: 140px; }
     .cond-row .input { width: 90px; }
+    /* 「参与过指定活动」的多选：点一下就勾上，不需要按住 Ctrl */
+    .cond-picker { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px;
+                   border: 1px solid var(--border); border-radius: var(--r-btn); background: var(--obsidian); max-height: 132px; overflow-y: auto; }
+    .cond-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: var(--r-pill);
+                 border: 1px solid var(--border); font-size: 12.5px; color: var(--ash); cursor: pointer;
+                 transition: border-color var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out); }
+    .cond-chip:hover { border-color: var(--iron); color: var(--mist); }
+    .cond-chip input { accent-color: var(--coral-pulse); margin: 0; }
+    .cond-chip:has(input:checked) { border-color: var(--coral-pulse); color: var(--pure-white); }
     .rec-table td, .rec-table th { padding: 9px 10px; }
     @media (max-width: 560px) {
       .gm-hero { height: 200px; }
@@ -259,14 +268,27 @@
   function isAdmin() { return typeof HWLayout !== 'undefined' && HWLayout.isAdminNow(); }
   function toast(m, t) { HWLayout.toast(m, t); }
 
-  var state = { tab: 'goods', goods: [], records: [], editing: null, viewing: null, conds: [] };
+  var state = { tab: 'goods', goods: [], records: [], editing: null, viewing: null, conds: [], allEvents: [] };
 
+  /**
+   * 兑换门槛。
+   * 改动理由：「报名人数 ≥ N」作为门槛没有意义——报 N 个名就能换奖励，等于可刷。
+   * 门槛应该表达「你得真的参与过」，所以改成：
+   *   · 参与过任意活动（默认）
+   *   · 参与过指定活动（按活动 id，可多选）
+   *   · 打过比赛 ≥ N 场（真实上场，不是报名）
+   *   · 余额 ≥ N（保留）
+   * 旧的 reg_min 数据仍然能读（判定时自动降级成 event_any），不会让已上架商品失效。
+   */
   var COND_TYPES = {
-    event_any: { label: '参与过活动', hasValue: false },
-    reg_min:   { label: '报名人数 ≥', hasValue: true },
-    match_min: { label: '比赛场次 ≥', hasValue: true },
-    balance_min: { label: '余额 ≥', hasValue: true }
+    event_any:    { label: '参与过任意活动', hasValue: false },
+    event_some:   { label: '参与过指定活动', hasValue: false, picker: 'events' },
+    match_min:    { label: '实际出战 ≥ 场',  hasValue: true },
+    balance_min:  { label: '积分余额 ≥',     hasValue: true }
   };
+  /* 历史类型 → 现行类型（只用于判定与展示，不写回数据库） */
+  var LEGACY_COND = { reg_min: 'event_any' };
+  function normCondType(t) { return LEGACY_COND[t] || t; }
 
   /* ---------- 余额 ---------- */
   function loadMyBalance() {
@@ -370,7 +392,7 @@
   function condsHtml(conds, editable, prefix) {
     if (!conds || !conds.length) return editable ? '' : '<div class="smoke" style="font-size:13px;">无条件限制</div>';
     return conds.map(function (c, i) {
-      var t = COND_TYPES[c.type] || COND_TYPES.reg_min;
+      var t = COND_TYPES[normCondType(c.type)] || COND_TYPES.event_any;
       var text = t.label + (t.hasValue ? ' ' + (c.value != null ? c.value : 0) : '');
       if (editable) {
         var typeOpts = Object.keys(COND_TYPES).map(function (k) {
@@ -382,6 +404,16 @@
             : '') +
           '<select class="select" data-cond-type="' + i + '">' + typeOpts + '</select>' +
           (t.hasValue ? '<input class="input" type="number" min="0" step="1" data-cond-val="' + i + '" value="' + (c.value != null ? c.value : 1) + '">' : '') +
+          (t.picker === 'events'
+            ? '<div class="cond-picker" data-cond-picker="' + i + '">' +
+                (state.allEvents.length === 0
+                  ? '<span class="smoke" style="font-size:12.5px;">活动列表为空</span>'
+                  : state.allEvents.map(function (ev) {
+                      var on = (c.events || []).map(String).indexOf(String(ev.id)) !== -1;
+                      return '<label class="cond-chip"><input type="checkbox" value="' + ev.id + '"' + (on ? ' checked' : '') + '> ' + esc(ev.title) + '</label>';
+                    }).join('')) +
+              '</div>'
+            : '') +
           '<button class="btn btn-ghost btn-sm" data-cond-del="' + i + '" type="button">×</button>' +
           '</div>';
       }
@@ -395,12 +427,18 @@
       var typeSel = row.querySelector('[data-cond-type="' + i + '"]');
       var connSel = row.querySelector('[data-cond-conn="' + i + '"]');
       var valEl = row.querySelector('[data-cond-val="' + i + '"]');
-      var type = typeSel ? typeSel.value : 'reg_min';
-      return {
+      var type = typeSel ? typeSel.value : 'event_any';
+      var cond = {
         type: type,
         conn: connSel ? connSel.value : 'and',
         value: valEl ? (parseInt(valEl.value, 10) || 0) : 0
       };
+      var pickHost = row.querySelector('[data-cond-picker]');
+      if (pickHost) {
+        cond.events = Array.prototype.slice.call(pickHost.querySelectorAll('input:checked'))
+          .map(function (x) { return parseInt(x.value, 10); });
+      }
+      return cond;
     });
   }
   function renderCondEditor() {
@@ -426,10 +464,15 @@
     var reasons = [];
     var results = conds.map(function (c) {
       var ok = true, why = '';
-      if (c.type === 'event_any') { ok = facts.participated; why = '需参与过活动'; }
-      else if (c.type === 'reg_min') { ok = facts.regCount >= (c.value || 0); why = '报名需 ≥ ' + (c.value || 0); }
-      else if (c.type === 'match_min') { ok = facts.matchCount >= (c.value || 0); why = '比赛需 ≥ ' + (c.value || 0); }
-      else if (c.type === 'balance_min') { ok = (facts.balance || 0) >= (c.value || 0); why = '余额需 ≥ ' + (c.value || 0); }
+      var t = normCondType(c.type);
+      if (t === 'event_any') { ok = facts.participated; why = '需参与过活动'; }
+      else if (t === 'event_some') {
+        var want = c.events || [];
+        ok = facts.eventIds.some(function (id) { return want.indexOf(id) !== -1; });
+        why = '需参与过指定活动';
+      }
+      else if (t === 'match_min') { ok = facts.matchCount >= (c.value || 0); why = '需实际出战 ≥ ' + (c.value || 0) + ' 场'; }
+      else if (t === 'balance_min') { ok = (facts.balance || 0) >= (c.value || 0); why = '余额需 ≥ ' + (c.value || 0); }
       if (!ok) reasons.push(why);
       return ok;
     });
@@ -442,10 +485,14 @@
   /* 单条条件判定：详情弹窗用「已满足 / 未满足」行展示，而不是一串徽章 */
   function condOk(c, facts) {
     if (!c) return true;
-    if (c.type === 'event_any') return !!facts.participated;
-    if (c.type === 'reg_min') return facts.regCount >= (c.value || 0);
-    if (c.type === 'match_min') return facts.matchCount >= (c.value || 0);
-    if (c.type === 'balance_min') return (facts.balance || 0) >= (c.value || 0);
+    var t = normCondType(c.type);
+    if (t === 'event_any') return !!facts.participated;
+    if (t === 'event_some') {
+      var want = c.events || [];
+      return facts.eventIds.some(function (id) { return want.indexOf(id) !== -1; });
+    }
+    if (t === 'match_min') return facts.matchCount >= (c.value || 0);
+    if (t === 'balance_min') return (facts.balance || 0) >= (c.value || 0);
     return true;
   }
   function condRowsHtml(conds, facts) {
@@ -453,8 +500,15 @@
       return '<div class="gm-cond-none">' + HWLayout.ico('circle-check', 18) + ' 无条件限制，所有成员均可兑换</div>';
     }
     return conds.map(function (c, i) {
-      var t = COND_TYPES[c.type] || COND_TYPES.reg_min;
+      var t = COND_TYPES[normCondType(c.type)] || COND_TYPES.event_any;
       var text = t.label + (t.hasValue ? ' ' + (c.value != null ? c.value : 0) : '');
+      if (normCondType(c.type) === 'event_some') {
+        var names = (c.events || []).map(function (id) {
+          var ev = state.allEvents.find(function (x) { return String(x.id) === String(id); });
+          return ev ? ev.title : ('#' + id);
+        });
+        text += names.length ? '：' + names.join(' / ') : '（未选择）';
+      }
       var ok = facts ? condOk(c, facts) : true;
       var conn = i > 0 ? '<span class="gm-cond-conn">' + (c.conn === 'or' ? '或' : '且') + '</span>' : '';
       return '<div class="gm-cond' + (ok ? '' : ' fail') + '">' + conn +
@@ -464,15 +518,17 @@
     }).join('');
   }
   function gatherFacts(conds, u) {
-    var needReg = conds.some(function (c) { return c.type === 'event_any' || c.type === 'reg_min'; });
+    var needReg = conds.some(function (c) { var t = normCondType(c.type); return t === 'event_any' || t === 'event_some'; });
     var needMatch = conds.some(function (c) { return c.type === 'match_min'; });
     var needBal = conds.some(function (c) { return c.type === 'balance_min'; });
-    var facts = { participated: false, regCount: 0, matchCount: 0, balance: 0 };
+    var facts = { participated: false, eventIds: [], regCount: 0, matchCount: 0, balance: 0 };
     var pRegs = needReg
-      ? sb().from('event_registrations').select('status').eq('user_id', u.id).then(function (r) {
+      ? sb().from('event_registrations').select('event_id, status').eq('user_id', u.id).then(function (r) {
           var rows = (r && !r.error && r.data) || [];
-          var live = rows.filter(function (x) { return x.status !== 'rejected' && x.status !== 'cancelled'; });
+          /* 参与过 = 报名被通过或已候补（被拒/自己撤回的不算） */
+          var live = rows.filter(function (x) { return x.status === 'approved' || x.status === 'waitlist' || x.status === 'pending'; });
           facts.regCount = live.length;
+          facts.eventIds = live.map(function (x) { return x.event_id; });
           facts.participated = live.length > 0;
         }).catch(function () {})
       : Promise.resolve();
@@ -486,6 +542,7 @@
           if (!gid) { facts.matchCount = 0; return Promise.resolve(); }
           return sb().from('s6_matches').select(cols.join(',')).then(function (r) {
             var rows = (r && !r.error && r.data) || [];
+            /* 只算「这一图里真的出现过这个人」；报名不算出战 */
             facts.matchCount = rows.filter(function (m) {
               return cols.slice(1).some(function (c) { return String(m[c] || '') === gid; });
             }).length;
@@ -591,6 +648,16 @@
   }
 
   /* ---------- 新增 / 编辑 ---------- */
+  /** 活动列表（选择器用）：只取 id + title，缺表不影响其它功能 */
+  function loadEventOptions() {
+    if (state.allEvents.length) return Promise.resolve(state.allEvents);
+    return sb().from('events').select('id, title').order('id', { ascending: false }).limit(200)
+      .then(function (r) {
+        state.allEvents = ((r && !r.error && r.data) || []).map(function (e) { return { id: e.id, title: e.title }; });
+        return state.allEvents;
+      })
+      .catch(function () { return state.allEvents; });
+  }
   function openForm(g) {
     state.editing = g || null;
     state.conds = (g && g.conditions ? JSON.parse(JSON.stringify(g.conditions)) : []);
@@ -601,8 +668,11 @@
     document.getElementById('gf-stock').value = g ? g.stock : 1;
     document.getElementById('gf-img').value = '';
     document.getElementById('gf-status').textContent = '';
-    renderCondEditor();
-    document.getElementById('goods-form-modal').classList.add('visible');
+    /* 先拿活动列表再画条件行：否则「参与过指定活动」的选择器是空的 */
+    loadEventOptions().then(function () {
+      renderCondEditor();
+      document.getElementById('goods-form-modal').classList.add('visible');
+    });
   }
   function saveForm() {
     var u = me();
@@ -759,7 +829,7 @@
     document.getElementById('gf-save').addEventListener('click', saveForm);
     document.getElementById('gf-cond-add').addEventListener('click', function () {
       syncCondsFromDom();
-      state.conds.push({ type: 'reg_min', conn: state.conds.length ? 'and' : 'and', value: 1 });
+      state.conds.push({ type: 'event_any', conn: 'and' });
       renderCondEditor();
     });
   }

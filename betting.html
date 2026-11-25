@@ -605,6 +605,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /* ---------- 比赛详情：双方名单 + 生涯/本次排名与 ACS ---------- */
+    /**
+     * 按「游戏 ID」聚合每图战绩。
+     * 注意：比赛行里 team_x_playerN_id 存的是**游戏 ID**（s6_player_ids.name），
+     * 不是花名册主键 id。以前这里用 p.id 去查，永远查不到 → 名单全是「—」。
+     * 现在键统一用游戏 ID，查表时也用 p.name。
+     */
     function aggPlayerStats(matchRows) {
         const byId = {};
         matchRows.forEach(m => {
@@ -646,9 +652,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('match-detail-modal').classList.add('visible');
 
         try {
+            /* 战绩数据是"锦上添花"：缺表/没权限不该让名单整块消失。
+               没有战绩时名单照常显示，指标列显示「—」并在底部说明原因。 */
             const seasonTables = ['s6_matches', 's5_matches'];
             const results = await Promise.all(seasonTables.map(t =>
-                supabaseClient.from(t).select('*').catch(() => ({ data: [] }))));
+                supabaseClient.from(t).select('*')
+                    .then(r => r || { data: [] })
+                    .catch(() => ({ data: [], __failed: true }))));
+            const statsFailed = results.some(r => r && r.__failed);
             const allRows = results.flatMap(r => (r && r.data) || []);
             const evId = match.event_id || (boundEv && boundEv.id) || null;
             const careerAgg = aggPlayerStats(allRows);
@@ -667,25 +678,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!roster.length) return `<div class="md-team-card"><h4>${team}</h4><p class="smoke" style="font-size:12.5px; margin:0;">暂无名单</p></div>`;
                 return `<div class="md-team-card"><h4><span>${team}</span><span class="smoke" style="font-weight:400;">${roster.length} 人</span></h4>` +
                     roster.map(p => {
-                        const c = careerAgg[p.id] || null;
-                        const e = eventAgg[p.id] || null;
+                        const key = String(p.name || p.id || '');
+                        const c = careerAgg[key] || null;
+                        const e = eventAgg[key] || null;
                         return `<div class="md-player">
                             <span class="nm">${p.name || p.id}</span>
-                            <span class="st" title="生涯比赛排名">${careerRank[p.id] ? '#' + careerRank[p.id] : '—'}</span>
-                            <span class="st" title="本次比赛排名">${eventRank[p.id] ? '#' + eventRank[p.id] : '—'}</span>
+                            <span class="st" title="生涯比赛排名">${careerRank[key] ? '#' + careerRank[key] : '—'}</span>
+                            <span class="st" title="本次比赛排名">${eventRank[key] ? '#' + eventRank[key] : '—'}</span>
                             <span class="st" title="生涯 ACS">${c && c.acs > 0 ? '<b>' + c.acs.toFixed(1) + '</b>' : '—'}</span>
                             <span class="st" title="比赛 ACS">${e && e.acs > 0 ? '<b>' + e.acs.toFixed(1) + '</b>' : '—'}</span>
                         </div>`;
                     }).join('') + '</div>';
             };
+            const noRoster = rosterOf(match.team_a).length === 0 && rosterOf(match.team_b).length === 0;
             body.innerHTML = `
                 <div class="md-legend">
                     <span>列：</span><span>生涯排名</span><span>本次排名</span><span>生涯 ACS</span><span>比赛 ACS</span>
                 </div>
-                <div class="md-teams">${renderTeam(match.team_a)}${renderTeam(match.team_b)}</div>`;
+                <div class="md-teams">${renderTeam(match.team_a)}${renderTeam(match.team_b)}</div>` +
+                (noRoster
+                    ? '<p class="smoke" style="font-size:12.5px; text-align:center; margin:12px 0 0;">这两支队伍还没有花名册数据（' +
+                      (statsFailed ? '战绩表也读取失败，' : '') + '在「选手」页或数据台补齐队伍与选手后自动出现）</p>'
+                    : (statsFailed ? '<p class="smoke" style="font-size:12.5px; text-align:center; margin:12px 0 0;">战绩表暂不可读，指标列显示为「—」</p>' : ''));
             loadOddsTrend(match, body);
         } catch (e) {
-            body.innerHTML = '<p style="color:var(--coral-pulse); text-align:center;">名单数据加载失败</p>';
+            console.error('名单渲染失败:', e);
+            body.innerHTML = '<p class="smoke" style="text-align:center;">暂时读不到这场比赛的数据（' +
+                (e && e.message ? e.message : '未知原因') + '）。预测不受影响。</p>';
         }
     }
 

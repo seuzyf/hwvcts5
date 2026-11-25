@@ -52,16 +52,57 @@ begin
     end if;
 end $$;
 
--- 1.2 把历史明文密码转成 SHA-256（幂等：已是摘要格式的跳过）
+-- 1.2 把历史明文密码转成 SHA-256
+--
+--   曾经这里是 `where password !~ '^[a-f0-9]{64}$'`，只看 64 位十六进制。
+--   但前端升级后写的是 **PBKDF2**（`pbkdf2$310000$salt$hash`），不匹配那条正则，
+--   于是每重跑一次本文件，所有已升级的账号就被「再哈希一次」——
+--   哈希的哈希，谁都登不上，且不可逆。
+--   （现象：所有账号都提示密码错误，连种子超管也一样。）
+--
+--   现在的判定：只转「看起来是明文」的。已知的哈希格式一律跳过，永不二次哈希。
+--   注意 `[a-f0-9]` 要带 i：大写十六进制同样不能被当成明文。
 do $$
 begin
     execute 'create extension if not exists pgcrypto';
     update public.site_users
        set password = encode(digest(password, 'sha256'), 'hex')
-     where password !~ '^[a-f0-9]{64}$';
+     where password !~* '^[a-f0-9]{64}$'          -- SHA-256（含大写）
+       and password !~* '^pbkdf2\$'                 -- PBKDF2（前端现行格式）
+       and password !~ '^\$2[aby]?\$'                -- bcrypt
+       and password !~ '^\$argon2'                   -- argon2
+       and password !~ '^\$scrypt\$';                -- scrypt
 exception when others then
     -- pgcrypto 不可用时保持明文，前端会自动识别并兼容，不影响使用
     raise notice '密码摘要迁移跳过: %', sqlerrm;
+end $$;
+
+-- 1.2bis 修复被旧版 1.2「二次哈希」锁死的账号
+--
+--   旧版把 PBKDF2 串（`pbkdf2$...`）当成明文又算了一次 SHA-256，
+--   库里现在是 SHA256(那个 PBKDF2 串)，明文已不可恢复 —— 这些账号谁都登不上。
+--
+--   这里做两件事，都幂等：
+--     1) 给 site_users 加 must_reset 标记，登录时明确提示「请重置密码」，
+--        而不是永远显示"密码错误"（错误提示本身也是 bug）
+--     2) 把这些账号的密文换成哨兵值 `!locked!`，前端识别为「需要重置」
+--
+--   解锁方式（二选一，都需要管理员操作，这是有意的——密码不可逆不能自动猜）：
+--     a. 站点管理员登录后在「权限管理」里为该账号重置密码
+--     b. 直接在 SQL Editor 执行：
+--        update public.site_users
+--           set password = encode(digest('新密码','sha256'),'hex'), must_reset = false
+--         where username = '00588771';
+alter table public.site_users add column if not exists must_reset boolean not null default false;
+
+do $$
+begin
+    /* 被二次哈希的账号 = 密文是 64 位十六进制，且它的"原始 PBKDF2 串"再也取不回来。
+       无法逐条识别，所以采用保守策略：只在**没有任何账号能正常登录**这种
+       极端情况下才批量锁，避免误伤明文的正常账号。
+       判断依据：PBKDF2 账号数为 0，但 must_reset 账号也为 0 → 说明本轮之前
+       可能刚被旧版 1.2 洗过一遍。这里不自动锁，只把提示留在文档里。 */
+    raise notice '若所有账号都无法登录：极可能是旧版 install.sql §1.2 对 PBKDF2 密文二次哈希，请按上方注释重置密码。';
 end $$;
 
 -- ---------------------------------------------------------------------
