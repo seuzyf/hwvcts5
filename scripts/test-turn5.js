@@ -1,0 +1,292 @@
+#!/usr/bin/env node
+/**
+ * 本轮四项修改的回归测试（npm run test:turn5）
+ *
+ * 1. 商品「参与过指定活动」必须是下拉栏，且选项来自真实活动列表
+ * 2. 选手页：赛事数据一个赛事一行（真表格）+ 雷达图能画出来
+ * 3. 管理后台：我的报名用户 → 待办审批（只列需要决定的，能一键通过）
+ * 4. 活动中心：已结束筛选 + 详情对话框的无障碍名称
+ *
+ * 这些断言全部来自真实 jsdom 渲染，不检查源码字符串。
+ */
+const fs = require('fs');
+const { JSDOM, VirtualConsole } = require('jsdom');
+
+const auth = fs.readFileSync('js/auth.js', 'utf8');
+const layout = fs.readFileSync('js/layout.js', 'utf8');
+
+let fails = 0;
+const ok = (name, cond, extra) => {
+  if (cond) console.log('  ✓ ' + name);
+  else { fails++; console.log('  ✗ ' + name + (extra ? '  → ' + extra : '')); }
+};
+
+/* 统一的 supabase 假实现：按表名返回 window.__data[table] */
+const stub = `window.supabase={createClient:function(){return {
+  from:function(table){var q={};['select','in','not','is','neq','order','limit','range','or','ilike','gte','lte','match'].forEach(function(m){q[m]=function(){return q}});
+    q.eq=function(){return q};
+    q.insert=q.update=q.delete=q.upsert=function(){return q};
+    q.maybeSingle=q.single=function(){return Promise.resolve({data:null,error:null})};
+    q.then=function(res){return Promise.resolve({data:(window.__data[table]||[]),error:null}).then(res)};
+    return q},
+  rpc:function(){return {then:function(r){return Promise.resolve({data:null,error:null}).then(r)}}},
+  auth:{getSession:function(){return Promise.resolve({data:{session:null}})}}}}};`;
+
+function build(file, data, beforeParseExtra) {
+  let html = fs.readFileSync(file, 'utf8');
+  html = html.replace(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/chart\.js"><\/script>/g, '');
+  html = html.replace(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@2"><\/script>/g, '<script>' + stub + '</script>');
+  html = html.replace(/<script src="js\/auth\.js"><\/script>/g, () => '<script>' + auth.replace(/<\/script/gi, '<\\/script') + '</script>');
+  html = html.replace(/<script src="js\/layout\.js"><\/script>/g, () => '<script>' + layout.replace(/<\/script/gi, '<\\/script') + '</script>');
+  html = html.replace(/<link[^>]*fonts\.googleapis[^>]*>/g, '');
+
+  const errors = [];
+  const vc = new VirtualConsole();
+  vc.on('jsdomError', (e) => { if (!/CSS|Not implemented/i.test(e.message)) errors.push(e.message); });
+  vc.on('error', (...a) => { const s = a.join(' '); if (!/IP地址|offline/.test(s)) errors.push('console.error: ' + s); });
+
+  const dom = new JSDOM(html, {
+    url: beforeParseExtra && beforeParseExtra.url ? beforeParseExtra.url : 'https://example.test/' + file,
+    runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: vc,
+    beforeParse(w) {
+      w.__data = JSON.parse(JSON.stringify(data));
+      w.fetch = () => Promise.reject(new Error('offline'));
+      w.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
+      if (beforeParseExtra && beforeParseExtra.init) beforeParseExtra.init(w);
+    }
+  });
+  return { dom, errors };
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ───────────────────────── 1. 商店：活动下拉栏 ───────────────────────── */
+async function testShop() {
+  console.log('\n[商店] 「参与过指定活动」必须是下拉栏');
+  const { dom, errors } = build('shop.html', {
+    site_users: [{ id: 1, username: 'admin', nickname: '管理员', role: 'superadmin' }],
+    events: [
+      { id: 1, title: 'S6 正赛', status: 'finished' },
+      { id: 2, title: 'S6 周末表演赛', status: 'finished' }
+    ],
+    shop_items: [], shop_orders: [], shop_refunds: [], event_registrations: []
+  });
+  const w = dom.window, d = w.document;
+  await wait(1400);
+
+  d.getElementById('shop-new').hidden = false;
+  d.getElementById('shop-new').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  await wait(300);
+  d.getElementById('gf-cond-add').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  await wait(200);
+
+  const typeSel = d.querySelector('[data-cond-type]');
+  ok('条件类型含"参与过指定活动"', !!typeSel && [...typeSel.options].some((o) => o.value === 'event_some'));
+
+  typeSel.value = 'event_some';
+  typeSel.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await wait(200);
+
+  const evSel = d.querySelector('[data-cond-event]');
+  ok('选了条件后出现活动下拉（<select>）', !!evSel && evSel.tagName === 'SELECT', evSel ? evSel.tagName : '无');
+  ok('下拉是单选（不是多选框）', !!evSel && !evSel.multiple);
+  const opts = evSel ? [...evSel.options].map((o) => o.textContent.trim()) : [];
+  ok('下拉选项来自真实活动列表', opts.includes('S6 正赛') && opts.includes('S6 周末表演赛'), opts.join(' / '));
+  ok('下拉有"选择活动…"占位项', opts.some((t) => /选择活动/.test(t)), opts.join(' / '));
+  ok('不再有旧的复选框标签', d.querySelectorAll('.cond-chip').length === 0);
+
+  /* 选中一个活动，再切走再切回来，值必须还在（否则等于白选） */
+  evSel.value = '2';
+  evSel.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await wait(150);
+  const typeSel2 = d.querySelector('[data-cond-type]');
+  typeSel2.value = 'event_any';
+  typeSel2.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await wait(150);
+  const typeSel3 = d.querySelector('[data-cond-type]');
+  typeSel3.value = 'event_some';
+  typeSel3.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await wait(200);
+  const evSel2 = d.querySelector('[data-cond-event]');
+  ok('切走再切回来，选中的活动被记住', !!evSel2 && evSel2.value === '2', evSel2 ? evSel2.value : '无');
+
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+/* ───────────────────────── 2. 选手页：表格 + 雷达图 ───────────────────────── */
+function mkMatch(id, sa, sb) {
+  const o = { id, group: '传奇组', team_a: 'A队', team_b: 'B队', score_a: sa, score_b: sb,
+    match_date: '2026-11-0' + id + 'T10:00:00Z', result_status: 'done', event_id: 1 };
+  for (let p = 1; p <= 5; p++) {
+    o['team_a_player' + p + '_id'] = p === 1 ? '测试·苍穹1号' : 'mate' + p;
+    o['team_a_player' + p + '_data'] = p === 1 ? '210/18/12/5' : '150/12/14/6';
+    o['team_a_player' + p + '_ch'] = '捷风';
+  }
+  for (let p = 1; p <= 5; p++) {
+    o['team_b_player' + p + '_id'] = 'opp' + p;
+    o['team_b_player' + p + '_data'] = '160/14/15/4';
+    o['team_b_player' + p + '_ch'] = '雷兹';
+  }
+  return o;
+}
+
+async function testPlayer(withScores) {
+  console.log('\n[选手页] ' + (withScores ? '有比分：赛事表一个赛事一行 + 雷达图渲染' : '无比分：说明为什么没有雷达图'));
+  const players = [{ id: '测试·苍穹1号', name: '测试·苍穹1号', group: '传奇组', image: null }];
+  const matches = withScores ? [mkMatch(1, 13, 9), mkMatch(2, 11, 13), mkMatch(3, 13, 7)]
+                             : [mkMatch(1, null, null), mkMatch(2, null, null), mkMatch(3, null, null)];
+  const { dom, errors } = build('player.html', {
+    s6_matches: matches,
+    s6_player_ids: players,
+    events: [{ id: 1, title: 'S6 正赛', start_time: '2026-11-01T10:00:00Z', status: 'finished' }],
+    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('测试·苍穹1号') +
+         '&group=' + encodeURIComponent('传奇组') + '&season=s6',
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(1200);
+
+  ok('选手身份解析成功', /测试·苍穹1号/.test(d.getElementById('player-id-header').textContent),
+     d.getElementById('player-id-header').textContent.trim());
+
+  const table = d.querySelector('#event-stats-content table');
+  ok('赛事数据是 <table> 表格', !!table && table.classList.contains('data-table'), table ? table.className : '无表格');
+  if (table) {
+    ok('每个赛事一行（3 场比赛同属 1 个赛事 → 1 行）', table.querySelectorAll('tbody tr').length === 1,
+       'got ' + table.querySelectorAll('tbody tr').length);
+    ok('表头含"赛事"与"每回合 K/D/A"', /赛事/.test(table.textContent) && /每回合/.test(table.textContent));
+  }
+
+  const radarHost = d.getElementById('radar-chart-container');
+  if (withScores) {
+    ok('雷达图画布保留在页面上', !!d.getElementById('player-radar-chart'), radarHost.innerHTML.slice(0, 60));
+    /* 回合数必须来自 score_a/score_b，否则每回合指标恒为 0 */
+    const cell = table ? table.querySelector('tbody tr').textContent : '';
+    ok('每回合 K/D/A 不是全 0（证明回合数取到了）', /0\.[0-9]{2} \/ 0\.[0-9]{2}/.test(cell), cell.slice(0, 120));
+    ok('生涯汇总 7 行指标齐全', d.getElementById('summary-list-content').querySelectorAll('div').length === 7);
+    ok('页首说明覆盖场次', /3 场/.test(d.getElementById('career-scope').textContent));
+  } else {
+    ok('没有比分时不画无意义的空雷达图', /还没有录比分/.test(radarHost.textContent), radarHost.textContent.trim().slice(0, 50));
+  }
+
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+/* ───────────────────────── 3. 管理后台：待办审批 ───────────────────────── */
+async function testAdminTodo() {
+  console.log('\n[管理后台] 我的报名用户 → 待办审批');
+  const { dom, errors } = build('admin.html', {
+    site_users: [
+      { id: 1, username: 'admin', nickname: '管理员', role: 'superadmin', banned: false },
+      { id: 2, username: 'newbie', nickname: '新来的', role: 'member', banned: false },
+      { id: 3, username: 'waitguy', nickname: '候补君', role: 'member', banned: false }
+    ],
+    events: [{ id: 1, title: 'S6 正赛', max_slots: 2, status: 'registration', organizer_id: 1 }],
+    event_registrations: [
+      { id: 11, event_id: 1, user_id: 2, status: 'pending', team_name: 'A队', created_at: '2026-11-20T10:00:00Z' },
+      { id: 12, event_id: 1, user_id: 3, status: 'waitlist', team_name: 'B队', created_at: '2026-11-21T10:00:00Z' },
+      { id: 13, event_id: 1, user_id: 2, status: 'approved', team_name: 'A队', created_at: '2026-11-19T10:00:00Z' }
+    ],
+    permissions: [], admin_logs: [], seasons: [], site_settings: [], shop_items: [],
+    player_honors: [], event_bans: [], notifications: []
+  }, {
+    url: 'https://example.test/admin.html',
+    /* 会话来自 localStorage.hw_session —— 直接预置，不依赖登录弹窗 */
+    init(w) {
+      w.localStorage.setItem('hw_session', JSON.stringify({
+        id: 1, username: 'admin', nickname: '管理员', role: 'superadmin'
+      }));
+      w.localStorage.setItem('hw_session_meta', JSON.stringify({ issued_at: Date.now(), last_seen: Date.now() }));
+    }
+  });
+  const w = dom.window, d = w.document;
+  await wait(2200);
+
+  const card = d.getElementById('my-reg-card');
+  ok('待办卡片对管理员可见', !!card && !card.hidden, card ? ('hidden=' + card.hidden) : '卡片不存在');
+  ok('标题是「报名待审批」而不是「我的报名用户」', /报名待审批/.test(card.textContent), card.querySelector('.section-title').textContent.trim());
+  ok('不再出现「我的报名用户」', !/我的报名用户/.test(card.textContent));
+
+  const rows = [...d.querySelectorAll('.adm-todo-row')];
+  ok('只列待处理的 2 条（待审核 + 候补），已通过的不占地方', rows.length === 2, 'got ' + rows.length);
+  ok('待审核与候补被区分开', rows.some((r) => /待审核/.test(r.textContent)) && rows.some((r) => /候补待转正/.test(r.textContent)));
+  ok('每条都有「通过」和「拒绝」', rows.every((r) => r.querySelector('[data-rc-approve]') && r.querySelector('[data-rc-reject]')));
+  ok('已通过的那条没混进待办', !rows.some((r) => /已通过/.test(r.textContent)));
+
+  /* 点通过 → 必须真的写库并移出待办 */
+  const updates = [];
+  const sb = w.HWAuth.getClient();
+  const origFrom = sb.from.bind(sb);
+  sb.from = function (t) {
+    const q = origFrom(t);
+    if (t === 'event_registrations') {
+      const ou = q.update;
+      q.update = function (v) { updates.push(v); return ou.apply(q, arguments); };
+    }
+    return q;
+  };
+  rows[0].querySelector('[data-rc-approve]').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  await wait(600);
+  ok('「通过」写入 status=approved', updates.length === 1 && updates[0].status === 'approved', JSON.stringify(updates));
+  ok('处理完的一行从待办中移除', d.querySelectorAll('.adm-todo-row').length === 1, 'got ' + d.querySelectorAll('.adm-todo-row').length);
+
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+/* ───────────────────────── 4. 活动中心：已结束 + 详情无障碍 ───────────────────────── */
+async function testEvents() {
+  console.log('\n[活动中心] 已结束筛选 + 详情对话框名称');
+  const now = Date.now(), H = 3600e3;
+  const iso = (ms) => new Date(now + ms).toISOString();
+  const { dom, errors } = build('events.html', {
+    events: [
+      /* 用户的操作路径：手工把 S6 正赛改成已结束，但时间还在未来 */
+      { id: 1, title: 'S6 正赛', status: 'finished', start_time: iso(48 * H), end_time: iso(72 * H),
+        reg_deadline: iso(24 * H), max_slots: 16, season: 'S6' },
+      { id: 2, title: '报名中活动', status: 'registration', start_time: iso(72 * H), end_time: iso(96 * H),
+        reg_deadline: iso(48 * H), max_slots: 8, season: 'S6' }
+    ],
+    event_registrations: [], site_users: [], seasons: [{ season_key: 's6', status: 'active' }],
+    notifications: [], event_captains: []
+  }, { url: 'https://example.test/events.html' });
+  const w = dom.window, d = w.document;
+  await wait(1400);
+
+  const btn = (name) => [...d.querySelectorAll('#status-filter button')].find((b) => b.dataset.status === name);
+  btn('ended').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  const ended = [...d.querySelectorAll('.event-card')];
+  ok('点「已结束」能筛出 S6 正赛', ended.length === 1 && /S6 正赛/.test(ended[0].textContent),
+     ended.map((c) => c.textContent.trim().slice(0, 20)).join(' | '));
+  ok('已结束的卡片不再显示「报名截止」', !/报名截止/.test(ended[0].textContent), ended[0].textContent.trim().slice(0, 80));
+
+  btn('live').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  ok('「进行中」为空时说明原因并可一键看全部', /没有正在进行的活动/.test(d.getElementById('main-content').textContent));
+
+  btn('all').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  d.querySelector('.event-card').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  await wait(500);
+  const panel = d.getElementById('detail-panel');
+  const labelId = panel.getAttribute('aria-labelledby');
+  const titleEl = labelId ? d.getElementById(labelId) : null;
+  ok('详情对话框有 aria-labelledby', !!labelId, String(labelId));
+  ok('aria-labelledby 指向的子元素真实存在且是标题', !!titleEl && /H[1-3]/.test(titleEl.tagName), titleEl ? titleEl.tagName : '无');
+  ok('对话框有可读名称（= 活动标题）', !!titleEl && /S6 正赛/.test(titleEl.textContent), titleEl ? titleEl.textContent.trim() : '');
+
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+(async () => {
+  await testShop();
+  await testPlayer(true);
+  await testPlayer(false);
+  await testAdminTodo();
+  await testEvents();
+  console.log('\n本轮四项修改：' + (fails ? 'FAIL ' + fails + ' 项' : '全部通过 ✓'));
+  process.exit(fails ? 1 : 0);
+})();

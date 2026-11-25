@@ -201,11 +201,14 @@
             </div>
 
             <div class="filter-bar" id="filter-bar">
+                <!-- data-status 必须用 phase 口径（open/live/ended），
+                     不能用库里的 status 值（registration/ongoing/finished）——
+                     两者混用会导致「点已结束什么也不显示」。 -->
                 <div class="seg" id="status-filter">
                     <button class="active" data-status="all" type="button">全部</button>
-                    <button data-status="registration" type="button">报名中</button>
-                    <button data-status="ongoing" type="button">进行中</button>
-                    <button data-status="finished" type="button">已结束</button>
+                    <button data-status="open" type="button">报名中</button>
+                    <button data-status="live" type="button">进行中</button>
+                    <button data-status="ended" type="button">已结束</button>
                 </div>
                 <div style="flex:1"></div>
                 <button class="btn btn-ghost" id="apply-ev-btn" style="display:none;" type="button">申请举办活动</button>
@@ -386,6 +389,8 @@
 
         var allEvents = [], allRegs = [], userMap = {};
         var currentTab = 'hall', currentFilter = 'all', tableMissing = false;
+        /* 库内状态值 → 筛选用 phase 值：让"旧链接/旧按钮"也能用，而不是静默显示空列表 */
+        var FILTER_ALIAS = { registration: 'open', ongoing: 'live', finished: 'ended' };
         var ADMIN_TTL = 15 * 60 * 1000;
         var main = document.getElementById('main-content');
         var createBtn = document.getElementById('create-ev-btn');
@@ -561,14 +566,35 @@
                 }
                 if (currentFilter === 'all') return true;
                 var ph = HWLayout.evState(ev, { regs: allRegs }).phase;
-                /* 「报名中」这一桶 = 报名这件事的所有阶段（含已截止）：用户找活动不会去猜我们内部叫什么 */
-                if (currentFilter === 'open') return ph === 'open' || ph === 'closing' || ph === 'full' || ph === 'closed';
-                if (currentFilter === 'live') return ph === 'live';
-                if (currentFilter === 'ended') return ph === 'ended';
-                return ph === currentFilter;
+                /* 筛选值一律用 phase 口径。这里再做一层归一化：
+                   历史按钮 / 手写链接里可能传库内状态值（registration 等），
+                   不做映射就会「点了没反应」，而且没有任何报错。 */
+                var f = FILTER_ALIAS[currentFilter] || currentFilter;
+                if (f === 'open')  return ph === 'open' || ph === 'closing' || ph === 'full' || ph === 'closed';
+                if (f === 'live')  return ph === 'live';
+                if (f === 'ended') return ph === 'ended';
+                if (f === 'draft' || f === 'cancelled' || f === 'deleted') return ph === f;
+                return ph === f;
             });
             if (list.length === 0) {
-                main.innerHTML = '<div class="empty-state">该筛选条件下暂无活动。</div>';
+                /* 空状态要说清"为什么空"，而不是一句"暂无"（界面自己说明自己） */
+                var ph2 = FILTER_ALIAS[currentFilter] || currentFilter;
+                var why = ph2 === 'ended'
+                    ? '还没有已结束的活动。活动结束时间到了、或管理员把状态设为「已结束」后就会出现在这里。'
+                    : ph2 === 'live' ? '现在没有正在进行的活动。'
+                    : ph2 === 'open' ? '现在没有开放报名的活动。'
+                    : '该筛选条件下暂无活动。';
+                main.innerHTML = '<div class="empty-state"><strong>' + esc(why) + '</strong>' +
+                    (currentFilter !== 'all' ? '<p><button class="btn btn-ghost btn-sm" type="button" id="ev-reset-filter">查看全部活动</button></p>' : '') +
+                    '</div>';
+                var rb = document.getElementById('ev-reset-filter');
+                if (rb) rb.addEventListener('click', function () {
+                    currentFilter = 'all';
+                    document.querySelectorAll('#status-filter button').forEach(function (x) {
+                        x.classList.toggle('active', x.dataset.status === 'all');
+                    });
+                    renderHall();
+                });
                 return;
             }
             main.innerHTML = '<div class="events-grid">' + list.map(function (ev) {
@@ -605,7 +631,12 @@
                     '  <p class="ev-desc">' + esc(ev.description || '暂无简介') + '</p>' +
                     '  <div class="ev-meta">' +
                     '    <span>' + fmtTime(ev.start_time) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
-                    (ev.reg_deadline ? '<span data-deadline' + (st.phase === 'closed' ? ' class="ev-past"' : '') + '>报名截止 ' + fmtTime(ev.reg_deadline) + '</span>' : '') +
+                    /* 活动已经结束/进行中时，报名截止时间就是一条没用的信息（还容易让人以为能报名）；
+                       只在报名通道有意义时显示，并说明它现在的状态。 */
+                    ((ev.reg_deadline && st.phase !== 'ended' && st.phase !== 'live' && st.phase !== 'draft' && st.phase !== 'cancelled')
+                        ? '<span data-deadline' + (st.phase === 'closed' || st.phase === 'full' ? ' class="ev-past"' : '') + '>' +
+                          (st.phase === 'closed' || st.phase === 'full' ? '报名已截止 ' : '报名截止 ') + fmtTime(ev.reg_deadline) + '</span>'
+                        : '') +
                     (ev.venue ? '<span>' + esc(ev.venue) + '</span>' : '') +
                     '  </div>' +
                     '  <div class="ev-foot">' +
@@ -918,7 +949,7 @@
                 '<div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:6px;">' +
                 (ev.cover_image ? '' : '  <span class="icon-circle" style="width:52px;height:52px;">' + HWLayout.ico('trophy', 24) + '</span>') +
                 '  <div><span class="eyebrow">' + esc(TYPE_LABEL[ev.event_type] || ev.event_type) + (ev.season ? ' · ' + esc(ev.season) : '') + '</span>' +
-                '  <h3 class="modal-title" style="font-size:20px; margin-top:4px;">' + esc(ev.title) + '</h3></div>' +
+                '  <h2 class="modal-title" id="detail-title" style="font-size:20px; margin-top:4px;">' + esc(ev.title) + '</h2></div>' +
                 '  <span class="badge badge-' + st.tone + '" style="margin-left:auto;" data-ev-phase="' + st.phase + '">' + esc(st.label) + '</span>' +
                 '</div>' +
                 '<div class="detail-info">' +
@@ -975,6 +1006,7 @@
                 requestAnimationFrame(moveInk);
                 window.addEventListener('resize', moveInk, { passive: true });
             })();
+            panel.setAttribute('aria-labelledby', 'detail-title');
             panel.dataset.evId = String(ev.id);
             panel.dataset.joinable = canRegister ? '1' : '0';
             document.getElementById('detail-modal').classList.add('visible');

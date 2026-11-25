@@ -22,6 +22,19 @@
             transition: border-color var(--t-hover) var(--ease-out);
         }
         .adm-ev-row:hover { border-color: var(--smoke); }
+
+        /* 待办审批：一个活动一组，一行一条，动作在右侧 */
+        .adm-todo-group { border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; margin-bottom: 12px; }
+        .adm-todo-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+                         padding: 10px 14px; background: var(--obsidian); border-bottom: 1px solid var(--border); }
+        .adm-todo-head .adm-ev-title { flex: 1; font-weight: 600; color: var(--pure-white); }
+        .adm-todo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 14px;
+                        border-top: 1px solid var(--border); }
+        .adm-todo-row:first-child { border-top: none; }
+        .adm-todo-who { flex: 1; min-width: 180px; font-size: 14px; color: var(--mist); }
+        .adm-todo-actions { display: flex; gap: 6px; flex: none; }
+        /* 处理掉的一行：先淡出再移除，让人看见"这条已经不在待办里了" */
+        .adm-todo-done { opacity: 0; transform: translateX(8px); transition: opacity var(--t-swap) var(--ease-out), transform var(--t-swap) var(--ease-out); }
         .adm-ev-main { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 3px; }
         .adm-ev-title { color: var(--pure-white); font-weight: 600; font-size: 15px; }
         .adm-ev-sub {
@@ -201,12 +214,13 @@
             <div class="card mt-16" id="my-reg-card" hidden>
                 <div class="flex-between">
                     <div>
-                        <span class="eyebrow">Registrants</span>
-                        <h2 class="section-title" style="margin:8px 0 0;">我的报名用户</h2>
+                        <span class="eyebrow">待办</span>
+                        <h2 class="section-title" style="margin:8px 0 0;">报名待审批</h2>
+                        <p class="muted" style="font-size:13px; margin:6px 0 0;">只列需要你决定的：新报名、候补待转正。已处理的不在这里占地方。</p>
                     </div>
                     <span class="smoke" style="font-size:13px;" id="my-reg-count"></span>
                 </div>
-                <div id="my-reg-list" style="margin-top:14px;"><div class="sk-loader" role="status" aria-live="polite"><div class="sk"></div><div class="sk"></div><span class="sr-only">正在加载我的报名</span></div></div>
+                <div id="my-reg-list" style="margin-top:14px;"><div class="sk-loader" role="status" aria-live="polite"><div class="sk"></div><div class="sk"></div><span class="sr-only">正在加载待审批报名</span></div></div>
             </div>
             <div class="grid-4 mt-16">
                 <a class="card card-hover" href="draft.html" style="text-decoration:none; display:block;">
@@ -658,7 +672,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (regCard && !isAdmin) regCard.hidden = false;
     }
 
-    /* —— P13：我的报名用户（组织者=仅自己活动；管理员=全部） —— */
+    /* —— 报名待审批（组织者=自己活动；管理员=全部）——
+       这里只做一件事：把"需要你做决定"的报名挑出来，并让决定一步完成。
+       以前的「我的报名用户」把所有报名平铺一遍、没有通过/拒绝按钮，
+       等于只是换个地方看数据，帮不上忙。 */
     function renderMyRegistrants() {
         var card = document.getElementById('my-reg-card');
         if (!card) return;
@@ -667,12 +684,12 @@ document.addEventListener('DOMContentLoaded', () => {
         card.hidden = false;
         var host = document.getElementById('my-reg-list');
         var countEl = document.getElementById('my-reg-count');
-        host.innerHTML = HWLayout.loader({ label: '正在加载' });
+        host.innerHTML = HWLayout.loader({ label: '正在加载待审批报名' });
         var sb = HWAuth.getClient();
         var isAdmin = HWLayout.isAdminNow();
         var evQ = isAdmin
-            ? sb.from('events').select('id, title').order('id')
-            : sb.from('events').select('id, title').eq('organizer_id', me.id).order('id');
+            ? sb.from('events').select('id, title, max_slots, status').order('id')
+            : sb.from('events').select('id, title, max_slots, status').eq('organizer_id', me.id).order('id');
         evQ.then(function (r) {
             var evs = (r && !r.error && r.data) || [];
             if (!evs.length) {
@@ -684,39 +701,109 @@ document.addEventListener('DOMContentLoaded', () => {
             var evMap = {};
             evs.forEach(function (e) { evMap[e.id] = e; });
             return Promise.all([
-                sb.from('event_registrations').select('id, event_id, user_id, status').in('event_id', evIds),
-                sb.from('site_users').select('id, username, nickname, role, banned, banned_until'),
-                sb.from('event_bans').select('event_id, user_id, reason, until, created_at').in('event_id', evIds)
+                sb.from('event_registrations').select('id, event_id, user_id, status, team_name, created_at').in('event_id', evIds),
+                sb.from('site_users').select('id, username, nickname, role, banned, banned_until')
             ]).then(function (rs) {
                 var regs = (rs[0] && !rs[0].error && rs[0].data) || [];
                 var users = (rs[1] && !rs[1].error && rs[1].data) || [];
-                var ebans = (rs[2] && !rs[2].error && rs[2].data) || [];
                 var uMap = {};
                 users.forEach(function (u) { uMap[u.id] = u; });
-                var ebanMap = {};
-                ebans.forEach(function (b) { ebanMap[b.event_id + ':' + b.user_id] = b; });
-                countEl.textContent = regs.length + ' 条报名';
-                if (!regs.length) { host.innerHTML = '<div class="empty-state">暂无报名用户。</div>'; return; }
-                var RB = { pending: ['待审核', 'badge-blue'], approved: ['已通过', 'badge-green'], rejected: ['已拒绝', 'badge-quiet'], waitlist: ['候补中', 'badge-coral'] };
-                host.innerHTML = regs.map(function (rg) {
-                    var u = uMap[rg.user_id] || {};
-                    var b = RB[rg.status] || ['未知', 'badge-quiet'];
-                    var gBanned = HWLayout.isBannedUser(u);
-                    var eban = ebanMap[rg.event_id + ':' + rg.user_id] || null;
-                    return '<div class="adm-ev-row">' +
-                        '<span class="adm-ev-main">' +
-                        '  <span class="adm-ev-title">' + esc(u.nickname || u.username || ('用户#' + rg.user_id)) + (gBanned ? ' ' + HWLayout.bannedBadgeHtml() : '') + (eban ? ' <span class="badge badge-ban">' + HWLayout.ico('ban', 12) + ' 本活动禁赛</span>' : '') + '</span>' +
-                        '  <span class="adm-ev-sub">' + esc(evMap[rg.event_id] ? evMap[rg.event_id].title : '') + ' · ' + esc(ROLE_ZH[u.role] || '成员') + '</span>' +
-                        '</span>' +
-                        '<span class="badge ' + b[1] + '">' + b[0] + '</span>' +
-                        '<button class="btn btn-ghost btn-sm" data-pts-user="' + rg.user_id + '" type="button">调分</button>' +
-                        (eban
-                            ? '<button class="btn btn-ghost btn-sm" data-eban-unban="' + eban.id + '" type="button">解除活动封禁</button>'
-                            : '<button class="btn btn-danger-ghost btn-sm" data-eban-user="' + rg.user_id + '" data-eban-ev="' + rg.event_id + '" data-eban-title="' + esc(evMap[rg.event_id] ? evMap[rg.event_id].title : '') + '" type="button">活动封禁</button>') +
-                        (gBanned ? '' : '<button class="btn btn-danger-ghost btn-sm" data-ban-user="' + rg.user_id + '" type="button">封禁</button>') +
-                        (gBanned ? '<button class="btn btn-ghost btn-sm" data-unban-user="' + rg.user_id + '" type="button">解除封禁</button>' : '') +
-                        '</div>';
+
+                /* 「待办」= 待审核 + 候补中（后者需要人决定要不要转正） */
+                var todo = regs.filter(function (rg) { return rg.status === 'pending' || rg.status === 'waitlist'; });
+                var pendingN = todo.filter(function (rg) { return rg.status === 'pending'; }).length;
+                var waitN = todo.filter(function (rg) { return rg.status === 'waitlist'; }).length;
+
+                if (!todo.length) {
+                    countEl.innerHTML = '<span class="badge badge-green">' + HWLayout.ico('circle-check', 12) + ' 全部处理完</span>';
+                    host.innerHTML = '<div class="empty-state"><strong>没有待审批的报名</strong>' +
+                        '<p>新报名会出现在这里。已通过的名单在「活动详情 → 报名名单」查看。</p></div>';
+                    return;
+                }
+                countEl.innerHTML = '<b style="color:var(--coral-pulse);">' + todo.length + '</b> 条待办' +
+                    (pendingN ? ' · 待审核 ' + pendingN : '') + (waitN ? ' · 候补 ' + waitN : '');
+
+                /* 按活动分组：一个活动一张小表，避免一长串看不出是哪场 */
+                var byEv = {};
+                todo.forEach(function (rg) { (byEv[rg.event_id] = byEv[rg.event_id] || []).push(rg); });
+
+                host.innerHTML = Object.keys(byEv).map(function (evId) {
+                    var list = byEv[evId].slice().sort(function (a, b) {
+                        return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+                    });
+                    var ev = evMap[evId] || {};
+                    var slots = parseInt(ev.max_slots, 10) || 0;
+                    var taken = regs.filter(function (x) {
+                        return String(x.event_id) === String(evId) && x.status === 'approved';
+                    }).length;
+                    var seat = slots ? ('已通过 ' + taken + ' / ' + slots) : ('已通过 ' + taken + '（不限）');
+                    return '<div class="adm-todo-group">' +
+                        '<div class="adm-todo-head">' +
+                          '<span class="adm-ev-title">' + esc(ev.title || ('活动#' + evId)) + '</span>' +
+                          '<span class="smoke" style="font-size:12.5px;">' + seat + '</span>' +
+                          '<a class="btn btn-ghost btn-sm" href="events.html?open=' + esc(String(evId)) + '">查看活动</a>' +
+                        '</div>' +
+                        '<div class="adm-todo-list">' + list.map(function (rg) {
+                            var u = uMap[rg.user_id] || {};
+                            var gBanned = HWLayout.isBannedUser(u);
+                            var isWait = rg.status === 'waitlist';
+                            return '<div class="adm-todo-row">' +
+                                '<span class="adm-todo-who">' +
+                                  '<b>' + esc(u.nickname || u.username || ('用户#' + rg.user_id)) + '</b>' +
+                                  (u.username ? ' <span class="smoke mono" style="font-size:12px;">@' + esc(u.username) + '</span>' : '') +
+                                  (gBanned ? ' ' + HWLayout.bannedBadgeHtml() : '') +
+                                  (rg.team_name ? ' · ' + esc(rg.team_name) : '') +
+                                '</span>' +
+                                '<span class="badge ' + (isWait ? 'badge-coral' : 'badge-blue') + '">' + (isWait ? '候补待转正' : '待审核') + '</span>' +
+                                '<span class="adm-todo-actions">' +
+                                  '<button class="btn btn-primary btn-sm" data-rc-approve="' + rg.id + '" type="button">通过</button>' +
+                                  '<button class="btn btn-ghost btn-sm" data-rc-reject="' + rg.id + '" type="button">拒绝</button>' +
+                                  '<button class="btn btn-ghost btn-sm" data-pts-user="' + rg.user_id + '" type="button">调分</button>' +
+                                '</span>' +
+                              '</div>';
+                        }).join('') + '</div></div>';
                 }).join('');
+
+                /* 一步通过 / 拒绝；成功后本地移除，不整块重排（不打断手上正在做的下一条） */
+                host.querySelectorAll('[data-rc-approve],[data-rc-reject]').forEach(function (b) {
+                    b.addEventListener('click', function () {
+                        var approve = b.hasAttribute('data-rc-approve');
+                        var id = parseInt(b.getAttribute(approve ? 'data-rc-approve' : 'data-rc-reject'), 10);
+                        var row = b.closest('.adm-todo-row');
+                        [row.querySelector('[data-rc-approve]'), row.querySelector('[data-rc-reject]')].forEach(function (x) {
+                            if (x) x.disabled = true;
+                        });
+                        sb.from('event_registrations').update({ status: approve ? 'approved' : 'rejected', updated_at: new Date().toISOString() })
+                            .eq('id', id)
+                            .then(function (res) {
+                                if (res && res.error) { HWLayout.toast('操作失败：' + res.error.message, 'err'); return; }
+                                /* 通知报名者，别让人自己去刷页面 */
+                                var rg = null;
+                                todo.some(function (x) { if (x.id === id) { rg = x; return true; } return false; });
+                                if (rg) HWLayout.notifyUser(rg.user_id, approve ? '报名已通过' : '报名未通过',
+                                    (evMap[rg.event_id] ? '「' + evMap[rg.event_id].title + '」' : '') + (approve ? '的报名已通过。' : '的报名未通过，可联系组织者了解原因。'),
+                                    'events.html?open=' + rg.event_id);
+                                HWLayout.toast(approve ? '已通过报名' : '已拒绝报名', approve ? 'ok' : 'info', {
+                                    duration: 6000,
+                                    action: {
+                                        label: '撤销',
+                                        onClick: function () {
+                                            sb.from('event_registrations').update({ status: approve ? 'pending' : 'pending' }).eq('id', id)
+                                                .then(function () { HWLayout.toast('已撤回，回到待审批'); renderMyRegistrants(); });
+                                        }
+                                    }
+                                });
+                                if (row) {
+                                    row.classList.add('adm-todo-done');
+                                    setTimeout(function () {
+                                        if (row.parentNode) row.parentNode.removeChild(row);
+                                        if (!host.querySelector('.adm-todo-row')) renderMyRegistrants(); /* 全清空 → 显示"全部处理完" */
+                                    }, 220);
+                                }
+                            })
+                            .catch(function (e) { HWLayout.toast('操作失败：' + (e.message || e), 'err'); });
+                    });
+                });
                 bindRowActions(host);
             });
         }).catch(function () { host.innerHTML = '<div class="empty-state">加载失败。</div>'; });
