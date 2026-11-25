@@ -1583,6 +1583,17 @@ declare
     v_ev public.events%rowtype;
     v_taken integer;
 begin
+    /* 这道闸门存在的意义是：拦住「绕过前端直接调接口」的写入。
+       但它不该拦住有权限的人手动维护数据 —— 在 Supabase SQL 编辑器里跑
+       seed / 修数据 / 补录，走的是 postgres / supabase_admin 会话（无 JWT 角色），
+       那不是"绕过前端"，是直接管库。以前的写法把这些也拦了，
+       于是「把活动改成已结束后重跑 seed」就会报 报名通道已关闭。
+       判定方式：只有 api 请求（anon / authenticated）才做校验。 */
+    if current_setting('request.jwt.claims', true) is null
+       or current_user in ('postgres', 'supabase_admin', 'service_role') then
+        return new;
+    end if;
+
     select * into v_ev from public.events where id = new.event_id;
     if not found then
         raise exception '活动不存在';
@@ -1594,19 +1605,20 @@ begin
     end if;
 
     if v_ev.status in ('draft', 'cancelled', 'deleted') then
-        raise exception '该活动当前不可报名（状态：%）', v_ev.status;
+        raise exception '「%」当前不可报名（状态：%）', v_ev.title, v_ev.status;
     end if;
     if v_ev.status in ('closed', 'ongoing', 'finished') then
-        raise exception '报名通道已关闭';
+        raise exception '「%」的报名通道已关闭（状态：%）', v_ev.title, v_ev.status;
     end if;
     if v_ev.reg_deadline is not null and v_ev.reg_deadline < now() then
-        raise exception '报名已于 % 截止', to_char(v_ev.reg_deadline at time zone 'Asia/Shanghai', 'MM-DD HH24:MI');
+        raise exception '「%」报名已于 % 截止', v_ev.title,
+            to_char(v_ev.reg_deadline at time zone 'Asia/Shanghai', 'MM-DD HH24:MI');
     end if;
     if v_ev.max_slots is not null and v_ev.max_slots > 0 then
         select count(*) into v_taken from public.event_registrations r
          where r.event_id = v_ev.id and r.status in ('pending', 'approved');
         if v_taken >= v_ev.max_slots then
-            raise exception '名额已满，请加入候补';
+            raise exception '「%」名额已满（%）', v_ev.title, v_taken || '/' || v_ev.max_slots;
         end if;
     end if;
     return new;
@@ -1617,6 +1629,12 @@ drop trigger if exists trg_guard_event_registration on public.event_registration
 create trigger trg_guard_event_registration
     before insert on public.event_registrations
     for each row execute function public.guard_event_registration();
+
+--   批量导入/修数据时如果不想逐条过闸门：
+--     alter table public.event_registrations disable trigger trg_guard_event_registration;
+--     ... 灌数据 ...
+--     alter table public.event_registrations enable trigger trg_guard_event_registration;
+--   （函数本身已经放行 postgres / 无 JWT 的直连会话，通常不需要这一步。）
 
 -- 5.8 旧静态口令退役（默认口令是已知口令，留着即后门） --------------------
 delete from public.site_settings where key = 'admin_password_sha256';

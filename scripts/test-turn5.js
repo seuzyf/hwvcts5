@@ -139,12 +139,18 @@ async function testPlayer(withScores) {
   const { dom, errors } = build('player.html', {
     s6_matches: matches,
     s6_player_ids: players,
+    s5_matches: [], s5_player_ids: [],
+    s6_match_schedule: [], s5_match_schedule: [],
     events: [{ id: 1, title: 'S6 正赛', start_time: '2026-11-01T10:00:00Z', status: 'finished' }],
-    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: []
+    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: [], reg_profiles: []
   }, {
-    url: 'https://example.test/player.html?name=' + encodeURIComponent('测试·苍穹1号') +
-         '&group=' + encodeURIComponent('传奇组') + '&season=s6',
-    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+    /* 生涯页：链接只带身份，不带 group/season */
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('测试·苍穹1号'),
+    init(w) {
+      w.Chart = function () { this.destroy = function () {}; };
+      w.__replaced = null;
+      w.history.replaceState = function (a, b, c) { w.__replaced = c; };
+    }
   });
   const d = dom.window.document;
   await wait(1200);
@@ -172,6 +178,89 @@ async function testPlayer(withScores) {
     ok('没有比分时不画无意义的空雷达图', /还没有录比分/.test(radarHost.textContent), radarHost.textContent.trim().slice(0, 50));
   }
 
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+/* 旧链接（带 group/season）必须被改写成干净链接 */
+async function testPlayerLegacyUrl() {
+  console.log('\n[选手页] 旧链接 ?name&group&season 会被改写');
+  const { dom, errors } = build('player.html', {
+    s6_matches: [], s6_player_ids: [{ id: '苍穹', name: '苍穹', group: '传奇组', team: '', image: null }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: [], reg_profiles: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹') +
+         '&group=' + encodeURIComponent('传奇组') + '&season=s6',
+    init(w) { w.__replaced = null; w.history.replaceState = function (a, b, c) { w.__replaced = c; }; }
+  });
+  await wait(1200);
+  ok('地址被改写为只带身份参数',
+     !!dom.window.__replaced && !/group=|season=/.test(dom.window.__replaced),
+     String(dom.window.__replaced));
+  ok('改写后仍保留身份（name）', !!dom.window.__replaced && /name=/.test(dom.window.__replaced),
+     String(dom.window.__replaced));
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+/* 生涯口径：同一个人跨赛季/跨组必须合并成一份数据 */
+async function testPlayerCareer() {
+  console.log('\n[选手页] 生涯口径：跨赛季跨组合并 + 无记录不报错');
+  const p = (g) => [{ id: '苍穹', name: '苍穹', group: g, team: 'A队', image: null }];
+  const mk = (id, sa, sb, g) => {
+    const o = { id, group: g, team_a: 'A队', team_b: 'B队', score_a: sa, score_b: sb,
+      match_date: '2026-11-0' + (id % 9 + 1) + 'T10:00:00Z', result_status: 'done', event_id: 1 };
+    for (let i = 1; i <= 5; i++) {
+      o['team_a_player' + i + '_id'] = i === 1 ? '苍穹' : 'm' + i;
+      o['team_a_player' + i + '_data'] = i === 1 ? '210/18/12/5' : '150/12/14/6';
+      o['team_a_player' + i + '_ch'] = '捷风';
+      o['team_b_player' + i + '_id'] = 'o' + i;
+      o['team_b_player' + i + '_data'] = '160/14/15/4';
+      o['team_b_player' + i + '_ch'] = '雷兹';
+    }
+    return o;
+  };
+  const { dom, errors } = build('player.html', {
+    s6_matches: [mk(1, 13, 9, '传奇组'), mk(2, 11, 13, '传奇组')],
+    s6_player_ids: p('传奇组'),
+    s5_matches: [mk(3, 13, 5, '挑战组')],
+    s5_player_ids: [],
+    s6_match_schedule: [], s5_match_schedule: [],
+    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: [], reg_profiles: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(1300);
+  ok('跨赛季合并：3 场来自两个赛季', /3 场/.test(d.getElementById('career-scope').textContent),
+     d.getElementById('career-scope').textContent);
+  ok('跨组别合并：副标题同时出现两个组', /传奇组/.test(d.getElementById('player-game-id').textContent) &&
+     /挑战组/.test(d.getElementById('player-game-id').textContent), d.getElementById('player-game-id').textContent);
+  ok('模块用 table-card 承载（无红边框卡片）',
+     [...d.querySelectorAll('section')].filter((s) => /table-card/.test(s.className)).length >= 4);
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+/* 没有比赛记录：正常显示空档案，不弹「未找到该选手」 */
+async function testPlayerEmpty() {
+  console.log('\n[选手页] 还没有比赛记录时正常显示空档案');
+  const { dom, errors } = build('player.html', {
+    s6_matches: [], s6_player_ids: [{ id: '潘彦丞', name: '潘彦丞', group: '中坚组', team: '', image: null }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: [], reg_profiles: []
+  }, { url: 'https://example.test/player.html?name=' + encodeURIComponent('潘彦丞') });
+  const d = dom.window.document;
+  await wait(1300);
+  const head = d.getElementById('player-id-header').textContent;
+  ok('标题显示选手姓名', /潘彦丞/.test(head), head);
+  /* 只看可见区域：body.textContent 会把 <script> 源码也算进去 */
+  const visible = d.querySelector('main').textContent;
+  ok('页面可见区域不出现「未找到」', !/未找到/.test(visible), visible.slice(0, 60));
+  ok('各模块给出"暂无数据"而不是空白', /还没有比赛数据/.test(visible));
+  ok('赛事数据区有可操作的出口', /去看活动|尚未出场/.test(visible));
   if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
   dom.window.close();
 }
@@ -285,6 +374,9 @@ async function testEvents() {
   await testShop();
   await testPlayer(true);
   await testPlayer(false);
+  await testPlayerCareer();
+  await testPlayerEmpty();
+  await testPlayerLegacyUrl();
   await testAdminTodo();
   await testEvents();
   console.log('\n本轮四项修改：' + (fails ? 'FAIL ' + fails + ' 项' : '全部通过 ✓'));

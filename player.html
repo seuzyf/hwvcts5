@@ -39,73 +39,75 @@
             --star-color-inactive: rgba(0, 0, 0, 0.25);
         }
 
-        .container { width: 90%; max-width: 1400px; margin: 0 auto; position: relative; z-index: 10;}
-        
-        /* 页首：圆形头像 + 游戏ID + 真名 一行排列 */
-        .player-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+        /* 与 summary.html 同源：.page > .container > .page-header + .table-card。
+           不再自造卡片体系（页面私有的 .container 宽度、红边框卡片都删掉了）。 */
+
+        /* 页首：圆形头像 + 真名 + 游戏ID 一行排列 */
+        .ph-player { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
         #player-avatar-container { flex-shrink: 0; }
         .player-avatar {
-            width: 76px; height: 76px; border-radius: 50%;
-            border: 2px solid var(--coral-pulse); object-fit: cover;
-            box-shadow: 0 0 0 4px rgba(255, 99, 99, 0.12);
+            width: 68px; height: 68px; border-radius: 50%;
+            object-fit: cover; border: 1px solid var(--border);
         }
         .player-avatar-fallback {
-            width: 76px; height: 76px; border-radius: 50%;
-            background: var(--graphite); border: 2px solid var(--border);
+            width: 68px; height: 68px; border-radius: 50%;
+            background: var(--graphite); border: 1px solid var(--border);
             display: flex; align-items: center; justify-content: center;
-            font-size: 30px; font-weight: 700; color: var(--coral-pulse);
+            font-size: 26px; font-weight: 500; color: var(--mist);
         }
-        .player-head-text { min-width: 0; }
-        .player-id {
-            display: block; font-family: var(--font-mono); font-size: 13px;
-            color: var(--smoke); letter-spacing: 0.06em; margin-bottom: 2px;
-        }
+        .ph-player-text { min-width: 0; flex: 1; }
+        .ph-player-text .page-sub { font-family: var(--font-mono); font-size: 13px; color: var(--smoke); letter-spacing: .06em; }
+        .ph-player-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-        /* 与全站一致：左栏概要 + 右栏明细，窄屏上下堆叠 */
-        .player-layout { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.6fr);
-                         gap: 16px; align-items: start; }
-        @media (max-width: 980px) { .player-layout { grid-template-columns: minmax(0, 1fr); } }
-        /* 窄屏：赛事数据 11 列放不下，横向滚动而不是把整页撑宽 */
-        .player-layout, #right-column { min-width: 0; }
+        /* 卡片：同 summary.html 的 .table-card（无边框 + 软阴影） */
+        .table-card { background: var(--ink); border-radius: var(--r-card); box-shadow: var(--key-shadow); overflow: hidden; }
+        .tc-title { margin: 0; font-size: 16px; font-weight: 500; color: var(--pure-white); }
+        .tc-sub { margin: 0 0 10px; font-size: 13px; color: var(--smoke); }
+
+        /* 生涯能力图 + 生涯数据详情：两列 */
+        .pc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; align-items: start; }
+        @media (max-width: 900px) { .pc-grid { grid-template-columns: minmax(0, 1fr); } }
+        .chart-wrap { width: 100%; max-width: 460px; margin: 0 auto; position: relative; }
         #event-stats-content .data-table { min-width: 640px; }
         #right-column { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
         #right-column > section { margin: 0; }
-        .player-overview { display: grid; grid-template-columns: 1fr; gap: 14px; }
-        .player-overview #radar-chart-container { max-width: 360px; margin: 0 auto; }
-        .player-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-        .player-head-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-        .player-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
         /* 页首加载态：用骨架屏占住标题的位置，避免文字先出现再跳动 */
         .sk-title { display: block; width: 180px; height: 26px; border-radius: var(--r-btn); }
-        /* 统一小节标题：全站 card 内的 h2 口径 */
-        .block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-                      flex-wrap: wrap; margin-bottom: 14px; }
-        .block-head h2 { margin: 0; font-size: 17px; font-weight: 600; color: var(--pure-white); letter-spacing: 0; }
         /* 表内数值列：等宽数字 + 右对齐，扫读一列数字时不会跳 */
         .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
         .data-table .strong { color: var(--pure-white); font-weight: 600; }
         .data-table .dim { color: var(--smoke); }
-        .data-table tbody tr { transition: background var(--t-hover) var(--ease-out); }
-        #career-stats-card { position: sticky; top: 20px; }
-        @media (max-width: 980px) { #career-stats-card { position: static; } }
 
-        /* 生涯汇总：一行一个指标，与全站 statistic-row 同构 */
-        .summary-list { display: flex; flex-direction: column; gap: 1px; font-size: 14px;
-                        border: 1px solid var(--border); border-radius: var(--r-btn); overflow: hidden; }
-        .summary-list div { background: var(--obsidian); padding: 11px 14px;
-                            display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
-                            border: none; border-radius: 0; border-top: 1px solid var(--border); }
-        .summary-list div:first-child { border-top: none; }
-        .summary-list div span:first-child { color: var(--smoke); }
+        /* 生涯数据详情：与 summary.html 的对比表同构（左标签右数值，分隔线而非边框） */
+        .summary-list { display: flex; flex-direction: column; font-size: 15px; }
+        .summary-list div { padding: 12px 14px; display: flex; justify-content: space-between;
+                            align-items: baseline; gap: 12px; border-bottom: 1px solid rgba(54,55,57,.5); }
+        .summary-list div:last-child { border-bottom: none; }
+        .summary-list div span:first-child { font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em;
+                                             color: var(--smoke); text-transform: uppercase; }
         .summary-list div span:last-child, .summary-list div b { color: var(--pure-white); font-weight: 600; font-variant-numeric: tabular-nums; }
         .rank-top { font-size: 12px; color: var(--smoke); font-weight: 500; margin-left: 6px;
                     font-variant-numeric: tabular-nums; }
-        #radar-chart-container { position: relative; margin: 0 auto; max-width: 300px;
-                                 filter: drop-shadow(0 0 10px rgba(255,255,255,0.07)); }
-        .radar-empty { text-align: center; color: var(--smoke); font-size: 13px; line-height: 1.6;
-                       padding: 28px 16px; border: 1px dashed var(--border); border-radius: var(--r-btn); }
+        [data-theme="light"] .summary-list div { border-bottom-color: var(--border); }
+
+        #radar-chart-container { position: relative; margin: 0 auto; max-width: 360px; }
+        .radar-empty { text-align: center; color: var(--smoke); font-size: 13px; line-height: 1.7;
+                       padding: 48px 16px; }
         .player-avg-score { color: var(--pure-white); font-size: 14px; font-weight: 600;
                             font-variant-numeric: tabular-nums; }
+
+        /* 小节标题（评论表单等处）：events.html 里有同名定义，这里不能漏 */
+        .section-label { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em;
+                         text-transform: uppercase; color: var(--smoke); margin: 0 0 12px; }
+
+        /* 赛事折线图的指标切换 */
+        .chip-btn { padding: 5px 12px; border-radius: var(--r-pill); border: 1px solid var(--border);
+                    background: transparent; color: var(--ash); font-size: 13px; cursor: pointer;
+                    font-family: inherit; transition: color var(--t-hover) var(--ease-out),
+                    background var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out); }
+        .chip-btn:hover { color: var(--mist); border-color: var(--iron); }
+        .chip-btn.active { background: var(--mist); color: var(--void-black); border-color: transparent; font-weight: 600; }
         .comment-card { position: relative; background: var(--obsidian); border: 1px solid var(--border);
                         border-radius: var(--r-btn); padding: 14px 16px; margin-bottom: 10px;
                         transition: border-color var(--t-hover) var(--ease-out); }
@@ -115,23 +117,31 @@
         .comment-rating { white-space: nowrap; color: var(--smoke); font-variant-numeric: tabular-nums; }
         .comment-rating span { font-weight: 600; color: var(--pure-white); font-size: 14px; }
         .comment-body { font-size: 14px; line-height: 1.65; word-wrap: break-word; color: var(--mist); }
-        .delete-comment-btn, .reply-comment-btn { background: rgba(255,255,255,0.07); color: var(--primary-color); border: 1px solid var(--primary-color); border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 13px; font-weight: 600; transition: transform var(--t-hover) var(--ease-out), opacity var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out), background var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out); flex-shrink: 0; }
-        .delete-comment-btn:hover, .reply-comment-btn:hover { background: var(--coral-pulse); color: #fff; }
-        .reply-comment-btn { border-color: var(--text-muted); color: var(--text-muted); }
+        .delete-comment-btn, .reply-comment-btn, .report-comment-btn {
+            background: transparent; color: var(--smoke); border: 1px solid var(--border);
+            border-radius: var(--r-btn); padding: 4px 10px; cursor: pointer; font-size: 12.5px;
+            font-family: inherit; flex-shrink: 0;
+            transition: color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
+        }
+        .delete-comment-btn:hover, .reply-comment-btn:hover, .report-comment-btn:hover {
+            color: var(--pure-white); border-color: var(--iron);
+        }
         .replies-container { margin-left: 20px; margin-top: 15px; border-left: 2px solid var(--border-color); padding-left: 15px; }
         
         #comment-form { display: flex; flex-direction: column; gap: 15px; margin-top: 25px; }
         .form-row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
         #nickname-input { flex: 1; min-width: 150px; height: var(--control-height); padding: 0 15px; border-radius: 4px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: var(--text-color); font-family: 'Noto Sans SC'; outline: none; transition: border-color var(--t-swap); }
         [data-theme="light"] #nickname-input { background: var(--fill); }
-        #nickname-input:focus { border-color: var(--primary-color); }
+        #nickname-input, #comment-input { border-color: var(--border); background: var(--obsidian);
+                                         color: var(--mist); border-radius: var(--r-btn); font-family: inherit; }
+        #nickname-input:focus, #comment-input:focus { border-color: var(--iron); }
         .star-rating-container { display: flex; align-items: center; gap: 4px; }
         .star { font-size: 24px; color: var(--star-color-inactive); cursor: pointer; transition: transform var(--t-hover) var(--ease-out), opacity var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out), background var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out); line-height: 1; }
         .star:hover { transform: scale(1.2); }
         #comment-form textarea { width: 100%; padding: 15px; border-radius: 4px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: var(--text-color); font-family: 'Noto Sans SC'; outline: none; transition: border-color var(--t-swap); resize: vertical; }
         [data-theme="light"] #comment-form textarea { background: var(--fill); }
-        #comment-form textarea:focus { border-color: var(--primary-color); }
-        #comment-form button { height: var(--control-height); border: none; border-radius: 4px; background-color: var(--primary-color); color: white; font-weight: 700; letter-spacing: 2px; cursor: pointer; transition: transform var(--t-hover) var(--ease-out), opacity var(--t-hover) var(--ease-out), color var(--t-hover) var(--ease-out), background var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out); align-self: flex-start; padding: 0 30px; }
+
+        #comment-form button[type="submit"] { align-self: flex-start; }
         #comment-form button:hover { background: #9c9c9d; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
         #comment-form button:disabled { background-color: var(--graphite); cursor: not-allowed; box-shadow: none; color: var(--smoke); }
         .reply-form-container { margin-top: 15px; }
@@ -139,8 +149,6 @@
         /* modal 容器由 theme.css 单一提供（.modal-backdrop/.modal-panel） */
 
         /* 成就墙（Phase 14）：封面缩略图 + 荣誉名 + 赛事 + 时间 */
-        #honors-section { margin: 18px 0 6px; }
-        .honors-head { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--smoke); margin-bottom: 10px; }
         .honors-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
         .honor-card { display: flex; gap: 12px; align-items: center; text-align: left; padding: 10px 12px; background: var(--ink); border: 1px solid var(--border); border-radius: var(--r-card); cursor: pointer; color: var(--mist); font-family: inherit; transition: transform var(--t-hover) var(--ease-out), box-shadow var(--t-hover) var(--ease-out); }
         .honor-card:hover { transform: translateY(-2px); box-shadow: var(--key-shadow-hover); }
@@ -153,8 +161,6 @@
         /* 赛事数据：表格/折线图 */
         .ev-view-bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; }
         .ev-metric-chips { display:flex; flex-wrap:wrap; gap:6px; }
-        .ev-metric-chips .chip-btn { padding:5px 12px; border-radius:999px; border:1px solid var(--border); background:transparent; color:var(--ash); font-size:13px; cursor:pointer; font-family:inherit; }
-        .ev-metric-chips .chip-btn.active { background: var(--mist); color: var(--iron, #16171a); border-color: transparent; font-weight:600; }
         #ev-chart-wrap { position: relative; height: 320px; }
         .empty-block { text-align:center; color: var(--text-muted); padding: 26px 12px; }
         .empty-block .btn { margin-top: 12px; }
@@ -167,60 +173,94 @@
     </style>
 </head>
 <body data-page="player" data-crumb="events">
-    <main class="page-shell">
-        <header class="page-head">
-            <div class="player-head">
-                <div id="player-avatar-container"></div>
-                <div class="player-head-text">
-                    <span class="eyebrow">Player</span>
-                    <h1 id="player-id-header" class="page-title" style="margin:2px 0 0;"><span class="sk sk-title" aria-hidden="true"></span><span class="sr-only">正在加载选手信息</span></h1>
-                    <span class="player-id mono" id="player-game-id">…</span>
+    <main class="page">
+        <div class="container">
+            <header class="page-header">
+                <div class="ph-player">
+                    <div id="player-avatar-container"></div>
+                    <div class="ph-player-text">
+                        <span class="eyebrow">Player</span>
+                        <h1 id="player-id-header" class="page-title" style="margin:8px 0 0;"><span class="sk sk-title" aria-hidden="true"></span><span class="sr-only">正在加载选手信息</span></h1>
+                        <p class="page-sub" id="player-game-id">…</p>
+                    </div>
+                    <div class="ph-player-actions">
+                        <a class="btn btn-ghost btn-sm" href="players.html">数据中心</a>
+                        <a class="btn btn-ghost btn-sm" href="schedule.html">赛程</a>
+                        <button class="btn btn-ghost btn-sm" type="button" id="player-copy-link">复制链接</button>
+                    </div>
                 </div>
-                <div class="player-head-actions">
-                    <a class="btn btn-ghost btn-sm" href="players.html">数据中心</a>
-                    <a class="btn btn-ghost btn-sm" href="schedule.html">赛程</a>
-                    <button class="btn btn-ghost btn-sm" type="button" id="player-copy-link">复制链接</button>
-                </div>
-            </div>
-        </header>
+            </header>
 
-        <div class="player-layout">
-            <section class="card" id="career-stats-card">
-                <div class="block-head"><h2>生涯平均数据</h2><span class="smoke" style="font-size:12.5px;" id="career-scope"></span></div>
-                <div class="player-overview">
-                    <div id="radar-chart-container"><canvas id="player-radar-chart"></canvas></div>
+            <!-- 生涯能力图（同组百分位）+ 生涯数据详情：与 summary.html 的对比页同款 table-card 承载 -->
+            <section class="table-card" style="margin-bottom:16px;" id="career-stats-card">
+                <div style="padding:24px;">
+                    <div class="flex-between" style="margin-bottom:6px;">
+                        <h2 class="tc-title">生涯能力图（同组百分位）</h2>
+                        <span class="eyebrow">Radar</span>
+                    </div>
+                    <p class="tc-sub" id="career-scope">全部赛季</p>
+                    <div class="chart-wrap" id="radar-chart-container"><canvas id="player-radar-chart"></canvas></div>
+                </div>
+            </section>
+
+            <div class="pc-grid">
+            <section class="table-card" id="career-detail-card">
+                <div style="padding:24px;">
+                    <div class="flex-between" style="margin-bottom:14px;">
+                        <h2 class="tc-title">生涯数据详情</h2>
+                        <span class="eyebrow">Detail</span>
+                    </div>
                     <div class="summary-list" id="summary-list-content"><p class="smoke">正在计算数据…</p></div>
                 </div>
             </section>
             <div id="right-column">
-                <section id="honors-section" hidden>
-                    <div class="honors-head">成就 · <span id="honors-count">0</span></div>
-                    <div class="honors-wall" id="honors-wall"></div>
-                </section>
-                <section class="card" id="event-stats-section">
-                    <div class="block-head"><h2>赛事数据</h2><span class="smoke" style="font-size:12.5px;">每个赛事一行</span></div>
-                    <div class="ev-view-bar">
-                        <div class="seg" role="group" aria-label="赛事数据视图">
-                            <button type="button" class="active" data-evview="table">表格</button>
-                            <button type="button" data-evview="chart">折线图</button>
+                <section class="table-card" id="honors-section" hidden>
+                    <div style="padding:24px;">
+                        <div class="flex-between" style="margin-bottom:14px;">
+                            <h2 class="tc-title">成就</h2>
+                            <span class="eyebrow">Honors · <span id="honors-count">0</span></span>
                         </div>
-                        <div class="ev-metric-chips" id="ev-metric-chips" aria-label="选择指标"></div>
+                        <div class="honors-wall" id="honors-wall"></div>
                     </div>
-                    <div id="event-stats-content"><p style="color:var(--text-muted);">正在加载…</p></div>
-                    <div id="ev-chart-wrap" hidden><canvas id="ev-chart"></canvas></div>
                 </section>
-                <section class="card" id="character-stats-section">
-                    <div class="block-head"><h2>各角色平均数据</h2></div>
+                <section class="table-card" id="event-stats-section">
+                    <div style="padding:24px;">
+                        <div class="flex-between" style="margin-bottom:14px;">
+                            <h2 class="tc-title">赛事数据</h2>
+                            <span class="eyebrow">Events</span>
+                        </div>
+                        <div class="ev-view-bar">
+                            <div class="seg" role="group" aria-label="赛事数据视图">
+                                <button type="button" class="active" data-evview="table">表格</button>
+                                <button type="button" data-evview="chart">折线图</button>
+                            </div>
+                            <div class="ev-metric-chips" id="ev-metric-chips" aria-label="选择指标"></div>
+                        </div>
+                        <div id="event-stats-content"><p class="smoke">正在加载…</p></div>
+                        <div id="ev-chart-wrap" hidden><canvas id="ev-chart"></canvas></div>
+                    </div>
+                </section>
+                <section class="table-card" id="character-stats-section">
+                    <div style="padding:24px;">
+                    <div class="flex-between" style="margin-bottom:14px;">
+                        <h2 class="tc-title">各角色平均数据</h2>
+                        <span class="eyebrow">Agents</span>
+                    </div>
                     <div class="table-wrap">
                         <table id="character-stats-table" class="data-table">
                             <thead><tr><th>角色</th><th class="num">出场</th><th class="num">ACS</th><th class="num">每局击杀</th><th class="num">每局死亡</th><th class="num">每局助攻</th><th class="num">每回合击杀</th><th class="num">每回合死亡</th><th class="num">每回合助攻</th></tr></thead>
                             <tbody id="character-stats-body"></tbody>
                         </table>
                     </div>
+                    </div>
                 </section>
                 
-                <section class="card" id="comments-section">
-                    <div class="block-head"><h2>玩家评分与评论</h2><span id="player-average-score" class="player-avg-score"></span></div>
+                <section class="table-card" id="comments-section">
+                    <div style="padding:24px;">
+                    <div class="flex-between" style="margin-bottom:14px;">
+                        <h2 class="tc-title">玩家评分与评论</h2>
+                        <span id="player-average-score" class="player-avg-score"></span>
+                    </div>
                     <div id="comments-list"><p style="color:var(--text-muted);">正在加载评论...</p></div>
                     <div id="comment-form-container">
                         <div class="section-label" style="margin-top:16px;">发表你的看法</div>
@@ -230,12 +270,15 @@
                                 <div class="star-rating-container" id="star-rating"></div>
                                 <input type="hidden" id="rating-input" required>
                             </div>
-                            <textarea id="comment-input" placeholder="输入您的评论..." rows="4" required></textarea>
-                            <button type="submit">提 交 评 论</button>
+                            <textarea id="comment-input" class="input" placeholder="输入你的评论…" rows="4" required></textarea>
+                            <button type="submit" class="btn btn-primary">提交评论</button>
                         </form>
+                    </div>
                     </div>
                 </section>
             </div>
+            </div>
+        </div>
     </main>
 
 <script>
@@ -345,7 +388,7 @@
             <form class="reply-form" style="margin-top:10px;">
                 <input type="text" placeholder="您的昵称" required style="width: 100%; padding: 8px 12px; margin-bottom: 10px; border-radius: 4px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: var(--text-color); font-family: 'Noto Sans SC'; outline:none; box-sizing: border-box;">
                 <textarea placeholder="输入您的回复..." rows="3" required style="width: 100%; padding: 8px 12px; margin-bottom: 10px; border-radius: 4px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: var(--text-color); font-family: 'Noto Sans SC'; outline:none; box-sizing: border-box; resize: vertical;"></textarea>
-                <button type="submit" style="height: 32px; border: none; border-radius: 4px; background-color: var(--primary-color); color: white; font-weight: 700; cursor: pointer; padding: 0 15px;">提交回复</button>
+                <button type="submit" class="btn btn-primary btn-sm">提交回复</button>
             </form>
         `;
         container.querySelector('.reply-form').addEventListener('submit', async (e) => {
@@ -456,19 +499,37 @@
         } catch (e) { return null; }
     }
 
-    function emptySections_(msg) {
-        document.getElementById('summary-list-content').innerHTML = '<div class="empty-block">' + msg + '<br><a class="btn btn-ghost btn-sm" href="schedule.html">查看赛程</a> <a class="btn btn-ghost btn-sm" href="players.html">返回数据中心</a></div>';
-        document.getElementById('character-stats-body').innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--text-muted);">暂无比赛数据</td></tr>';
-        document.getElementById('event-stats-content').innerHTML = '<div class="empty-block">' + msg + '</div>';
-        var rc = document.getElementById('radar-chart-container');
-        if (rc) rc.innerHTML = '<div class="radar-empty">暂无比赛数据，暂无法生成雷达图</div>';
-    }
-    function renderSoftMissing_(who) {
-        document.getElementById('player-id-header').textContent = '未找到该选手';
-        document.getElementById('player-game-id').textContent = who ? String(who) : '';
+    /* 没有比赛记录 / 花名册里查不到，都不是错误。
+       从数据中心点进来的人当然还没打过比赛 —— 这时应当正常展示一个
+       空档案（姓名、头像、各模块报"暂无数据"），而不是弹"未找到该选手"。 */
+    function renderEmptyProfile_(who, reason) {
+        var label = who ? String(who) : '选手';
+        /* 页首可能还停在骨架屏：先给它一个像样的头像与名字 */
+        var av0 = document.getElementById('player-avatar-container');
+        if (av0 && !av0.innerHTML.trim()) {
+            av0.innerHTML = '<div class="player-avatar-fallback">' + escapeHTML(label.charAt(0) || '?') + '</div>';
+        }
+        var head = document.getElementById('player-id-header');
+        /* 已经有真名时不要用参数把它覆盖掉 */
+        if (!head.textContent.trim() || head.querySelector('.sk')) head.textContent = label;
+        var gid = document.getElementById('player-game-id');
+        if (!gid.textContent.trim() || gid.textContent.trim() === '…') gid.textContent = '';
         var av = document.getElementById('player-avatar-container');
-        if (av) av.innerHTML = '<div class="player-avatar-fallback">?</div>';
-        emptySections_('没有找到这位选手的报名或比赛记录。');
+        if (av) av.innerHTML = '<div class="player-avatar-fallback">' + escapeHTML(label.charAt(0) || '?') + '</div>';
+        var scope = document.getElementById('career-scope');
+        if (scope) scope.textContent = '还没有比赛记录';
+        document.getElementById('summary-list-content').innerHTML =
+            '<div class="radar-empty">还没有比赛数据。<br>第一次出场后，这里会自动出现生涯平均数据。</div>';
+        document.getElementById('character-stats-body').innerHTML =
+            '<tr><td colspan="9" class="dim" style="text-align:center;">还没有比赛数据</td></tr>';
+        document.getElementById('event-stats-content').innerHTML =
+            '<div class="radar-empty">' + (reason === 'registered'
+                ? '已报名，尚未出场。<br>比赛数据录入后这里会自动更新。'
+                : '还没有参加过赛事。<br><a href="events.html" class="btn btn-ghost btn-sm" style="margin-top:10px;">去看活动</a>') + '</div>';
+        var rc = document.getElementById('radar-chart-container');
+        if (rc) rc.innerHTML = '<div class="radar-empty">还没有比赛数据，暂无法生成雷达图。</div>';
+        var more = document.getElementById('honors-section');
+        if (more) more.hidden = true;
     }
     function renderLoadError_(msg) {
         document.getElementById('player-id-header').textContent = '加载失败';
@@ -479,39 +540,61 @@
     async function main() {
         const params = new URLSearchParams(window.location.search);
         const idParam = params.get('id');
-        let playerName = params.get('name');
-        let groupName = params.get('group');
-        if (!groupName || groupName === 'null' || groupName === 'undefined') {
-            groupName = '';   /* 留空：加载选手数据后按真实分组回填（雷达图 key 依赖它） */
-        }
+        const playerName = params.get('name');
+        /* 组别不再来自 URL：不同赛季可能在不同组，由数据自己决定 */
+        let groupName = '';
 
-        let currentSeason = params.get('season') || 's6';
-        // 将赛季存入全局变量，供表单处理函数使用
-        window.currentSeason = currentSeason;
+        /* 生涯页：不认 season 参数。跨赛季汇总才是"生涯"，
+           旧链接里带的 season/group 只会让同一个人的数据被切碎。 */
+        const CAREER_SEASONS = ['s6', 's5'];
+        window.currentSeason = CAREER_SEASONS[0];   /* 评论写入仍沿用主赛季表 */
+
+        /* 旧链接兼容：?name=…&group=…&season=s6 → 立即改写成干净的 ?id=<游戏ID>，
+           这样分享出去的链接不会再带上会被切碎的参数。 */
+        (function canonicalize() {
+            var clean = new URLSearchParams();
+            if (idParam) clean.set('id', idParam);
+            else if (playerName) clean.set('name', playerName);
+            var want = location.pathname + (clean.toString() ? '?' + clean.toString() : '');
+            if (location.search && location.search !== '?' + clean.toString()) {
+                try { history.replaceState(null, '', want); } catch (e) { /* 旧浏览器忽略 */ }
+            }
+        })();
 
         if (!playerName && !idParam) {
-            renderSoftMissing_('缺少选手参数');
+            renderEmptyProfile_('未知选手');
             return;
         }
         
         setupStarRating();
 
-        const matchesTable = currentSeason === 's5' ? 's5_matches' : 's6_matches';
-        const playersTable = currentSeason === 's5' ? 's5_player_ids' : 's6_player_ids';
+        /* 跨赛季取数：生涯 = 所有赛季的并集 */
+        const calls = [];
+        CAREER_SEASONS.forEach(function (sea) {
+            calls.push(supabaseClient.from(sea + '_matches').select('*').order('match_date', { ascending: true }));
+            calls.push(supabaseClient.from(sea + '_player_ids').select('*'));
+            calls.push(supabaseClient.from(sea + '_match_schedule')
+                .select('"group", team_a, team_b, match_date, result_status').eq('result_status', 'pending'));
+        });
+        let res;
+        try { res = await Promise.all(calls); } catch (e) { renderLoadError_(e && e.message ? e.message : e); return; }
 
-        const [{ data: matchesRaw, error: matchesError }, { data: idData, error: idError }] = await Promise.all([
-            supabaseClient.from(matchesTable).select('*').order('match_date', { ascending: true }),
-            supabaseClient.from(playersTable).select('*')
-        ]);
-        if (matchesError || idError) { renderLoadError_((matchesError || idError).message); return; }
+        let matchesRaw = [], idData = [], pendingRows = [], fatal = null;
+        CAREER_SEASONS.forEach(function (sea, i) {
+            const m = res[i * 3], p = res[i * 3 + 1], sch = res[i * 3 + 2];
+            /* 单个赛季表缺失（s5 没建过）不该让整页挂掉 */
+            if (m && m.error) fatal = fatal || m.error;
+            if (m && m.data) matchesRaw = matchesRaw.concat(m.data.map(function (r) { return Object.assign({ __season: sea }, r); }));
+            if (p && p.data) idData = idData.concat(p.data.map(function (r) { return Object.assign({ __season: sea }, r); }));
+            if (sch && !sch.error && sch.data) pendingRows = pendingRows.concat(sch.data);
+        });
+        if (fatal && !idData.length && !matchesRaw.length) { renderLoadError_(fatal.message); return; }
 
         /* 待确认结果不计入统计：按赛程 result_status='pending' 的对阵过滤（列未就绪时跳过） */
         let matches = matchesRaw || [];
         try {
-            const sch = await supabaseClient.from(currentSeason + '_match_schedule')
-                .select('"group", team_a, team_b, match_date, result_status').eq('result_status', 'pending');
-            if (sch && !sch.error && sch.data && sch.data.length) {
-                const pk = new Set(sch.data.map(r => [r.group || '', r.team_a || '', r.team_b || '', String(r.match_date || '').slice(0, 10)].join('|')));
+            if (pendingRows.length) {
+                const pk = new Set(pendingRows.map(r => [r.group || '', r.team_a || '', r.team_b || '', String(r.match_date || '').slice(0, 10)].join('|')));
                 matches = matches.filter(m => !pk.has([m.group || '', m.team_a || '', m.team_b || '', String(m.match_date || '').slice(0, 10)].join('|')));
             }
         } catch (e) { /* migration_v3 未执行：不过滤 */ }
@@ -523,18 +606,17 @@
         if (idParam) currentPlayerInfo = (idData || []).find(r => String(r.id) === String(idParam)) || null;
         if (!currentPlayerInfo && playerName) currentPlayerInfo = nameMap[playerName] || null;
         if (!currentPlayerInfo) currentPlayerInfo = await resolveRegistrant_(playerName, idParam);
-        if (!currentPlayerInfo) { renderSoftMissing_(playerName || idParam); return; }
+        /* 花名册/报名档案里都没有 → 仍然按"这个人存在但还没打过比赛"展示 */
+        if (!currentPlayerInfo) { renderEmptyProfile_(playerName || idParam); return; }
         if (!playerName) playerName = currentPlayerInfo.name || '';
 
         const playerId = currentPlayerInfo.id || '暂无ID';
-        /* 雷达图/汇总 key：URL 分组缺失或对不上时，用选手真实分组（数据里出现过的） */
-        if (!groupName) groupName = currentPlayerInfo.group || '';
-        if (!groupName || !allPlayerData[`${playerId}::${groupName}`]) {
-            const hitKey = Object.keys(allPlayerData).find(k => k.startsWith(playerId + '::'));
-            if (hitKey) groupName = hitKey.split('::')[1];
-        }
-        if (!groupName) groupName = currentPlayerInfo.group || '未分组';
-        const uniquePlayerKeyForComments = `${playerId}::${groupName}`;
+        /* 生涯口径：一个人一个 key，不再按 URL 里的 group 切分 */
+        const careerEntry = allPlayerData[careerKey(playerId)];
+        const careerGroups = careerEntry ? Object.keys(careerEntry.groups || {}) : [];
+        if (!careerGroups.length && currentPlayerInfo.group) careerGroups.push(currentPlayerInfo.group);
+        groupName = careerGroups.join('|');   /* 可能多组；空串=还没有数据 */
+        const uniquePlayerKeyForComments = careerKey(playerId);
         loadComments(uniquePlayerKeyForComments);
         document.getElementById('comment-form').addEventListener('submit', (event) => handleCommentSubmit(event, uniquePlayerKeyForComments));
 
@@ -547,19 +629,21 @@
         } else {
             avHost.innerHTML = '<div class="player-avatar-fallback">' + escapeHTML((realName || playerId || '?').charAt(0)) + '</div>';
         }
-        document.getElementById('player-game-id').textContent = playerId;
+        /* 页首副标题：游戏 ID + 队伍 + 组别（都是"这个人的现状"，不是某个赛季的快照） */
+        const careerTeams = careerEntry ? Object.keys(careerEntry.teams || {}) : [];
+        const subBits = [playerId];
+        const primeTeam = careerTeams.length ? topKey_(careerEntry.teams) : (currentPlayerInfo.team || '');
+        if (primeTeam) subBits.push(primeTeam);
+        if (careerGroups.length) subBits.push(careerGroups.join(' / '));
+        document.getElementById('player-game-id').textContent = subBits.filter(Boolean).join(' · ');
         document.getElementById('player-id-header').textContent = realName || playerId;
 
         renderHonors_(currentPlayerInfo, playerId);
 
-        const uniquePlayerKeyForStats = `${playerId}::${groupName}`;
-        const playerDataForStats = allPlayerData[uniquePlayerKeyForStats];
+        const playerDataForStats = careerEntry;
         
-        if (!playerDataForStats) { 
-            document.getElementById('summary-list-content').innerHTML = '<p style="color:var(--text-muted); text-align:center;">暂无比赛数据</p>';
-            document.getElementById('character-stats-body').innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--text-muted);">暂无比赛数据</td></tr>';
-            var rc = document.getElementById('radar-chart-container');
-            rc.innerHTML = '<div class="radar-empty">暂无比赛数据，暂无法生成雷达图</div>';
+        if (!playerDataForStats) {
+            renderEmptyProfile_(realName || playerId, currentPlayerInfo.__registrant ? 'registered' : '');
         } else {
             const { groupPlayersForRank, statsByCharacter } = calculateGroupRanks(allPlayerData, groupName);
             const currentPlayerStats = groupPlayersForRank.find(p => p.id === playerId);
@@ -902,6 +986,15 @@
         return (legacy.length === 2 && !isNaN(legacy[0]) && !isNaN(legacy[1])) ? legacy[0] + legacy[1] : 0;
     }
 
+    /** 生涯聚合键：一个人一条，与赛季/组别无关 */
+    function careerKey(id) { return String(id) + '::__career'; }
+
+    function topKey_(obj) {
+        var best = '', n = -1;
+        Object.keys(obj || {}).forEach(function (k) { if (obj[k] > n) { n = obj[k]; best = k; } });
+        return best;
+    }
+
     function processAllPlayerData(matches) {
         const playerData = {};
         playerTrendMap = {};
@@ -916,8 +1009,17 @@
                     const playerId = match[`${teamKey}_player${p}_id`]; const playerDataStr = match[`${teamKey}_player${p}_data`]; const playerCh = match[`${teamKey}_player${p}_ch`];
                     if (!playerId || !playerDataStr) continue;
                     const stats = String(playerDataStr).split('/').map(Number); if (stats.length !== 4 || stats.some(isNaN)) continue;
-                    const uniquePlayerKey = `${playerId}::${match.group}`;
-                    if (!playerData[uniquePlayerKey]) { playerData[uniquePlayerKey] = { id: playerId, group: match.group, team: teamName, total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 }, by_character: {} }; }
+                    /* 生涯口径：同一个人跨赛季、跨组别合并成一行。
+                       （以前 key 里带 group，同一个人换组就被拆成两份数据） */
+                    const uniquePlayerKey = careerKey(playerId);
+                    if (!playerData[uniquePlayerKey]) {
+                        playerData[uniquePlayerKey] = { id: playerId, group: match.group, team: teamName,
+                            groups: {}, teams: {},
+                            total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 }, by_character: {} };
+                    }
+                    var __pe = playerData[uniquePlayerKey];
+                    if (match.group) __pe.groups[match.group] = (__pe.groups[match.group] || 0) + 1;
+                    if (teamName) __pe.teams[teamName] = (__pe.teams[teamName] || 0) + 1;
                     const playerEntry = playerData[uniquePlayerKey]; playerEntry.team = teamName; const p_stats = playerEntry.total_stats;
                     if (stats[0] > 0) { p_stats.acs += stats[0]; p_stats.acsMatchCount++; }
                     p_stats.kills += stats[1]; p_stats.deaths += stats[2]; p_stats.assists += stats[3]; p_stats.matchCount++; p_stats.totalRounds += totalRounds;
@@ -938,9 +1040,13 @@
 
     function calculateGroupRanks(allPlayerData, groupName) {
         const groupPlayersForRank = []; const statsByCharacter = {};
+        /* 生涯口径下一个人可能属于多个组 → 池子取"这些组的并集"；
+           groupName 为空（还没数据）时就取全体，避免百分比永远算不出来。 */
+        const wanted = groupName ? String(groupName).split('|') : null;
         for (const key in allPlayerData) {
             const p = allPlayerData[key];
-            if (p.group === groupName) {
+            const pg = Object.keys(p.groups || {}).length ? Object.keys(p.groups) : [p.group];
+            if (!wanted || pg.some(g => wanted.indexOf(g) !== -1)) {
                 const stats = p.total_stats; if (stats.matchCount === 0 || stats.totalRounds === 0) continue;
                 groupPlayersForRank.push({ 
                     id: p.id, acs: stats.acsMatchCount > 0 ? stats.acs / stats.acsMatchCount : 0, 

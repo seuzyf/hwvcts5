@@ -396,11 +396,11 @@
         document.getElementById('dc-next').disabled = state.page >= totalPages - 1;
         var pageRows = rows.slice(state.page * state.pageSize, state.page * state.pageSize + state.pageSize);
         tb.innerHTML = pageRows.map(function (r, pidx) { var idx = state.page * state.pageSize + pidx;
+          /* 选手页是生涯页：链接只带姓名，不带 group/season，
+             否则同一个人从不同赛事点进去会拿到被切碎的数据。
+             （r.gid 是游戏 ID，和 player.html 的 ?id= 语义不同，不要混传。） */
           var idCell = r.gid
-            ? '<a href="player.html?id=' + encodeURIComponent(r.gid)
-              + '&name=' + encodeURIComponent(r.name || '')
-              + '&group=' + encodeURIComponent(r.group || '未分组')
-              + '&season=' + esc(state.season || 's6') + '">' + esc(r.gid) + '</a>'
+            ? '<a href="player.html?name=' + encodeURIComponent(r.name || r.gid) + '">' + esc(r.gid) + '</a>'
             : esc(r.gid);
           var statusCell = r.reg ? '<span class="badge badge-green">已报名</span>'
             : (state.event && r.matches > 0 ? '<span class="badge badge-blue">替补</span>' : '—');
