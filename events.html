@@ -378,10 +378,10 @@
     (function () {
         'use strict';
 
-        var EV_STATUS = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消', deleted: '已删除' };
+        var EV_STATUS = { draft: '草稿', registration: '报名中', closed: '报名已截止', ongoing: '进行中', finished: '已结束', cancelled: '已取消', deleted: '已删除' };
         var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回', waitlist: '候补中' };
         var TYPE_LABEL = { tournament: '赛事', scrim: '训练赛', showmatch: '表演赛', activity: '活动' };
-        var EV_BADGE = { draft: 'badge-quiet', registration: 'badge-coral', ongoing: 'badge-green', finished: 'badge-quiet', cancelled: 'badge-quiet' };
+        var EV_BADGE = { draft: 'badge-quiet', registration: 'badge-coral', closed: 'badge-gold', ongoing: 'badge-green', finished: 'badge-quiet', cancelled: 'badge-quiet' };
         var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet', waitlist: 'badge-coral' };
 
         var allEvents = [], allRegs = [], userMap = {};
@@ -561,7 +561,8 @@
                 }
                 if (currentFilter === 'all') return true;
                 var ph = HWLayout.evState(ev, { regs: allRegs }).phase;
-                if (currentFilter === 'open') return ph === 'open' || ph === 'closing' || ph === 'full';
+                /* 「报名中」这一桶 = 报名这件事的所有阶段（含已截止）：用户找活动不会去猜我们内部叫什么 */
+                if (currentFilter === 'open') return ph === 'open' || ph === 'closing' || ph === 'full' || ph === 'closed';
                 if (currentFilter === 'live') return ph === 'live';
                 if (currentFilter === 'ended') return ph === 'ended';
                 return ph === currentFilter;
@@ -878,7 +879,7 @@
                 ? '<div class="section-label">管理（' + (isAdmin() ? '管理员' : '活动组织者') + '）</div>' +
                   '<div class="admin-row">' +
                   '  <select class="select" id="adm-status">' +
-                       ['draft', 'registration', 'ongoing', 'finished', 'cancelled'].map(function (s) {
+                       ['draft', 'registration', 'closed', 'ongoing', 'finished', 'cancelled'].map(function (s) {
                            return '<option value="' + s + '"' + (ev.status === s ? ' selected' : '') + '>' + EV_STATUS[s] + '</option>';
                        }).join('') +
                   '  </select>' +
@@ -1099,6 +1100,7 @@
             var admSave = document.getElementById('adm-save-status');
             if (admSave) admSave.addEventListener('click', function () {
                 var newStatus = document.getElementById('adm-status').value;
+                /* 人工设定（不是自动校验）：管理员亲手选择，允许直写 */
                 HWAuth.getClient().from('events').update({ status: newStatus }).eq('id', ev.id)
                     .then(function (res) {
                         if (res.error) { HWLayout.toast('更新失败: ' + res.error.message); return; }
@@ -1492,11 +1494,7 @@
         });
 
         function refresh() {
-            /* 方案 B：把「时间已推进但没人改 status」的活动静默落库（幂等 + 10 分钟节流）。
-               展示早已由 evState 修正，这一步只让导出的数据与页面一致。 */
-            if (typeof HWLayout !== 'undefined' && HWLayout.syncEventStatuses) {
-                HWLayout.syncEventStatuses().then(function () {}, function () {});
-            }
+            /* 落库由 layout.js 的全站时钟负责（窗口聚焦时对齐一次），这里不再各写一份 */
             return loadData().then(render).catch(function (err) {
                 console.error(err);
                 main.innerHTML = '<div class="empty-state"><strong>加载失败</strong><br>' + esc(err.message || err) + '</div>';

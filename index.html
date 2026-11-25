@@ -187,7 +187,8 @@
         function loadUpcoming() {
             return HWAuth.getClient().from('events')
                 .select('*')
-                .in('status', ['registration', 'ongoing'])
+                /* closed 也要进来：报名截止但还没开赛的活动，用户仍然需要看到「快开赛了」 */
+                .in('status', ['registration', 'closed', 'ongoing'])
                 .order('start_time', { ascending: true })
                 .limit(5)
                 .then(function (res) {
@@ -272,7 +273,8 @@
             var pending = regs.filter(function (r) { return r.status === 'pending'; });
             var soon = regs.filter(function (r) {
                 return (r.status === 'approved' || r.status === 'pending') && r.events &&
-                    (r.events.status === 'registration' || r.events.status === 'ongoing');
+                    /* closed 也算"进行中的报名"：报名截止但还没开赛，用户仍要看到它 */
+                    (r.events.status === 'registration' || r.events.status === 'closed' || r.events.status === 'ongoing');
             });
 
             var statsHtml =
@@ -408,7 +410,7 @@
             var d2 = new Date(d0); d2.setDate(d2.getDate() + 2);
             return Promise.all([
                 sb.from('events').select('id, title, status, start_time, end_time, reg_deadline')
-                    .in('status', ['registration', 'ongoing']),
+                    .in('status', ['registration', 'closed', 'ongoing']),
                 sb.from('s6_match_schedule').select('id, team_a, team_b, match_date, group').not('match_date', 'is', null),
                 sb.from('s5_match_schedule').select('id, team_a, team_b, match_date, group').not('match_date', 'is', null),
                 sb.from('s6_betting_groups').select('group_name, is_locked')

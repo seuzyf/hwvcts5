@@ -49,7 +49,19 @@ check('截止前 5 小时 · 即将截止', base({ reg_deadline: iso(5 * H), sta
   { phase: 'closing', joinable: true, coarse: null, label: '即将截止' });
 
 check('※ 已过截止仍是 registration → 报名已截止（原事故）', base({ reg_deadline: iso(-1 * H), start_time: iso(48 * H) }),
+  { phase: 'closed', joinable: false, coarse: 'closed', label: '报名已截止' });
+
+/* 库里已经是 closed（报名截止但还没开赛）：显示不变，且不再反复回写 */
+check('库内已是 closed → 仍显示报名已截止，不再回写', base({ status: 'closed', reg_deadline: iso(-1 * H), start_time: iso(48 * H) }),
   { phase: 'closed', joinable: false, coarse: null, label: '报名已截止' });
+
+/* closed 但开赛时间到了 → 进行中，落库 ongoing */
+check('closed 且已开赛 → 进行中', base({ status: 'closed', reg_deadline: iso(-2 * H), start_time: iso(-1 * H), end_time: iso(20 * H) }),
+  { phase: 'live', joinable: false, coarse: 'ongoing', label: '进行中' });
+
+/* closed 且结束时间也过了 → 已结束，一步补到 finished（不能卡在 closed） */
+check('closed 且已结束 → 已结束 → finished', base({ status: 'closed', reg_deadline: iso(-48 * H), start_time: iso(-30 * H), end_time: iso(-1 * H) }),
+  { phase: 'ended', joinable: false, coarse: 'finished', label: '已结束' });
 
 check('已过截止 + 已开赛 → 进行中', base({ reg_deadline: iso(-48 * H), start_time: iso(-2 * H), end_time: iso(20 * H) }),
   { phase: 'live', joinable: false, coarse: 'ongoing' });
