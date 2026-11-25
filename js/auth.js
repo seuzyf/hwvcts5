@@ -144,6 +144,12 @@
     return !/^\s*pbkdf2\$/i.test(stored || '');
   }
 
+  /* 哨兵：账号密文已不可验证（历史二次哈希 / 管理员手动锁定）→ 必须重置，不是"密码错" */
+  var LOCKED_SENTINEL = '!locked!';
+  function isLockedRow(row) {
+    return !!row && (row.must_reset === true || String(row.password || '') === LOCKED_SENTINEL);
+  }
+
   function verifyPassword(plain, stored) {
     stored = stored == null ? '' : String(stored);
     var m = /^pbkdf2\$(\d+)\$([^$]+)\$([a-f0-9]+)$/i.exec(stored);
@@ -326,10 +332,24 @@
           throw err;
         }
 
+        /* 账号处于"密文不可验证"状态：说清是什么问题，并给出唯一可行的一步，
+           而不是让人反复试密码（那样只会把人锁在门外） */
+        if (isLockedRow(res.data)) {
+          var lerr = new Error('该账号的密码需要重置（历史升级导致），请点下方「重置密码」或联系管理员');
+          lerr.code = 'PASSWORD_RESET_REQUIRED';
+          throw lerr;
+        }
         return verifyPassword(password, res.data.password).then(function (ok) {
           if (!ok) {
             recordLoginAttempt(sb, username, res.data.id, false);
-            throw new Error('密码错误！');
+            /* 连续失败 3 次后，提示里直接给出"忘记密码"的去处 */
+            return recentLoginFails(sb, username).then(function (n) {
+              var e = new Error(n >= 2
+                ? '密码错误。如果确定没记错，可能是升级时密码失效了，试试「重置密码」。'
+                : '密码错误！');
+              e.code = 'BAD_PASSWORD';
+              throw e;
+            });
           }
           if (res.data.banned && (!res.data.banned_until || new Date(res.data.banned_until).getTime() > Date.now())) {
             throw new Error('该账号已被停用' + (res.data.banned_reason ? '：' + res.data.banned_reason : '') + '，请联系管理员');
@@ -442,7 +462,14 @@
     }
     return detectAccountSource().then(function (table) {
       return hashPassword(newPassword).then(function (hash) {
-        return getClient().from(table).update({ password: hash }).eq('id', userId);
+        var patch = { password: hash };
+        patch.must_reset = false;   /* 重置即解锁（列不存在时服务端会报错，下面兜底重试） */
+        return getClient().from(table).update(patch).eq('id', userId).then(function (r) {
+          if (r && r.error && /must_reset|42703/.test(String(r.error.message || ''))) {
+            return getClient().from(table).update({ password: hash }).eq('id', userId);
+          }
+          return r;
+        });
       });
     }).then(function (res) {
       if (res.error) throw res.error;
@@ -695,6 +722,8 @@
     getClient: getClient,
     sessionExpired: wasSessionExpired,
     verifyOwnPassword: verifyOwnPassword,
-    isMissingTable: isMissingTable
+    isMissingTable: isMissingTable,
+    isLockedRow: isLockedRow,
+    LOCKED_SENTINEL: LOCKED_SENTINEL
   };
 })();

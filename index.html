@@ -134,8 +134,8 @@
         'use strict';
 
         var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回' };
-        var EV_STATUS  = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
-        var EV_BADGE   = { draft: '', registration: 'badge-coral', ongoing: 'badge-green', finished: '', cancelled: '' };
+        /* 活动状态一律走 HWLayout.evState / evBadge（本项目曾因这里另存一份字典导致
+           截止时间已过却仍显示「报名中」）。EV_STATUS / EV_BADGE 已删除，勿再引入。 */
 
         var hero = document.getElementById('hero');
         var dash = document.getElementById('dashboard');
@@ -309,7 +309,9 @@
                         '  <span class="li-title">' + esc(ev.title) + '</span>' +
                         '  <span class="li-sub">' + fmtDate(ev.start_time) + (ev.venue ? ' · ' + esc(ev.venue) : '') + '</span>' +
                         '</span>' +
-                        '<span class="li-end"><span class="badge ' + (EV_BADGE[ev.status] || '') + '">' + (EV_STATUS[ev.status] || ev.status) + '</span></span>' +
+                        /* 全站唯一口径：状态由 evState 按时钟算，不用静态字典
+                           （静态字典只认 ev.status，截止时间过了也不会变——这就是"还是显示报名中"的来源） */
+                        '<span class="li-end">' + HWLayout.evBadge(ev) + '</span>' +
                         '</a>';
                 }).join('') + '</div>';
 

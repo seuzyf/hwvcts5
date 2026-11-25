@@ -205,6 +205,27 @@ PAGES.forEach((f) => {
 if (missingApi.length) [...new Set(missingApi)].slice(0, 6).forEach((x) => bad('调用了不存在的共享方法 → ' + x));
 else console.log('  ✓ 所有 HWLayout / HWAuth 调用都真实存在');
 
+/* ---------- 11bis. 活动状态不许用静态字典渲染（第二次复发的原因） ---------- */
+const staticStatusRender = [];
+PAGES.forEach((f) => {
+  const text = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  /* 判定：出现了 registration→报名中 的映射表，且被用来**显示当前状态**。
+     合法用法（不算违规）：<option> 里的下拉选项文字、toast 里回显"已改为…"、
+     徽章 title 里说明"数据库仍是…"。这三种都是描述"数据库里存的是什么"，
+     不是描述"此刻真实状态"。
+     违规用法：把字典值直接放进会被当作"当前状态"展示的徽章 / 列表项里。 */
+  const lines = text.split('\n');
+  const badUse = lines.some((line) =>
+    /(EV_STATUS|EV_BADGE|STATUS_ZH)\s*\[/.test(line) &&
+    !/<option|toast\(|title=|data-auto/.test(line) &&
+    /badge|li-end|ev-status|状态/.test(line)
+  );
+  if (badUse) staticStatusRender.push(f);
+});
+if (staticStatusRender.length) {
+  staticStatusRender.forEach((x) => bad('用静态字典渲染活动状态（应当用 HWLayout.evBadge）→ ' + x));
+} else console.log('  ✓ 活动状态一律由 evBadge 渲染，没有静态字典短路');
+
 /* ---------- 12. 状态写回只走服务端 RPC（前端直写 = 任何登录用户都能改别人活动） ---------- */
 const directStatusWrite = [];
 PAGES.forEach((f) => {
