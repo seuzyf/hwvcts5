@@ -697,3 +697,95 @@ summary.html 本体功能维持现状（仅连接一行收敛）；评论禁言�
 
 见 14.12 与各节验收点；未执行 migration_v3 的环境下新功能均应优雅降级
 （荣誉/别名/状态列缺失时提示先执行迁移，不白屏、不影响既有功能）。
+
+## 15. 设计系统与动效契约（Phase 3 · 本轮）
+
+> 原则：**复杂留给我们，不留给用户。** 系统能判断的不留给用户；此刻没用的不出现；
+> 能替人做的直接做；同一件事处处一样；按下去有回应、再按能收回。
+
+### 15.1 状态只有一个出处
+
+| 状态 | 唯一判定 | 用途 |
+|---|---|---|
+| 活动阶段 | `HWLayout.evState(ev, cnt, now)` | 卡片徽章、详情徽章、按钮、倒计时 |
+| 比赛结果 | `HWLayout.resultStateOf(m, hasMaps)` | 赛程/比分卡徽章、结果录入待办 |
+
+页面**禁止**再写 `if (ev.status === 'registration')` 之类的判定。页面只允许保留一份
+「人工设定」的中文数据字典（管理员下拉用），那不是状态计算。
+
+> 上一轮的 bug（卡片写「报名中」、点进去写「已截止」、截止时间已过）根因就是两处各自计算。
+> 现在两者都调同一个函数，并用 `scripts/test-events.js` 六个时间场景锁死。
+
+### 15.2 时间驱动 = 自动更新
+
+`HWLayout.syncEventStatuses()` 每 30 秒重算一次，并在页面回到前台（`visibilitychange`）
+和窗口聚焦时立即重算；跨过截止/开始/结束的那一秒，徽章与按钮自动切换，无需刷新。
+
+### 15.2bis 全站共用的四件「手感」
+
+| 能力 | 入口 | 为什么 |
+|---|---|---|
+| 时钟总线 | `HWLayout.clock(fn)` | 每 30 秒 + 回到前台 + 窗口聚焦各对齐一次；页面不许自建 `setInterval`（会忘关、会各跑各的）。单个回调抛错不影响其它页面。 |
+| 提示 | `HWLayout.toast(msg, type, opts)` | 同类合并计数（连点五次只有一条声音）；错误不自动消失、点一下才走；`opts.action` 给一条可撤回的路；悬停/聚焦暂停倒计时。 |
+| 加载 | `HWLayout.loader({rows, inline, label})` | 骨架条预告内容的形状，不再写「加载中…」四个字；带 `role=status` + `aria-live`。 |
+| 内容入场 | `HWLayout.stagger` / `reveal` / `viewSwap` | 同一套错峰节奏，页面不各写动画。 |
+
+「可撤回」只在真的会丢东西的地方出现，且窗口很短：
+解封（8 秒，撤销即恢复封禁）、撤销口令（8 秒，`restore_admin_code`）。
+超过窗口即视为确认——反悔期过长等于没有保护。
+
+### 15.3 动效按「状态变化」而非「组件」设计
+
+| 变化 | 手段 | token |
+|---|---|---|
+| 出现 | 淡入 + 8px 上移；列表用 `HWLayout.stagger` 错峰 28ms | `--t-swap` / `--ease-out` |
+| 消失 | 淡出 + 轻微下移，**不可以用 display 立即消失** | `--t-hover` |
+| 移动 / 换位 | `transform` 位移（页签指示条 `.dt-ink`、槽位条 `scaleX`） | `--t-swap` / `--ease-standard` |
+| 尺寸变化 | `grid-template-rows: 0fr → 1fr` 展开，不做 `height` 动画 | `--t-panel` |
+| 内容替换 | 方向感：向右切从右侧进 10px（`.pane-in-r`），向左反之 | `--t-swap` |
+| 卡片 → 详情 | `document.startViewTransition` 形变（降级为淡入） | `--t-page` |
+| 数字跳动 | `HWLayout.setNum` 只改文本，避免布局抖动 | — |
+| 按下 | `scale(.97)`，90ms 内必须有回应 | `--t-press` |
+| 悬停 | 边框/底色变化 ≤140ms | `--t-hover` |
+| 加载 | `.sk-loader` 骨架条（形状预告内容），不再显示「加载中…」四个字 | `--t-amb-*` |
+| 完成 / 出错 | 徽章色调 + 一次性 `reveal`，不做循环闪烁 | `--t-panel` |
+
+全站只用 5 个时长和 4 条曲线（`--ease-standard/out/in/settle`）；`transition: all` 与
+自造 `cubic-bezier` 由 `npm run audit:design` 拦截。
+
+### 15.4 性能与可访问性约束
+
+- 只动 `transform` / `opacity` / `grid-template-rows`；不动 `width`/`height`/`top`/`left`。
+- 长列表用 `content-visibility: auto` + `contain-intrinsic-size`，屏幕外不参与绘制。
+- `prefers-reduced-motion: reduce` 下：所有动画/过渡/滚动行为/延迟降为 0，无限循环动画关闭，
+  骨架屏静止。这不是「额外照顾」，是默认路径之一。
+- 键盘焦点环全站统一（`:focus-visible`）；页签 `role=tab` + `aria-selected`；
+  加载与结果区 `role=status` / `aria-live=polite`。
+
+### 15.5 验收命令
+
+```
+npm test
+# = check + 状态口径(16) + 活动大厅 + UI 原语 + 结果录入(24) + 17 页冒烟 + 设计审计
+npm run audit:design
+```
+
+`npm test` 的七段各自守一类回归：
+
+| 套件 | 守什么 |
+|---|---|
+| `check` | 语法、CSS 括号配平、脚本引用完整性 |
+| `test:evstate` | 活动状态口径（含注入时钟的边界用例） |
+| `test:events` | **「卡片说的 = 详情说的」**；过了截止时间界面自己翻面；页签无障碍 |
+| `test:ui` | toast 合并/撤回/粘性、loader 无「加载中」字样、clock 抛错隔离 |
+| `test:manage` | 结果录入：权限、预填、自动算分、写入形状 |
+| `test:pages` | 17 页在 Supabase 桩下不白屏、无控制台错误 |
+| `audit:design` | 令牌、动效 token、徽章白名单、状态唯一口径、时钟总线、骨架屏、输入可访问名 |
+
+全部通过才允许合并。
+
+### 15.6 数据侧自动同步
+
+`supabase/install.sql` 新增触发器：`events.reg_deadline/start_time/end_time` 到期后，
+`events.status` 自动推进到 `ongoing` / `finished`；`s6_match_schedule` 写入比分后
+`result_status` 同步。前端派生保证「现在就正确」，数据库同步保证「别处读到的也对」。

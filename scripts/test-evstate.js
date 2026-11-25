@@ -1,0 +1,101 @@
+#!/usr/bin/env node
+/**
+ * 活动状态口径回归测试（npm run test:evstate）
+ * 覆盖「过了报名截止还显示报名中」这一事故的全部边界：
+ * 未到截止 / 即将截止 / 已过截止 / 名额满 / 已开赛 / 已结束 / 草稿 / 取消 / 删除 / 人工 ongoing。
+ * 纯函数，无网络：用 jsdom 提供 window/localStorage，再取 HWLayout.evState。
+ */
+const fs = require('fs');
+const path = require('path');
+const { JSDOM } = require('jsdom');
+
+const ROOT = path.join(__dirname, '..');
+const dom = new JSDOM('<!doctype html><html><body data-page="test"></body></html>', {
+  url: 'https://example.test/',
+  runScripts: 'outside-only',
+  pretendToBeVisual: true,
+});
+const { window } = dom;
+window.eval(fs.readFileSync(path.join(ROOT, 'js/layout.js'), 'utf8'));
+const L = window.HWLayout;
+
+if (!L || typeof L.evState !== 'function') {
+  console.error('FAIL: HWLayout.evState 未导出');
+  process.exit(1);
+}
+
+const NOW = '2026-06-15T12:00:00+08:00';
+const H = 3600 * 1000;
+const iso = (ms) => new Date(new Date(NOW).getTime() + ms).toISOString();
+
+let fail = 0, pass = 0;
+function check(name, ev, expect, opts) {
+  const st = L.evState(ev, Object.assign({ now: NOW }, opts || {}));
+  const got = ['phase', 'joinable', 'coarse'].map((k) => st[k]).join('|');
+  const want = [expect.phase, expect.joinable, expect.coarse === undefined ? null : expect.coarse].join('|');
+  const ok = got === want && (!expect.label || st.label === expect.label);
+  if (!ok) {
+    fail++;
+    console.error(`FAIL ${name}\n   want ${want}${expect.label ? ' label=' + expect.label : ''}\n   got  ${got} label=${st.label}`);
+  } else pass++;
+}
+
+const base = (o) => Object.assign({ id: 1, status: 'registration', max_slots: null }, o);
+
+check('截止前 3 天 · 报名中', base({ reg_deadline: iso(72 * H), start_time: iso(96 * H) }),
+  { phase: 'open', joinable: true, coarse: null, label: '报名中' });
+
+check('截止前 5 小时 · 即将截止', base({ reg_deadline: iso(5 * H), start_time: iso(30 * H) }),
+  { phase: 'closing', joinable: true, coarse: null, label: '即将截止' });
+
+check('※ 已过截止仍是 registration → 报名已截止（原事故）', base({ reg_deadline: iso(-1 * H), start_time: iso(48 * H) }),
+  { phase: 'closed', joinable: false, coarse: null, label: '报名已截止' });
+
+check('已过截止 + 已开赛 → 进行中', base({ reg_deadline: iso(-48 * H), start_time: iso(-2 * H), end_time: iso(20 * H) }),
+  { phase: 'live', joinable: false, coarse: 'ongoing' });
+
+check('已过结束时间仍是 registration → 已结束', base({ reg_deadline: iso(-96 * H), start_time: iso(-48 * H), end_time: iso(-2 * H) }),
+  { phase: 'ended', joinable: false, coarse: 'finished', label: '已结束' });
+
+check('名额已满 → 名额已满（可候补）', base({ max_slots: 2, reg_deadline: iso(72 * H), start_time: iso(96 * H) }),
+  { phase: 'full', joinable: true, coarse: null, label: '名额已满' },
+  { regs: [{ event_id: 1, status: 'approved' }, { event_id: 1, status: 'pending' }] });
+
+check('候补不计入名额', base({ max_slots: 2, reg_deadline: iso(72 * H), start_time: iso(96 * H) }),
+  { phase: 'open', joinable: true, coarse: null },
+  { regs: [{ event_id: 1, status: 'approved' }, { event_id: 1, status: 'cancelled' }, { event_id: 1, status: 'waitlist' }] });
+
+check('没有截止时间的活动 · 报名中', base({ start_time: iso(96 * H) }),
+  { phase: 'open', joinable: true, coarse: null });
+
+check('人工 ongoing 优先于时间推断', base({ status: 'ongoing', reg_deadline: iso(72 * H) }),
+  { phase: 'live', joinable: false, coarse: null, label: '进行中' });
+
+check('人工 finished 一票否决', base({ status: 'finished', reg_deadline: iso(72 * H) }),
+  { phase: 'ended', joinable: false, coarse: null });
+
+check('草稿不可报名', base({ status: 'draft', reg_deadline: iso(72 * H) }),
+  { phase: 'draft', joinable: false, coarse: null });
+
+check('已取消不可报名', base({ status: 'cancelled' }),
+  { phase: 'cancelled', joinable: false, coarse: null });
+
+check('已删除不可报名', base({ status: 'deleted' }),
+  { phase: 'deleted', joinable: false, coarse: null });
+
+check('坏数据（时间全为空）也不抛错', { id: 9, status: 'registration' },
+  { phase: 'open', joinable: true, coarse: null });
+
+/* 徽章 HTML 与文案一致性 */
+const badge = L.evBadge(base({ reg_deadline: iso(-1 * H), start_time: iso(48 * H) }), { now: NOW });
+if (!/badge-quiet/.test(badge) || !/报名已截止/.test(badge)) {
+  fail++;
+  console.error('FAIL evBadge: ' + badge);
+} else pass++;
+
+/* 应回写数据库的粗粒度状态 */
+const target = L.evStatusTarget(base({ start_time: iso(-2 * H), end_time: iso(20 * H) }), NOW);
+if (target !== 'ongoing') { fail++; console.error('FAIL evStatusTarget: ' + target); } else pass++;
+
+console.log(`\n活动状态口径：${pass} 通过 / ${fail} 失败`);
+process.exit(fail ? 1 : 0);

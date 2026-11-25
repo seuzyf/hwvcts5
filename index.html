@@ -54,7 +54,7 @@
             border: 1px solid transparent;
             text-decoration: none;
             color: var(--mist);
-            transition: border-color 0.15s ease, background 0.15s ease;
+            transition: border-color var(--t-hover) var(--ease-out), background var(--t-hover) var(--ease-out);
         }
         .list-item:hover { border-color: var(--border); background: rgba(255, 255, 255, 0.04); }
         .list-item .li-icon {
@@ -100,7 +100,7 @@
             box-shadow: var(--key-shadow);
             text-decoration: none;
             color: var(--mist);
-            transition: box-shadow 0.2s ease, transform 0.2s ease;
+            transition: box-shadow var(--t-hover) var(--ease-out), transform var(--t-hover) var(--ease-out);
         }
         .tile:hover { box-shadow: var(--key-shadow-hover); transform: translateY(-2px); }
         .tile .t-name { font-size: 15px; font-weight: 500; color: var(--pure-white); }
@@ -353,7 +353,7 @@
                 '</div>' +
                 '<section class="card mt-24" id="dash-brief">' +
                 '  <div class="block-head"><h2>今明提醒</h2></div>' +
-                '  <div id="dash-brief-body" class="empty-line">加载中…</div>' +
+                '  <div id="dash-brief-body">' + HWLayout.loader({ rows: 2, label: '正在加载今明提醒' }) + '</div>' +
                 '</section>' +
                 '<section class="card mt-24" id="dash-notif">' +
                 '  <div class="block-head"><h2>消息</h2><a href="javascript:void(0)" id="notif-read-all">全部已读</a></div>' +
@@ -366,6 +366,13 @@
 
             /* P13h：今明活动 / 赛程 / 下注锁定 */
             loadTodayBrief().then(fillTodayBrief);
+            /* 时钟：跨过零点、"即将开始→进行中"这类边界时静默重算（不重排整页） */
+            if (HWLayout.clock) {
+                HWLayout.clock(function () {
+                    if (!document.getElementById('dash-brief-body')) return;
+                    loadTodayBrief().then(fillTodayBrief).catch(function () {});
+                });
+            }
 
             /* 消息：点击 → 标记已读并跳转；全部已读 */
             var notifCard = document.getElementById('dash-notif');
@@ -412,6 +419,8 @@
                     return !isNaN(t) && t >= d0.getTime() && t < d2.getTime();
                 };
                 var evs = ((rs[0] && !rs[0].error && rs[0].data) || []).filter(function (e) {
+                    var ph = HWLayout.evState(e).phase;
+                    if (ph === 'ended' || ph === 'cancelled' || ph === 'deleted' || ph === 'draft') return false;
                     return inRange(e.start_time) || inRange(e.reg_deadline) || inRange(e.end_time);
                 });
                 var matches = []
@@ -443,7 +452,7 @@
                     return '<a class="list-item" href="events.html?open=' + e.id + '">' +
                         '<span class="li-icon">' + HWLayout.ico('calendar', 15) + '</span>' +
                         '<span class="li-main"><span class="li-title">' + esc(e.title) + '</span>' +
-                        '<span class="li-sub">' + when + ' · ' + (e.status === 'registration' ? '报名中' : '进行中') + '</span></span></a>';
+                        '<span class="li-sub">' + when + ' · ' + esc(HWLayout.evState(e).label) + '</span></span></a>';
                 }).join('') + '</div>');
             }
             if (brief.matches.length) {
@@ -482,7 +491,7 @@
             var user = HWAuth.getSession();
             if (!user) { renderGuest(); return; }
 
-            hero.innerHTML = '<span class="eyebrow">Personal Home</span><h1>加载中…</h1>';
+            hero.innerHTML = '<span class="eyebrow">Personal Home</span><h1><span class="sk" style="width:220px;height:28px;display:inline-block;vertical-align:middle;"></span></h1>';
             dash.innerHTML = '<div class="empty-state">正在读取你的数据…</div>';
 
             Promise.all([

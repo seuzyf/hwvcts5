@@ -41,6 +41,40 @@
   --dur-base: 240ms;   /* 展开/收起/淡入 */
   --dur-slow: 380ms;   /* 弹窗/大块内容 */
 
+  /* ── Motion v2：全站唯一一套时长/曲线（Apple 式，快、轻、可打断） ──────
+     规则：只动 transform / opacity；用 transition 而非 animation（天然可打断）；
+     同一类变化在所有页面用同一个 token，禁止页面自造时长。 */
+  --t-press: 90ms;     /* 按下：必须比松手快，才有「跟手」感 */
+  --t-hover: 140ms;    /* 悬停 */
+  --t-swap: 220ms;     /* 页签/内容替换/折叠展开 */
+  --t-panel: 320ms;    /* 弹窗/详情/视图级 */
+  --t-page: 420ms;     /* 仅页面级首次进入 */
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);   /* iOS 默认：位移/形变 */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);             /* 退场 */
+  --ease-settle: cubic-bezier(0.34, 1.3, 0.64, 1);   /* 只在「落定」用：滚筒、保存成功 */
+  --enter-y: 8px;      /* 进入位移 */
+  --exit-y: 6px;       /* 退场位移 */
+  --enter-scale: 0.98; /* 进入缩放 */
+
+  /* 氛围循环（仅玩法页允许；无限循环必须在 reduce 下关闭，见文件末尾） */
+  --t-amb-fast: 1.5s;
+  --t-amb-mid: 3s;
+  --t-amb-slow: 4s;
+  --t-amb-loop: 6s;
+
+  /* ── 语义色（与 badge-* 一一对应，页面禁止再写死十六进制） ────────── */
+  /* 卡片/输入框的"实心填充"：深色下是极暗，浅色下是纯白。
+     页面不许再写 #fff / #101113 这类字面量（chart/内联 SVG 例外）。 */
+  --fill: #07080a;
+  --on-fill: var(--mist);
+
+  --tone-quiet: var(--smoke);
+  --tone-coral: var(--coral-pulse);
+  --tone-green: var(--success-green);
+  --tone-gold: #e0a63c;
+  --tone-blue: var(--info-blue);
+  --tone-danger: #ff6b6b;
+
   /* Signature "keyboard key" shadow */
   --key-shadow:
     rgba(255, 255, 255, 0.05) 0px 1px 0px 0px inset,
@@ -962,6 +996,9 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
   --scrollbar-thumb: #c9cace;
   --scrollbar-thumb-hover: #a8a9ad;
 
+  --fill: #ffffff;
+  --on-fill: #1b1c1e;
+
   --key-shadow:
     rgba(0, 0, 0, 0.05) 0px 1px 0px 0px inset,
     rgba(0, 0, 0, 0.14) 0px 0px 0px 1px,
@@ -1288,12 +1325,25 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
   line-height: 1.5;
   max-width: 340px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-  animation: hw-toast-in var(--dur-base) var(--ease-out);
-  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  display: flex; align-items: center; gap: 2px;
+  animation: hw-toast-in var(--t-panel) var(--ease-out);
+  transition: opacity var(--t-swap) var(--ease-out), transform var(--t-swap) var(--ease-out);
 }
 .hw-toast.err { border-left-color: var(--coral-pulse); }
 .hw-toast.info { border-left-color: var(--info-blue); }
 .hw-toast.out { opacity: 0; transform: translateX(10px) scale(0.98); }
+/* 错误要人确认才走：给一条明确的出路，而不是逼人等它消失 */
+.hw-toast-sticky { cursor: pointer; padding-right: 12px; }
+.hw-toast-sticky::after { content: '×'; margin-left: 10px; color: var(--smoke); font-family: var(--font-mono); }
+/* 同类提示合并计数：连点五次只有一条声音 */
+.hw-toast-count { margin-left: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--smoke); }
+/* 可撤回动作：按钮在提示里，而不是让用户回退整页 */
+.hw-toast-action {
+  margin-left: 12px; padding: 2px 8px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 600;
+  background: transparent; color: var(--pure-white); border: 1px solid var(--border); cursor: pointer;
+  transition: background var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
+}
+.hw-toast-action:hover { background: var(--graphite); border-color: var(--iron); }
 
 @keyframes hw-toast-in {
   from { opacity: 0; transform: translateX(14px) scale(0.98); }
@@ -1369,14 +1419,187 @@ img.nav-avatar.is-admin { box-shadow: 0 0 0 2px var(--coral-pulse); }
 .tab-btn:active:not(:disabled),
 .ev-tab:active:not(:disabled) { transform: scale(0.97); }
 
+/* ══════════════════════════════════════════════════════════════════
+   统一层（Unified layer）— 2026-11 全站动效与组件收敛
+   所有页面共用；页面里与这里重复的规则应当删除，而不是覆盖。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ① 状态变化的语义类：一处定义，全站同一曲线
+   .m-enter  出现（新增项、展开内容）
+   .m-exit   消失（在移除前调用，等 transition 结束再真正移除）
+   .m-swap   内容替换（页签、筛选结果）
+   .m-count  数字变化（配合 HWLayout.bump）
+   .m-stagger 列表错峰（子项 --i 递增）                                    */
+.m-enter { animation: m-enter var(--t-swap) var(--ease-standard) both; }
+@keyframes m-enter {
+  from { opacity: 0; transform: translate3d(0, var(--enter-y), 0); }
+  to   { opacity: 1; transform: none; }
+}
+.m-stagger > * { animation: m-enter var(--t-swap) var(--ease-standard) both; animation-delay: calc(var(--i, 0) * 26ms); }
+
+.m-swap { animation: m-swap var(--t-swap) var(--ease-standard) both; }
+@keyframes m-swap {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+.m-count { display: inline-block; animation: m-count var(--t-panel) var(--ease-settle); }
+@keyframes m-count {
+  0%   { transform: translate3d(0, 0.18em, 0); opacity: .45; }
+  60%  { transform: translate3d(0, -0.04em, 0); opacity: 1; }
+  100% { transform: none; }
+}
+
+/* ② 按压：按下去有回应，再按能收回（所有可点元素同一手感） */
+.btn:active:not(:disabled),
+.chip:active,
+.tile:active,
+.event-card:active,
+.mine-item:active,
+button:active:not(:disabled):not(.modal-close) { transition-duration: var(--t-press); }
+.event-card, .tile, .mine-item, .card-hover {
+  transition: transform var(--t-hover) var(--ease-out),
+              border-color var(--t-hover) var(--ease-out),
+              background var(--t-hover) var(--ease-out);
+}
+.event-card:active, .tile:active { transform: scale(0.994); }
+
+/* ③ 焦点环：键盘可达性（coss 体系硬性项），只在键盘导航时出现 */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--tone-coral);
+  outline-offset: 2px;
+  border-radius: var(--r-btn);
+}
+:where(input, textarea, select):focus-visible { outline-offset: 1px; }
+
+/* ④ 徽章：语义只有 6 个变体（quiet / coral / green / gold / blue / danger），页面不得自造 */
+.badge-danger { background: rgba(255, 107, 107, 0.12); color: var(--tone-danger); }
+[data-theme="light"] .badge-danger { color: #c0392b; }
+.badge[data-ev-phase], .badge[data-rs] {
+  transition: color var(--t-hover) var(--ease-out), background var(--t-hover) var(--ease-out),
+              border-color var(--t-hover) var(--ease-out);
+}
+
+/* ⑤ 已经过去的时间：弱化而不是隐藏（用户需要知道"什么时候截止的"） */
+.ev-past, .ev-past b { color: var(--smoke) !important; text-decoration: line-through; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.slot-hint { margin-left: 6px; color: var(--smoke); font-weight: 400; }
+.notice-sub { display: block; margin-top: 6px; color: var(--smoke); font-size: 13px; }
+.mine-ev-phase { color: var(--ash); }
+
+/* ⑥ 名额/进度：宽度固定、用 scaleX 表达比例 —— 只动 transform，不触发布局重算 */
+.slot-track { position: relative; overflow: hidden; }
+.slot-fill {
+  transform-origin: left center;
+  transition: transform var(--t-panel) var(--ease-standard),
+              background var(--t-swap) var(--ease-standard);
+}
+/* 半透明上光：让"填充"读起来像液体而不是色块（纯装饰，成本为零） */
+.slot-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.18));
+  opacity: 0; transition: opacity var(--t-swap) var(--ease-standard);
+}
+.slot-fill.full::after { opacity: 1; }
+
+/* ⑦ 折叠：grid 0fr→1fr，纯 CSS 自适应高度，展开/收起共用一条曲线 */
+.collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--t-swap) var(--ease-standard); }
+.collapse > * { overflow: hidden; min-height: 0; }
+.collapse.open { grid-template-rows: 1fr; }
+
+/* ⑦.5 统一的"正在加载"：一行骨架条 + 屏幕阅读器可读文字。
+   用户看到的不是「加载中…」字样，而是即将出现的东西的形状。 */
+.sk-loader { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.sk-loader .sk { height: 14px; }
+.sk-loader .sk:nth-child(2) { width: 78%; }
+.sk-loader .sk:nth-child(3) { width: 52%; }
+.sk-loader.inline { flex-direction: row; align-items: center; gap: 12px; padding: 14px 0; }
+.sk-loader.inline .sk { height: 18px; flex: 1; }
+/* 页签：全站一套。下划线指示，颜色只在 hover/active 变化，140ms 内必须有回应。
+   页面只负责 DOM（button.tab-btn + .active），不负责长相。 */
+.tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 10px 16px; background: none; border: none; flex: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  color: var(--ash); font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit;
+  transition: color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
+}
+.tab-btn:hover { color: var(--pure-white); }
+.tab-btn.active { color: var(--pure-white); border-bottom-color: var(--coral-pulse); }
+.tab-badge {
+  display: inline-block; min-width: 17px; padding: 0 5px; margin-left: 6px;
+  border-radius: 9px; background: var(--graphite); color: var(--mist);
+  font-family: var(--font-mono); font-size: 11px; line-height: 17px; text-align: center;
+}
+
+/* 表单标题 + 当前状态徽章：标题左、状态右，一眼看清"现在是什么状态" */
+.reg-form-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.reg-form-head .section-title { margin-bottom: 0; }
+.reg-form-head .badge { flex: none; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+           clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ⑧ 骨架屏：只在真的等待时出现，且不无限呼吸打扰用户 */
+.sk { background: linear-gradient(90deg, var(--obsidian) 25%, var(--graphite) 37%, var(--obsidian) 63%);
+      background-size: 400% 100%; animation: sk-sweep 1.6s var(--ease-in-out) infinite; border-radius: var(--r-btn); }
+@keyframes sk-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+/* ⑨ 长列表性能：屏幕外的卡片不参与布局/绘制（活动大厅、比赛列表） */
+.events-grid > *, .mine-list > *, .matches-grid > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
+/* ⑩ 视口进入（滚动到才出现）：交给浏览器，JS 零成本 */
+@media (prefers-reduced-motion: no-preference) {
+  .m-inview { animation: m-enter var(--t-panel) var(--ease-standard) both; animation-timeline: view(); animation-range: entry 0% entry 30%; }
+}
+
+/* ⑪ 页面切换（同文档内的视图切换，如 events 大厅/我的）：有来有去 */
+.view-enter { animation: view-enter var(--t-panel) var(--ease-standard) both; }
+@keyframes view-enter {
+  from { opacity: 0; transform: translate3d(0, 10px, 0) scale(.995); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ⑫ 详情/弹窗：封面的 morph 交给 View Transitions API（渐进增强） */
+::view-transition-old(root) { animation: vt-out var(--t-swap) var(--ease-in) both; }
+::view-transition-new(root) { animation: vt-in var(--t-panel) var(--ease-standard) both; }
+@keyframes vt-out { to { opacity: 0; transform: scale(.995); } }
+@keyframes vt-in  { from { opacity: 0; transform: scale(1.005); } }
+.event-card .ev-cover img { view-transition-name: var(--vt-name, none); }
+
+/* ⑬ 数字/比分：等宽对齐，跳动时不抖 */
+.num, .stat-num, .score, .mf-big .score, [data-num] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ⑭ 拖拽/调整大小期间：必须跟手，任何过渡都要让路 */
+.is-dragging *, .is-dragging *::before, .is-dragging *::after { transition: none !important; }
+
+/* ⑮ 归档/只读等禁用态：不要用 opacity 全局压暗（会连带图片闪烁） */
+[aria-disabled="true"], button:disabled { cursor: not-allowed; }
+
 /* 尊重「减少动态效果」：非必要动画一律关闭，状态仍靠颜色/文字交代 */
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
+  /* 无限循环的装饰动画（氛围光、粒子、脉冲）在减少动效模式下彻底停止：
+     它们不传达任何信息，只是噪音。 */
+  *, *::before, *::after { animation-name: none !important; }
+  /* 长内容列表不做视口进入动画，避免"滚一下闪一下" */
+  .m-inview, .m-stagger > * { animation: none !important; }
+  /* 骨架屏停止扫光，改为静态块 */
+  .sk { animation: none !important; background: var(--obsidian); }
 }
 
 /* ── 打印样式（本轮统一）：浅色、去导航、表格不截断 ───────────────── */

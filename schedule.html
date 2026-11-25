@@ -33,7 +33,7 @@
         .match-card {
             background: var(--obsidian); border: 1px solid var(--border); border-radius: 12px;
             padding: 12px; width: 100%; box-sizing: border-box; cursor: pointer;
-            transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+            transition: border-color var(--t-hover) var(--ease-out), background var(--t-hover) var(--ease-out), transform var(--t-hover) var(--ease-out);
         }
         .match-card:hover { border-color: var(--smoke); background: var(--graphite); transform: translateY(-2px); }
         .team { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
@@ -126,7 +126,7 @@
             position: fixed; right: 20px; bottom: 20px; z-index: 2000; max-width: 400px; white-space: pre-line;
             background: var(--ink); border: 1px solid rgba(89, 212, 153, 0.5); color: var(--success-green);
             padding: 11px 18px; border-radius: 12px; font-size: 13px; font-weight: 600;
-            display: none; transition: opacity 0.5s; box-shadow: var(--key-shadow);
+            display: none; transition: opacity var(--t-panel); box-shadow: var(--key-shadow);
         }
     </style>
 </head>
@@ -677,8 +677,12 @@
             card.setAttribute('role', 'button');
             card.setAttribute('aria-label', (teamA + ' vs ' + teamB + '，点击查看或编辑比赛信息'));
             card.title = '点击查看 / 编辑比赛信息';
+            /* 结果状态：与数据台/比赛中心同一口径（同一件事，处处一样） */
+            const rs = HWLayout.resultStateOf(data, hasScore);
+            const rsBadge = hasScore || HWLayout.resultStateOf(data, false) !== 'unrecorded'
+                ? HWLayout.resultBadge(rs) : '';
             card.innerHTML = `
-                <div class="match-date">${matchDateStr || '时间待定'} ${data?.link ? '<span class="badge badge-quiet" style="margin-left:4px;">录像</span>' : ''}</div>
+                <div class="match-date">${matchDateStr || '时间待定'} ${rsBadge} ${data?.link ? '<span class="badge badge-quiet" style="margin-left:4px;">录像</span>' : ''}</div>
                 <div class="team ${winnerA?'winner':''} ${winnerB?'loser':''}"><span class="team-name">${escHtml(teamA)}</span><span class="team-score">${displayA}</span></div>
                 <hr>
                 <div class="team ${winnerB?'winner':''} ${winnerA?'loser':''}"><span class="team-name">${escHtml(teamB)}</span><span class="team-score">${displayB}</span></div>

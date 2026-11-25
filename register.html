@@ -34,7 +34,10 @@
 
     <div id="event-bar" hidden></div>
 
-    <div id="reg-loading" class="empty-state">加载中…</div>
+    <div id="reg-loading" class="sk-loader" role="status" aria-live="polite">
+      <div class="sk"></div><div class="sk"></div><div class="sk"></div>
+      <span class="sr-only">正在加载报名信息</span>
+    </div>
 
     <div id="reg-gate" class="card" hidden>
       <span class="eyebrow">Account</span>
@@ -51,7 +54,10 @@
 
       <form id="reg-form" class="card" hidden>
         <span class="eyebrow">Form</span>
-        <h2 class="section-title" style="margin-top:8px;" id="reg-form-title">填写报名信息</h2>
+        <div class="reg-form-head">
+          <h2 class="section-title" style="margin-top:8px;" id="reg-form-title">填写报名信息</h2>
+          <span class="badge badge-quiet" id="rp-now-state" data-ev-phase="open" aria-live="polite">报名中</span>
+        </div>
         <div id="rp-old-note" class="notice" hidden style="margin-top:12px;"></div>
 
         <!-- 队伍（报名已提交后隐藏，修改需撤回重报） -->
@@ -117,7 +123,7 @@
         <!-- 第二段：历史巅峰与生涯 -->
         <div id="rp-career-sec">
           <div class="reg-sec-title">个人资料 · 第二部分：历史巅峰与生涯</div>
-          <div id="rp-rank-warn" class="notice" hidden style="margin-bottom:12px; border-color:var(--amber, #d9a441); color:#e8c67a;"></div>
+          <div id="rp-rank-warn" class="notice" hidden style="margin-bottom:12px; border-color:color-mix(in srgb, var(--tone-gold) 55%, transparent); color:var(--tone-gold);"></div>
           <div class="form-row">
             <div><label class="form-label" for="rp-hist-rank">历史最高段位 <span class="req" id="rp-hist-req">*</span></label>
               <input class="input" id="rp-hist-rank" maxlength="30" placeholder="例如：不朽 3"></div>
@@ -137,7 +143,7 @@
               <input class="input" id="rp-fps-best" maxlength="40" placeholder="例如：大地球 / 钻石"></div>
             <div class="full"><label class="form-label">生涯数据截图 <span class="req" id="rp-career-shot-req">*</span></label>
               <div class="shot-row">
-                <div class="grow"><input class="input" type="file" id="rp-career-shot" accept="image/*" style="padding:7px;"></div>
+                <div class="grow"><input class="input" type="file" id="rp-career-shot" accept="image/*" aria-label="上传生涯截图" style="padding:7px;"></div>
                 <img class="shot-preview" id="rp-career-shot-preview" alt="生涯数据截图预览">
               </div></div>
           </div>
@@ -161,7 +167,6 @@
       var POS_LIST = ['一突', '二突', '先锋', '控场', '哨位'];
       var REG_STATUS = { pending: '待审核', approved: '已通过', rejected: '未通过', cancelled: '已撤回' };
       var REG_BADGE = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-quiet', cancelled: 'badge-quiet' };
-      var EV_STATUS = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
 
       var ev = null, profile = null, mine = null, allRegs = [], rosterHit = null, shotUrls = { cur: '', career: '' };
       var myBan = null, myEventBan = null, waitlistMode = false;   /* P13f/h：封禁 + 候补 */
@@ -388,12 +393,10 @@
           if (HWLayout.isBannedUser(myBan)) { HWLayout.toast('你已被禁赛，无法报名', 'err'); bootData(); return; }
           if (myEventBan) { HWLayout.toast('你在本活动被禁赛，无法报名', 'err'); bootData(); return; }
           /* 提交瞬间再检：截止 / 满员（满员 → 候补）/ 状态变化 */
-          var dl = ev.reg_deadline && new Date(ev.reg_deadline) < new Date();
-          var act = allRegs.filter(function (r) { return r.event_id === ev.id && (r.status === 'pending' || r.status === 'approved'); }).length;
-          var fl = ev.max_slots && act >= ev.max_slots;
-          waitlistMode = !!fl;
-          if (ev.status !== 'registration' || dl) {
-            HWLayout.toast(dl ? '报名已截止' : '当前状态不可报名', 'err');
+          var stNow = HWLayout.evState(ev, { regs: allRegs });
+          waitlistMode = stNow.phase === 'full';
+          if (!stNow.joinable) {
+            HWLayout.toast(stNow.blockedReason || '当前状态不可报名', 'err');
             bootData();
             return;
           }
@@ -603,15 +606,16 @@
         var host = document.getElementById('reg-event-card');
         host.hidden = false;
         var regsCount = allRegs.filter(function (r) { return r.event_id === ev.id && (r.status === 'pending' || r.status === 'approved'); }).length;
+        var evSt = HWLayout.evState(ev, { regs: allRegs });
         host.innerHTML =
           '<div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">' +
           '  <span class="icon-circle" style="width:46px;height:46px;">' + (ev.cover_image ? '<img src="' + esc(ev.cover_image) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">' : HWLayout.ico('trophy', 22)) + '</span>' +
           '  <div><span class="eyebrow">' + esc(ev.season || '') + '</span>' +
           '    <div style="font-size:18px; font-weight:600; color:var(--pure-white); margin-top:2px;">' + esc(ev.title) + '</div></div>' +
-          '  <span class="badge ' + (ev.status === 'registration' ? 'badge-green' : 'badge-quiet') + '" style="margin-left:auto;">' + (EV_STATUS[ev.status] || ev.status) + '</span>' +
+          '  <span class="badge badge-' + evSt.tone + '" style="margin-left:auto;" data-ev-phase="' + evSt.phase + '">' + esc(evSt.label) + '</span>' +
           '</div>' +
           '<div class="meta-grid" style="margin-top:14px;">' +
-          '  <div class="meta-cell"><div class="k">报名截止</div><div class="v">' + (ev.reg_deadline ? new Date(ev.reg_deadline).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '不限') + '</div></div>' +
+          '  <div class="meta-cell"><div class="k">报名截止</div><div class="v' + (evSt.phase === 'closed' ? ' ev-past' : '') + '">' + (ev.reg_deadline ? new Date(ev.reg_deadline).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '不限') + '</div></div>' +
           '  <div class="meta-cell"><div class="k">名额</div><div class="v">' + (ev.max_slots ? regsCount + ' / ' + ev.max_slots : regsCount + '（不限）') + '</div></div>' +
           '  <div class="meta-cell"><div class="k">赛制</div><div class="v">' + esc(ev.format || '—') + '</div></div>' +
           '</div>';
@@ -718,12 +722,40 @@
         document.getElementById('rp-new-wrap').hidden = true;
       }
 
+      /* 时钟：这个页面停着不动最危险——用户填到一半，截止时间过去了，
+         表单还让他提交，提交时才报错。这里让状态自己翻面，并在翻面时
+         把"为什么不能报名了"直接摆到眼前（不打断正在输入的内容）。 */
+      if (typeof HWLayout !== 'undefined' && HWLayout.clock) {
+        HWLayout.clock(function () {
+          if (!ev) return;
+          var st = HWLayout.evState(ev, { regs: allRegs });
+          var box = document.getElementById('rp-now-state');
+          if (box) {
+            box.textContent = st.label;
+            box.className = 'badge badge-' + st.tone;
+            box.dataset.evPhase = st.phase;
+          }
+          /* 已经不能在报名了，而表单还开着 → 原地收掉，并说明原因 */
+          var form = document.getElementById('reg-form');
+          if (!mine && !st.joinable && form && !form.hidden) {
+            renderForm();
+            if (HWLayout.toast) HWLayout.toast(st.blockedReason || '报名状态已变化', 'err');
+          }
+        });
+      }
+
       function renderForm() {
         var u = HWAuth.getSession();
         var form = document.getElementById('reg-form');
-        var deadlinePassed = ev.reg_deadline && new Date(ev.reg_deadline) < new Date();
-        var activeCount = allRegs.filter(function (r) { return r.event_id === ev.id && (r.status === 'pending' || r.status === 'approved'); }).length;
-        var full = ev.max_slots && activeCount >= ev.max_slots;
+        var st = HWLayout.evState(ev, { regs: allRegs });
+        var deadlinePassed = st.phase === 'closed';
+        var full = st.phase === 'full';
+        var nowState = document.getElementById('rp-now-state');
+        if (nowState) {
+          nowState.textContent = st.label;
+          nowState.className = 'badge badge-' + st.tone;
+          nowState.dataset.evPhase = st.phase;
+        }
 
         if (mine) {
           /* 已报名：显示状态 + 资料更新（隐藏队伍段） */
@@ -742,14 +774,13 @@
           banNone.textContent = HWLayout.isBannedUser(myBan) ? '你已被禁赛，暂时无法报名。' : '你在本活动被禁赛，无法报名。';
           return;
         }
-        var canReg = ev.status === 'registration' && !deadlinePassed && u;
+        var canReg = st.joinable && u;
         if (!canReg) {
           form.hidden = true;
           var none = document.getElementById('reg-none');
           none.hidden = false;
-          none.textContent = !u ? '登录后可报名。'
-            : ev.status !== 'registration' ? '当前状态（' + (EV_STATUS[ev.status] || ev.status) + '）不可报名。'
-            : deadlinePassed ? ('报名已于 ' + (ev.reg_deadline ? new Date(ev.reg_deadline).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '此前') + ' 截止。') : '暂不可报名。';
+          /* 界面自己说明自己：原因 + 具体时间，不留「当前状态（registration）不可报名」这种机器话 */
+          none.textContent = !u ? '登录后可报名。' : (st.blockedReason || '暂不可报名。');
           return;
         }
         form.hidden = false;
@@ -791,9 +822,10 @@
         ]).then(function (rs) {
           allRegs = (rs[0] && !rs[0].error && rs[0].data) || [];
           profile = (rs[1] && !rs[1].error && rs[1].data) || null;
+          /* 与 events.html myRegOf 同一口径：候补中也是「已有报名」，不得重复提交 */
           mine = allRegs.find(function (r) {
             return r.event_id === ev.id && r.user_id === u.id &&
-              (r.status === 'pending' || r.status === 'approved');
+              (r.status === 'pending' || r.status === 'approved' || r.status === 'waitlist');
           }) || null;
           return detectOld(u, seasonKey);
         }).then(function () {
