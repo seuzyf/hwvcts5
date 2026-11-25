@@ -436,7 +436,7 @@
                     var isChecked = selectedForCompare.some(function (p) { return p.name === player.name && p.group === player.group; });
                     row.innerHTML =
                         '<td class="checkbox-cell"><input type="checkbox" class="compare-checkbox" data-name="' + escapeAttr(player.name) + '" data-group="' + escapeAttr(player.group || '未分组') + '"' + (isChecked ? ' checked' : '') + '></td>' +
-                        '<td><a href="player.html?name=' + encodeURIComponent(player.name) + '&group=' + groupParam + '&season=' + currentSeason + '" target="_blank">' + escapeHtml(player.id) + '</a></td>' +
+                        '<td><a href="player.html?name=' + encodeURIComponent(player.name) + '" target="_blank">' + escapeHtml(player.id) + '</a></td>' +
                         '<td>' + escapeHtml(player.name || '—') + '</td><td>' + escapeHtml(player.group || '—') + '</td><td>' + escapeHtml(player.team || '—') + '</td><td>' + escapeHtml(player.topChars) + '</td>' +
                         '<td>' + (player.matches_played > 0 ? player.matches_played : '—') + '</td>' +
                         '<td style="color:var(--pure-white); font-weight:600;">' + formatStat(player.avg_acs, 2) + '</td>' +

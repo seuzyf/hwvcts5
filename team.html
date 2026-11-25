@@ -118,7 +118,7 @@
         ? mine.map(function (p) {
             return '<div class="card tm-player">' +
               '<span class="icon-circle" style="width:38px;height:38px;font-size:16px;">' + esc(String(p.name || '?').charAt(0)) + '</span>' +
-              '<span><span class="nm"><a href="player.html?name=' + encodeURIComponent(p.name || '') + '&group=' + encodeURIComponent(p.group || '未分组') + '&season=' + season + '" style="color:inherit;">' + esc(p.name || '—') + '</a></span>' +
+              '<span><span class="nm"><a href="player.html?name=' + encodeURIComponent(p.name || '') + '" style="color:inherit;">' + esc(p.name || '—') + '</a></span>' +
               '<span class="sub" style="display:block;">' + esc(p.group || '未分组') + ' · ID ' + esc(String(p.id)) + '</span></span>' +
               '</div>';
           }).join('')
