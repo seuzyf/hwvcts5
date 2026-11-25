@@ -205,5 +205,21 @@ PAGES.forEach((f) => {
 if (missingApi.length) [...new Set(missingApi)].slice(0, 6).forEach((x) => bad('调用了不存在的共享方法 → ' + x));
 else console.log('  ✓ 所有 HWLayout / HWAuth 调用都真实存在');
 
+/* ---------- 12. 状态写回只走服务端 RPC（前端直写 = 任何登录用户都能改别人活动） ---------- */
+const directStatusWrite = [];
+PAGES.forEach((f) => {
+  const text = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  /* 人工设定（管理员亲手选）允许直写，但必须显式标注；
+     自动校验一律走 RPC —— 否则任何登录用户都能改别人的活动状态。 */
+  const lines = text.split('\n');
+  lines.forEach((line, i) => {
+    if (!/from\('events'\)[\s\S]*update\(\{[^}]*status/.test(line)) return;
+    const ctx = lines.slice(Math.max(0, i - 3), i + 1).join('\n');
+    if (!/人工设定/.test(ctx)) directStatusWrite.push(f + ' 第 ' + (i + 1) + ' 行');
+  });
+});
+if (directStatusWrite.length) directStatusWrite.forEach((x) => bad('前端直写 events.status，应改调 sync_event_status() → ' + x));
+else console.log('  ✓ 自动校验不直写库（只调 sync_event_status RPC）');
+
 console.log('\n设计系统审计：' + (fail ? fail + ' 项不通过' : '全部通过 ✓'));
 process.exit(fail ? 1 : 0);

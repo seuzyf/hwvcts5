@@ -75,7 +75,8 @@ create table if not exists public.events (
                   -- tournament 赛事 | scrim 训练赛 | showmatch 表演赛 | activity 活动
     season        text default 'S6',             -- 所属赛季
     status        text not null default 'registration',
-                  -- draft 草稿 | registration 报名中 | ongoing 进行中 | finished 已结束 | cancelled 已取消
+                  -- draft 草稿 | registration 报名中 | closed 报名已截止（未开赛）
+                  -- ongoing 进行中 | finished 已结束 | cancelled 已取消
     description   text default '',               -- 活动简介
     rules         text default '',               -- 赛制/规则
     format        text default '',               -- 形式：BO1/BO3、5v5 等
@@ -1449,16 +1450,22 @@ end; $fn$;
 grant execute on function public.place_bet(bigint, text, bigint, integer, text) to anon, authenticated, service_role;
 
 -- ----------------------------------------------------------------------
--- 5.7bis 活动状态自动推进（一次性/定时调用均幂等）
---   「过了报名截止还显示报名中」的根因：events.status 是人工字段，从无人推进。
---   规则与前端的 HWLayout.evState 完全一致（时间事实优先）：
---     end_time 已过        → finished
---     start_time 已到       → ongoing
---     reg_deadline 已过 + 仍 registration → 保持 registration（前端显示「报名已截止」，
---                                            不自动改 ongoing，避免把「报名结束、活动未开赛」误标为进行中）
---   用法：select public.sync_event_status();
---         或用 Supabase Cron（pg_cron）：select cron.schedule('event-status', '*/15 * * * *',
---             $$select public.sync_event_status()$$);
+-- 5.7bis 活动状态自动推进（幂等；手动 / 定时均可）
+--   过去的问题：events.status 是纯人工字段，没人推进。
+--     结果是「报名截止时间早过了，库里还写着 registration」，而卡片和详情又各自算一遍 → 说法不一致。
+--   现在：判定规则只写在**这一个函数**里，前端只负责提醒它跑。
+--
+--   规则（时间事实优先，与前端 HWLayout.evState 逐条对应）：
+--     end_time 已过                    → finished
+--     start_time 已到                  → ongoing
+--     reg_deadline 已过 + registration → closed（报名已截止，但还没开赛）
+--     registration + 名额已满          → closed（报名同样关闭，候补走 waitlist 通道）
+--   已经是 closed / ongoing / finished 的不回退；draft / cancelled 不动（人工终态）。
+--
+--   用法：
+--     select public.sync_event_status();                    -- 手动
+--     select cron.schedule('event-status','*/15 * * * *',
+--            $$select public.sync_event_status()$$);         -- pg_cron 每 15 分钟
 -- ----------------------------------------------------------------------
 create or replace function public.sync_event_status()
 returns integer
@@ -1467,25 +1474,46 @@ security definer
 set search_path = public
 as $fn$
 declare
-    v_finished integer := 0;
-    v_ongoing  integer := 0;
+    v_touched integer := 0;
+    v_n integer := 0;
 begin
+    /* 1) 已结束 */
     update public.events
        set status = 'finished', updated_at = now()
-     where status in ('registration', 'ongoing')
+     where status in ('registration', 'closed', 'ongoing')
        and end_time is not null
        and end_time < now();
-    get diagnostics v_finished = row_count;
+    get diagnostics v_n = row_count; v_touched := v_touched + v_n;
 
+    /* 2) 已开赛（报名期自动关闭，不必再写 closed） */
     update public.events
        set status = 'ongoing', updated_at = now()
-     where status = 'registration'
+     where status in ('registration', 'closed')
        and start_time is not null
        and start_time <= now()
        and (end_time is null or end_time >= now());
-    get diagnostics v_ongoing = row_count;
+    get diagnostics v_n = row_count; v_touched := v_touched + v_n;
 
-    return v_finished + v_ongoing;
+    /* 3) 报名截止时间已过 */
+    update public.events
+       set status = 'closed', updated_at = now()
+     where status = 'registration'
+       and reg_deadline is not null
+       and reg_deadline < now()
+       and (start_time is null or start_time > now());
+    get diagnostics v_n = row_count; v_touched := v_touched + v_n;
+
+    /* 4) 名额已满（仍有空位的场地不动；没设上限的不动） */
+    update public.events e
+       set status = 'closed', updated_at = now()
+     where e.status = 'registration'
+       and e.max_slots is not null
+       and e.max_slots > 0
+       and (select count(*) from public.event_registrations r
+             where r.event_id = e.id and r.status in ('pending', 'approved')) >= e.max_slots;
+    get diagnostics v_n = row_count; v_touched := v_touched + v_n;
+
+    return v_touched;
 end;
 $fn$;
 grant execute on function public.sync_event_status() to anon, authenticated, service_role;
@@ -1499,6 +1527,55 @@ begin
 exception when others then
     raise notice 'pg_cron 排程跳过: %', sqlerrm;
 end $$;
+
+-- 5.7ter 服务端报名闸门 ------------------------------------------------------
+--   前端已经按 evState 拦了一次；但直接调接口仍能绕过。
+--   这里在数据库侧再拦一次：状态不可报名 / 过了截止 / 名额已满 且不是候补 → 拒绝。
+--   注意：只拦 INSERT；撤回（status='cancelled'）与资料更新不受影响。
+create or replace function public.guard_event_registration()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+    v_ev public.events%rowtype;
+    v_taken integer;
+begin
+    select * into v_ev from public.events where id = new.event_id;
+    if not found then
+        raise exception '活动不存在';
+    end if;
+
+    /* 候补是被允许的：有人撤回时按顺序递补 */
+    if new.status = 'waitlist' then
+        return new;
+    end if;
+
+    if v_ev.status in ('draft', 'cancelled', 'deleted') then
+        raise exception '该活动当前不可报名（状态：%）', v_ev.status;
+    end if;
+    if v_ev.status in ('closed', 'ongoing', 'finished') then
+        raise exception '报名通道已关闭';
+    end if;
+    if v_ev.reg_deadline is not null and v_ev.reg_deadline < now() then
+        raise exception '报名已于 % 截止', to_char(v_ev.reg_deadline at time zone 'Asia/Shanghai', 'MM-DD HH24:MI');
+    end if;
+    if v_ev.max_slots is not null and v_ev.max_slots > 0 then
+        select count(*) into v_taken from public.event_registrations r
+         where r.event_id = v_ev.id and r.status in ('pending', 'approved');
+        if v_taken >= v_ev.max_slots then
+            raise exception '名额已满，请加入候补';
+        end if;
+    end if;
+    return new;
+end;
+$fn$;
+
+drop trigger if exists trg_guard_event_registration on public.event_registrations;
+create trigger trg_guard_event_registration
+    before insert on public.event_registrations
+    for each row execute function public.guard_event_registration();
 
 -- 5.8 旧静态口令退役（默认口令是已知口令，留着即后门） --------------------
 delete from public.site_settings where key = 'admin_password_sha256';

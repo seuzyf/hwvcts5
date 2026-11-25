@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
        ?event= 锁定赛季并渲染活动栏。 */
     var boundEvent = null;
     var EV_BADGE = { draft: 'badge-quiet', registration: 'badge-coral', ongoing: 'badge-green', finished: '', cancelled: 'badge-quiet' };
-    var EV_STATUS_ZH = { draft: '草稿', registration: '报名中', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
+    var EV_STATUS_ZH = { draft: '草稿', registration: '报名中', closed: '报名已截止', ongoing: '进行中', finished: '已结束', cancelled: '已取消' };
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -596,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ' data-end="' + esc(ev.end_time || '') + '" data-dl="' + esc(ev.reg_deadline || '') + '"' +
                                 ' style="width:auto;height:32px;padding-top:0;padding-bottom:0;" aria-label="活动状态">' +
                                 '<option value="auto"' + (drifted ? '' : ' selected') + '>自动（' + (EV_STATUS_ZH[auto] || auto) + '）</option>' +
-                                ['draft', 'registration', 'ongoing', 'finished', 'cancelled'].map(function (s) {
+                                ['draft', 'registration', 'closed', 'ongoing', 'finished', 'cancelled'].map(function (s) {
                                     return '<option value="' + s + '"' + (drifted && s === ev.status ? ' selected' : '') + '>' + EV_STATUS_ZH[s] + '</option>';
                                 }).join('') +
                               '</select>';
@@ -618,6 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                   reg_deadline: sel.dataset.dl || null
                               }).coarse || sel.dataset.auto || 'registration')
                             : sel.value;
+                        /* 人工设定（不是自动校验）：管理员亲手选择，允许直写 */
                         supabaseClient.from('events').update({ status: target }).eq('id', id).then(function (r) {
                             if (r.error) { HWLayout.toast('状态更新失败：' + r.error.message, 'err'); return; }
                             HWLayout.toast('活动状态已更新为「' + (EV_STATUS_ZH[target] || target) + '」');

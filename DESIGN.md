@@ -766,7 +766,8 @@ summary.html 本体功能维持现状（仅连接一行收敛）；评论禁言�
 
 ```
 npm test
-# = check + 状态口径(16) + 活动大厅 + UI 原语 + 结果录入(24) + 17 页冒烟 + 设计审计
+# = check + 状态口径(19) + 前后端口径 + 自动校验 + 活动大厅 + UI 原语
+#   + 结果录入(24) + 17 页冒烟 + 设计审计
 npm run audit:design
 ```
 
@@ -779,13 +780,37 @@ npm run audit:design
 | `test:events` | **「卡片说的 = 详情说的」**；过了截止时间界面自己翻面；页签无障碍 |
 | `test:ui` | toast 合并/撤回/粘性、loader 无「加载中」字样、clock 抛错隔离 |
 | `test:manage` | 结果录入：权限、预填、自动算分、写入形状 |
+| `test:parity` | 服务端 `sync_event_status` 与前端 `evState` 在 12 个时间场景下结果完全一致 |
+| `test:autosync` | 落库只走 RPC、不直写；10 分钟节流；RPC 报错静默；聚焦才落库 |
 | `test:pages` | 17 页在 Supabase 桩下不白屏、无控制台错误 |
 | `audit:design` | 令牌、动效 token、徽章白名单、状态唯一口径、时钟总线、骨架屏、输入可访问名 |
 
 全部通过才允许合并。
 
-### 15.6 数据侧自动同步
+### 15.6 数据侧自动校验（`sync_event_status`）
 
-`supabase/install.sql` 新增触发器：`events.reg_deadline/start_time/end_time` 到期后，
-`events.status` 自动推进到 `ongoing` / `finished`；`s6_match_schedule` 写入比分后
-`result_status` 同步。前端派生保证「现在就正确」，数据库同步保证「别处读到的也对」。
+**上一轮这里写错了**：文档说「`events.status` 到期后自动推进」，但代码里写回取的是
+`evState().coarse`，而「报名截止但还没开赛」这一支根本没有 `coarse` 值 → 永远不会落库。
+更糟的是写回是前端直写，RLS 又是 `for all using(true)`，等于任何登录用户都能改正别人的活动状态。
+（这一段保留在这里，是因为它正好说明「文档承诺 ≠ 实现」是怎么发生的。）
+
+现在的做法：
+
+| 层 | 职责 |
+|---|---|
+| 前端 `HWLayout.evState` | 唯一状态判定；**立刻**正确显示，不等数据库 |
+| `HWLayout.clock` | 30 秒 + 回前台刷新界面；只有「窗口聚焦 / 初次对齐」才允许落库 |
+| `HWLayout.syncEventStatuses` | 只调 RPC `sync_event_status()`，10 分钟节流，失败静默；**不再直写 events** |
+| `sync_event_status()` | 判定逻辑的唯一服务端出处（`security definer`），四条规则：结束 → 开赛 → 截止 → 满员 |
+| `guard_event_registration()` | 数据库侧报名闸门：状态不可报 / 过期 / 满员（非候补）直接拒绝，绕过前端也拦得住 |
+
+`events.status` 新增取值 **`closed`**（报名已截止、尚未开赛）。
+这不是多此一举：没有它，"报名关闭"这件事在库里无处存放，只能靠前端每次重算。
+
+**约定：两份规则必须一致。** `npm run test:parity` 把 SQL 的 where 条件还原成 JS，
+用 12 个真实时间场景对拍服务端与前端，任何一边改了另一边没跟上就红。
+
+**仍需人工做一次**：在 Supabase 执行 `supabase/install.sql`。pg_cron 若已启用，
+函数会自己排上每 15 分钟一次；没启用就只能靠「有人打开页面 / 聚焦窗口」这个前提高频触发。
+两者叠加才是「无人操作时也会推进」。
+

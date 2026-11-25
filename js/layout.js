@@ -1057,21 +1057,31 @@
 
     /* 2. 时间事实优先于 registration / ongoing */
     if (hasEnd && nowMs > end) {
-      return out('ended', '已结束', { blockedReason: '活动已于 ' + evShort(ev.end_time) + ' 结束。', coarse: 'finished' });
+      /* 落后的中间态（registration / closed）先补成 finished，一步到位；
+         ongoing 本来就是 ongoing，只有以 finished 收尾才算"按时间该到终态"。 */
+      return out('ended', '已结束', {
+        blockedReason: '活动已于 ' + evShort(ev.end_time) + ' 结束。',
+        coarse: raw === 'registration' || raw === 'closed' ? 'finished' : null
+      });
     }
     if (hasStart && nowMs >= start) {
       return out('live', '进行中', {
         blockedReason: '活动已开始，报名通道已关闭。',
-        coarse: raw === 'registration' ? 'ongoing' : null
+        coarse: raw === 'registration' || raw === 'closed' ? 'ongoing' : null
       });
     }
     if (raw === 'ongoing') {
       return out('live', '进行中', { blockedReason: '活动已开始，报名通道已关闭。' });
     }
 
-    /* 3. registration 阶段：把「能不能报」一次算清 */
-    if (hasDl && nowMs > dl) {
-      return out('closed', '报名已截止', { blockedReason: '报名已于 ' + evShort(ev.reg_deadline) + ' 截止。' });
+    /* 3. 报名期：把「能不能报」一次算清
+       库里已写 closed（报名截止但还没开赛）→ 显示不变，且不再回写（幂等） */
+    if (raw === 'closed' || (hasDl && nowMs > dl)) {
+      return out('closed', '报名已截止', {
+        blockedReason: hasDl ? '报名已于 ' + evShort(ev.reg_deadline) + ' 截止。' : '报名已截止。',
+        /* 库里还没写 closed 就交还服务端写；已经写了就不再回写（幂等，不会每 30 秒发一次请求） */
+        coarse: raw === 'closed' ? null : 'closed'
+      });
     }
     if (full) {
       return out('full', '名额已满', {
@@ -1129,29 +1139,36 @@
    * 返回 Promise<number>（更新的行数）
    */
   var _syncAt = 0;
+  /**
+   * 让数据库里的 events.status 追上时间（报名截止 / 开赛 / 结束）。
+   *
+   * 为什么走 RPC 而不是前端直写：
+   *   events 的 RLS 是 for all using(true)，前端直写等于任何登录用户都能改正别人的活动状态。
+   *   判定 + 写入都放到 security definer 的 sync_event_status() 里，前端只负责「提醒」。
+   *
+   * 幂等：10 分钟节流；服务端自己再按时间事实算一遍，算不出来就不动。
+   * 失败静默：展示永远由 evState 前端派生保证正确，这一步只是让库里也一致。
+   */
   function syncEventStatuses(force) {
     var sb = supa();
-    if (!sb) return Promise.resolve(0);
+    if (!sb || !sb.rpc) return Promise.resolve(0);
     var KEY = 'hw_evsync_at';
     var last = force ? 0 : Math.max(_syncAt, parseInt(sessionStorage.getItem(KEY) || '0', 10) || 0);
     if (Date.now() - last < 10 * 60 * 1000) return Promise.resolve(0);
     _syncAt = Date.now();
     try { sessionStorage.setItem(KEY, String(_syncAt)); } catch (e) { /* private mode */ }
-    return sb.from('events').select('id, status, start_time, end_time, reg_deadline')
-      .in('status', ['registration', 'ongoing']).limit(500)
-      .then(function (res) {
-        var rows = (res && !res.error && res.data) || [];
-        var jobs = [];
-        rows.forEach(function (ev) {
-          var target = evStatusTarget(ev);
-          if (target && target !== ev.status) {
-            jobs.push(sb.from('events')
-              .update({ status: target, updated_at: new Date().toISOString() })
-              .eq('id', ev.id).eq('status', ev.status)); /* 乐观锁：别人已改则不覆盖 */
-          }
-        });
-        return Promise.all(jobs).then(function () { return jobs.length; });
-      }).catch(function () { return 0; });
+    return sb.rpc('sync_event_status').then(function (r) {
+      if (r && r.error) return 0;
+      return typeof r.data === 'number' ? r.data : 0;
+    }).catch(function () { return 0; });
+  }
+
+  /**
+   * 全站注册：任何页面打开都会在「窗口聚焦 / 回前台」时让数据库对齐一次。
+   * 界面本身由各页面的 clock(tick) 负责；这里只管落库这一件事。
+   */
+  function autoSyncStatuses() {
+    clock({ sync: function () { syncEventStatuses(); } });
   }
 
   /**
@@ -1633,21 +1650,32 @@
   var _clockFns = [];
   var _clockTimer = null;
   function clock(fn) {
-    if (typeof fn !== 'function') return;
+    if (typeof fn === 'function') fn = { tick: fn };
+    if (!fn || (!fn.tick && !fn.sync)) return;
     _clockFns.push(fn);
+    var fire = function (f, phase) {
+      try {
+        if (phase === 'sync') { if (f.sync) f.sync(); else if (f.tick) f.tick(); }
+        else if (f.tick) f.tick();
+      } catch (e) { /* 单个页面出错不影响其它页面 */ }
+    };
+    /* 每个注册者都立刻对齐一次自己（页面通常在 load 之后才注册，等 load 会永远等不到）。
+       落库有 10 分钟节流，重复对齐不会变成打数据库。 */
+    setTimeout(function () { fire(fn, 'sync'); }, 0);
     if (_clockTimer) return;
-    var run = function () {
-      for (var i = 0; i < _clockFns.length; i++) {
-        try { _clockFns[i](); } catch (e) { /* 一个页面的一处失败不能拖垮时钟 */ }
-      }
+    /**
+     * phase='tick' 每 30 秒 / 回前台：只刷新界面
+     * phase='sync' 仅在于「窗口获得焦点」或初次对齐时额外跑一次：允许落库
+     * 落库是低频动作，不该每 30 秒打一次数据库。
+     */
+    var run = function (phase) {
+      for (var i = 0; i < _clockFns.length; i++) fire(_clockFns[i], phase);
     };
     var arm = function () {
-      _clockTimer = setInterval(function () { if (!document.hidden) run(); }, 30000);
-      document.addEventListener('visibilitychange', function () { if (!document.hidden) run(); });
-      window.addEventListener('focus', run);
+      _clockTimer = setInterval(function () { if (!document.hidden) run('tick'); }, 30000);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) run('sync'); });
+      window.addEventListener('focus', function () { run('sync'); });
     };
-    /* 等首屏渲染完再对齐一次，避免与初次 render 抢同一帧 */
-    if (document.readyState === 'complete') setTimeout(run, 0); else window.addEventListener('load', run, { once: true });
     arm();
   }
 
@@ -2047,6 +2075,8 @@
       });
     }
     document.addEventListener('hw:admin', function () { renderAuth(); });
+    /* 全站：窗口聚焦 / 回前台时让数据库里的活动状态追上时间（10 分钟节流，失败静默） */
+    autoSyncStatuses();
   }
 
   if (document.readyState === 'loading') {
@@ -2080,6 +2110,7 @@
     syncEventStatuses: syncEventStatuses,
     bump: bump,
     clock: clock,
+    autoSyncStatuses: autoSyncStatuses,
     loader: loader,
     reveal: reveal,
     stagger: stagger,
