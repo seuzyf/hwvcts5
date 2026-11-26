@@ -511,7 +511,47 @@
     /* 没有比赛记录 / 花名册里查不到，都不是错误。
        从数据中心点进来的人当然还没打过比赛 —— 这时应当正常展示一个
        空档案（姓名、头像、各模块报"暂无数据"），而不是弹"未找到该选手"。 */
-    function renderEmptyProfile_(who, reason) {
+    /* 空档案里的"诊断行"：把客观事实说清楚，而不是一句"还没有数据"。
+       场次为 0 有两种完全不同的原因 ——
+         (a) 这个赛季确实还没录任何赛果；
+         (b) 录了赛果，但那些行的选手 ID 不是这个人。
+       以前两种情况显示同一句话，导致没人能判断到底是没数据还是匹配不上。 */
+    function emptyDiagHtml_(diag) {
+        if (!diag) return '';
+        var total = diag.total || 0, mentioned = diag.mentioned || 0, name = diag.name || '';
+        if (!total) {
+            return '当前库里还没有任何赛果记录（0 场）。<br>' +
+                '先在「数据台」录入赛果，这里就会出现生涯数据。';
+        }
+        if (!mentioned) {
+            return '库里共有 ' + total + ' 场赛果，但没有任何一场把选手列成 <b>' +
+                escapeHTML(name || '这个人') + '</b>。<br>' +
+                '通常是录入赛果时那一格没选到对应选手 —— 去「数据台」核对该场对阵的选手下拉。';
+        }
+        /* 第三层：比赛确实提到了他，但还是算不出数据 →
+           选手数据列（ACS/击杀/死亡/助攻）缺失或不是四段 */
+        return '库里共有 ' + total + ' 场赛果，其中 <b>' + mentioned + '</b> 场有 <b>' +
+            escapeHTML(name || '这个人') + '</b>。<br>' +
+            '但这些行的「选手数据」列（ACS/击杀/死亡/助攻）是空的或格式不对，' +
+            '所以算不出生涯均值 —— 去「数据台」补上该选手的这四个数字。';
+    }
+
+    /* 统计"库里共几场 / 其中几场提到这个人" */
+    function emptyDiagFor_(matches, playerId, name, playerNameSet) {
+        var total = (matches || []).length;
+        var mentioned = 0;
+        (matches || []).forEach(function (m) {
+            for (var k = 0; k < 2; k++) {
+                var tk = k === 0 ? 'team_a' : 'team_b';
+                for (var i = 1; i <= 5; i++) {
+                    if (String(m[tk + '_player' + i + '_id']) === String(playerId)) { mentioned++; return; }
+                }
+            }
+        });
+        return { total: total, mentioned: mentioned, name: name || '' };
+    }
+
+    function renderEmptyProfile_(who, reason, diag) {
         var label = who ? String(who) : '选手';
         /* 页首可能还停在骨架屏：先给它一个像样的头像与名字 */
         var av0 = document.getElementById('player-avatar-container');
@@ -527,18 +567,23 @@
         if (av) av.innerHTML = '<div class="player-avatar-fallback">' + escapeHTML(label.charAt(0) || '?') + '</div>';
         var scope = document.getElementById('career-scope');
         if (scope) scope.textContent = '还没有比赛记录';
-        document.getElementById('summary-list-content').innerHTML =
-            '<div class="radar-empty">还没有比赛数据。<br>第一次出场后，这里会自动出现生涯平均数据。</div>';
+        var diagHtml = emptyDiagHtml_(diag);
+        document.getElementById('summary-list-content').innerHTML = diagHtml
+            ? '<div class="radar-empty">' + diagHtml + '</div>'
+            : '<div class="radar-empty">还没有比赛数据。<br>第一次出场后，这里会自动出现生涯平均数据。</div>';
         document.getElementById('character-stats-body').innerHTML =
             '<tr><td colspan="9" class="dim" style="text-align:center;">还没有比赛数据</td></tr>';
         document.getElementById('event-stats-content').innerHTML =
-            '<div class="radar-empty">' + (reason === 'registered'
+            '<div class="radar-empty">' + (diagHtml ? diagHtml : (reason === 'registered'
                 ? '已报名，尚未出场。<br>比赛数据录入后这里会自动更新。'
-                : '还没有参加过赛事。<br><a href="events.html" class="btn btn-ghost btn-sm" style="margin-top:10px;">去看活动</a>') + '</div>';
+                : '还没有参加过赛事。<br><a href="events.html" class="btn btn-ghost btn-sm" style="margin-top:10px;">去看活动</a>')) + '</div>';
         var rc = document.getElementById('radar-chart-container');
         if (rc) rc.innerHTML = '<div class="radar-empty">还没有比赛数据，暂无法生成雷达图。</div>';
-        var more = document.getElementById('honor-strip');
-        if (more) more.hidden = true;
+        /* 荣誉墙不在这里关闭。
+           荣誉与比赛是两件独立的事 —— 组织者可以先给一个还没上场的选手颁奖
+           （新人奖、参赛纪念），也可能这个人的比赛记录还没录进来。
+           以前这里 hidden = true，会把刚渲染好的荣誉带直接抹掉，
+           于是"有荣誉但没比赛"的人看到的是一片空白。 */
     }
     function renderLoadError_(msg) {
         document.getElementById('player-id-header').textContent = '加载失败';
@@ -619,6 +664,23 @@
         if (!currentPlayerInfo) { renderEmptyProfile_(playerName || idParam); return; }
         if (!playerName) playerName = currentPlayerInfo.name || '';
 
+        /* ID 语义归一：报名档案（reg_profiles.game_id，如 TESTER#001）和
+           花名册主键（s6_player_ids.id，如 101）是两套编号，而赛果行里存的是后者。
+           以前直接把 game_id 当 playerId 去比对，永远匹配不上 → 明明有比赛却显示空档案。
+           这里用 player_stats 的 game_id 反查出 player_name，再回花名册取主键。 */
+        if (currentPlayerInfo && currentPlayerInfo.__registrant) {
+            try {
+                const pr = await supabaseClient.from(window.currentSeason + '_player_stats')
+                    .select('game_id, player_name').eq('game_id', String(currentPlayerInfo.id)).limit(1);
+                const pn = pr && !pr.error && pr.data && pr.data[0] && pr.data[0].player_name;
+                const rosterHit = pn ? (idData || []).find(r => r.name === pn) : null;
+                if (rosterHit) {
+                    currentPlayerInfo = rosterHit;
+                    playerName = rosterHit.name || playerName;
+                }
+            } catch (e) { /* 查不到就沿用报名档案 */ }
+        }
+
         const playerId = currentPlayerInfo.id || '暂无ID';
         /* 生涯口径：一个人一个 key，不再按 URL 里的 group 切分 */
         const careerEntry = allPlayerData[careerKey(playerId)];
@@ -656,12 +718,16 @@
         } catch (e) { /* 没有就是没有 */ }
         document.getElementById('player-id-header').textContent = realName || playerId;
 
-        renderHonors_(currentPlayerInfo, playerId);
+        /* 必须 await：以前这里不等待，renderHonors_ 里的查询还没回来，
+           下面的 renderEmptyProfile_ 就已经把荣誉带 hidden=true 了 —— 竞态。 */
+        await renderHonors_(currentPlayerInfo, playerId);
 
         const playerDataForStats = careerEntry;
         
         if (!playerDataForStats) {
-            renderEmptyProfile_(realName || playerId, currentPlayerInfo.__registrant ? 'registered' : '');
+            renderEmptyProfile_(realName || playerId,
+                currentPlayerInfo.__registrant ? 'registered' : '',
+                emptyDiagFor_(matches, playerId, realName));
         } else {
             const { groupPlayersForRank, statsByCharacter } = calculateGroupRanks(allPlayerData, groupName);
             const currentPlayerStats = groupPlayersForRank.find(p => p.id === playerId);
