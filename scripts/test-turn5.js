@@ -172,7 +172,12 @@ async function testPlayer(withScores) {
     /* 回合数必须来自 score_a/score_b，否则每回合指标恒为 0 */
     const cell = table ? table.querySelector('tbody tr').textContent : '';
     ok('每回合 K/D/A 不是全 0（证明回合数取到了）', /0\.[0-9]{2} \/ 0\.[0-9]{2}/.test(cell), cell.slice(0, 120));
-    ok('生涯汇总 7 行指标齐全', d.getElementById('summary-list-content').querySelectorAll('div').length === 7);
+    /* 断言指标齐全，而不是死数行数 —— 加指标（如首杀）不该让测试误报 */
+    const LABELS = ['平均 ACS', '每局击杀', '每局死亡', '每局助攻',
+                    '每回合击杀', '每回合死亡', '每回合助攻', '每局首杀', '首杀率'];
+    const summaryTxt = d.getElementById('summary-list-content').textContent;
+    const missing = LABELS.filter(l => summaryTxt.indexOf(l) === -1);
+    ok('生涯汇总指标齐全（9 项）', missing.length === 0, '缺：' + missing.join('、'));
     ok('页首说明覆盖场次', /3 场/.test(d.getElementById('career-scope').textContent));
   } else {
     ok('没有比分时不画无意义的空雷达图', /还没有录比分/.test(radarHost.textContent), radarHost.textContent.trim().slice(0, 50));
@@ -470,6 +475,74 @@ async function testRadarThemeColors() {
   ok('监听 hw:theme 重绘', /addEventListener\('hw:theme'/.test(src));
 }
 
+/* 首杀：按图记总数，展示首杀数与首杀率；老 4 段数据不能崩 */
+async function testFirstBlood() {
+  console.log('\n[选手页] 首杀统计（按图记）');
+  const mk = (id, date, score, data) => ({ __season: 's6', id, group: '传奇组', stage: '小组赛',
+    match_date: date, map: '源工重镇', score, team_a: '苍穹队', team_b: '烈焰队',
+    team_a_player1_id: 101, team_a_player2_id: 102, team_b_player1_id: 301, team_b_player2_id: 302,
+    team_a_player1_ch: '霓虹', team_a_player2_ch: '夜露', team_b_player1_ch: '捷风', team_b_player2_ch: '零',
+    team_a_player1_data: data, team_a_player2_data: '200/15/14/6',
+    team_b_player1_data: '210/16/13/4', team_b_player2_data: '180/12/15/5' });
+  const { dom, errors } = build('player.html', {
+    /* 3 张图：第 1、3 张他拿首杀 → 首杀 2 次，首杀率 66.7% */
+    s6_matches: [
+      mk(1, '2026-11-20T10:00:00Z', '13:9',  '280/20/12/5/1'),
+      mk(2, '2026-11-21T10:00:00Z', '11:13', '260/18/14/4/0'),
+      mk(3, '2026-11-22T10:00:00Z', '13:7',  '300/22/10/6/1')
+    ],
+    s6_player_ids: [{ id: 101, name: '苍穹', team: '苍穹队', group: '传奇组', image: '' }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [{ player_name: '苍穹', game_id: 'TESTER#001' }],
+    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: [], reg_profiles: [], events: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(1500);
+
+  const summary = d.getElementById('summary-list-content').textContent;
+  /* 2 次首杀 / 3 张图 = 0.67 每局，66.7% */
+  ok('生涯详情有「每局首杀」', /每局首杀/.test(summary), summary.slice(0, 140));
+  ok('每局首杀 = 2/3 ≈ 0.67', /0\.67/.test(summary), summary.match(/每局首杀[^每]*/)?.[0] || summary.slice(0, 140));
+  ok('生涯详情有「首杀率」', /首杀率/.test(summary));
+  ok('首杀率 = 2/3 ≈ 66.7%', /66\.7%/.test(summary), summary.match(/首杀率[^每]*/)?.[0] || '');
+
+  const evHead = [...d.querySelectorAll('#event-stats-content table thead th')].map(x => x.textContent);
+  const fbCol = evHead.indexOf('首杀');
+  const fbRateCol = evHead.indexOf('首杀率');
+  ok('赛事表有「首杀」「首杀率」列', fbCol > -1 && fbRateCol > -1, evHead.join(' | '));
+  const evRow = d.querySelector('#event-stats-content table tbody tr');
+  const cells = evRow ? [...evRow.querySelectorAll('td')].map(x => x.textContent.trim()) : [];
+  ok('赛事行首杀数 = 2', cells[fbCol] === '2', '第 ' + fbCol + ' 列 = ' + cells[fbCol]);
+  ok('赛事行首杀率 = 66.7%', cells[fbRateCol] === '66.7%', '第 ' + fbRateCol + ' 列 = ' + cells[fbRateCol]);
+
+  const charHead = d.getElementById('character-stats-table').querySelector('thead').textContent;
+  ok('角色表有「首杀」与「首杀率」列', /首杀/.test(charHead) && /首杀率/.test(charHead));
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+
+  /* 老数据只有 4 段：不能崩，首杀按 0 算 */
+  const legacy = build('player.html', {
+    s6_matches: [mk(1, '2026-11-20T10:00:00Z', '13:9', '280/20/12/5')],
+    s6_player_ids: [{ id: 101, name: '苍穹', team: '苍穹队', group: '传奇组', image: '' }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [], s6_comments: [], comment_reports: [], player_honors: [],
+    event_registrations: [], reg_profiles: [], events: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  await wait(1500);
+  const ds = legacy.dom.window.document;
+  ok('老 4 段数据照常读出 ACS', /280\.00|280\.0/.test(ds.getElementById('summary-list-content').textContent),
+     ds.getElementById('summary-list-content').textContent.slice(0, 80));
+  ok('老数据首杀率 0.0%', /0\.0%/.test(ds.getElementById('summary-list-content').textContent));
+  ok('老数据无运行时错误', legacy.errors.length === 0, legacy.errors.slice(0, 2).join(' | '));
+  legacy.dom.window.close();
+}
+
 /* 生涯口径：同一个人跨赛季/跨组必须合并成一份数据 */
 async function testPlayerCareer() {
   console.log('\n[选手页] 生涯口径：跨赛季跨组合并 + 无记录不报错');
@@ -647,6 +720,7 @@ async function testEvents() {
   await testCrossSeasonIdSpace();
   await testCrossSeasonMergeSamePerson();
   await testPlayerLayout();
+  await testFirstBlood();
   await testRadarThemeColors();
   await testPlayerCareer();
   await testPlayerEmpty();

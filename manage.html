@@ -668,7 +668,7 @@
             arr.push({
                 name: roster[i] ? roster[i].name : '',
                 id: roster[i] ? idOf(roster[i].id) : '',
-                ch: '', acs: '', k: '', d: '', a: ''
+                ch: '', acs: '', k: '', d: '', a: '', fb: ''
             });
         }
         return arr;
@@ -710,7 +710,9 @@
                     name: '',
                     id: idOf(r[teamKey + '_player' + i + '_id']),
                     ch: r[teamKey + '_player' + i + '_ch'] || '',
-                    acs: st[0] || '', k: st[1] || '', d: st[2] || '', a: st[3] || ''
+                    acs: st[0] || '', k: st[1] || '', d: st[2] || '', a: st[3] || '',
+                    /* 第 5 段 = 首杀数（按图记）。老数据的 4 段没有这一项，留空不报错 */
+                    fb: st[4] || ''
                 });
             }
             map.players[side] = arr;
@@ -795,7 +797,7 @@
         return '<table class="ptable">' +
             '<thead><tr>' +
             '<th class="' + cls + '">' + esc(teamName) + '（' + (side === 'a' ? 'A' : 'B') + '）</th>' +
-            '<th>角色</th><th class="num-col">ACS</th><th class="num-col">K</th><th class="num-col">D</th><th class="num-col">A</th>' +
+            '<th>角色</th><th class="num-col">ACS</th><th class="num-col">K</th><th class="num-col">D</th><th class="num-col">A</th><th class="num-col">首杀</th>' +
             '</tr></thead><tbody>' +
             rows.map(function (p, i) {
                 var temp = p.name && !allPlayersData.some(function (x) { return x.name === p.name; });
@@ -811,6 +813,7 @@
                     ['acs', 'k', 'd', 'a'].map(function (k) {
                         return '<td class="num-col"><input class="input" type="number" min="0" data-k="' + k + '" value="' + esc(p[k]) + '" placeholder="' + k.toUpperCase() + '"></td>';
                     }).join('') +
+                    '<td class="num-col"><input class="input" type="number" min="0" data-k="fb" value="' + esc(p.fb) + '" placeholder="FB" title="这张图的首杀次数"></td>' +
                     '</tr>';
             }).join('') +
             '</tbody></table>';
@@ -1008,6 +1011,12 @@
                     if (p.name && (p.acs === '' || p.acs === null) && (p.k !== '' || p.d !== '')) {
                         w.push('图 ' + (i + 1) + ' 选手 ' + p.name + ' 有 K/D 但 ACS 为空。');
                     }
+                    /* 一张图的首杀最多 1 次（按图记），且不可能超过击杀数 */
+                    if (p.name && p.fb !== '' && p.fb != null) {
+                        var fbN = Number(p.fb);
+                        if (isNaN(fbN) || fbN < 0) w.push('图 ' + (i + 1) + ' 选手 ' + p.name + ' 的首杀数不是有效数字。');
+                        else if (fbN > 1) w.push('图 ' + (i + 1) + ' 选手 ' + p.name + ' 的首杀数 ' + fbN + ' 超过 1 —— 一张图只有一个首杀。');
+                    }
                 });
             });
         });
@@ -1084,7 +1093,10 @@
                         row[tk + '_player' + (i + 1) + '_id'] = p.id ? Number(p.id) : null;
                         row[tk + '_player' + (i + 1) + '_ch'] = p.ch || null;
                         /* 与既有格式一致：acs/k/d/a */
-                        row[tk + '_player' + (i + 1) + '_data'] = (p.name || p.id) ? [p.acs || 0, p.k || 0, p.d || 0, p.a || 0].join('/') : null;
+                        /* 末尾第 5 段是首杀；没有填就不写（保持老格式 4 段兼容） */
+                        var parts = [p.acs || 0, p.k || 0, p.d || 0, p.a || 0];
+                        if (p.fb !== '' && p.fb != null) parts.push(p.fb);
+                        row[tk + '_player' + (i + 1) + '_data'] = (p.name || p.id) ? parts.join('/') : null;
                     });
                 });
                 if (m.id) { keepIds[m.id] = 1; ops.push(sb.from(seasonMatches()).update(row).eq('id', m.id)); }

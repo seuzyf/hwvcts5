@@ -65,7 +65,14 @@
         .tc-sub { margin: 0 0 10px; font-size: 13px; color: var(--smoke); }
 
         /* 生涯能力图 + 生涯数据详情：两列 */
-        .pc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; align-items: start; }
+        /* stretch：两栏等高。以前是 align-items:start，各按内容撑开，
+           生涯详情 7 行列表 vs 雷达图 canvas 天然不等高，看着一高一矮。 */
+        .pc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; align-items: stretch; }
+        /* 卡片撑满格子，内容在卡内垂直居中 —— 矮的那张不会底部留一截空白 */
+        .pc-grid > section { display: flex; flex-direction: column; height: 100%; }
+        .pc-grid > section > div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .pc-grid #radar-chart-container { margin: auto auto; }
+        .pc-grid #summary-list-content { justify-content: center; }
         @media (max-width: 900px) { .pc-grid { grid-template-columns: minmax(0, 1fr); } }
         .chart-wrap { width: 100%; max-width: 460px; margin: 0 auto; position: relative; }
         #event-stats-content .data-table { min-width: 640px; }
@@ -271,7 +278,7 @@
                     </div>
                     <div class="table-wrap">
                         <table id="character-stats-table" class="data-table">
-                            <thead><tr><th>角色</th><th class="num">出场</th><th class="num">ACS</th><th class="num">每局击杀</th><th class="num">每局死亡</th><th class="num">每局助攻</th><th class="num">每回合击杀</th><th class="num">每回合死亡</th><th class="num">每回合助攻</th></tr></thead>
+                            <thead><tr><th>角色</th><th class="num">出场</th><th class="num">ACS</th><th class="num">每局击杀</th><th class="num">每局死亡</th><th class="num">每局助攻</th><th class="num">首杀</th><th class="num">首杀率</th><th class="num">每回合击杀</th><th class="num">每回合死亡</th><th class="num">每回合助攻</th></tr></thead>
                             <tbody id="character-stats-body"></tbody>
                         </table>
                     </div>
@@ -576,7 +583,7 @@
             ? '<div class="radar-empty">' + diagHtml + '</div>'
             : '<div class="radar-empty">还没有比赛数据。<br>第一次出场后，这里会自动出现生涯平均数据。</div>';
         document.getElementById('character-stats-body').innerHTML =
-            '<tr><td colspan="9" class="dim" style="text-align:center;">还没有比赛数据</td></tr>';
+            '<tr><td colspan="11" class="dim" style="text-align:center;">还没有比赛数据</td></tr>';
         document.getElementById('event-stats-content').innerHTML =
             '<div class="radar-empty">' + (diagHtml ? diagHtml : (reason === 'registered'
                 ? '已报名，尚未出场。<br>比赛数据录入后这里会自动更新。'
@@ -904,6 +911,7 @@
         const series = Object.keys(byEvent).map(evKey => {
             const rows = byEvent[evKey];
             let kills = 0, deaths = 0, assists = 0, acsSum = 0, acsN = 0, wins = 0, losses = 0, rounds = 0;
+            let firstBloods = 0, fbMaps = 0, mapsPlayed = 0;
             const teams = {};
             let firstDate = '';
             rows.forEach(m => {
@@ -926,11 +934,14 @@
                     for (let i = 1; i <= 5; i++) {
                         if (!isMe_(m[tk + '_player' + i + '_id'], playerId)) continue;
                         const ds = m[tk + '_player' + i + '_data'];
-                        if (!ds) continue;
-                        const st = String(ds).split('/').map(Number);
-                        if (st.length !== 4 || st.some(isNaN)) continue;
-                        if (st[0] > 0) { acsSum += st[0]; acsN++; }
-                        kills += st[1]; deaths += st[2]; assists += st[3];
+                        const st = parsePlayerData_(ds);
+                        if (!st) continue;
+                        if (st.acs > 0) { acsSum += st.acs; acsN++; }
+                        kills += st.k; deaths += st.d; assists += st.a;
+                        firstBloods += st.fb;
+                        /* 首杀率 = 拿过首杀的图数 / 出场图数（按图记总数） */
+                        mapsPlayed++;
+                        if (st.fb > 0) fbMaps++;
                     }
                 });
             });
@@ -955,6 +966,9 @@
                 k_round: rounds ? kills / rounds : 0,
                 d_round: rounds ? deaths / rounds : 0,
                 a_round: rounds ? assists / rounds : 0,
+                fb: firstBloods,
+                fb_map: mapsPlayed ? firstBloods / mapsPlayed : 0,
+                fb_rate: mapsPlayed ? fbMaps / mapsPlayed * 100 : 0,
                 unlinked: !evKey
             };
         });
@@ -977,7 +991,7 @@
         const f1 = v => (v == null || isNaN(v)) ? '—' : Number(v).toFixed(1);
         host.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
             '<th>赛事</th><th>时间</th><th>队伍</th><th class="num">场次</th><th class="num">胜/负</th><th class="num">胜率</th>' +
-            '<th class="num">ACS</th><th class="num">K/D</th><th class="num">KDA</th><th class="num">每局 K/D/A</th><th class="num">每回合 K/D/A</th>' +
+            '<th class="num">ACS</th><th class="num">K/D</th><th class="num">KDA</th><th class="num">首杀</th><th class="num">首杀率</th><th class="num">每局 K/D/A</th><th class="num">每回合 K/D/A</th>' +
             '</tr></thead><tbody>' +
             evSeries.map(r => '<tr' + (r.unlinked ? ' style="opacity:.6;"' : '') + '>' +
                 '<td class="strong">' + escapeHTML(r.title) + (r.unlinked ? ' <span class="badge badge-quiet">未关联</span>' : '') + '</td>' +
@@ -989,6 +1003,8 @@
                 '<td class="num">' + f1(r.acs) + '</td>' +
                 '<td class="num">' + f2(r.kd) + '</td>' +
                 '<td class="num">' + f2(r.kda) + '</td>' +
+                '<td class="num">' + (r.fb || 0) + '</td>' +
+                '<td class="num">' + f1(r.fb_rate) + '%</td>' +
                 '<td class="num">' + f2(r.k_map) + ' / ' + f2(r.d_map) + ' / ' + f2(r.a_map) + '</td>' +
                 '<td class="num">' + f2(r.k_round) + ' / ' + f2(r.d_round) + ' / ' + f2(r.a_round) + '</td>' +
                 '</tr>').join('') +
@@ -1153,11 +1169,30 @@
     /** 生涯聚合键：一个人一条，与赛季/组别无关 */
     function careerKey(id) { return String(id) + '::__career'; }
 
+    /* 选手每图数据：'ACS/K/D/A' 或 'ACS/K/D/A/首杀'。
+       首杀是后加的，老的 4 段数据必须照常能读 —— 缺段按 0 计。 */
+    function parsePlayerData_(raw) {
+        if (raw == null || raw === '') return null;
+        const parts = String(raw).split('/').map(Number);
+        if (parts.length < 4 || parts.slice(0, 4).some(isNaN)) return null;
+        return {
+            acs: parts[0], k: parts[1], d: parts[2], a: parts[3],
+            fb: parts.length >= 5 && !isNaN(parts[4]) ? parts[4] : 0,
+            hasFb: parts.length >= 5 && !isNaN(parts[4])
+        };
+    }
+
+    /* 是否拿到首杀（按图记总数：这张图他拿过首杀） */
+    function hasFirstBlood_(raw) {
+        const st = parsePlayerData_(raw);
+        return !!(st && st.fb > 0);
+    }
+
     /* 把同一个人在多个赛季的聚合条目并成一份生涯数据 */
     function mergeCareerEntries_(parts) {
         const out = { id: parts[0].id, group: parts[0].group, team: parts[0].team,
             groups: {}, teams: {}, by_character: {},
-            total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 } };
+            total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0, firstBloods: 0, fbMaps: 0 } };
         parts.forEach(p => {
             ['groups', 'teams'].forEach(f => {
                 Object.keys(p[f] || {}).forEach(k => { out[f][k] = (out[f][k] || 0) + p[f][k]; });
@@ -1165,7 +1200,7 @@
             Object.keys(p.by_character || {}).forEach(ch => {
                 const src = p.by_character[ch];
                 const dst = out.by_character[ch] = out.by_character[ch] ||
-                    { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 };
+                    { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0, firstBloods: 0, fbMaps: 0 };
                 Object.keys(dst).forEach(k => { dst[k] += (src[k] || 0); });
             });
             const t = p.total_stats || {};
@@ -1203,29 +1238,35 @@
                 for (let p = 1; p <= 5; p++) {
                     const playerId = match[`${teamKey}_player${p}_id`]; const playerDataStr = match[`${teamKey}_player${p}_data`]; const playerCh = match[`${teamKey}_player${p}_ch`];
                     if (!playerId || !playerDataStr) continue;
-                    const stats = String(playerDataStr).split('/').map(Number); if (stats.length !== 4 || stats.some(isNaN)) continue;
+                    const stats = parsePlayerData_(playerDataStr); if (!stats) continue;
                     /* 生涯口径：同一个人跨赛季、跨组别合并成一行。
                        （以前 key 里带 group，同一个人换组就被拆成两份数据） */
                     const uniquePlayerKey = careerKey(playerId);
                     if (!playerData[uniquePlayerKey]) {
                         playerData[uniquePlayerKey] = { id: playerId, group: match.group, team: teamName,
                             groups: {}, teams: {},
-                            total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 }, by_character: {} };
+                            total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0, firstBloods: 0, fbMaps: 0 }, by_character: {} };
                     }
                     var __pe = playerData[uniquePlayerKey];
                     if (match.group) __pe.groups[match.group] = (__pe.groups[match.group] || 0) + 1;
                     if (teamName) __pe.teams[teamName] = (__pe.teams[teamName] || 0) + 1;
                     const playerEntry = playerData[uniquePlayerKey]; playerEntry.team = teamName; const p_stats = playerEntry.total_stats;
-                    if (stats[0] > 0) { p_stats.acs += stats[0]; p_stats.acsMatchCount++; }
-                    p_stats.kills += stats[1]; p_stats.deaths += stats[2]; p_stats.assists += stats[3]; p_stats.matchCount++; p_stats.totalRounds += totalRounds;
-                    if (stats[0] > 0) { (playerTrendMap[playerId] = playerTrendMap[playerId] || []).push(stats[0]); }
+                    if (stats.acs > 0) { p_stats.acs += stats.acs; p_stats.acsMatchCount++; }
+                    p_stats.kills += stats.k; p_stats.deaths += stats.d; p_stats.assists += stats.a;
+                    p_stats.matchCount++; p_stats.totalRounds += totalRounds;
+                    p_stats.firstBloods += stats.fb;
+                    p_stats.fbMaps += (stats.fb > 0 ? 1 : 0);
+                    if (stats.acs > 0) { (playerTrendMap[playerId] = playerTrendMap[playerId] || []).push(stats.acs); }
 
                     if (playerCh) {
                         const charName = String(playerCh).trim();
-                        if (!playerEntry.by_character[charName]) { playerEntry.by_character[charName] = { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 }; }
+                        if (!playerEntry.by_character[charName]) { playerEntry.by_character[charName] = { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0, firstBloods: 0, fbMaps: 0 }; }
                         const charStats = playerEntry.by_character[charName];
-                        if (stats[0] > 0) { charStats.acs += stats[0]; charStats.acsMatchCount++; }
-                        charStats.kills += stats[1]; charStats.deaths += stats[2]; charStats.assists += stats[3]; charStats.matchCount++; charStats.totalRounds += totalRounds;
+                        if (stats.acs > 0) { charStats.acs += stats.acs; charStats.acsMatchCount++; }
+                        charStats.kills += stats.k; charStats.deaths += stats.d; charStats.assists += stats.a;
+                        charStats.matchCount++; charStats.totalRounds += totalRounds;
+                        charStats.firstBloods += stats.fb;
+                        charStats.fbMaps += (stats.fb > 0 ? 1 : 0);
                     }
                 }
             });
@@ -1248,6 +1289,8 @@
                     k_map: stats.kills / stats.matchCount, d_map: stats.deaths / stats.matchCount, a_map: stats.assists / stats.matchCount, 
                     k_round: stats.kills / stats.totalRounds, d_round: stats.deaths / stats.totalRounds, a_round: stats.assists / stats.totalRounds, 
                     survival_rate: 1 - (stats.deaths / stats.totalRounds), kda: stats.deaths > 0 ? (stats.kills + stats.assists) / stats.deaths : (stats.kills + stats.assists), 
+                    fb_map: (stats.firstBloods || 0) / stats.matchCount,
+                    fb_rate: (stats.fbMaps || 0) / stats.matchCount * 100,
                 });
                 for (const charName in p.by_character) {
                     const charStats = p.by_character[charName]; if (charStats.matchCount === 0) continue;
@@ -1256,6 +1299,8 @@
                         id: p.id, acs: charStats.acsMatchCount > 0 ? charStats.acs / charStats.acsMatchCount : 0, 
                         k_map: charStats.kills / charStats.matchCount, d_map: charStats.deaths / charStats.matchCount, a_map: charStats.assists / charStats.matchCount, 
                         k_round: charStats.totalRounds > 0 ? charStats.kills / charStats.totalRounds : 0, d_round: charStats.totalRounds > 0 ? charStats.deaths / charStats.totalRounds : 0, a_round: charStats.totalRounds > 0 ? charStats.assists / charStats.totalRounds : 0, 
+                        fb_map: (charStats.firstBloods || 0) / charStats.matchCount,
+                        fb_rate: (charStats.fbMaps || 0) / charStats.matchCount * 100,
                     });
                 }
             }
@@ -1291,6 +1336,8 @@
             acs: playerData.total_stats.acsMatchCount > 0 ? playerData.total_stats.acs / playerData.total_stats.acsMatchCount : 0, 
             k_map: playerData.total_stats.matchCount > 0 ? playerData.total_stats.kills / playerData.total_stats.matchCount : 0, d_map: playerData.total_stats.matchCount > 0 ? playerData.total_stats.deaths / playerData.total_stats.matchCount : 0, a_map: playerData.total_stats.matchCount > 0 ? playerData.total_stats.assists / playerData.total_stats.matchCount : 0, 
             k_round: playerData.total_stats.totalRounds > 0 ? playerData.total_stats.kills / playerData.total_stats.totalRounds : 0, d_round: playerData.total_stats.totalRounds > 0 ? playerData.total_stats.deaths / playerData.total_stats.totalRounds : 0, a_round: playerData.total_stats.totalRounds > 0 ? playerData.total_stats.assists / playerData.total_stats.totalRounds : 0, 
+            fb_map: playerData.total_stats.matchCount > 0 ? (playerData.total_stats.firstBloods || 0) / playerData.total_stats.matchCount : 0,
+            fb_rate: playerData.total_stats.matchCount > 0 ? (playerData.total_stats.fbMaps || 0) / playerData.total_stats.matchCount * 100 : 0,
         };
         const row = (label, val, rank) =>
             '<div><span>' + label + '</span><span>' + val + ' <span class="rank-top">' + rank + '</span></span></div>';
@@ -1301,7 +1348,9 @@
             row('每局助攻', playerAverages.a_map.toFixed(2), getRank(playerId, 'a_map', groupPlayersForRank)) +
             row('每回合击杀', playerAverages.k_round.toFixed(2), getRank(playerId, 'k_round', groupPlayersForRank)) +
             row('每回合死亡', playerAverages.d_round.toFixed(2), getRank(playerId, 'd_round', groupPlayersForRank, true)) +
-            row('每回合助攻', playerAverages.a_round.toFixed(2), getRank(playerId, 'a_round', groupPlayersForRank));
+            row('每回合助攻', playerAverages.a_round.toFixed(2), getRank(playerId, 'a_round', groupPlayersForRank)) +
+            row('每局首杀', playerAverages.fb_map.toFixed(2), getRank(playerId, 'fb_map', groupPlayersForRank)) +
+            row('首杀率', playerAverages.fb_rate.toFixed(1) + '%', getRank(playerId, 'fb_rate', groupPlayersForRank));
         /* 顶部说明这批数据覆盖的范围，避免"平均"口径不清 */
         const scope = document.getElementById('career-scope');
         if (scope) {
