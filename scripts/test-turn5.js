@@ -285,6 +285,78 @@ async function testHonorStrip() {
   dom.window.close();
 }
 
+/* 没比赛但有荣誉：荣誉必须照样显示（荣誉与比赛解耦） */
+async function testHonorWithoutMatches() {
+  console.log('\n[选手页] 没比赛但有荣誉：荣誉带不能被空档案抹掉');
+  const { dom, errors } = build('player.html', {
+    s6_matches: [], s6_player_ids: [{ id: 101, name: '苍穹', team: 'A队', group: '传奇组', image: '' }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [{ player_name: '苍穹', game_id: 'TESTER#001' }],
+    s6_comments: [], comment_reports: [], event_registrations: [], reg_profiles: [],
+    player_honors: [{ id: 1, player_name: '苍穹', title: '新人王', description: '还没上场就拿了奖', awarded_at: '2026-11-20' }],
+    events: [{ id: 1, title: 'S6 正赛', cover_emoji: '🏆' }]
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(1400);
+  const strip = d.getElementById('honor-strip');
+  /* 这是真实 bug：renderEmptyProfile_ 会把刚渲染好的 #honor-strip hidden=true */
+  ok('空档案下荣誉带仍然可见', !!strip && !strip.hidden);
+  ok('荣誉内容还在', /新人王/.test(strip.textContent));
+  ok('生涯范围说明还没比赛', /还没有比赛记录/.test(d.getElementById('career-scope').textContent));
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+/* 空状态必须说清"有几场、几场提到他"，而不是一句"还没有数据" */
+async function testEmptyStateDiagnosis() {
+  console.log('\n[选手页] 空状态给出可诊断的事实');
+  const other = { id: 1, group: '传奇组', stage: '小组赛', match_date: '2026-11-24T10:00:00Z', map: '源工重镇',
+    score: '13:9', team_a: '苍穹队', team_b: '烈焰队',
+    team_a_player1_id: 999, team_a_player2_id: 998, team_b_player1_id: 997, team_b_player2_id: 996,
+    team_a_player1_ch: '霓虹', team_b_player1_ch: '零',
+    team_a_player1_data: '24/18/12/3', team_a_player2_data: '19/15/14/5',
+    team_b_player1_data: '21/16/13/2', team_b_player2_data: '14/17/15/4' };
+  const { dom } = build('player.html', {
+    s6_matches: [other],
+    s6_player_ids: [{ id: 101, name: '苍穹', team: 'A队', group: '传奇组', image: '' }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [], s6_comments: [], comment_reports: [], player_honors: [],
+    event_registrations: [], reg_profiles: [], events: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(1400);
+  const txt = d.getElementById('summary-list-content').textContent;
+  /* "库里 1 场赛果，但没有任何一场把他列进去" —— 用户看到就能自己去查录入 */
+  ok('说明库里总场次', /1 场赛果/.test(txt), txt.slice(0, 100));
+  ok('说明没被任何一场列出', /没有任何一场/.test(txt), txt.slice(0, 100));
+  ok('指出是录入时没选到人', /数据台/.test(txt), txt.slice(0, 100));
+  dom.window.close();
+
+  /* 第三种：比赛确实提到了他，但数据列是空的 */
+  const mentioned = Object.assign({}, other, { team_a_player1_id: 101, team_a_player1_data: null });
+  const r2 = build('player.html', {
+    s6_matches: [mentioned],
+    s6_player_ids: [{ id: 101, name: '苍穹', team: 'A队', group: '传奇组', image: '' }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [], s6_comments: [], comment_reports: [], player_honors: [],
+    event_registrations: [], reg_profiles: [], events: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  await wait(1400);
+  const t2 = r2.dom.window.document.getElementById('summary-list-content').textContent;
+  ok('列出提到他的场次', /1 场有/.test(t2), t2.slice(0, 100));
+  ok('指出选手数据列缺失', /选手数据/.test(t2), t2.slice(0, 100));
+  r2.dom.window.close();
+}
+
 /* 生涯口径：同一个人跨赛季/跨组必须合并成一份数据 */
 async function testPlayerCareer() {
   console.log('\n[选手页] 生涯口径：跨赛季跨组合并 + 无记录不报错');
@@ -457,6 +529,8 @@ async function testEvents() {
   await testPlayer(false);
   await testPlayerSeedShape();
   await testHonorStrip();
+  await testHonorWithoutMatches();
+  await testEmptyStateDiagnosis();
   await testPlayerCareer();
   await testPlayerEmpty();
   await testPlayerLegacyUrl();

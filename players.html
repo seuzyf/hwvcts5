@@ -212,12 +212,15 @@
         return k;
       }
 
-      function mkRow(gid, name, group, team, agg) {
+      function mkRow(gid, name, group, team, agg, gidLabel) {
         var kd = agg.deaths > 0 ? agg.kills / agg.deaths : agg.kills;
         var kda = agg.deaths > 0 ? (agg.kills + agg.assists) / agg.deaths : agg.kills + agg.assists;
         var g = String(gid == null ? '' : gid);
         return {
           gid: g,
+          /* 给人看的 ID：优先 s6_player_stats.game_id（TESTER#001），
+             没有才退回主键。主键是内部编号，印在页面上没有意义。 */
+          gidLabel: gidLabel || '',
           name: name || '',
           group: group || '',
           team: team || '',
@@ -322,8 +325,13 @@
           });
         });
 
+        var gameIdByRowKey = {};   /* 表里显示的游戏 ID（TESTER#001），不是数据库主键 */
         var roleByGid = {};
-        stats.forEach(function (s) { if (s.game_id) roleByGid[String(s.game_id)] = s.role || ''; });
+        stats.forEach(function (s) {
+          if (!s.game_id) return;
+          roleByGid[String(s.game_id)] = s.role || '';
+          if (s.player_name) gameIdByRowKey[String(s.player_name)] = String(s.game_id);
+        });
 
         var rows = [], seen = {};
         roster.forEach(function (p) {
@@ -336,7 +344,7 @@
           }
           seen[gid] = true;
           var agg = byId[gid] || { matches: 0, kills: 0, deaths: 0, assists: 0, acsSum: 0, acsN: 0, rounds: 0, groups: {}, teams: {} };
-          rows.push(mkRow(gid, p.name, p.group, p.team, agg));
+          rows.push(mkRow(gid, p.name, p.group, p.team, agg, gameIdByRowKey[String(p.name || '')]));
         });
         Object.keys(byId).forEach(function (gid) {
           if (seen[gid]) return;
@@ -399,9 +407,10 @@
           /* 选手页是生涯页：链接只带姓名，不带 group/season，
              否则同一个人从不同赛事点进去会拿到被切碎的数据。
              （r.gid 是游戏 ID，和 player.html 的 ?id= 语义不同，不要混传。） */
+          var shownGid = r.gidLabel || r.gid;
           var idCell = r.gid
-            ? '<a href="player.html?name=' + encodeURIComponent(r.name || r.gid) + '">' + esc(r.gid) + '</a>'
-            : esc(r.gid);
+            ? '<a href="player.html?name=' + encodeURIComponent(r.name || r.gid) + '">' + esc(shownGid) + '</a>'
+            : esc(shownGid);
           var statusCell = r.reg ? '<span class="badge badge-green">已报名</span>'
             : (state.event && r.matches > 0 ? '<span class="badge badge-blue">替补</span>' : '—');
           return '<tr>'
