@@ -544,7 +544,7 @@
             for (var k = 0; k < 2; k++) {
                 var tk = k === 0 ? 'team_a' : 'team_b';
                 for (var i = 1; i <= 5; i++) {
-                    if (String(m[tk + '_player' + i + '_id']) === String(playerId)) { mentioned++; return; }
+                    if (isMe_(m[tk + '_player' + i + '_id'], playerId)) { mentioned++; return; }
                 }
             }
         });
@@ -653,10 +653,26 @@
             }
         } catch (e) { /* migration_v3 未执行：不过滤 */ }
 
-        const nameMap = (idData || []).reduce((map, row) => { map[row.name] = row; return map; }, {});
+        /* 同名选手在两个赛季表里 ID 不同（s6 是 101、s5 是 201，各自 identity 序列）。
+           赛果行里存的是"当季"花名册主键，所以查找身份时必须按赛季对齐，
+           否则 s5 的行会把 s6 的同名行覆盖掉 → playerId 变成 201，
+           而 s6 赛果行里写的是 101 → 一场都匹配不上（线上"有 8 场却显示空档案"）。
+           CAREER_SEASONS 首个赛季优先：只在空缺时写入。 */
+        const nameMap = (idData || []).reduce((map, row) => {
+            if (!map[row.name]) map[row.name] = row;
+            return map;
+        }, {});
         const allPlayerData = processAllPlayerData(matches);
         /* 身份三层解析：花名册（id 优先，其次真名）→ 比赛记录 → 报名档案 */
         let currentPlayerInfo = null;
+        /* 同一姓名在多个赛季表里可能有多个主键 —— 生涯是跨赛季的并集，
+           所以身份不是"一个 ID"，而是"这个人的全部 ID"。 */
+        const idsForName = {};
+        (idData || []).forEach(r => {
+            if (!r || !r.name || r.id == null) return;
+            (idsForName[r.name] = idsForName[r.name] || []).push(String(r.id));
+        });
+
         if (idParam) currentPlayerInfo = (idData || []).find(r => String(r.id) === String(idParam)) || null;
         if (!currentPlayerInfo && playerName) currentPlayerInfo = nameMap[playerName] || null;
         if (!currentPlayerInfo) currentPlayerInfo = await resolveRegistrant_(playerName, idParam);
@@ -682,8 +698,22 @@
         }
 
         const playerId = currentPlayerInfo.id || '暂无ID';
+        /* 生涯匹配用"这个人的所有 ID"，不是单个 playerId */
+        const aliasIds = (idsForName[currentPlayerInfo.name] || []).concat([String(playerId)]);
+        const matchIdSet = new Set(aliasIds.filter(v => v && v !== '暂无ID' && v !== 'undefined'));
+        window.__playerIdSet = matchIdSet;
         /* 生涯口径：一个人一个 key，不再按 URL 里的 group 切分 */
-        const careerEntry = allPlayerData[careerKey(playerId)];
+        /* 生涯数据：把这个人所有赛季 ID 的条目合并成一份
+           （s6 里是 101、s5 里是 201，不合并就只看到其中一半的比赛） */
+        let careerEntry = allPlayerData[careerKey(playerId)];
+        if (matchIdSet.size > 1) {
+            const parts = [...matchIdSet].map(id => allPlayerData[careerKey(id)]).filter(Boolean);
+            if (parts.length > 1) {
+                careerEntry = mergeCareerEntries_(parts);
+            } else if (parts.length === 1) {
+                careerEntry = parts[0];
+            }
+        }
         const careerGroups = careerEntry ? Object.keys(careerEntry.groups || {}) : [];
         if (!careerGroups.length && currentPlayerInfo.group) careerGroups.push(currentPlayerInfo.group);
         groupName = careerGroups.join('|');   /* 可能多组；空串=还没有数据 */
@@ -857,7 +887,7 @@
         const mine = matches.filter(m => {
             for (const tk of ['team_a', 'team_b']) {
                 for (let i = 1; i <= 5; i++) {
-                    if (String(m[tk + '_player' + i + '_id']) === String(playerId)) return true;
+                    if (isMe_(m[tk + '_player' + i + '_id'], playerId)) return true;
                 }
             }
             return false;
@@ -875,7 +905,7 @@
             rows.forEach(m => {
                 if (m.match_date && (!firstDate || String(m.match_date) < firstDate)) firstDate = String(m.match_date);
                 const mySide = ['team_a', 'team_b'].find(tk => {
-                    for (let i = 1; i <= 5; i++) if (String(m[tk + '_player' + i + '_id']) === String(playerId)) return true;
+                    for (let i = 1; i <= 5; i++) if (isMe_(m[tk + '_player' + i + '_id'], playerId)) return true;
                     return false;
                 });
                 if (mySide && m[mySide]) teams[m[mySide]] = (teams[m[mySide]] || 0) + 1;
@@ -890,7 +920,7 @@
                 }
                 ['team_a', 'team_b'].forEach(tk => {
                     for (let i = 1; i <= 5; i++) {
-                        if (String(m[tk + '_player' + i + '_id']) !== String(playerId)) continue;
+                        if (!isMe_(m[tk + '_player' + i + '_id'], playerId)) continue;
                         const ds = m[tk + '_player' + i + '_data'];
                         if (!ds) continue;
                         const st = String(ds).split('/').map(Number);
@@ -1108,6 +1138,37 @@
 
     /** 生涯聚合键：一个人一条，与赛季/组别无关 */
     function careerKey(id) { return String(id) + '::__career'; }
+
+    /* 把同一个人在多个赛季的聚合条目并成一份生涯数据 */
+    function mergeCareerEntries_(parts) {
+        const out = { id: parts[0].id, group: parts[0].group, team: parts[0].team,
+            groups: {}, teams: {}, by_character: {},
+            total_stats: { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 } };
+        parts.forEach(p => {
+            ['groups', 'teams'].forEach(f => {
+                Object.keys(p[f] || {}).forEach(k => { out[f][k] = (out[f][k] || 0) + p[f][k]; });
+            });
+            Object.keys(p.by_character || {}).forEach(ch => {
+                const src = p.by_character[ch];
+                const dst = out.by_character[ch] = out.by_character[ch] ||
+                    { kills: 0, deaths: 0, assists: 0, acs: 0, matchCount: 0, acsMatchCount: 0, totalRounds: 0 };
+                Object.keys(dst).forEach(k => { dst[k] += (src[k] || 0); });
+            });
+            const t = p.total_stats || {};
+            Object.keys(out.total_stats).forEach(k => { out.total_stats[k] += (t[k] || 0); });
+        });
+        return out;
+    }
+
+    /* 这个人是否出现在本行的这一格。
+       生涯 = 跨赛季并集，同一个人在 s6/s5 花名册里主键不同，
+       所以不能只比一个 playerId，要比他的全部 ID（window.__playerIdSet）。 */
+    function isMe_(id, playerId) {
+        if (id == null || id === '') return false;
+        var set = window.__playerIdSet;
+        if (set && set.size) return set.has(String(id));
+        return String(id) === String(playerId);
+    }
 
     function topKey_(obj) {
         var best = '', n = -1;
