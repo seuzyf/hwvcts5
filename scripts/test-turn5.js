@@ -357,6 +357,74 @@ async function testEmptyStateDiagnosis() {
   r2.dom.window.close();
 }
 
+/* 同名选手在两个赛季表里 ID 不同 —— 赛果行必须仍能匹配上这个人 */
+async function testCrossSeasonIdSpace() {
+  console.log('\n[选手页] 同名选手跨赛季 ID 不同，仍要匹配上赛果行');
+  /* s5_player_ids 是从 s6 复制出来的同名选手，但 id 是另一套 identity 序列。
+     赛果行里存的是当季花名册的主键，所以同一个人在 s6 是 101、在 s5 是 201。 */
+  const s6Match = { __season: 's6', id: 1, group: '传奇组', stage: '总决赛', match_date: '2026-11-24T10:00:00Z',
+    map: '隐世修所', score: '13:11', team_a: '苍穹队', team_b: '烈焰队',
+    team_a_player1_id: 101, team_a_player2_id: 102, team_b_player1_id: 301, team_b_player2_id: 302,
+    team_a_player1_ch: '霓虹', team_a_player2_ch: '夜露', team_b_player1_ch: '捷风', team_b_player2_ch: '零',
+    team_a_player1_data: '301/24/11/7', team_a_player2_data: '262/19/17/10',
+    team_b_player1_data: '275/21/16/6', team_b_player2_data: '251/18/15/9' };
+  const { dom, errors } = build('player.html', {
+    s6_matches: [s6Match],
+    s6_player_ids: [{ id: 101, name: '测试·苍穹1号', team: '苍穹队', group: '传奇组', image: '' }],
+    /* 同一个名字，不同的 id —— 这就是线上"有 8 场却一场都没匹配上"的原因 */
+    s5_player_ids: [{ id: 201, name: '测试·苍穹1号', team: '苍穹队', group: '传奇组', image: '' }],
+    s5_matches: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [{ player_name: '测试·苍穹1号', game_id: 'TESTER#001' }],
+    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: [], reg_profiles: [], events: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('测试·苍穹1号'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(1400);
+
+  ok('不落入"没有任何一场提到他"', !/没有任何一场/.test(d.getElementById('summary-list-content').textContent),
+     d.getElementById('summary-list-content').textContent.slice(0, 90));
+  ok('生涯范围认到 1 场', /1 场/.test(d.getElementById('career-scope').textContent),
+     d.getElementById('career-scope').textContent);
+  const row = d.querySelector('#event-stats-content table tbody tr');
+  ok('赛事表出现他的战绩行', !!row, row ? row.textContent.slice(0, 80) : '(无行)');
+
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
+/* 跨赛季同人不同 ID：两季的比赛要合并成一份生涯 */
+async function testCrossSeasonMergeSamePerson() {
+  console.log('\n[选手页] 跨赛季同人不同 ID：两季比赛合并');
+  const mk = (season, pid, oppId, date, score, acs) => ({ __season: season, id: pid, group: '传奇组',
+    stage: '小组赛', match_date: date, map: '源工重镇', score: score, team_a: '苍穹队', team_b: '烈焰队',
+    team_a_player1_id: pid, team_a_player2_id: pid + 1, team_b_player1_id: oppId, team_b_player2_id: oppId + 1,
+    team_a_player1_ch: '霓虹', team_a_player2_ch: '夜露', team_b_player1_ch: '捷风', team_b_player2_ch: '零',
+    team_a_player1_data: acs + '/20/12/5', team_a_player2_data: '200/15/14/6',
+    team_b_player1_data: '210/16/13/4', team_b_player2_data: '180/12/15/5' });
+  const { dom, errors } = build('player.html', {
+    s6_matches: [mk('s6', 101, 301, '2026-11-24T10:00:00Z', '13:9', '280')],
+    s5_matches: [mk('s5', 201, 401, '2026-05-10T10:00:00Z', '11:13', '260')],
+    s6_player_ids: [{ id: 101, name: '苍穹', team: '苍穹队', group: '传奇组', image: '' }],
+    /* 同一姓名，另一套主键 */
+    s5_player_ids: [{ id: 201, name: '苍穹', team: '苍穹队', group: '传奇组', image: '' }],
+    s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [{ player_name: '苍穹', game_id: 'TESTER#001' }],
+    s6_comments: [], comment_reports: [], player_honors: [], event_registrations: [], reg_profiles: [], events: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(1500);
+  const scope = d.getElementById('career-scope').textContent;
+  ok('两个赛季的比赛都算进生涯（2 场）', /2 场/.test(scope), scope);
+
+  if (errors.length) { fails += errors.length; console.log('  运行时错误: ' + errors.slice(0, 3).join(' | ')); }
+  dom.window.close();
+}
+
 /* 生涯口径：同一个人跨赛季/跨组必须合并成一份数据 */
 async function testPlayerCareer() {
   console.log('\n[选手页] 生涯口径：跨赛季跨组合并 + 无记录不报错');
@@ -531,6 +599,8 @@ async function testEvents() {
   await testHonorStrip();
   await testHonorWithoutMatches();
   await testEmptyStateDiagnosis();
+  await testCrossSeasonIdSpace();
+  await testCrossSeasonMergeSamePerson();
   await testPlayerCareer();
   await testPlayerEmpty();
   await testPlayerLegacyUrl();
