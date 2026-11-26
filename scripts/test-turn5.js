@@ -425,6 +425,51 @@ async function testCrossSeasonMergeSamePerson() {
   dom.window.close();
 }
 
+/* 排版：①生涯+雷达同一行 ②赛事 ③角色 ④评论；宽表独占整行 */
+async function testPlayerLayout() {
+  console.log('\n[选手页] 排版：生涯/雷达一行，赛事与角色各占整行');
+  const { dom } = build('player.html', {
+    s6_matches: [], s6_player_ids: [{ id: 101, name: '苍穹', team: 'A队', group: '传奇组', image: '' }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [], s6_comments: [], comment_reports: [], player_honors: [],
+    event_registrations: [], reg_profiles: [], events: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(900);
+
+  const grid = d.querySelector('.pc-grid');
+  const stack = d.querySelector('.pc-stack');
+  ok('生涯详情与雷达在同一行（pc-grid 两栏）', !!grid &&
+     !!grid.querySelector('#career-detail-card') && !!grid.querySelector('#career-stats-card'));
+  ok('雷达在右：生涯详情在前、雷达在后',
+     grid.children[0].id === 'career-detail-card' && grid.children[1].id === 'career-stats-card');
+  ok('旧的 #right-column 已移除', !d.getElementById('right-column'));
+
+  /* 顺序：赛事 → 角色 → 评论，且都在独占整行的容器里 */
+  const order = [...stack.children].map(el => el.id);
+  ok('赛事数据独占整行', order[0] === 'event-stats-section', order.join(' → '));
+  ok('角色数据紧随其后', order[1] === 'character-stats-section', order.join(' → '));
+  ok('评论区在最后', order[order.length - 1] === 'comments-section', order.join(' → '));
+
+  /* 宽表不能被挤成竖排：nowrap 规则必须存在 */
+  const cssTxt = [...d.querySelectorAll('style')].map(el => el.textContent).join('\n');
+  ok('宽表单元格禁止换行（不再竖排）', /\.pc-stack\s+\.data-table\s+th[\s\S]{0,120}white-space:\s*nowrap/.test(cssTxt));
+  ok('宽表可横向滚动', /\.pc-stack\s+\.table-wrap\s*\{[^}]*overflow-x:\s*auto/.test(cssTxt));
+  dom.window.close();
+}
+
+/* 雷达图：浅色模式下描边不能是白色 */
+async function testRadarThemeColors() {
+  console.log('\n[选手页] 雷达图跟随主题（浅色模式不能用白线）');
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'player.html'), 'utf8');
+  ok('浅色描边不是白色', /isLightTheme\s*\?\s*'#e04545'/.test(src));
+  ok('描边不再写死白色', !/borderColor:\s*'rgba\(255,255,255,1\)'/.test(src));
+  ok('监听 hw:theme 重绘', /addEventListener\('hw:theme'/.test(src));
+}
+
 /* 生涯口径：同一个人跨赛季/跨组必须合并成一份数据 */
 async function testPlayerCareer() {
   console.log('\n[选手页] 生涯口径：跨赛季跨组合并 + 无记录不报错');
@@ -601,6 +646,8 @@ async function testEvents() {
   await testEmptyStateDiagnosis();
   await testCrossSeasonIdSpace();
   await testCrossSeasonMergeSamePerson();
+  await testPlayerLayout();
+  await testRadarThemeColors();
   await testPlayerCareer();
   await testPlayerEmpty();
   await testPlayerLegacyUrl();

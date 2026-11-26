@@ -69,8 +69,14 @@
         @media (max-width: 900px) { .pc-grid { grid-template-columns: minmax(0, 1fr); } }
         .chart-wrap { width: 100%; max-width: 460px; margin: 0 auto; position: relative; }
         #event-stats-content .data-table { min-width: 640px; }
-        #right-column { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-        #right-column > section { margin: 0; }
+        /* 赛事数据 / 角色数据 / 评论：各自独占整行 */
+        .pc-stack { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
+        .pc-stack > section { margin: 0; min-width: 0; }
+        /* 宽表禁止换行挤压：以前塞在半栏里，「队名」「KDA」被挤成竖排。
+           列多就该横向滚动，而不是把每个字折成一行。 */
+        .pc-stack .data-table th,
+        .pc-stack .data-table td { white-space: nowrap; }
+        .pc-stack .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
         /* 页首加载态：用骨架屏占住标题的位置，避免文字先出现再跳动 */
         .sk-title { display: block; width: 180px; height: 26px; border-radius: var(--r-btn); }
@@ -214,38 +220,32 @@
                 <div class="honor-strip-body" id="honors-wall"></div>
             </section>
 
-            <!-- 生涯能力图（同组百分位）+ 生涯数据详情：与 summary.html 的对比页同款 table-card 承载 -->
-            <section class="table-card" style="margin-bottom:16px;" id="career-stats-card">
-                <div style="padding:24px;">
-                    <div class="flex-between" style="margin-bottom:6px;">
-                        <h2 class="tc-title">生涯能力图（同组百分位）</h2>
-                        <span class="eyebrow">Radar</span>
-                    </div>
-                    <p class="tc-sub" id="career-scope">全部赛季</p>
-                    <div class="chart-wrap" id="radar-chart-container"><canvas id="player-radar-chart"></canvas></div>
-                </div>
-            </section>
-
+            <!-- 排版顺序：① 左生涯详情 / 右雷达（同一行）② 赛事数据 ③ 角色数据 ④ 评论。
+                 赛事与角色是宽表（列多、队名长），必须独占整行 ——
+                 塞进半栏会把「队名」「KDA」挤成竖排。 -->
             <div class="pc-grid">
-            <section class="table-card" id="career-detail-card">
-                <div style="padding:24px;">
-                    <div class="flex-between" style="margin-bottom:14px;">
-                        <h2 class="tc-title">生涯数据详情</h2>
-                        <span class="eyebrow">Detail</span>
-                    </div>
-                    <div class="summary-list" id="summary-list-content"><p class="smoke">正在计算数据…</p></div>
-                </div>
-            </section>
-            <div id="right-column">
-                <section class="table-card" id="honors-section" hidden>
+                <section class="table-card" id="career-detail-card">
                     <div style="padding:24px;">
                         <div class="flex-between" style="margin-bottom:14px;">
-                            <h2 class="tc-title">成就</h2>
-                            <span class="eyebrow">Honors · <span id="honors-count">0</span></span>
+                            <h2 class="tc-title">生涯数据详情</h2>
+                            <span class="eyebrow">Detail</span>
                         </div>
-                        <div class="honors-wall" id="honors-wall"></div>
+                        <div class="summary-list" id="summary-list-content"><p class="smoke">正在计算数据…</p></div>
                     </div>
                 </section>
+                <section class="table-card" id="career-stats-card">
+                    <div style="padding:24px;">
+                        <div class="flex-between" style="margin-bottom:6px;">
+                            <h2 class="tc-title">生涯能力图（同组百分位）</h2>
+                            <span class="eyebrow">Radar</span>
+                        </div>
+                        <p class="tc-sub" id="career-scope">全部赛季</p>
+                        <div class="chart-wrap" id="radar-chart-container"><canvas id="player-radar-chart"></canvas></div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="pc-stack">
                 <section class="table-card" id="event-stats-section">
                     <div style="padding:24px;">
                         <div class="flex-between" style="margin-bottom:14px;">
@@ -299,7 +299,6 @@
                     </div>
                     </div>
                 </section>
-            </div>
             </div>
         </div>
     </main>
@@ -469,6 +468,10 @@
         const gridColor = isLightTheme ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
         const angleLinesColor = isLightTheme ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
         const pointLabelsColor = isLightTheme ? '#666' : '#aaa';
+        /* 折线颜色以前写死成白色 —— 浅色模式下白线画在白底上，整张图看不见。
+           改成跟随主题：浅色用珊瑚红，深色用亮白。 */
+        const lineColor = isLightTheme ? '#e04545' : 'rgba(255,255,255,1)';
+        const fillColor = isLightTheme ? 'rgba(224,69,69,0.16)' : 'rgba(255,255,255,0.12)';
 
         if (radarChartInstance) radarChartInstance.destroy();
         radarChartInstance = new Chart(ctx, {
@@ -476,9 +479,10 @@
             data: {
                 labels: ['ACS', '每回合击杀', '每回合助攻', '每回合存活率', 'KDA'],
                 datasets: [{
-                    label: '选手能力 (百分位)', data: percentileData, backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,1)',
-                    borderWidth: 2, pointBackgroundColor: 'rgba(255,255,255,1)', pointBorderColor: '#fff',
-                    pointHoverBackgroundColor: '#fff', pointHoverBorderColor: 'rgba(255,255,255,1)'
+                    label: '选手能力 (百分位)', data: percentileData, backgroundColor: fillColor,
+                    borderColor: lineColor,
+                    borderWidth: 2, pointBackgroundColor: lineColor, pointBorderColor: lineColor,
+                    pointHoverBackgroundColor: lineColor, pointHoverBorderColor: lineColor
                 }]
             },
             options: {
@@ -990,6 +994,16 @@
                 '</tr>').join('') +
             '</tbody></table></div>';
     }
+
+    /* 切换深浅色后重绘图表。
+       以前没有监听 hw:theme —— 切主题后 canvas 仍留着旧主题的描边色，
+       在浅色模式下就是白线画在白底上（雷达图完全看不见）。 */
+    document.addEventListener('hw:theme', function () {
+        if (window.playerRadarPercentiles && window.playerRadarPercentiles.length) {
+            drawRadarChart(window.playerRadarPercentiles);
+        }
+        if (typeof renderEvChart_ === 'function' && evSeries.length) renderEvChart_();
+    });
 
     function renderEvChart_() {
         const wrap = document.getElementById('ev-chart-wrap');
