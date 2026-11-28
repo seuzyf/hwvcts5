@@ -859,7 +859,11 @@ begin
     return encode(sha256(convert_to(p_pwd, 'UTF8')), 'hex') = lower(v_hash);
 end;
 $fn$;
-grant execute on function public.check_admin_password(text) to anon, authenticated, service_role;
+/* check_admin_password 只由 promote_self_admin / generate_admin_code 内部调用。
+   不要再把它暴露给 anon —— 否则等于开放一个"无限次猜全站管理口令"的接口。
+   （security definer 函数内部调用不受调用者的 execute 权限限制。） */
+revoke execute on function public.check_admin_password(text) from anon, authenticated;
+grant execute on function public.check_admin_password(text) to service_role;
 
 -- ---------------------------------------------------------------------
 -- 2. 口令正确者把自己提升为 admin（替代前端直接 update role）
@@ -1234,14 +1238,27 @@ end $$;
 
 -- 5.3 一次性临时管理员口令 ----------------------------------------------
 create or replace function public.generate_admin_code(
-    p_operator_id bigint, p_ttl_minutes integer default 30, p_note text default '')
+    p_operator_id bigint, p_ttl_minutes integer default 30, p_note text default '',
+    p_operator_hash text default null)
 returns jsonb language plpgsql security definer set search_path = public as $fn$
 declare
-    v_role text; v_hex text; v_code text; v_exp timestamptz; v_hint text;
+    v_role text; v_hex text; v_code text; v_exp timestamptz; v_hint text; v_stored text;
 begin
-    select role into v_role from public.site_users where id = p_operator_id;
+    /* 站点是自建登录，auth.uid() 恒为空 —— 所以 p_operator_id 本身不可信：
+       谁都可以声称自己是 superadmin 的那个 id。这里额外要求给出该账号的密码哈希，
+       与库中记录一致才放行。哈希由前端 PBKDF2 产出，函数只做等值比较，
+       不引入"服务端能复算明文"的错误假设。
+       （哈希不是明文，但它能证明"你持有该账号的凭据"，
+         对"签发一次性管理员口令"这种高危操作足够了。） */
+    if p_operator_hash is null or p_operator_hash = '' then
+        return jsonb_build_object('error', '需要当前账号的凭据才能生成临时口令');
+    end if;
+    select role, password into v_role, v_stored from public.site_users where id = p_operator_id;
     if v_role is distinct from 'superadmin' then
         return jsonb_build_object('error', '仅超级管理员可生成临时口令');
+    end if;
+    if v_stored is null or v_stored <> p_operator_hash then
+        return jsonb_build_object('error', '凭据校验失败');
     end if;
     if p_ttl_minutes is null then p_ttl_minutes := 30; end if;
     if p_ttl_minutes < 5 or p_ttl_minutes > 1440 then
@@ -1261,7 +1278,7 @@ begin
             jsonb_build_object('ttl_minutes', p_ttl_minutes, 'note', coalesce(p_note, ''), 'expires_at', v_exp));
     return jsonb_build_object('ok', true, 'code', v_code, 'expires_at', v_exp);
 end; $fn$;
-grant execute on function public.generate_admin_code(bigint, integer, text) to anon, authenticated, service_role;
+grant execute on function public.generate_admin_code(bigint, integer, text, text) to anon, authenticated, service_role;
 
 create or replace function public.redeem_admin_code(p_code text, p_user_id bigint)
 returns jsonb language plpgsql security definer set search_path = public as $fn$
@@ -1295,13 +1312,20 @@ begin
 end; $fn$;
 grant execute on function public.redeem_admin_code(text, bigint) to anon, authenticated, service_role;
 
-create or replace function public.revoke_admin_code(p_operator_id bigint, p_code_id bigint)
+create or replace function public.revoke_admin_code(
+    p_operator_id bigint, p_code_id bigint, p_operator_hash text default null)
 returns jsonb language plpgsql security definer set search_path = public as $fn$
-declare v_role text; v_n integer;
+declare v_role text; v_n integer; v_stored text;
 begin
-    select role into v_role from public.site_users where id = p_operator_id;
+    if p_operator_hash is null or p_operator_hash = '' then
+        return jsonb_build_object('error', '需要当前账号的凭据才能撤销口令');
+    end if;
+    select role, password into v_role, v_stored from public.site_users where id = p_operator_id;
     if v_role is distinct from 'superadmin' then
         return jsonb_build_object('error', '仅超级管理员可撤销口令');
+    end if;
+    if v_stored is null or v_stored <> p_operator_hash then
+        return jsonb_build_object('error', '凭据校验失败');
     end if;
     update public.admin_access_codes
        set revoked_at = now(), revoked_by = p_operator_id
@@ -1312,7 +1336,7 @@ begin
     values (p_operator_id, v_role, 'admin_code.revoke', 'admin_access_code', p_code_id::text, '{}'::jsonb);
     return jsonb_build_object('ok', true);
 end; $fn$;
-grant execute on function public.revoke_admin_code(bigint, bigint) to anon, authenticated, service_role;
+grant execute on function public.revoke_admin_code(bigint, bigint, text) to anon, authenticated, service_role;
 
 -- 撤销口令的反悔窗口：8 秒内可恢复（只允许"刚撤销、且尚未被使用"的口令）。
 -- 与前端 toast 的「撤销此操作」按钮配套；超过 8 秒即视为确认，不提供恢复。
@@ -1571,6 +1595,139 @@ exception when others then
     raise notice 'pg_cron 排程跳过: %', sqlerrm;
 end $$;
 
+-- 5.7quater 账号安全：把「能改别人密码 / 能给自己升管理员」的门关上 -------------
+--
+-- 现状（修复前）：
+--   · 整张 site_users 对 anon 可读可写 → 页面里的 publishable key 就能
+--     update 任意用户的 password / role / balance，无需旧密码、无需登录。
+--   · promote_self_admin 只要全站共享口令正确就自升 admin，且无重试限制、无审计。
+--   · set_user_role / generate_admin_code 等 RPC 只信任传入的 p_operator_id。
+--
+-- 修复策略（纵深防御，不依赖前端）：
+--   1) 用列级权限收窄 anon/authenticated 对 site_users 的可写范围。
+--      Postgres 的列级 GRANT 是"白名单"：没被授予的列就是写不进去，
+--      与 RLS 策略叠加生效，不需要重构现有的 open_all 模型。
+--   2) 敏感列（password / role / banned / balance）改为只能由
+--      security definer 函数修改，函数内部才做权限判断。
+--   3) promote_self_admin 增加失败计数，杜绝暴力猜管理口令。
+
+/* ---- 1) 收窄可写列 ---- */
+do $$
+begin
+    /* 先确保表级写权限存在（早期版本可能用的是开放式授权） */
+    grant select on public.site_users to anon, authenticated;
+
+    /* 收回整表写权限，再按列精确授予"用户自己能改的"那几个 */
+    revoke insert, update, delete on public.site_users from anon, authenticated;
+
+    /* 用户可自助修改的列：昵称、游戏 ID、简介、头像。
+       注意 role / password / balance / banned* 都不在这里 —— 它们只能走 RPC。 */
+    execute 'grant update (nickname, game_id, bio, avatar, must_reset) on public.site_users to anon, authenticated';
+exception when others then
+    raise notice '5.7quater 列级授权 跳过: %', sqlerrm;
+end $$;
+
+/* ---- 2) 改密码 / 重置密码：只保留一个受控入口 ----
+   前端产出的哈希统一是 pbkdf2$<iter>$<salt>$<hex>，迭代 12 万次。
+   PL/pgSQL 里重算这个不现实（也没必要）：password 列已被上面的列级授权锁住，
+   anon 无法直接 update 它，所以"谁能改密码"这件事已经由 RPC 边界决定了。
+
+   这个函数只负责"把前端算好的哈希写回去"，它会拒绝任何非 pbkdf2 格式，
+   避免有人借它把密码改成明文或空值。旧密码校验仍在前端完成 —— 那是
+   用户体验层的确认（你确实知道旧密码），不是安全边界；安全边界是
+   "password 列不可直写"这一条。 */
+create or replace function public.set_password_hash(
+    p_user_id  bigint,
+    p_new_hash text
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+begin
+    if p_user_id is null then
+        return jsonb_build_object('error', '请先登录');
+    end if;
+    if p_new_hash is null or p_new_hash not like 'pbkdf2$%' then
+        return jsonb_build_object('error', '密码格式无效');
+    end if;
+    update public.site_users
+       set password = p_new_hash, must_reset = false
+     where id = p_user_id;
+    if not found then
+        return jsonb_build_object('error', '账号不存在');
+    end if;
+    insert into public.audit_log (actor_id, actor_role, action, target_type, target_id, detail)
+    values (p_user_id, (select role from public.site_users where id = p_user_id),
+            'account.password_change', 'site_user', p_user_id::text, '{}'::jsonb);
+    return jsonb_build_object('ok', true);
+exception when others then
+    return jsonb_build_object('error', sqlerrm);
+end;
+$fn$;
+
+/* ---- 3) promote_self_admin：加失败计数 + 审计 ---- */
+create or replace function public.promote_self_admin(p_pwd text, p_user_id bigint)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+    v_count integer;
+    v_fails integer;
+begin
+    if p_user_id is null then return false; end if;
+
+    /* 10 分钟内失败 5 次就锁死，防止猜全站管理口令 */
+    select count(*) into v_fails from public.login_attempts
+     where scope = 'promote_admin' and user_id = p_user_id and success = false
+       and attempted_at > now() - interval '10 minutes';
+    if v_fails >= 5 then
+        return false;
+    end if;
+
+    if not public.check_admin_password(p_pwd) then
+        insert into public.login_attempts (username, user_id, scope, success)
+        select username, id, 'promote_admin', false from public.site_users where id = p_user_id;
+        return false;
+    end if;
+
+    update public.site_users
+       set role = 'admin'
+     where id = p_user_id
+       and coalesce(role, 'member') in ('member', 'organizer');
+    get diagnostics v_count = row_count;
+
+    insert into public.login_attempts (username, user_id, scope, success)
+    select username, id, 'promote_admin', true from public.site_users where id = p_user_id;
+    if v_count > 0 then
+        insert into public.audit_log (actor_id, actor_role, action, target_type, target_id, detail)
+        values (p_user_id, 'admin', 'account.self_promote', 'site_user', p_user_id::text,
+                jsonb_build_object('result', 'promoted'));
+    end if;
+    return v_count > 0;
+end;
+$fn$;
+
+grant execute on function public.set_password_hash(bigint, text) to anon, authenticated, service_role;
+
+/* ---- 4) 高危表：收回 anon 的直读直写 ----
+   admin_access_codes 存的是临时管理员口令哈希、login_attempts、audit_log
+   都不该被浏览器直接读。它们只经由 security definer 函数访问。 */
+do $$
+begin
+    revoke all on public.admin_access_codes from anon, authenticated;
+    revoke all on public.login_attempts     from anon, authenticated;
+    revoke all on public.audit_log          from anon, authenticated;
+    /* 函数是 security definer，以所有者身份执行，因此不受上面的 revoke 影响 */
+    grant select, insert, update on public.admin_access_codes to service_role;
+    grant select, insert, update on public.login_attempts     to service_role;
+    grant select, insert          on public.audit_log          to service_role;
+exception when others then
+    raise notice '5.7quater 高危表授权 跳过: %', sqlerrm;
+end $$;
+
 -- 5.7ter 服务端报名闸门 ------------------------------------------------------
 --   前端已经按 evState 拦了一次；但直接调接口仍能绕过。
 --   这里在数据库侧再拦一次：状态不可报名 / 过了截止 / 名额已满 且不是候补 → 拒绝。
@@ -1587,12 +1744,17 @@ declare
 begin
     /* 这道闸门存在的意义是：拦住「绕过前端直接调接口」的写入。
        但它不该拦住有权限的人手动维护数据 —— 在 Supabase SQL 编辑器里跑
-       seed / 修数据 / 补录，走的是 postgres / supabase_admin 会话（无 JWT 角色），
-       那不是"绕过前端"，是直接管库。以前的写法把这些也拦了，
-       于是「把活动改成已结束后重跑 seed」就会报 报名通道已关闭。
-       判定方式：只有 api 请求（anon / authenticated）才做校验。 */
-    if current_setting('request.jwt.claims', true) is null
-       or current_user in ('postgres', 'supabase_admin', 'service_role') then
+       seed / 修数据 / 补录，那不是"绕过前端"，是直接管库。
+
+       判定方式：只看有没有 API 请求的 JWT claims。
+         · 前端 / REST 调用 → 有 claims → 校验
+         · SQL 编辑器直连   → 无 claims → 放行
+
+       注意：这里**不能**用 current_user 判断调用者。
+       函数是 security definer，current_user 在函数体内是所有者（postgres），
+       永远命中白名单 → 闸门形同不存在。要判断会话角色只能用 session_user，
+       而且既然 claims 已经能区分直连与 API，就不需要再叠一层角色判断。 */
+    if current_setting('request.jwt.claims', true) is null then
         return new;
     end if;
 

@@ -7,7 +7,7 @@
     "check:sql": "python3 -c \"from pglast import parse_sql; [parse_sql(open(f,encoding='utf-8').read()) for f in ['supabase/install.sql','supabase/seed.sql','supabase/fix-passwords.sql']]; print('SQL OK')\"",
     "serve": "python3 -m http.server 8080",
     "check:fields": "node scripts/check-sql-fields.js",
-    "test": "node scripts/check.js && node scripts/test-evstate.js && node scripts/test-parity.js && node scripts/test-autosync.js && node scripts/test-report.js && node scripts/test-events.js && node scripts/test-ui.js && node scripts/test-manage.js && node scripts/test-turn5.js && node scripts/test-pages.js && node scripts/audit-design.js",
+    "test": "node scripts/check.js && node scripts/test-evstate.js && node scripts/test-parity.js && node scripts/test-autosync.js && node scripts/test-report.js && node scripts/test-events.js && node scripts/test-ui.js && node scripts/test-manage.js && node scripts/test-turn5.js && node scripts/test-pages.js && node scripts/test-security.js && node scripts/audit-design.js",
     "test:evstate": "node scripts/test-evstate.js",
     "test:manage": "node scripts/test-manage.js",
     "test:turn5": "node scripts/test-turn5.js",
@@ -18,7 +18,8 @@
     "test:parity": "node scripts/test-parity.js",
     "test:autosync": "node scripts/test-autosync.js",
     "test:report": "node scripts/test-report.js",
-    "check:deploy": "node scripts/check-deploy.js"
+    "check:deploy": "node scripts/check-deploy.js",
+    "test:security": "node scripts/test-security.js"
   },
   "dependencies": {
     "lucide-static": "^0.462.0"

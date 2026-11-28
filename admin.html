@@ -424,9 +424,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     loadOrgRequests();
                     return null;
                 }
-                return HWAuth.getClient().from('site_users').update({ role: 'organizer' }).eq('id', row.user_id)
-                    .then(function (r2) {
+                var op2 = HWAuth.getSession();
+                return HWAuth.getClient().rpc('set_user_role', {
+                    p_operator_id: op2 ? op2.id : null, p_user_id: row.user_id, p_role: 'organizer'
+                }).then(function (r2) {
                         if (r2.error) throw new Error(r2.error.message);
+                        if (r2.data && r2.data.error) throw new Error(r2.data.error);
                         HWLayout.toast('已赋予活动组织者身份');
                         HWLayout.notifyUser(row.user_id, '你已成为活动组织者', '现在可以创建并管理自己的活动了。', 'events.html');
                         loadOrgRequests();
@@ -485,9 +488,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         /* 目标校验：不得越出操作者可设范围 */
                         var idx = ROLE_ORDER.indexOf(role);
                         if (idx < 0 || idx > allowedIdx) { HWLayout.toast('无法设置该身份', 'err'); return; }
-                        HWAuth.getClient().from('site_users').update({ role: role }).eq('id', id)
-                            .then(function (r) {
-                                if (r.error) throw new Error(r.error.message);
+                        /* 走服务端 RPC：它会独立校验"操作者确实是 admin/superadmin"。
+                           以前是直接 update site_users.role —— 而 role 列对 anon 开放，
+                           等于谁都能给自己升管理员。 */
+                        var op = HWAuth.getSession();
+                        HWAuth.getClient().rpc('set_user_role', {
+                            p_operator_id: op ? op.id : null, p_user_id: id, p_role: role
+                        }).then(function (r) {
+                            if (r.error) throw new Error(r.error.message);
+                            var body = (r && r.data) || {};
+                            if (body.error) throw new Error(body.error);
                                 HWLayout.toast('身份已更新为 ' + sel.options[sel.selectedIndex].text);
                                 var me = HWAuth.getSession();
                                 if (me && me.id === id) {
@@ -1313,7 +1323,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!pwd) return;
         HWAuth.verifyOwnPassword(pwd).then(function (ok) {
             if (!ok) { HWLayout.toast('密码不正确，已取消生成', 'err'); return; }
-            return sb2().rpc('generate_admin_code', { p_operator_id: me.id, p_ttl_minutes: ttl, p_note: document.getElementById('code-note').value.trim() });
+            /* 带上本账号凭据哈希：服务端据此确认"确实是这个 superadmin 在操作"。
+               站点是自建登录，auth.uid() 恒为空，p_operator_id 单独不可信。 */
+            return HWAuth.ownCredentialHash().then(function (hash) {
+                if (!hash) { HWLayout.toast('无法读取当前账号凭据，请重新登录', 'err'); return; }
+                return sb2().rpc('generate_admin_code', {
+                    p_operator_id: me.id, p_ttl_minutes: ttl,
+                    p_note: document.getElementById('code-note').value.trim(),
+                    p_operator_hash: hash
+                });
+            });
         }).then(function (r) {
             if (!r) return;
             if (r.error || (r.data && r.data.error)) {
@@ -1351,7 +1370,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
             host.querySelectorAll('[data-revoke]').forEach(function (b) {
                 b.addEventListener('click', function () {
-                    sb2().rpc('revoke_admin_code', { p_operator_id: me.id, p_code_id: parseInt(b.dataset.revoke, 10) })
+                    HWAuth.ownCredentialHash().then(function (hash) {
+                      return sb2().rpc('revoke_admin_code', {
+                        p_operator_id: me.id, p_code_id: parseInt(b.dataset.revoke, 10), p_operator_hash: hash
+                      });
+                    })
                         .then(function (r) {
                             if (r.error || (r.data && r.data.error)) { HWLayout.toast('撤销失败：' + ((r.data && r.data.error) || r.error.message), 'err'); return; }
                             HWLayout.toast('已撤销口令', 'ok', {
