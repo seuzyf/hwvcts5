@@ -922,6 +922,22 @@
                   (ev.cover_image ? '  <button class="btn btn-ghost" id="adm-cover-clear" type="button">移除封面</button>' : '') +
                   '  <input type="file" id="adm-cover-file" accept="image/*" aria-label="上传活动封面" style="display:none;">' +
                   '</div>' +
+                  /* 改状态为「报名中」时必须把时间改到未来，否则时间事实会立刻把状态顶回去 */
+                  '<div class="admin-row" id="adm-restore-row" hidden style="margin-top:12px; align-items:flex-start;">' +
+                  '  <div style="flex:1; min-width:260px;">' +
+                  '    <span class="form-label">重新开始报名需要新的结束时间</span>' +
+                  '    <p class="muted" style="font-size:13px; margin:4px 0 8px;">' +
+                  '      这个活动的结束时间已经过去，直接把状态改成「报名中」会被自动校验立刻改回「已结束」。' +
+                  '      请先把结束时间改到将来（报名截止与开赛时间若也早于现在，同样需要顺延）。' +
+                  '    </p>' +
+                  '    <div style="display:flex; gap:16px; flex-wrap:wrap;">' +
+                  '      <div><label class="form-label" for="adm-end">结束时间</label>' +
+                  '        <input class="input" id="adm-end" type="datetime-local" style="max-width:240px;"></div>' +
+                  '      <div><label class="form-label" for="adm-deadline">报名截止（可留空 = 沿用结束时间）</label>' +
+                  '        <input class="input" id="adm-deadline" type="datetime-local" style="max-width:240px;"></div>' +
+                  '    </div>' +
+                  '  </div>' +
+                  '</div>' +
                   '<div class="admin-row" style="display:block; margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:14px;">' +
                   '  <span class="form-label">活动队长（数据台权限）</span>' +
                   '  <p class="muted" style="font-size:13px; margin:4px 0 10px;">队长登录后可在本活动页签进入「管理 · 数据台」录入赛程赛果；与本活动绑定，换活动需重新设置。</p>' +
@@ -1130,12 +1146,66 @@
                     }).catch(function (e) { HWLayout.toast('保存失败', 'err'); });
             });
             var admSave = document.getElementById('adm-save-status');
+            var admStatusSel = document.getElementById('adm-status');
+            var admRestoreRow = document.getElementById('adm-restore-row');
+
+            /* 选「报名中」而活动时间已经过去 → 把日期补填区露出来，不让直接保存。
+               以前可以直接保存，状态写进去后自动校验（每 15 分钟）立刻又改回
+               「已结束」，用户看到的就是"改了没用"。 */
+            var endPast = !!(ev.end_time && new Date(ev.end_time).getTime() <= Date.now());
+            function syncRestoreRow() {
+                if (!admRestoreRow || !admStatusSel) return;
+                var wantOpen = admStatusSel.value === 'registration';
+                admRestoreRow.hidden = !(wantOpen && endPast);
+            }
+            if (admStatusSel) admStatusSel.addEventListener('change', syncRestoreRow);
+            syncRestoreRow();
+
             if (admSave) admSave.addEventListener('click', function () {
-                var newStatus = document.getElementById('adm-status').value;
-                /* 人工设定（不是自动校验）：管理员亲手选择，允许直写 */
-                HWAuth.getClient().from('events').update({ status: newStatus }).eq('id', ev.id)
+                var newStatus = admStatusSel.value;
+                var patch = { status: newStatus };
+
+                if (newStatus === 'registration' && endPast) {
+                    var endVal = (document.getElementById('adm-end') || {}).value;
+                    if (!endVal) {
+                        HWLayout.toast('请先填写新的结束时间（必须晚于现在）', 'err');
+                        if (admRestoreRow) admRestoreRow.hidden = false;
+                        return;
+                    }
+                    var endMs = new Date(endVal).getTime();
+                    if (!isFinite(endMs) || endMs <= Date.now()) {
+                        HWLayout.toast('新的结束时间必须晚于现在', 'err');
+                        return;
+                    }
+                    patch.end_time = new Date(endMs).toISOString();
+                    if (ev.start_time && new Date(ev.start_time).getTime() > endMs) {
+                        HWLayout.toast('结束时间不能早于开赛时间', 'err');
+                        return;
+                    }
+                    /* 报名截止时间若已过，光改结束时间还是会显示「报名已截止」，
+                       且自动校验会把状态打回 closed。一并推到新结束时间之前。 */
+                    if (ev.reg_deadline && new Date(ev.reg_deadline).getTime() <= Date.now()) {
+                        var dlMs = (document.getElementById('adm-deadline') || {}).value
+                            ? new Date(document.getElementById('adm-deadline').value).getTime()
+                            : endMs;
+                        if (!isFinite(dlMs) || dlMs <= Date.now()) {
+                            HWLayout.toast('报名截止时间也必须晚于现在', 'err');
+                            return;
+                        }
+                        if (dlMs > endMs) { HWLayout.toast('报名截止不能晚于结束时间', 'err'); return; }
+                        patch.reg_deadline = new Date(dlMs).toISOString();
+                    }
+                }
+
+                /* 人工设定（不是自动校验）：管理员亲手选择，允许直写。
+                   状态与时间必须在同一次写入里，否则中间会有一个"状态对、时间错"的瞬间，
+                   正好被自动校验撞上就会改回去。 */
+                HWAuth.getClient().from('events').update(patch).eq('id', ev.id)
                     .then(function (res) {
                         if (res.error) { HWLayout.toast('更新失败: ' + res.error.message); return; }
+                        if (patch.end_time) {
+                            HWLayout.toast('状态与时间已一并更新为「' + EV_STATUS[newStatus] + '」');
+                        }
                         closeDetail();
                         refresh();
                     });
