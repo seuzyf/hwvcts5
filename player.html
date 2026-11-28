@@ -1367,12 +1367,16 @@
                 acs: stats.acsMatchCount > 0 ? stats.acs / stats.acsMatchCount : 0, 
                 k_map: stats.matchCount > 0 ? stats.kills / stats.matchCount : 0, d_map: stats.matchCount > 0 ? stats.deaths / stats.matchCount : 0, a_map: stats.matchCount > 0 ? stats.assists / stats.matchCount : 0, 
                 k_round: stats.totalRounds > 0 ? stats.kills / stats.totalRounds : 0, d_round: stats.totalRounds > 0 ? stats.deaths / stats.totalRounds : 0, a_round: stats.totalRounds > 0 ? stats.assists / stats.totalRounds : 0, 
+                fb_map: stats.matchCount > 0 ? (stats.firstBloods || 0) / stats.matchCount : 0,
+                fb_rate: stats.matchCount > 0 ? (stats.fbMaps || 0) / stats.matchCount * 100 : 0,
             };
             const characterRankList = statsByCharacter[charName] || [];
             tableBody.innerHTML += `
                 <tr><td><strong style="color:var(--text-color);">${charName}</strong></td><td>${stats.matchCount}</td>
                 <td style="color:var(--primary-color); font-weight:700;">${avg.acs.toFixed(2)} <span class="rank-top">${getRank(playerId, 'acs', characterRankList)}</span></td>
                 <td>${avg.k_map.toFixed(2)} <span class="rank-top">${getRank(playerId, 'k_map', characterRankList)}</span></td><td>${avg.d_map.toFixed(2)} <span class="rank-top">${getRank(playerId, 'd_map', characterRankList, true)}</span></td><td>${avg.a_map.toFixed(2)} <span class="rank-top">${getRank(playerId, 'a_map', characterRankList)}</span></td>
+                <td>${avg.fb_map.toFixed(2)} <span class="rank-top">${getRank(playerId, 'fb_map', characterRankList)}</span></td>
+                <td>${avg.fb_rate.toFixed(1)}% <span class="rank-top">${getRank(playerId, 'fb_rate', characterRankList)}</span></td>
                 <td>${avg.k_round.toFixed(2)} <span class="rank-top">${getRank(playerId, 'k_round', characterRankList)}</span></td><td>${avg.d_round.toFixed(2)} <span class="rank-top">${getRank(playerId, 'd_round', characterRankList, true)}</span></td><td>${avg.a_round.toFixed(2)} <span class="rank-top">${getRank(playerId, 'a_round', characterRankList)}</span></td></tr>`;
         });
     }

@@ -1518,7 +1518,9 @@ declare
     v_touched integer := 0;
     v_n integer := 0;
 begin
-    /* 1) 已结束 */
+    /* 1) 已结束。
+       只推进"比时间落后"的状态：draft 是人工草稿、cancelled 是人工取消，
+       都不该被时间改回来。 */
     update public.events
        set status = 'finished', updated_at = now()
      where status in ('registration', 'closed', 'ongoing')

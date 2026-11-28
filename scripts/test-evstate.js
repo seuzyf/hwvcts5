@@ -98,6 +98,30 @@ check('已删除不可报名', base({ status: 'deleted' }),
 check('坏数据（时间全为空）也不抛错', { id: 9, status: 'registration' },
   { phase: 'open', joinable: true, coarse: null });
 
+/* ── 人工把状态改回「报名中」──
+   事故：活动结束后管理员手动选「报名中」并保存，状态看着被接受了，
+   但时间事实（end_time 已过）立刻把它判成「已结束」，自动校验又写回
+   finished —— 用户看到的就是"改了没用"。 */
+check('※ 想恢复报名，但结束时间已过 → 仍是已结束（必须同时改时间）',
+  base({ status: 'registration', reg_deadline: iso(-72 * H), start_time: iso(-48 * H), end_time: iso(-24 * H) }),
+  { phase: 'ended', joinable: false, coarse: 'finished', label: '已结束' });
+
+check('恢复报名：结束时间 + 报名截止都已顺延 → 才是报名中',
+  base({ status: 'registration', reg_deadline: iso(24 * H), start_time: iso(48 * H), end_time: iso(72 * H) }),
+  { phase: 'open', joinable: true, coarse: null, label: '报名中' });
+
+/* 只改结束时间、报名截止还在过去 → 显示「报名已截止」，回写 closed，
+   等于又被打回去。这条守住"两个时间都得顺延"的必要性。 */
+check('恢复报名：只顺延结束时间、截止仍在过去 → 报名已截止',
+  base({ status: 'registration', reg_deadline: iso(-72 * H), start_time: iso(48 * H), end_time: iso(72 * H) }),
+  { phase: 'closed', joinable: false, coarse: 'closed', label: '报名已截止' });
+
+/* 草稿/取消是人工终态，时间过了也不能被自动校验改掉 */
+check('草稿不因时间流逝被改写', base({ status: 'draft', end_time: iso(-24 * H) }),
+  { phase: 'draft', joinable: false, coarse: null, label: '草稿' });
+check('已取消不因时间流逝被改写', base({ status: 'cancelled', end_time: iso(-24 * H) }),
+  { phase: 'cancelled', joinable: false, coarse: null, label: '已取消' });
+
 /* 徽章 HTML 与文案一致性 */
 const badge = L.evBadge(base({ reg_deadline: iso(-1 * H), start_time: iso(48 * H) }), { now: NOW });
 if (!/badge-quiet/.test(badge) || !/报名已截止/.test(badge)) {

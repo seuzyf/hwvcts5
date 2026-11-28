@@ -543,6 +543,45 @@ async function testFirstBlood() {
   legacy.dom.window.close();
 }
 
+/* 角色表：表头列数与行单元格数必须一致，否则整行错位 */
+async function testCharacterColumns() {
+  console.log('\n[选手页] 角色表列数对齐（错位会让最后几列看着是空的）');
+  const { dom } = build('player.html', {
+    s6_matches: [{ __season: 's6', id: 1, group: '传奇组', stage: '小组赛',
+      match_date: '2026-11-20T10:00:00Z', map: '源工重镇', score: '13:9',
+      team_a: '苍穹队', team_b: '烈焰队',
+      team_a_player1_id: 101, team_a_player2_id: 102, team_b_player1_id: 301, team_b_player2_id: 302,
+      team_a_player1_ch: '霓虹', team_a_player2_ch: '夜露', team_b_player1_ch: '捷风', team_b_player2_ch: '零',
+      team_a_player1_data: '280/20/12/5/1', team_a_player2_data: '200/15/14/6',
+      team_b_player1_data: '210/16/13/4', team_b_player2_data: '180/12/15/5' }],
+    s6_player_ids: [{ id: 101, name: '苍穹', team: '苍穹队', group: '传奇组', image: '' }],
+    s5_matches: [], s5_player_ids: [], s6_match_schedule: [], s5_match_schedule: [],
+    s6_player_stats: [], s6_comments: [], comment_reports: [], player_honors: [],
+    event_registrations: [], reg_profiles: [], events: []
+  }, {
+    url: 'https://example.test/player.html?name=' + encodeURIComponent('苍穹'),
+    init(w) { w.Chart = function () { this.destroy = function () {}; }; }
+  });
+  const d = dom.window.document;
+  await wait(1500);
+
+  const table = d.getElementById('character-stats-table');
+  const ths = [...table.querySelectorAll('thead th')];
+  const tr = table.querySelector('tbody tr');
+  ok('角色表有数据行', !!tr);
+  const tds = tr ? [...tr.querySelectorAll('td')] : [];
+  ok('表头与行数一致（' + ths.length + ' 列）', tds.length === ths.length,
+     'th=' + ths.length + ' td=' + tds.length);
+  /* 逐列核对：每回合死亡/助攻不能是空的 */
+  const idx = (name) => ths.findIndex(t => t.textContent.trim() === name);
+  ['每回合击杀', '每回合死亡', '每回合助攻', '首杀', '首杀率'].forEach(function (name) {
+    const i = idx(name);
+    const cell = i > -1 && tds[i] ? tds[i].textContent.trim() : '';
+    ok('「' + name + '」列有值', !!cell && cell !== '', '第 ' + i + ' 列 = "' + cell + '"');
+  });
+  dom.window.close();
+}
+
 /* 生涯口径：同一个人跨赛季/跨组必须合并成一份数据 */
 async function testPlayerCareer() {
   console.log('\n[选手页] 生涯口径：跨赛季跨组合并 + 无记录不报错');
@@ -721,6 +760,7 @@ async function testEvents() {
   await testCrossSeasonMergeSamePerson();
   await testPlayerLayout();
   await testFirstBlood();
+  await testCharacterColumns();
   await testRadarThemeColors();
   await testPlayerCareer();
   await testPlayerEmpty();
