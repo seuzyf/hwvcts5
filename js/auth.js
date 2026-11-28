@@ -170,7 +170,9 @@
     if (!row || !row.id || !needsRehash(row.password)) return;
     if (!(window.crypto && window.crypto.subtle)) return;
     hashPassword(plain).then(function (next) {
-      return getClient().from(table).update({ password: next }).eq('id', row.id);
+      /* password 列已对 anon 收回直写权限（install.sql 5.7quater），
+         只能通过这个 RPC 写回；失败就保持旧哈希，下次登录再试。 */
+      return getClient().rpc('set_password_hash', { p_user_id: row.id, p_new_hash: next });
     }).then(function () { /* best effort */ }, function () { /* best effort */ });
   }
 
@@ -431,6 +433,20 @@
     }).catch(function () { return false; });
   }
 
+  /** 当前账号库中的密码哈希（供高危 RPC 证明"我持有该账号的凭据"）。
+   *  这不是明文，但足以在服务端识别调用者身份 —— 站点是自建登录，
+   *  auth.uid() 恒为空，没有别的办法让服务端确认"你是谁"。
+   *  失败返回空字符串（调用方据此给出"请重新登录"提示）。 */
+  function ownCredentialHash() {
+    if (!session || !session.id) return Promise.resolve('');
+    return detectAccountSource().then(function (table) {
+      return getClient().from(table).select('password').eq('id', session.id).maybeSingle();
+    }).then(function (res) {
+      if (res.error || !res.data) return '';
+      return String(res.data.password || '');
+    }).catch(function () { return ''; });
+  }
+
   /** 更新个人资料（仅升级到 site_users 后可用） */
   function updateProfile(patch) {
     if (!session) return Promise.reject(new Error('请先登录'));
@@ -462,18 +478,17 @@
     }
     return detectAccountSource().then(function (table) {
       return hashPassword(newPassword).then(function (hash) {
-        var patch = { password: hash };
-        patch.must_reset = false;   /* 重置即解锁（列不存在时服务端会报错，下面兜底重试） */
-        return getClient().from(table).update(patch).eq('id', userId).then(function (r) {
-          if (r && r.error && /must_reset|42703/.test(String(r.error.message || ''))) {
-            return getClient().from(table).update({ password: hash }).eq('id', userId);
-          }
-          return r;
-        });
+        /* 统一走 RPC：password 列已对 anon 收回直写权限（install.sql 5.7quater）。
+           must_reset = false（重置即解锁）由 RPC 内部一并完成 —— 不能留在前端拼
+           patch，否则列级权限会把它挡掉，被锁的账号重置后仍然打不开。 */
+        return getClient().rpc('set_password_hash', { p_user_id: userId, p_new_hash: hash })
+          .then(function (r) {
+            if (r && r.error) throw r.error;
+            var res = (r && r.data) || {};
+            if (res.error) throw new Error(res.error);
+            return true;
+          });
       });
-    }).then(function (res) {
-      if (res.error) throw res.error;
-      return true;
     });
   }
 
@@ -491,11 +506,15 @@
         return hashPassword(newPwd);
       });
     }).then(function (hash) {
-      var sb2 = getClient();
-      return sb2.from(accountSource).update({ password: hash }).eq('id', session.id).select().single();
-    }).then(function (res) {
-      if (res.error) throw res.error;
-      session = Object.assign({}, session, res.data);
+      /* 走 RPC：password 列不可直写 */
+      return getClient().rpc('set_password_hash', { p_user_id: session.id, p_new_hash: hash })
+        .then(function (r) {
+          if (r && r.error) throw r.error;
+          var body = (r && r.data) || {};
+          if (body.error) throw new Error(body.error);
+          return true;
+        });
+    }).then(function () {
       try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch (e) { /* ignore */ }
       return true;
     });
@@ -722,6 +741,7 @@
     getClient: getClient,
     sessionExpired: wasSessionExpired,
     verifyOwnPassword: verifyOwnPassword,
+    ownCredentialHash: ownCredentialHash,
     isMissingTable: isMissingTable,
     isLockedRow: isLockedRow,
     LOCKED_SENTINEL: LOCKED_SENTINEL
